@@ -1,7 +1,8 @@
 [package]
-name = "sty2"
+name = "pluk"
 version = "0.1.0"
 edition = "2021"
+default-run = "pluk"
 
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
