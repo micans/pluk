@@ -4,3 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+clap = { version = "4.0", features = ["derive"] }
+
+# outcomment something with ^#
+[lints.rust]
+unused_variables = "allow"
+unused_imports = "allow"
+unused_crate_dependencies = "allow"
+dead_code = "allow"
+

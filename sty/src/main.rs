@@ -1,6 +1,8 @@
 
+mod cl;
+
 use std::fs::File;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, BufReader};
 use std::path::Path;
 use std::any::type_name_of_val;
 
@@ -10,17 +12,43 @@ use std::env;
 
 fn main() {
 
-    let args: Vec<String> = env::args().collect();
+    let config = cl::parse_args();
+    let colid  = config.colid;
+
+    let reader: Box<dyn BufRead> = match config.input {
+        Some(path) => {
+            let file = File::open(&path).unwrap_or_else(|err| {
+                eprintln!("Error opening file '{}': {}", path, err);
+                std::process::exit(1);
+            });
+            Box::new(BufReader::new(file))
+        }
+        None => Box::new(BufReader::new(io::stdin())),
+    };
+
+
+    for line in reader.lines() {
+        match line {
+            Ok(content) => {
+               println!("line: {}", content);
+            }
+            Err(e) => eprintln!("Error reading line: {}", e),
+        }
+    }
+}
+
+    // let args: Vec<String> = env::args().collect();
     // dbg!(args);
 
-    if args.len() != 3 {
-      println!("I expect <column id> <data filename> as arguments");
-      std::process::exit(1)
-    }
+    // if args.len() != 3 {
+    //   println!("I expect <column id> <data filename> as arguments");
+    //   std::process::exit(1)
+    // }
 
-    let colid: usize = args[1].parse().expect("Failed to parse string to integer");
+    // let colid: usize = args[1].parse().expect("Failed to parse string to integer");
 
-    let thefname = &args[2];
+    // let thefname = &args[2];
+/*
     let fopen    = read_lines(thefname);
 
       // Result<std::io::Lines<BufReader<File>>, std::io::Error>
@@ -83,6 +111,8 @@ where P: AsRef<Path>, {
     Ok(io::BufReader::new(file).lines())
 }
 
+
+*/
 
 
 

@@ -68,4 +68,35 @@ fn main() {
     }
 }
 
+--
+
+When you use the src/bin/ directory structure, Cargo automatically recognizes every .rs file in that folder as a separate binary. You don't need to add anything to your Cargo.toml.
+
+If you have a file at src/bin/test.rs, you can compile or run it using these commands:
+
+1. To Run
+
+Bash
+cargo run --bin test
+2. To Build (Compile)
+
+This compiles the binary and places it in target/debug/test:
+
+Bash
+cargo build --bin test
+3. To Build for Release
+
+This applies optimizations and places the final binary in target/release/test:
+
+Bash
+cargo build --release --bin test
+Key Rules for the src/bin/ Folder:
+
+Filename as Identity: The name of the file (e.g., test.rs) becomes the name of the command (test).
+
+No Configuration: You can delete the [[bin]] sections from your Cargo.toml if you move the files into src/bin/, as Cargo handles the discovery automatically.
+
+Subdirectories: If you want a binary to have its own module files, you can create a folder like src/bin/my_tool/main.rs. Cargo will then treat my_tool as the binary name.
+
+--
 
