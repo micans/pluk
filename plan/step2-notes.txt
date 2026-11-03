@@ -68,3 +68,23 @@ Item 2: output, header line, -h
   Comparison with pick. Output was compared with pick for 15 invocations (data.txt, big.txt, -h,
   -k, -kO12, -kO25, padding, -R, empty first name, duplicates, header-only input): identical.
   pick's own test o.sq-fib (plain names) is included with pick's reference output.
+
+
+Item 3: -A, -x
+
+  select.rs: the lookup of names (syntax check, dictionary lookup, unknown-name error) is factored
+  out of item 1 into lookup(), which returns the indexes in the given order, duplicates included.
+  The three ways of selecting use it:
+    from_names()  the named columns, duplicates dropped with pick's message (item 1);
+    all()         -A: all columns in input order; given names are checked but add nothing;
+    complement()  -x: all columns in input order except the given ones.
+  All three fill output_colnames and output_offset through from_offsets().
+
+  Behaviour follows pick, checked against pick for 20 invocations and pick's own tests o.-A and o.-x:
+    - -x alone outputs all columns; -x with -A behaves as -x.
+    - Repeated names with -A or -x give no message (pick prints none there either).
+    - Excluding all columns outputs empty lines, including the header line.
+    - Unknown names are an error for both.
+  pick drops the last header name for 'pick -A name name'; pluk outputs the full header (test A-dupnames).
+
+  -A produces offsets 0..N-1, so it uses the whole-line fast path of item 2 (except with -O).

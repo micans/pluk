@@ -24,6 +24,14 @@ pub struct Config {
     #[arg(short = 'k')]
     pub k: bool,
 
+    /// Output all columns
+    #[arg(short = 'A')]
+    pub all: bool,
+
+    /// Output all columns except the given ones
+    #[arg(short = 'x')]
+    pub excise: bool,
+
     /// Only output the count of rows
     #[arg(short = 'c')]
     pub c: bool,

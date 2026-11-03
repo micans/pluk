@@ -20,7 +20,9 @@ fn run() -> std::io::Result<()> {
     let lineno_mode = config.test_lineno || config.test_i.is_some();
 
     // As in pick: without column names there is nothing to do; checked before reading input.
-    if config.columns.is_empty() && !config.c && !lineno_mode && !config.test_names && !config.test_select {
+    if config.columns.is_empty() && !config.all && !config.excise && !config.c
+        && !lineno_mode && !config.test_names && !config.test_select
+    {
         eprintln!("pluk: no columns given. Use --help for help, -h suppresses header line output");
         eprintln!("pluk only works as a pipe, so invoke e.g. as: pluk foo bar < data.txt");
         return Ok(());
@@ -52,8 +54,16 @@ fn run() -> std::io::Result<()> {
     let selection = if input.is_empty {
         select::OutputSelection { output_colnames: Vec::new(), output_offset: Vec::new() }
     } else {
-        select::OutputSelection::from_names(&column_args, &input.names)
-            .map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?
+        // As in pick, -x takes precedence over -A.
+        let names = &input.names;
+        let result = if config.excise {
+            select::OutputSelection::complement(&column_args, names)
+        } else if config.all {
+            select::OutputSelection::all(&column_args, names)
+        } else {
+            select::OutputSelection::from_names(&column_args, names)
+        };
+        result.map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?
     };
 
     if config.test_select {

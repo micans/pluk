@@ -51,6 +51,8 @@ runpluk: data.txt big.txt
 	$(p) nosuch                 < /dev/null  > o.sel-empty.test
 	for a in '+fo.' 'a:b' '@x/gt/0' 'x%3A' 'x::y'; do $(p) "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.sel-unsupported.test
 	$(p) sq fib                      < data.txt   > o.sq-fib.test        # from pick/test
+	$(p) -A                          < data.txt   > o.-A.test            # from pick/test
+	$(p) -x                          < data.txt   > o.-x.test            # from pick/test
 	$(p) dna name fib                < data.txt   > o.out-sel.test
 	$(p) -h name fib                 < data.txt   > o.out-h.test
 	$(p) fib fib name fib            < data.txt   > o.out-dup.test 2> /dev/null
@@ -68,6 +70,25 @@ runpluk: data.txt big.txt
 	head -n 1 data.txt | $(p) name fib            > o.out-headeronly.test
 	printf 'a\tb\ta\n1\t2\t3\n' | $(p) -u a_v02 a b  > o.out-u.test
 	$(p) < data.txt > o.out-usage.test 2>&1; [ $$? -eq 0 ]
+	$(p) -A fib                      < data.txt   > o.A-names.test
+	$(p) -A name name                < data.txt   > o.A-dupnames.test 2> o.A-dupnames-msg.test
+	$(p) -x fib name                 < data.txt   > o.x-names.test
+	$(p) -x dna fib fib              < data.txt   > o.x-dup.test
+	$(p) -Ax fib                     < data.txt   > o.Ax.test
+	$(p) -kx 1                       < data.txt   > o.kx.test
+	$(p) -Ah                         < data.txt   > o.Ah.test
+	$(p) -x name fib fib2 sq fx ud ms num1 num2 num4 foo11 abc dna  < data.txt  > o.x-all.test
+	$(p) -A                          < big.txt    > o.A-big.test
+	$(p) -hx id                      < big.txt    > o.x-big-h.test
+	gzip -c big.txt | $(p) -x dna s1 s2           > o.x-big-gz.test
+	printf 'a\tb\tc\td\nx\n' | $(p) -kO3 -A     > o.A-omega.test
+	printf 'a\tb\tc\td\nx\n' | $(p) -kO3 -x 2   > o.x-omega.test
+	tail -n +2 big.txt | $(p) -kO12 -A            > o.A-omega12.test
+	printf 'a\tb\nr1\t1\t2\n' | $(p) -RA        > o.A-R.test
+	printf 'a\tb\nr1\t1\t2\n' | $(p) -R -x a    > o.x-R.test
+	$(p) -A                          < /dev/null  > o.A-empty.test
+	$(p) -x nosuch                   < data.txt  2> o.x-unknown.test > /dev/null; [ $$? -eq 1 ]
+	$(p) -A nosuch                   < data.txt  2> o.A-unknown.test > /dev/null; [ $$? -eq 1 ]
 	seq 1 1000000 > seq.tmp; $(p) --test-lineno < seq.tmp | head -n 2 > o.brokenpipe.test; [ $${PIPESTATUS[0]} -eq 0 ]; rm seq.tmp
 
 # Tests for temporary --test-* options. When such an option is removed, remove
