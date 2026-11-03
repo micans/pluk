@@ -4,6 +4,7 @@
 // two bytes. Lines are read into a single reusable byte buffer. See
 // plan/step1-notes.txt for the rationale.
 
+use std::cmp::Ordering;
 use std::io::{self, BufRead, BufReader};
 
 use flate2::bufread::MultiGzDecoder;
@@ -23,6 +24,7 @@ pub struct InputSettings {
     pub skip_comment_preamble: bool,    // --test-comment: skip leading lines starting with '#'
     pub B_header: bool,                 // first accepted line holds column names (no -k)
     pub omega: Option<usize>,           // -O <N>: ragged input, N columns
+    pub add_row_column: bool,           // -R: header lacks the name of the first (row name) column
 }
 
 pub struct LineReader {
@@ -30,10 +32,12 @@ pub struct LineReader {
     pub settings:        InputSettings,
     in_preamble:         bool,      // no accepted line seen yet
     pending:             bool,      // self.row holds a data line not yet returned by next_line()
+    split_order:         Ordering,  // with -O N: current line had fewer/exactly/more than N fields
     pub row:             Row,       // current line and its fields
     pub header:          Row,       // header line and column names, if B_header
     pub header_lineno:   u64,       // physical line number of the header; 0 if none
     pub n_columns:       usize,     // number of columns in the data; 0 for empty input
+    pub row_column_added: bool,     // -R took effect: n_columns is one more than the header fields
     pub n_lines:         u64,       // number of lines read so far (physical line number)
     pub n_skipped:       u64,       // lines skipped
     pub n_accepted:      u64,       // data lines returned by next_line() (header excluded)
@@ -67,10 +71,12 @@ impl LineReader {
             settings,
             in_preamble:     true,
             pending:         false,
+            split_order:     Ordering::Equal,
             row:             Row::new(),
             header:          Row::new(),
             header_lineno:   0,
             n_columns:       0,
+            row_column_added: false,
             n_lines:         0,
             n_skipped:       0,
             n_accepted:      0,
@@ -95,6 +101,12 @@ impl LineReader {
             std::mem::swap(&mut self.header, &mut self.row);
             self.header_lineno = self.n_lines;
             self.n_columns = self.header.n_fields();
+            // As in pick, -R has no effect if the first header field is already
+            // empty; that field is the row name column.
+            if self.settings.add_row_column && !self.header.field(0).is_empty() {
+                self.n_columns += 1;
+                self.row_column_added = true;
+            }
         } else {
             self.n_columns = self.settings.omega.unwrap_or(self.row.n_fields());
             self.pending = true;
@@ -103,7 +115,8 @@ impl LineReader {
     }
 
     // Make the next data line available in self.row, split into fields.
-    // Returns Ok(false) at end of input.
+    // Returns Ok(false) at end of input, and an error if the line does not
+    // have the expected number of fields.
     pub fn next_line(&mut self) -> io::Result<bool> {
         if self.pending {
             self.pending = false;
@@ -111,10 +124,23 @@ impl LineReader {
             return Ok(false);
         }
         self.n_accepted += 1;
-        if let Some(n) = self.settings.omega {
-            let nf = self.row.n_fields();
-            if nf < n { self.n_short_rows += 1; }
-            if nf > n { self.n_overflow_rows += 1; }
+        match self.settings.omega {
+            Some(_) => {
+                // Always valid; the line has been padded or merged to N fields.
+                match self.split_order {
+                    Ordering::Less    => self.n_short_rows += 1,
+                    Ordering::Greater => self.n_overflow_rows += 1,
+                    Ordering::Equal   => (),
+                }
+            }
+            None => {
+                let nf = self.row.n_fields();
+                if nf != self.n_columns {
+                    let msg = format!("Header/{} column/{} count difference at line {} (consider -R or -O<N>)",
+                                      self.n_columns, nf, self.n_lines);
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, msg));
+                }
+            }
         }
         Ok(true)
     }
@@ -128,7 +154,10 @@ impl LineReader {
                 continue;
             }
             self.in_preamble = false;
-            self.row.split_fields();
+            match self.settings.omega {
+                Some(n) => self.split_order = self.row.split_fields_limit(n),
+                None    => self.row.split_fields(),
+            }
             return Ok(true);
         }
         Ok(false)

@@ -17,6 +17,7 @@ fn run() -> std::io::Result<()> {
         skip_comment_preamble: config.test_comment,
         B_header:              !config.k,
         omega:                 config.omega.map(|n| n as usize),
+        add_row_column:        config.add_row_column,
     };
     let mut input = io::LineReader::from_stdin(settings)?;
     let mut out = BufWriter::with_capacity(OUT_BUFSIZE, std::io::stdout().lock());

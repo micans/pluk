@@ -1,0 +1,37 @@
+
+step1 context: discussions and decisions that do not fit step1.txt or step1-notes.txt.
+
+
+Item 5: implementation of -O <N>  [DECIDED]
+
+  1. Split with a limit. With -O <N>, splitting stops after N-1 TABs; field N runs from just after
+     that TAB to the end of the line. This is Perl's split with a limit, which pick uses
+     (split "\t", $_, $OFFSET_OMEGA). No work is done on the remainder of the line, which for SAM
+     input (N = 12) holds the optional tags.
+
+  2. Overflow detection. A line has more than N fields exactly when field N contains a TAB. Only
+     field N needs to be scanned for this. Short and overflow rows are counted before padding.
+
+  3. Padding. A line with fewer than N fields gets empty fields (len, len) appended to the offsets
+     vector until there are N. No bytes are added to the line itself.
+
+  4. Interface. A separate method Row::split_fields_limit(n) -> std::cmp::Ordering, returning
+     Less / Equal / Greater for fewer / exactly / more than n fields. LineReader uses it for the
+     counters. The plain split_fields() stays as it is for the default case.
+
+  5. Output. The line bytes are unchanged, so printing the whole line reproduces the input.
+     Padding is visible only when fields are output individually (--test-i now, -A in step2,
+     where pick prints the padded empty fields).
+
+  6. n_columns is N (already the case since item 4).
+
+  -R with -k [DECIDED]: pick accepts the combination but misbehaves (Perl warnings, wrong output).
+  pluk exits with the error "-R cannot be combined with -k".
+
+  Output on error [noted]: pluk streams, as pick does. When a line fails validation, the lines
+  before it have already been written.
+
+
+Item 4: exit status  [DECIDED]
+
+  Errors exit with status 1 (pick uses 255, from Perl's die).

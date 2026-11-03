@@ -22,6 +22,10 @@ pub struct Config {
     #[arg(short = 'O', value_name = "N", value_parser = clap::value_parser!(u32).range(1..))]
     pub omega: Option<u32>,
 
+    /// Header has no name for the first (row name) column
+    #[arg(short = 'R')]
+    pub add_row_column: bool,
+
     /// Skip lines starting with '#' at the start of input (temporary option)
     #[arg(long = "test-comment", visible_alias = "tc")]
     pub test_comment: bool,
@@ -41,6 +45,10 @@ pub fn parse_args() -> Config {
     // Combinations clap does not check; messages as in pick.
     if config.omega.is_some() && !config.k {
         eprintln!("-O<N> requires -k");
+        process::exit(1);
+    }
+    if config.add_row_column && config.k {
+        eprintln!("-R cannot be combined with -k");
         process::exit(1);
     }
     config
