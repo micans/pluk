@@ -1,12 +1,12 @@
 mod io;
 mod names;
 mod opt;
+mod output;
 mod row;
 mod select;
 
 use std::io::{BufWriter, ErrorKind, Write};
 use std::os::unix::ffi::OsStringExt;
-use row::Row;
 use std::process;
 
 // Output buffer size. Rust's stdout flushes at every newline by default;
@@ -15,6 +15,20 @@ const OUT_BUFSIZE: usize = 128 * 1024;
 
 fn run() -> std::io::Result<()> {
     let config = opt::parse_args();
+
+    // Temporary step1 output: line number and line (or one field with --test-i).
+    let lineno_mode = config.test_lineno || config.test_i.is_some();
+
+    // As in pick: without column names there is nothing to do; checked before reading input.
+    if config.columns.is_empty() && !config.c && !lineno_mode && !config.test_names && !config.test_select {
+        eprintln!("pluk: no columns given. Use --help for help, -h suppresses header line output");
+        eprintln!("pluk only works as a pipe, so invoke e.g. as: pluk foo bar < data.txt");
+        return Ok(());
+    }
+
+    // As in pick: header output on by default, off with -k; -h and -c always switch it off.
+    #[allow(non_snake_case)]
+    let B_print_header = !config.k && !config.no_header && !config.c;
 
     let settings = io::InputSettings {
         skip_comment_preamble: config.test_comment,
@@ -67,12 +81,21 @@ fn run() -> std::io::Result<()> {
         // -c: output only the number of data rows.
         while input.next_line()? { }
         writeln!(out, "{}", input.n_accepted)?;
-    } else {
+    } else if lineno_mode {
         if input.header_lineno > 0 {
-            write_numbered(&mut out, input.header_lineno, &input.header, test_column)?;
+            output::write_numbered(&mut out, input.header_lineno, &input.header, test_column)?;
         }
         while input.next_line()? {
-            write_numbered(&mut out, input.n_lines, &input.row, test_column)?;
+            output::write_numbered(&mut out, input.n_lines, &input.row, test_column)?;
+        }
+    } else {
+        let writer = output::RowWriter::new(&selection.output_offset, input.n_columns,
+                                            input.settings.omega.is_some());
+        if B_print_header && !input.is_empty {
+            writer.write_header(&mut out, &input.names)?;
+        }
+        while input.next_line()? {
+            writer.write_row(&mut out, &input.row)?;
         }
     }
     out.flush()?;
@@ -83,25 +106,6 @@ fn run() -> std::io::Result<()> {
             input.n_short_rows, input.n_overflow_rows);
     }
     Ok(())
-}
-
-// Output used during step1: line number, TAB, then the line or (--test-i) one field.
-// 'out: &mut impl Write' accepts any writer, here the BufWriter on stdout.
-fn write_numbered(out: &mut impl Write, lineno: u64, row: &Row, test_column: Option<usize>)
-    -> std::io::Result<()>
-{
-    write!(out, "{}\t", lineno)?;
-    match test_column {
-        None    => out.write_all(&row.line)?,
-        Some(i) => {
-            // Lines with too few fields print an empty field; input
-            // validation follows in item 5.
-            if i < row.n_fields() {
-                out.write_all(row.field(i))?;
-            }
-        }
-    }
-    out.write_all(b"\n")
 }
 
 fn main() {

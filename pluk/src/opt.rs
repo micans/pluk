@@ -9,8 +9,17 @@ use std::ffi::OsString;
 use std::process;
 
 #[derive(Parser, Debug)]
-#[command(version, about = "pluk: a Rust implementation of pick")]
+// disable_help_flag: pick uses -h for "no header"; help stays available as --help.
+#[command(version, about = "pluk: a Rust implementation of pick", disable_help_flag = true)]
 pub struct Config {
+    /// Print help
+    #[arg(long = "help", action = clap::ArgAction::Help)]
+    pub help: Option<bool>,
+
+    /// Do not output the header line
+    #[arg(short = 'h')]
+    pub no_header: bool,
+
     /// Input has no header line; columns are named 1 2 ... N
     #[arg(short = 'k')]
     pub k: bool,
@@ -38,6 +47,10 @@ pub struct Config {
     /// Output only column <N> (1-based), preceded by the line count (temporary option)
     #[arg(long = "test-i", value_name = "N", value_parser = clap::value_parser!(u32).range(1..))]
     pub test_i: Option<u32>,
+
+    /// Output line number and line, as in step1 (temporary option)
+    #[arg(long = "test-lineno")]
+    pub test_lineno: bool,
 
     /// Print input counters to STDERR at the end (temporary option)
     #[arg(long = "test-counts")]

@@ -27,3 +27,44 @@ Item 1: output_colnames, output_offset
   reason as in step1 item 5.
 
   The temporary option --test-select prints output_colnames with output_offset.
+
+
+Item 2: output, header line, -h
+
+  src/output.rs defines RowWriter, created once from output_offset. write_header() writes the names
+  of the selected columns ('_' as an empty name); write_row() writes the selected fields of a Row.
+  B_print_header follows pick: on by default, off with -k, off with -h or -c (main.rs).
+
+  clap's automatic -h is disabled (disable_help_flag) and --help is defined explicitly, so -h is
+  free for "no header" as in pick.
+
+  Without column names (and without -c or a --test-* output mode) pluk prints a short usage message
+  to STDERR and exits with status 0, as pick does. This check is made before reading input.
+
+  step1 output. The numbered line output is now behind --test-lineno (and --test-i). The step1 test
+  invocations without column arguments were given --test-lineno; their outputs are unchanged.
+
+  Efficiency.
+    Each field is written with write_all() straight from the line buffer into the output BufWriter,
+    with a TAB between fields. Each call is a bounds check plus a memcpy into the 128 KiB output
+    buffer; the system call happens only when the buffer is full. The alternative -- assembling the
+    output line in a separate Vec<u8> and writing that -- copies every byte twice and is not faster.
+
+    Fast path: if the selection is all columns in their original order (as -A will produce), the
+    line is written with a single write_all(). Not used with -O, because a padded short line lacks
+    the TABs of its added empty fields.
+
+    Measured on big.txt repeated to 1,000,000 rows (100 MB, 20 columns), output to /dev/null:
+        cat                                   0.01 s
+        pluk -c          (read, split only)   0.08 s
+        pluk, all columns in order (fast)     0.08 s
+        pluk, all columns, x first (20 calls) 0.14 s
+        pluk id dna x                         0.09 s
+        pick id dna x                         2.5  s
+        pick, all columns                     3.0  s
+    Reading and splitting dominate. Writing per field costs about 3 ns per field. A faster split
+    (memchr, SIMD byte search) would be the next optimisation if needed.
+
+  Comparison with pick. Output was compared with pick for 15 invocations (data.txt, big.txt, -h,
+  -k, -kO12, -kO25, padding, -R, empty first name, duplicates, header-only input): identical.
+  pick's own test o.sq-fib (plain names) is included with pick's reference output.

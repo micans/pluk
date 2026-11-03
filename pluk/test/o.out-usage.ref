@@ -1,0 +1,2 @@
+pluk: no columns given. Use --help for help, -h suppresses header line output
+pluk only works as a pipe, so invoke e.g. as: pluk foo bar < data.txt
