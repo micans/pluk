@@ -1,0 +1,42 @@
+
+COLSPEC design: how column names are given on the command line.
+
+Status: the regex rule below is DECIDED; it is implemented in a later step (column specifications).
+Until then (step2) only plain names are accepted. Arguments that will acquire a different meaning
+later (leading '+', or containing ':' '@' '%') are rejected with a "not yet supported" error.
+
+
+1. Regex column names: leading '+'.  [DECIDED, differs from pick]
+
+   pick interprets a name as a regex if it contains any of [ { ( \ * ? ^ $ , and offers -F to
+   switch this off for the whole command line. Real column names such as log2(FC) or cost($) are
+   then silently treated as regexes (log2(FC) matches log2FC, not itself).
+
+   pluk: a name is a regex if and only if it starts with '+'. The regex is the remainder.
+     +foo\d{2}     columns whose name is foo followed by two digits
+     +.*foo.*      columns whose name contains foo
+   A leading '+' is not a valid regex itself, so the two cannot be confused.
+
+   - Anchored: the regex must match the whole column name (unlike pick, which matches anywhere in
+     the name). For a substring match use +.*foo.* .
+   - The leading '+' is tested on the raw argument, before %-decoding. A column name that starts
+     with '+' is written %2B... ; %2Bfoo is the plain name +foo.
+   - '+' on its own is an error. A regex that matches no column is an error (as in pick).
+   - Capture group 1, if present, renames the matched column in the output (as in pick).
+   - Applies wherever a column name is accepted: output list, compute handles (x::...), column
+     references within computes, selection handles (@...). It does not apply to regexes given as
+     values (e.g. the ~ match operators, -/PAT); those are always regexes.
+   - -F is accepted and has no effect, so that pick command lines keep working.
+   - Hint for pick users: a name without '+' that contains regex characters and is not found
+     gives an error suggesting '+...'.
+   - Regex dialect is that of the Rust regex crate, not Perl: no look-around, no back-references.
+     Common syntax (\d, {2,}, (?i), character classes) is the same.
+
+   Consequence for testing: pick tests using regex names need their invocations rewritten when
+   ported (prefix '+', and adjust for anchoring).
+
+
+2. Deferred to the column specification step
+
+   pick features not in step2: ':'-separated lists (a:b:c), %-decoding, regex names (1.), ranges
+   with -k (3-5, 18-, 2+1-3*4), prefix/suffix renaming (p/spec/s), -f (allow duplicate output names).

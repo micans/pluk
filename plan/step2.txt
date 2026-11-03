@@ -1,25 +1,51 @@
 
--  Read column names.
+-  Column names and output.
 
-   1  Implement the -h option, which sets B_print_header.
+   Before starting: move step1's numbered line output (line count, TAB, line) behind a temporary option
+   --test-lineno, and add --test-lineno to the existing step1 test invocations that rely on it, so that all
+   step1 tests keep running. This is done as part of item 2, when the default output changes.
+
+   1  Store the trailing non-option arguments in a new array called output_colnames.
+      Only plain column names are accepted for now (see COLSPEC.design.txt). Arguments that will acquire a
+      different meaning later are rejected with a "not yet supported" error: a leading '+' (regex), or
+      containing ':' (lists, computes), '@' (selections) or '%' (%-encoding). Other characters, including
+      regex characters such as ( and $, are part of plain names (COLSPEC.design.txt, 1).
+      Make sure they are valid column names both with and without B_header. An unknown name is an error, with
+      pick's message: (Output) handle [<name>] in output does not reference a known entity among <names>
+      A name given more than once is output once; print pick's message to STDERR:
+      -- Identical output column names exist (will make unique)
+      Retrieve the zero-based column indexes to which they correspond, store these in an array called output_offset.
+      Commit.
+
+   2  Output the columns corresponding to output_offset, preceded by a header line if B_print_header.
+      Implement the -h option. B_print_header is set as in pick: on by default, off with -k, off with -h or -c.
+      Disable clap's automatic -h (help remains available as --help).
       When the header is output, a column whose internal name is '_' (from -R or an empty first header field,
       step1 item 5) is output with an empty name, as pick does.
-
-   2  Store the trailing non-option names in a new array called output_colnames.
-      Make sure they are valid column names both with and without B_header.
-      Retrieve the zero-based column indexes to which they corresponds, store these in an array called output_offset.
+      If no column names are given and -A is not used (and not -c), print a short usage message and exit 0, as pick does.
+      Discuss the efficiency of the output: writing each field directly from the line buffer versus
+      assembling an output line, and writing the whole line at once when all columns are selected in order.
       Commit.
 
-   3  Output the columns corresponding to output_offsets. Discuss the efficiency of this.
+   3. Implement the -A option. Implement it by populating both output_colnames and output_offset, preferably reusing code from 1.
+      Implement -x (output the complement of the given columns), reusing the same code.
+      -A<N> (insert position for computed columns) is deferred until computes exist.
+      Note: pick drops the last header name for 'pick -A name name' (header and data then disagree);
+      pluk does not replicate this.
       Commit.
 
-   4. Implement the -A option. Implement it by populating both output_colnames and output_offset, preferably reusing code from 2. .
+   4. Implement --sam and --sam-h to read SAM input, as in pick:
+        - activates -k and sets OFFSET_OMEGA = 12 (-O12);
+        - --sam skips every line starting with '@' (not only at the start of input); --sam-h passes such
+          lines through to the output unchanged;
+        - within the first 5 data rows, a line with fewer than 11 fields or a non-numeric second field
+          is reported as "Line <L> does not look like SAM format [<line>]" and skipped.
+      Detect '@' lines with a byte-prefix test (no regex). pick's general -/PAT and -//PAT, and the removal
+      of --test-comment, follow when regexes are introduced.
+      Reading sequence lengths from @SQ header lines is deferred until SAM operators are implemented.
+      Write a small SAM test file (the pick test suite has none).
       Commit.
 
-   5. Implement --sam option to read SAM input. This activates the -k setting and sets the pick setting OFFSET_OMEGA = 12
-      Commit.
-
-   6. Implement --bam option to read directly from BAM input. Suggest a suitable crate.
-      Commit.
-
-
+   --bam (read BAM input directly) is moved to a later step of its own. Suggested crate: noodles
+   (noodles-bam, noodles-sam, noodles-bgzf; pure Rust). Approach: decode each record and present it as a SAM
+   text line from io.rs, so that everything downstream is unchanged.
