@@ -1,0 +1,8 @@
+Scratch area for Rust exercises, independent of pluk.
+
+Add src/bin/foo.rs, then:
+  cargo run --bin foo            # build (debug) and run
+  cargo run --bin foo -- ARGS    # pass arguments
+  cargo build --release --bin foo   # binary in target/release/foo
+
+Crates: cargo add <crate>  (adds to Cargo.toml, available to all exercises)

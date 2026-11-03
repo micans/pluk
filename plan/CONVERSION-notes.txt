@@ -1,0 +1,30 @@
+
+
+Pick is implemented in perl and uses perl underlying flexibility of numeric types, e.g. transparent/automatic
+conversion from floats to integers and vice versa.
+
+Pluk will to a large extent follow the same model. When reading a column that is known to be numeric (e.g.
+inferred by an operator that has the column as an operand), we treat it as integer if possible (e.g. looks
+like integer). This is a per-row in-loop decision.
+
+Comparison clauses such as @foo/gt/0.0 can also be used to infer that column foo in this case is of type float
+as a top-level decision.
+
+For several operators we will introduce integer equivalents, so that the user can express
+as a top-level across-row fact that an integer is expected, e.g. imul, iadd, isub.
+
+Then '1.5 2.5 imul' could lead to either a warning + conversion (default) or a fatal error, depending on user instruction.
+
+I'm considering additionally operators that will assert or force type identity, e.g.
+
+:=^force^foo^bar,INT
+:=^assert^tim^zut,FLOAT
+
+These would be evaluated at compile time and lead to appropriate remarks settings.
+
+There are still questions, for example floats can be forced to int. A string like 'fox' could
+be forced either to zero (perl behaviour) or NA (my preference).
+
+
+
+

@@ -1,0 +1,37 @@
+
+The task is to co-write pluk. Pluk is a Rust implementation of pick. Pick is a command-line utility.
+It can be found in the subdirectory pick, its tests are in pick/test , documentation in pick/doc/ .
+
+I am not a Rust programmer, but aim to become one. The goal of the rewrite is to have a clear development path
+and commit history that make sense to me and will aid me in understanding the code.  For context, I am a
+reasonably experienced C and Perl programmer and am comfortable discussing coding designs.  I will ask clarification
+when needed.  My questions and comments on pluk development should be seen as very separate from my questions
+about Rust coding. I have firm opinions on the former and am an equal partner in discussions, however, I am just a
+beginning Rust coder. One of my aims is to use Claude and this project as accelerators towards learning Rust. My
+mastering of Rust will quite likely not keep up with the pace of pluk development that I envision. This is fine.
+
+The directory and file structure of this project is up for discussion and re-arrangement. I need a subdirectory
+that allows me to write quick small exercises and test code. I need to be able to quickly add, say foo.rs
+and compile it to an executable file. I propose utilising the existing subdirectory 'shed' for this.
+
+Git commits will be done by me unless I specify otherwise.
+
+The plan is executed in steps (with step files as described later) in guidelines.txt) with the aid of design files that
+pin down the current state of certain decisions, e.g.  DATASTRUCTURE-cell.design.txt.  The seed for such a file may be
+contained in a file with '.notes.txt' suffix, in this case DATASTRUCTURE-cell.notes.txt . The notes file contains some
+thoughts of mine that should kick-start a discussion that leads to decisions documented in the design file.
+
+It is crucial to follow the step plan. Feel free to suggest improvements to the plan.
+
+The workflow will generally be to pin down a step file first and then implement what's in the step file.
+
+The step files currently present probably amount to less than 8% of development time that is required.
+The rest of the step files will be created later.
+
+When commenting on steps, it is fine to take into account the full set of pick functionality that will
+eventually need to be implemented.
+
+Now check in with me to clear up anything that requires so.
+
+Then proceed with guidelines.txt , then check back in again.
+

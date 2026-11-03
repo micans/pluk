@@ -1,0 +1,30 @@
+
+The basic unit in pluk will be called Scalar and initally have members that are similar
+to the following:
+
+  String: s
+  i128: i
+  double: f
+  u32: notes
+
+The first three members will likely need to be custom types, as they need to be able to represent NA (not available). The numeric
+types also need to be able to represent NaN (not a number).
+Discuss what common choices there are, how they affect the fast paths of computation, and what considerations
+are specific to the niche that pluk operates in.
+
+The last member 'notes' is to store anticipated debug, analytics and synchronisation information/signals, for example
+to indicate what member was produced or must be produced.
+
+Fields read from the input will be represented by a Scalar, their s pointing to a
+stretch of the input line. Scalar.s will likely be immutable; either it is read from a field
+or produced by a computation, but in both cases immutable.
+Consider whether some string operations might be slightly more efficient/fast if re-using Scalar.s
+from one of the operands.
+
+Operators will consume zero, one or more Scalars from the stack and push a number of scalars that
+is tied to the operator.
+Some operators will purely manipulate the stack, e.g. xch (switches the two top-level Scalars).
+
+Discuss.
+
+

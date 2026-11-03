@@ -1,0 +1,25 @@
+
+-  Read column names.
+
+   1  Implement the -h option, which sets B_print_header.
+      When the header is output, a column whose internal name is '_' (from -R or an empty first header field,
+      step1 item 5) is output with an empty name, as pick does.
+
+   2  Store the trailing non-option names in a new array called output_colnames.
+      Make sure they are valid column names both with and without B_header.
+      Retrieve the zero-based column indexes to which they corresponds, store these in an array called output_offset.
+      Commit.
+
+   3  Output the columns corresponding to output_offsets. Discuss the efficiency of this.
+      Commit.
+
+   4. Implement the -A option. Implement it by populating both output_colnames and output_offset, preferably reusing code from 2. .
+      Commit.
+
+   5. Implement --sam option to read SAM input. This activates the -k setting and sets the pick setting OFFSET_OMEGA = 12
+      Commit.
+
+   6. Implement --bam option to read directly from BAM input. Suggest a suitable crate.
+      Commit.
+
+

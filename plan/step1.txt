@@ -1,0 +1,84 @@
+
+
+Before implementing the items in this step, finalise the file DATASTRUCTURE-cell.design.txt , starting
+from DATASTRUCTURE-cell.notes.txt . First read this file.
+
+- Implement reading lines from STDIN in a loop, then splitting the lines on <TAB>.
+
+  Currently a file ../pluk/src/main.rs exists. Comment on it briefly after reading the items below. Let me know
+  if its input iterator is usable or not. Under any circumstance it can be disregarded as a starting point.
+
+  I envision the STDIN functionality in the items below is isolated in a single source file (e.g. io.rs ). Under normal
+  operation (unless -O was supplied as option, see later) it will export <N>, the number of columns in the data, and a
+  data structure containing the column names, and it will keep track of counters, e.g. N-skipped-rows, N-accepted-rows.
+
+  The command line argument functionality is isolated in a different source file (e.g. opt.rs ). It will pass
+  information (e.g. -k and -O setting) that affect input processing to to io.rs . At some point opts.rs will
+  implement its own argument parsing, but for now use a standard crate.
+
+  Items 1-4 get light tests (line counting, --tc, --test-i). Tests derived from the pick test suite start at item 5.
+
+   1. Use an efficient line iterator. Input is from STDIN only. Explain the choice of line iterator,
+      explain what kind of buffered IO it employs, if any, in step1-notes.txt .
+
+      Consider a line iterator that is able to transparently read both compressed and uncompressed input.
+      If there are issues with this, discuss.
+
+      In a loop read each line and then write it to STDOUT, preceded by a line count and a tab character.
+      At this stage, any text file is acceptable input.
+      Remove the earlier exploratory code: src/bin/test.rs, the -c/-i options in cl.rs and the current Makefile
+      targets. Move src/data.txt to test/. Set up pluk/test/ (Makefile + .ref files in the style of pick/test).
+      Commit.
+
+   2. Skip any lines at start of file that start with '#' if option --test-comment is supplied. Make --tc a synonym for
+      --test-comment.  This will later be made more general and replicate pick functionality; the --test-comment option and
+      its synonym will then be removed.
+      Commit.
+
+   3. Split lines implicitly on tab character. Represent each field by a pointer to its first character and its length.
+      Fields are represented by struct Scalar as discussed in DATASTRUCTURE-cell.design.txt .
+      Create --test-i <N> option. When used, print column <N> preceded by a line count, otherwise output
+      the entire line as before. Document/explain how the field representation and the line representation
+      use the same underlying memory.
+      Commit.
+
+   4. Create -k, -c and -O options with the same meaning as in pick. Use a variable called 'B_header'
+      that indicates whether we have input with a header line (containing column names, default case, B_header = 1)
+      or whether we have headerless input (column names will be referred to using integers, option -k, B_header = 0).
+      If B_header, read column names from the first non-skipped row. Otherwise if -O is used, the number of columns
+      is its value. As in pick, -O requires -k; exit with an error otherwise.
+      Otherwise, infer the number of columns from the first non-skipped row.
+      For -O <N>, create a counter N-short-rows that tracks how often a (non-skipped) row had fewer than <N> fields and
+      a counter N-overflow-rows that tracks how often a (non-skipped) row had more than <N> fields.
+      Commit.
+
+   5. Write code to validate the input. Input is valid if
+         -k was given and all lines have equal number of fields
+      or -O was given
+      or neither -k nor -O was given and all lines have equal number of fields.
+      Create the -R option as in pick: the header line has one field fewer than the data lines (no name for
+      the row-name column). Without -R such input is an error, as in pick
+      ("Header/<N> column/<M> count difference at line <L> (consider -R or -O<N>)").
+      With -R, and also when the first header field is empty, the first column is known internally by
+      the name '_'. It is output as an empty name (pick behaviour); this becomes relevant once header output
+      is implemented (step2).
+      Empty fields are valid fields.
+      If -O <N> was given and there are fewer than <N> fields in a line, add empty fields so that a total of <N> is reached.
+      If there are more than <N> fields then the last scalar should have its string member point to a string that
+      starts at field <N> and ends with the last field. It will have embedded <TAB> characters in it.
+      Discuss and confirm the implementation choices for the functionality required for -O <N>, keep track in the context
+      file for this step.
+      Commit.
+
+   6. Store the column names in a list and a dictionary to allow index-name and name-index lookup.
+      With -k column names are the strings 1 2 ... up to and including N where N is the number of column in the
+      first non-skipped row.
+      If the input has column names (thus, if B_header), check that they are unique.
+      Under default operation, exit with an error.
+      Create -u option (a pluk extension; pick has no -u and does not check input names) that fixes column names to be unique. The first column will retain the original name,
+      the second will receive a suffix _v02. A third will receive a suffix _v03 and so on.
+      If the resulting set again has duplicates (e.g. because foo and foo_v02 both exist as original column names),
+      restart the update using suffix _v001. Continue this process, incrementing the length of the numerical part of the suffix
+      by one for each restart, until the resulting set has no duplicates.
+      Commit.
+

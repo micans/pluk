@@ -1,0 +1,7 @@
+
+production/conversion is tied to the operator, interpreter, and stack, not the scalar.
+
+printf type operators cannot be pre-empted by interpreter, e.g., interpreter
+cannot pro-actively convert float to string, as we don't know the constraints for
+the conversion but print does. printf type operators could be trickier to implement.
+

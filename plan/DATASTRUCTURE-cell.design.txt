@@ -1,0 +1,102 @@
+
+DATASTRUCTURE-cell design -- DRAFT, under discussion. Seeded from DATASTRUCTURE-cell.notes.txt.
+
+Items marked [proposed] await confirmation; [open] still need discussion.
+Only the parts needed for step1 (input fields) have to be decided now. The parts concerning computation
+(numeric members, NA, the stack) can stay provisional until the bytecode interpreter discussion.
+
+
+1. Strings are bytes, not UTF-8.  [decided]
+
+   Rust's String/&str are guaranteed valid UTF-8; creating one from input requires a validation pass and
+   fails on invalid bytes. pick (Perl, no decoding layer) passes arbitrary bytes through. pluk uses
+   byte strings: &[u8] (borrowed: pointer + length) and Vec<u8> (owned: pointer + length + capacity).
+   Splitting on TAB, comparing, hashing and writing need no validation. The regex crate supports
+   byte strings (regex::bytes). Conversion to str happens only where an operator needs characters
+   (e.g. a character-based length or case change), and is local to that operator.
+
+
+2. Input fields are offsets into the line buffer.  [decided]
+
+   One line buffer (Vec<u8>) is reused for every input line. A field is the pair (start, end) of byte
+   offsets into that buffer -- the C picture of pointer + length, with the base pointer held by the row.
+
+      struct Row {
+          buf:    Vec<u8>,                  // the line, without the newline
+          fields: Vec<(usize, usize)>,      // field i is buf[fields[i].0 .. fields[i].1]
+      }
+
+   Both vectors keep their capacity across lines, so in steady state reading a line allocates nothing.
+   Field i is obtained as a slice &buf[start..end], which is a pointer into the line plus a length;
+   no bytes are copied. The line itself is &buf[..]. This is how line and fields share memory (step1 item 3).
+
+   Rationale over storing slices (&[u8]) directly in the row: a slice borrows the buffer, and the borrow
+   checker will not allow refilling the buffer while slices into it exist. Keeping a Vec of slices across
+   lines then requires re-creating it per line or lifetime annotations. Offsets have neither problem and
+   are bounds-checked on access.
+
+   -O <N> overflow (step1 item 5): the last field is (start of field N, end of line), which contains
+   the embedded TABs. Missing fields are (0, 0) -- empty. No copying either way.
+
+
+3. Scalar: one struct, lazily filled members, a flags word.  [proposed for s; open for the rest]
+
+      struct Scalar {
+          s:     Str,     // see 4
+          i:     i64,     // valid only if flag HAVE_I
+          f:     f64,     // valid only if flag HAVE_F
+          notes: u32,     // bit flags: HAVE_S, HAVE_I, HAVE_F, NA, ... plus debug/analytics bits
+      }
+
+   Input fields are not converted to Scalars on reading; a Scalar is created only when a compute or
+   selection uses that column. Pass-through output writes the field bytes directly from the line buffer.
+   This matters for pluk's niche: wide tables, many rows, few columns touched by computation.
+
+   Numeric members are produced on demand (parse s when an operator needs a number) and the flags
+   record which members are valid. This follows sidethoughts.txt: production/conversion is driven by
+   operator and interpreter, the Scalar only records what has been produced.
+
+   Alternative considered: a Rust enum (tagged union)
+      enum Value { Str(..), Int(i64), Float(f64), Na }
+   This is the idiomatic Rust form, smaller, and the compiler enforces that only the valid member is read.
+   It cannot hold several representations at once (e.g. the original string "007" and the integer 7),
+   which pick-compatible output may need. [open] Revisit when the interpreter is designed.
+
+
+4. String member: borrowed or owned.  [open, provisional]
+
+   A Scalar from an input field points into the line buffer; a Scalar produced by an operator owns its
+   bytes. Rust's std::borrow::Cow<[u8]> is exactly "borrowed or owned". Borrowing requires the Scalar to
+   carry a lifetime tied to the line buffer -- acceptable because the stack is emptied at the end of
+   each row. Alternatively the Scalar may store (start, end) as in 2 plus an optional owned Vec<u8>.
+
+   Reuse of operand memory (question from the notes): an operator pops its operand from the stack and
+   thereby owns it. If the string is owned, the operator may modify the Vec<u8> in place and push it back
+   (e.g. uc, appending in cat) without allocating. Rust guarantees nobody else refers to it, so this is
+   safe while remaining immutable from the language user's point of view. If the string is borrowed from
+   input, the first modification copies (Cow::to_mut). Duplicating (dup) an owned string costs an
+   allocation; if that turns out to matter, Rc<[u8]> (reference-counted, shared) is the fallback.
+
+
+5. Integer width.  [open]
+
+   The notes propose i128. Arguments for i64: native register width, fast multiply/divide, matches
+   Perl's IV (which pick relies on, with overflow falling back to double). i128 arithmetic is done in
+   two 64-bit halves and division is a library call; it doubles Scalar size for the i member.
+   Proposal: i64 with checked arithmetic (checked_add etc.); on overflow either convert to f64
+   (Perl behaviour) or report, per CONVERSION-notes.txt. Keep the type behind an alias (type Int = i64)
+   so it can be changed later.
+
+
+6. NA and NaN.  [open]
+
+   Common choices:
+     a. Option<i64> / Option<f64>: idiomatic, but adds a tag word to each member (Option<i64> is 16 bytes)
+        and an explicit check on every access.
+     b. Sentinel values: R uses i32::MIN as integer NA and a NaN with a special payload as double NA.
+        Free in space, but a sentinel can collide with real data (i64::MIN) and NaN payloads are not
+        reliably preserved through arithmetic.
+     c. A flag bit in notes (NA), with f64 NaN left to IEEE semantics.
+   Proposal: c. NA is a property of the Scalar, not of a member; NaN is an ordinary f64 value. The fast
+   path tests one bit (which also has to be tested to know whether i/f are valid). Whether 'fox' coerced
+   to a number gives NA or 0 is a coercion policy question (CONVERSION-notes.txt), not a layout one.

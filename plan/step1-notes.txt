@@ -1,0 +1,60 @@
+
+step1 notes: rationale for implementation choices.
+
+
+Item 1: reading lines
+
+  Line reading. src/io.rs defines LineReader with a method next_line() that reads one line into a
+  Vec<u8> owned by the LineReader (field 'line'). The buffer is cleared, not freed, before each line,
+  so after the first few lines no allocation takes place. The call used is BufRead::read_until(b'\n'),
+  which copies bytes from the read buffer into 'line' up to and including the newline; the newline is
+  then removed. A last line without a newline is returned as a normal line.
+
+  Rejected: BufRead::lines(), as used in the earlier main.rs. It allocates a new String per line and
+  requires valid UTF-8; a line with invalid bytes produces an error, which the earlier code printed
+  and skipped, silently losing that line. pluk handles bytes (DATASTRUCTURE-cell.design.txt, 1).
+
+  Why not an Iterator. Rust's Iterator trait returns items that must outlive the next call to next().
+  A slice into a buffer that is overwritten by the following line cannot satisfy that, so a real
+  Iterator would have to return an owned copy per line -- the allocation we want to avoid. A
+  'while reader.next_line()? { ... }' loop is the standard idiom for this case and corresponds to
+  'while (getline(...) != -1)' in C.
+
+  Buffered IO. Two layers, as with stdio in C:
+    - BufReader (128 KiB) on STDIN. read_until() works on this buffer; the read() system call is only
+      made when it is empty. This is equivalent to a FILE* with a large setvbuf() buffer.
+    - For gzip input a second BufReader sits on top of the decoder. The decoder reads compressed
+      bytes from the first BufReader and produces decompressed bytes into the second.
+  The reader is stored as Box<dyn BufRead>: a pointer to either kind of reader plus a table of function
+  pointers (comparable to a struct of function pointers in C). The cost is one indirect call per line,
+  which is negligible next to the work per line.
+
+  Output. Rust's stdout flushes at every newline, even when not writing to a terminal (unlike C stdio).
+  main.rs wraps it in a 128 KiB BufWriter, so a write system call happens only when that buffer fills.
+  The buffer is flushed explicitly at the end, so a write error at that point is reported rather than lost.
+  Lines are written with write_all() on the raw bytes; no UTF-8 conversion takes place.
+
+  Compressed input. The first two bytes are inspected with fill_buf(), which returns buffered bytes
+  without consuming them. The bytes 1f 8b identify gzip; such input is decoded with flate2's
+  MultiGzDecoder, which continues across concatenated gzip members. bgzip files (BAM, .vcf.gz,
+  tabix-indexed files) consist of such members, so they are read correctly; this is also why plain
+  GzDecoder is not used (it stops after the first member). flate2 uses miniz_oxide, a pure Rust
+  implementation, so no C zlib is required. Other formats (zstd, bzip2, xz) are not supported; they
+  can be added later in the same place.
+  Caveat: the detection assumes the first read returns at least two bytes, which holds for files and
+  pipes at the start of input.
+
+  Broken pipe. Rust ignores SIGPIPE, so in 'pluk ... | head' writing after head exits gives an error
+  of kind BrokenPipe rather than terminating the process. main() treats this as normal termination
+  (exit status 0), matching what the shell user expects.
+
+  Errors. run() returns std::io::Result<()>; the '?' operator returns early from run() with the error,
+  which main() prints. This replaces explicit 'if (r < 0) { perror(...); exit(1); }' checks.
+
+  Naming. The module is called io (src/io.rs), as in the step file. Within pluk 'io::' refers to
+  this module and the standard library one is written 'std::io::'. If this proves confusing the
+  module can be renamed (e.g. input.rs).
+
+  Tests. pluk/test/Makefile, in the style of pick/test. 'make test' in pluk/ builds the release binary
+  and runs it. The item 1 tests cover plain and gzip input, concatenated gzip members, a missing final
+  newline, non-UTF-8 bytes, empty input and a broken pipe (exit status 0).

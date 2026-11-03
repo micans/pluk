@@ -1,0 +1,68 @@
+
+# Project development
+
+  Follow the steps in files step1.txt, step2.txt and so on. A secondary impromptu level may be introduced later
+  if necessary, e.g. step3b.txt would follow step3.txt. These steps are part of the repository.
+  Steps often have a set of logically related items. Sentences starting with 'Commit' indicates
+  to first test and then commit at that point.
+
+  Before each commit, copy suitable tests from the pick test suite and add it to the pluk test suite,
+  or write a new test if no such test can be found. Only add tests that are suitable for the
+  current step or the functionality supplied by the corresponding state of pluk.
+  Use either data.txt or big.txt as input for tests except those that require SAM or BAM input.
+  The pluk test suite lives in pluk/test/ and follows pick/test: a Makefile runs invocations, output is compared
+  against .ref files. Unit tests of internal functions use cargo test.
+  Make sure all tests pass at each commit.
+
+  Options that start with --test (e.g. --test-comment) will be removed again. Tests for such options
+  will need to be grouped separately. When an option is removed, corresponding tests should not
+  be removed but rather simply omitted from running.  Document when this happens.
+
+  Develop each step in a branch with the same name. Thus, step1.txt will be developed in branch step1.
+
+  Merging branches to main and pushing to origin will be done by me.
+
+  The collection of steps is the plan. The plan is important documentation. It may be refined while we are executing it.
+  The full plan is not yet available.  For example, after step4.txt (once it is present) is implemented, I may decide
+  that a step was missing, and we will go back to implement step3b on top of the code that forms step3.
+
+  Before starting a step, confirm. If you can improve the step, its items, or the order of steps or items currently
+  available, suggest those improvements.  The improvements will be added to the step file(s). We may use a file
+  step-<N>-context.txt to memorise some context or discussion that does not fit naturally in either step<N>.txt or
+  step<N>-notes.txt.
+
+  For the foreseeable future pluk's interface will be exactly the same as pick's. More esoteric pick features,
+  which will arrive very late in the step sequence, may be rethought at that time.
+
+# Coding guidelines
+
+  Write robust code. Favour simplicity and readability over sophistication or code that derives its power from
+  behind-the-scenes implicit transformations or powerful macro features.  If sophisticated and opaque code is the better
+  solution, make a comprehensive note in the file step<N>-notes.txt.
+
+  Add comments to help the programmer/maintainer, but keep it to a minimum. Write comments in a neutral and formal voice.
+
+  Decompose pluk functionality into source files. Add rationales for choices first in discussions, then in step<N>-notes.txt.
+
+  Only import well-established creates, err towards fewer crates rather than more. Discuss where needed before starting
+  a step.
+
+  For argument parsing initially use a standard crate. We will later change to bespoke argument parsing.
+  It will probably be necessary to change some of the test invocations when that happens.
+
+
+# Core compute logic.
+
+  The core compute logic will probably be similar to pick but is up for discussion. I envision using a similar
+  stack-based approach for computes, tied to a bytecode interpreter. For the bytecode interpreter type
+  inference, conversion and coercion will need to be fleshed out. I want to postpone this discussion until some of the
+  input and output code (for now steps 1 and 2) has been written.
+
+
+# About me
+
+  I am a reasonably experienced C programmer with an interest in learning Rust. When discussing string variables
+  I will initially use C terminology (e.g. a string as a pointer to some stretch of memory), but I am aware
+  for example that strings are length-encoded and do not use NUL-byte termination.
+
+
