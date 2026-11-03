@@ -13,7 +13,7 @@ test: runpluk runtestopt rundiff
 
 rundiff: $(wildcard *.ref)
 
-runpluk: data.txt big.txt
+runpluk: data.txt big.txt sam.txt
 	$(p) --test-lineno                  < data.txt         > o.lineno.test
 	$(p) --test-lineno                  < big.txt          > o.big-lineno.test
 	gzip -c big.txt | $(p) --test-lineno                   > o.big-lineno-gz.test
@@ -89,6 +89,16 @@ runpluk: data.txt big.txt
 	$(p) -A                          < /dev/null  > o.A-empty.test
 	$(p) -x nosuch                   < data.txt  2> o.x-unknown.test > /dev/null; [ $$? -eq 1 ]
 	$(p) -A nosuch                   < data.txt  2> o.A-unknown.test > /dev/null; [ $$? -eq 1 ]
+	$(p) --sam -A                    < sam.txt    > o.sam-A.test        2> o.sam-A-msg.test
+	$(p) --sam-h -A                  < sam.txt    > o.samh-A.test       2> /dev/null
+	$(p) --sam 1 2 12                < sam.txt    > o.sam-sel.test      2> /dev/null
+	$(p) --sam -x 10 11              < sam.txt    > o.sam-x.test        2> /dev/null
+	$(p) --sam -c                    < sam.txt    > o.sam-count.test    2> /dev/null
+	$(p) --sam-h -c                  < sam.txt    > o.samh-count.test   2> /dev/null
+	$(p) --sam-h 1 4                 < sam.txt    > o.samh-sel.test     2> /dev/null
+	gzip -c sam.txt | $(p) --sam -A               > o.sam-gz.test       2> /dev/null
+	$(p) --sam -O3 3                 < sam.txt    > o.sam-O3.test       2> /dev/null
+	$(p) --sam -R 1                  < sam.txt   2> o.sam-R.test   > /dev/null; [ $$? -eq 1 ]
 	seq 1 1000000 > seq.tmp; $(p) --test-lineno < seq.tmp | head -n 2 > o.brokenpipe.test; [ $${PIPESTATUS[0]} -eq 0 ]; rm seq.tmp
 
 # Tests for temporary --test-* options. When such an option is removed, remove
@@ -144,6 +154,7 @@ runtestopt: data.txt
 	printf 'a\tb\nr\t1\t2\n' | $(p) -R --test-select b _   > o.sel-R.test
 	printf 'log2(FC)\tcost($$)\n1\t2\n' | $(p) --test-select 'cost($$)' 'log2(FC)'  > o.sel-regexchars.test
 	printf 'a\tb\ta\n1\t2\t3\n' | $(p) -u --test-select a_v02 a  > o.sel-u.test
+	$(p) --sam-h -A --test-counts    < sam.txt    2> o.counts-sam.test  > /dev/null
 
 %.ref : %.test
 	diff $< $@

@@ -38,8 +38,9 @@
         - activates -k and sets OFFSET_OMEGA = 12 (-O12);
         - --sam skips every line starting with '@' (not only at the start of input); --sam-h passes such
           lines through to the output unchanged;
-        - within the first 5 data rows, a line with fewer than 11 fields or a non-numeric second field
-          is reported as "Line <L> does not look like SAM format [<line>]" and skipped.
+        - within the first 5 accepted data rows, a line with fewer than 12 fields that has fewer than 11
+          fields or a non-numeric second field is reported as "Line <L> does not look like SAM format [<line>]"
+          and skipped. Lines with 12 or more fields are not checked (pick behaviour).
       Detect '@' lines with a byte-prefix test (no regex). pick's general -/PAT and -//PAT, and the removal
       of --test-comment, follow when regexes are introduced.
       Reading sequence lengths from @SQ header lines is deferred until SAM operators are implemented.

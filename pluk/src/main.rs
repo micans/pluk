@@ -38,6 +38,9 @@ fn run() -> std::io::Result<()> {
         omega:                 config.omega.map(|n| n as usize),
         add_row_column:        config.add_row_column,
         make_unique:           config.make_unique,
+        sam:                   if config.sam_h    { io::SamMode::PassThrough }
+                               else if config.sam { io::SamMode::Skip }
+                               else               { io::SamMode::Off },
     };
     let mut input = io::LineReader::from_stdin(settings)?;
     let mut out = BufWriter::with_capacity(OUT_BUFSIZE, std::io::stdout().lock());
@@ -87,16 +90,29 @@ fn run() -> std::io::Result<()> {
         return Ok(());
     }
 
+    // Pass-through lines (--sam-h) are output in all modes, as in pick; those
+    // before the first data line come first.
+    for line in &input.passthrough_preamble {
+        output::write_line(&mut out, line)?;
+    }
+
     if config.c {
         // -c: output only the number of data rows.
-        while input.next_line()? { }
+        while let Some(kind) = input.next_line()? {
+            if kind == io::LineKind::PassThrough {
+                output::write_line(&mut out, &input.row.line)?;
+            }
+        }
         writeln!(out, "{}", input.n_accepted)?;
     } else if lineno_mode {
         if input.header_lineno > 0 {
             output::write_numbered(&mut out, input.header_lineno, &input.header, test_column)?;
         }
-        while input.next_line()? {
-            output::write_numbered(&mut out, input.n_lines, &input.row, test_column)?;
+        while let Some(kind) = input.next_line()? {
+            match kind {
+                io::LineKind::Data        => output::write_numbered(&mut out, input.n_lines, &input.row, test_column)?,
+                io::LineKind::PassThrough => output::write_line(&mut out, &input.row.line)?,
+            }
         }
     } else {
         let writer = output::RowWriter::new(&selection.output_offset, input.n_columns,
@@ -104,8 +120,11 @@ fn run() -> std::io::Result<()> {
         if B_print_header && !input.is_empty {
             writer.write_header(&mut out, &input.names)?;
         }
-        while input.next_line()? {
-            writer.write_row(&mut out, &input.row)?;
+        while let Some(kind) = input.next_line()? {
+            match kind {
+                io::LineKind::Data        => writer.write_row(&mut out, &input.row)?,
+                io::LineKind::PassThrough => output::write_line(&mut out, &input.row.line)?,
+            }
         }
     }
     out.flush()?;
@@ -114,6 +133,9 @@ fn run() -> std::io::Result<()> {
         eprintln!("columns={} lines={} skipped={} accepted={} short={} overflow={}",
             input.n_columns, input.n_lines, input.n_skipped, input.n_accepted,
             input.n_short_rows, input.n_overflow_rows);
+        if input.settings.sam != io::SamMode::Off {
+            eprintln!("passthrough={}", input.n_passthrough);
+        }
     }
     Ok(())
 }

@@ -18,6 +18,21 @@ const BUFSIZE: usize = 128 * 1024;
 // The first two bytes of every gzip (and bgzip) stream.
 const GZIP_MAGIC: [u8; 2] = [0x1f, 0x8b];
 
+// SAM input (--sam, --sam-h): what to do with header lines, i.e. lines starting with '@'.
+#[derive(Clone, Copy, PartialEq)]
+pub enum SamMode {
+    Off,            // not SAM input
+    Skip,           // --sam: skip '@' lines
+    PassThrough,    // --sam-h: output '@' lines unchanged
+}
+
+// The kind of line made available by next_line().
+#[derive(Clone, Copy, PartialEq)]
+pub enum LineKind {
+    Data,           // a data line, split into fields
+    PassThrough,    // a line to be output unchanged (--sam-h); not split
+}
+
 // Settings that affect input processing, filled in from the command line by main.
 // B_header keeps the name used in the plan; Rust convention would be b_header.
 #[allow(non_snake_case)]
@@ -27,6 +42,7 @@ pub struct InputSettings {
     pub omega: Option<usize>,           // -O <N>: ragged input, N columns
     pub add_row_column: bool,           // -R: header lacks the name of the first (row name) column
     pub make_unique: bool,              // -u: make duplicate column names unique
+    pub sam: SamMode,                   // --sam, --sam-h
 }
 
 pub struct LineReader {
@@ -42,8 +58,10 @@ pub struct LineReader {
     pub n_columns:       usize,     // number of columns in the data; 0 for empty input
     pub row_column_added: bool,     // -R took effect: n_columns is one more than the header fields
     pub names:           ColumnNames, // column names and name -> index dictionary
+    pub passthrough_preamble: Vec<Vec<u8>>, // pass-through lines read before the first data line
     pub n_lines:         u64,       // number of lines read so far (physical line number)
-    pub n_skipped:       u64,       // lines skipped
+    pub n_skipped:       u64,       // lines skipped (including pass-through lines, as in pick)
+    pub n_passthrough:   u64,       // lines passed through unchanged
     pub n_accepted:      u64,       // data lines returned by next_line() (header excluded)
     pub n_short_rows:    u64,       // with -O N: data lines with fewer than N fields
     pub n_overflow_rows: u64,       // with -O N: data lines with more than N fields
@@ -83,8 +101,10 @@ impl LineReader {
             n_columns:       0,
             row_column_added: false,
             names:           ColumnNames::numbered(0),
+            passthrough_preamble: Vec::new(),
             n_lines:         0,
             n_skipped:       0,
+            n_passthrough:   0,
             n_accepted:      0,
             n_short_rows:    0,
             n_overflow_rows: 0,
@@ -96,12 +116,20 @@ impl LineReader {
     // Read the first accepted line and establish the number of columns.
     // With B_header the line is moved to self.header; otherwise it is kept
     // in self.row as the first data line.
+    // Pass-through lines before it are stored in self.passthrough_preamble,
+    // to be output first.
     fn read_first(&mut self) -> io::Result<()> {
-        if !self.accept_line()? {
-            self.n_columns = self.settings.omega.unwrap_or(0);   // empty input
-            self.names = ColumnNames::numbered(self.n_columns);
-            self.is_empty = true;
-            return Ok(());
+        loop {
+            match self.accept_line()? {
+                Some(LineKind::Data)        => break,
+                Some(LineKind::PassThrough) => self.passthrough_preamble.push(self.row.line.clone()),
+                None => {
+                    self.n_columns = self.settings.omega.unwrap_or(0);   // empty input
+                    self.names = ColumnNames::numbered(self.n_columns);
+                    self.is_empty = true;
+                    return Ok(());
+                }
+            }
         }
         if self.settings.B_header {
             // Exchange the two Row structs; no bytes are copied. self.row
@@ -125,14 +153,18 @@ impl LineReader {
         Ok(())
     }
 
-    // Make the next data line available in self.row, split into fields.
-    // Returns Ok(false) at end of input, and an error if the line does not
-    // have the expected number of fields.
-    pub fn next_line(&mut self) -> io::Result<bool> {
+    // Make the next line available in self.row: a data line, split into fields,
+    // or a pass-through line. Returns Ok(None) at end of input, and an error if
+    // a data line does not have the expected number of fields.
+    pub fn next_line(&mut self) -> io::Result<Option<LineKind>> {
         if self.pending {
             self.pending = false;
-        } else if !self.accept_line()? {
-            return Ok(false);
+        } else {
+            match self.accept_line()? {
+                Some(LineKind::Data)        => (),
+                Some(LineKind::PassThrough) => return Ok(Some(LineKind::PassThrough)),
+                None                        => return Ok(None),
+            }
         }
         self.n_accepted += 1;
         match self.settings.omega {
@@ -153,25 +185,49 @@ impl LineReader {
                 }
             }
         }
-        Ok(true)
+        Ok(Some(LineKind::Data))
     }
 
-    // Read lines until one is accepted (not skipped), and split it into fields.
-    // Returns Ok(false) at end of input.
-    fn accept_line(&mut self) -> io::Result<bool> {
+    // Read lines until one is accepted as a data line (and split it into fields)
+    // or is to be passed through. Returns Ok(None) at end of input.
+    fn accept_line(&mut self) -> io::Result<Option<LineKind>> {
         while self.read_line()? {
             if self.in_preamble && self.settings.skip_comment_preamble && self.row.line.starts_with(b"#") {
                 self.n_skipped += 1;
                 continue;
             }
+            // SAM header lines, anywhere in the input (as in pick).
+            if self.settings.sam != SamMode::Off && self.row.line.starts_with(b"@") {
+                self.n_skipped += 1;
+                if self.settings.sam == SamMode::PassThrough {
+                    self.n_passthrough += 1;
+                    return Ok(Some(LineKind::PassThrough));
+                }
+                continue;
+            }
             self.in_preamble = false;
+            let mut n_found = 0;
             match self.settings.omega {
-                Some(n) => self.split_order = self.row.split_fields_limit(n),
+                Some(n) => (n_found, self.split_order) = self.row.split_fields_limit(n),
                 None    => self.row.split_fields(),
             }
-            return Ok(true);
+            if self.settings.sam != SamMode::Off && self.n_accepted < 5
+                && self.split_order == Ordering::Less && !self.looks_like_sam(n_found)
+            {
+                eprintln!("Line {} does not look like SAM format [{}]",
+                          self.n_lines, String::from_utf8_lossy(&self.row.line));
+                self.n_skipped += 1;
+                continue;
+            }
+            return Ok(Some(LineKind::Data));
         }
-        Ok(false)
+        Ok(None)
+    }
+
+    // pick's check on the first 5 data lines of SAM input, applied to lines with
+    // fewer than 12 fields: at least the 11 mandatory fields, and a numeric FLAG.
+    fn looks_like_sam(&self, n_found: usize) -> bool {
+        n_found >= 11 && looks_like_number(self.row.field(1))
     }
 
     // Read the next physical line into self.row.line. Returns Ok(false) at end of input.
@@ -191,3 +247,13 @@ impl LineReader {
     }
 }
 
+
+// Approximation of Perl's looks_like_number: the bytes, with surrounding white
+// space removed, parse as a floating point number. This accepts integers,
+// decimals, exponents, and inf/infinity/nan in any case, as Perl does.
+fn looks_like_number(bytes: &[u8]) -> bool {
+    match std::str::from_utf8(bytes) {
+        Ok(s)  => s.trim().parse::<f64>().is_ok(),
+        Err(_) => false,
+    }
+}

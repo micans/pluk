@@ -36,8 +36,9 @@ impl Row {
     // Splitting stops after n-1 TABs, so field n runs to the end of the line and may
     // contain TABs (as Perl's split with a limit). Missing fields are added as empty
     // fields at the end of the line; the line itself is not changed.
-    // Returns Less, Equal or Greater: the line had fewer, exactly, or more than n fields.
-    pub fn split_fields_limit(&mut self, n: usize) -> Ordering {
+    // Returns the number of fields found before padding (at most n), and Less, Equal
+    // or Greater: the line had fewer, exactly, or more than n fields.
+    pub fn split_fields_limit(&mut self, n: usize) -> (usize, Ordering) {
         self.fields.clear();
         let len = self.line.len();
         let mut start = 0;
@@ -51,8 +52,9 @@ impl Row {
             }
         }
         self.fields.push((start, len));
+        let n_found = self.fields.len();
 
-        let order = if self.fields.len() < n {
+        let order = if n_found < n {
             Ordering::Less
         } else if self.line[start..].contains(&b'\t') {
             Ordering::Greater
@@ -62,7 +64,7 @@ impl Row {
         while self.fields.len() < n {
             self.fields.push((len, len));
         }
-        order
+        (n_found, order)
     }
 
     pub fn n_fields(&self) -> usize {
@@ -93,7 +95,7 @@ mod tests {
     fn fields_limit(line: &[u8], n: usize) -> (Vec<Vec<u8>>, Ordering) {
         let mut row = Row::new();
         row.line.extend_from_slice(line);
-        let order = row.split_fields_limit(n);
+        let (_, order) = row.split_fields_limit(n);
         ((0..row.n_fields()).map(|i| row.field(i).to_vec()).collect(), order)
     }
 
@@ -108,6 +110,15 @@ mod tests {
         assert_eq!(fields_limit(b"a\tb\t\t",      3), (v(&[b"a", b"b", b"\t"]),    Ordering::Greater));
         assert_eq!(fields_limit(b"a\tb",          1), (v(&[b"a\tb"]),             Ordering::Greater));
         assert_eq!(fields_limit(b"ab",            1), (v(&[b"ab"]),               Ordering::Equal));
+    }
+
+    #[test]
+    fn split_limit_found() {
+        let mut row = Row::new();
+        row.line.extend_from_slice(b"a\tb");
+        assert_eq!(row.split_fields_limit(4), (2, Ordering::Less));
+        row.line.extend_from_slice(b"\tc\td\te");
+        assert_eq!(row.split_fields_limit(4), (4, Ordering::Greater));
     }
 
     #[test]

@@ -54,6 +54,13 @@ impl RowWriter {
 }
 
 
+// A line output unchanged (pass-through lines, --sam-h).
+pub fn write_line(out: &mut impl Write, line: &[u8]) -> io::Result<()> {
+    out.write_all(line)?;
+    out.write_all(b"\n")
+}
+
+
 // Temporary output used by the step1 tests (--test-lineno, --test-i): line number,
 // TAB, then the line or, with --test-i, a single field.
 pub fn write_numbered(out: &mut impl Write, lineno: u64, row: &Row, test_column: Option<usize>)

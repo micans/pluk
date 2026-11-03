@@ -48,6 +48,14 @@ pub struct Config {
     #[arg(short = 'u')]
     pub make_unique: bool,
 
+    /// SAM input: implies -k and -O12; skip header lines (starting with '@')
+    #[arg(long = "sam")]
+    pub sam: bool,
+
+    /// As --sam, but output header lines (starting with '@') unchanged
+    #[arg(long = "sam-h")]
+    pub sam_h: bool,
+
     /// Skip lines starting with '#' at the start of input (temporary option)
     #[arg(long = "test-comment", visible_alias = "tc")]
     pub test_comment: bool,
@@ -79,7 +87,15 @@ pub struct Config {
 }
 
 pub fn parse_args() -> Config {
-    let config = Config::parse();
+    let mut config = Config::parse();
+
+    // --sam and --sam-h imply -k and -O12; an explicit -O takes precedence.
+    if config.sam || config.sam_h {
+        config.k = true;
+        if config.omega.is_none() {
+            config.omega = Some(12);
+        }
+    }
 
     // Combinations clap does not check; messages as in pick.
     if config.omega.is_some() && !config.k {

@@ -88,3 +88,38 @@ Item 3: -A, -x
   pick drops the last header name for 'pick -A name name'; pluk outputs the full header (test A-dupnames).
 
   -A produces offsets 0..N-1, so it uses the whole-line fast path of item 2 (except with -O).
+
+
+Item 4: --sam, --sam-h
+
+  opt::parse_args() turns --sam and --sam-h into -k plus -O12; an explicit -O takes precedence. In
+  pick options are processed in order, so 'pick --sam -O3' uses 3 and 'pick -O3 --sam' uses 12;
+  pluk uses 3 in both cases. -R is refused as for -k.
+
+  io.rs:
+    - InputSettings.sam is a SamMode (Off, Skip, PassThrough). Lines starting with '@' are recognised
+      anywhere in the input with a byte prefix test (no regex). They count as skipped, as in pick;
+      with --sam-h they are also counted as pass-through lines.
+    - next_line() now returns Option<LineKind>: Some(Data), Some(PassThrough) or None at end of input.
+      A pass-through line is in row.line and is not split. This replaces the earlier bool; the
+      callers in main.rs use 'while let Some(kind) = input.next_line()?' and match on the kind.
+    - Pass-through lines read before the first data line (the usual SAM header) are encountered in
+      read_first(), before any output is possible. They are stored in passthrough_preamble and
+      main.rs writes them first. This is the one place where line bytes are copied (once per run).
+    - The SAM check follows pick exactly: only lines with fewer than 12 fields, only while fewer than
+      5 data lines have been accepted; such a line needs 11 fields and a numeric FLAG (field 2),
+      otherwise it is reported on STDERR and skipped. split_fields_limit() now also returns the
+      number of fields found before padding, which the check needs.
+    - looks_like_number() approximates Perl's: surrounding white space removed, then parsed as f64
+      (integers, decimals, exponents, inf/nan). It will be revisited with the numeric conversion
+      design (CONVERSION-notes.txt).
+  Pass-through lines are output in every mode, including -c, as pick does.
+
+  Not replicated: pick's "-- N times a reference sequence length lookup failed" message, which
+  belongs to the deferred @SQ sequence length handling.
+
+  Test data: test/sam.txt, written for this item (the pick suite has no SAM data). It has @HD, @SQ,
+  @PG lines, an @CO line between data lines, records with and without optional tags, a non-numeric
+  FLAG within and beyond the first 5 data lines, a line with 3 fields, and a 10-field line beyond
+  the first 5 (padded, not rejected). Outputs (STDOUT and STDERR) were compared with pick for 8
+  invocations: identical.

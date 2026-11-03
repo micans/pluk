@@ -1,0 +1,7 @@
+r001	0	chr1	7	30	8M	*	0	0	NM:i:0	MD:Z:8	AS:i:8
+r002	16	chr1	9	30	3S6M	*	0	0	
+r004	0	chr2	16	30	6M	*	0	0	NM:i:1
+r005	4	*	0	0	*	*	0	0	
+r006	0	chr2	29	17	6M	*	0	0	XS:i:3	NM:i:0
+r007	nonnumeric	chr2	37	30	9M	*	0	0	NM:i:0
+r008	0	chr1	1	30	3M	*	0	0	
