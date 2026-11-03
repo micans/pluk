@@ -184,3 +184,31 @@ Item 5: validation, -R, -O
   Tests that used deliberately ragged input without -O now fail validation; they were given
   consistent input or -kO<N> (multigz, nonewline, tc-noskip, tc-midfile, ti-empty). Only multigz
   and nonewline changed output, because their input changed.
+
+
+Item 6: column names, -u
+
+  src/names.rs defines ColumnNames: a Vec of names (index -> name) and a HashMap (name -> index).
+  Names are owned byte strings (Vec<u8>), copied from the header once per run; the header Row is
+  kept only for the step1 line output. Lookup by a borrowed slice (index_of(&[u8])) works without
+  copying, because a HashMap with Vec<u8> keys can be queried with &[u8].
+
+  LineReader builds the names in read_first() and exports them as LineReader.names:
+    - -k: 1 2 ... n_columns (also with -O, and for empty input: no names).
+    - header: the header fields; '_' is prepended if -R took effect (row_column_added), and an
+      empty first field is renamed '_'. The name '_' is ROW_NAME in names.rs.
+
+  Duplicate names (header input only) are an error unless -u is given; the message lists each
+  duplicated name once. pick does not check input names; this is a pluk addition (step1.txt).
+  With -R, a header column actually named '_' collides with the row name column; -u renames it
+  to __v02.
+
+  -u: the k-th occurrence (k >= 2) of a name receives _v<k> with k written in 2 digits; if the
+  result contains duplicates (an original name equals a generated one), the process restarts from
+  the original names with 3 digits, then 4, and so on. See step1-context.txt for the reading of
+  '_v001' in step1.txt. The loop terminates: once the digit count exceeds the length of every
+  original name, no generated name can equal an original one.
+
+  The temporary option --test-names prints index, name and the index found by looking the name up,
+  so both directions of the mapping are tested. Unit tests for -u and the duplicate check are in
+  src/names.rs.

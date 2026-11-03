@@ -1,4 +1,5 @@
 mod io;
+mod names;
 mod opt;
 mod row;
 
@@ -18,12 +19,25 @@ fn run() -> std::io::Result<()> {
         B_header:              !config.k,
         omega:                 config.omega.map(|n| n as usize),
         add_row_column:        config.add_row_column,
+        make_unique:           config.make_unique,
     };
     let mut input = io::LineReader::from_stdin(settings)?;
     let mut out = BufWriter::with_capacity(OUT_BUFSIZE, std::io::stdout().lock());
 
     // --test-i N is 1-based on the command line, field indexes are 0-based.
     let test_column: Option<usize> = config.test_i.map(|n| n as usize - 1);
+
+    if config.test_names {
+        for i in 0..input.names.len() {
+            let name = input.names.name(i);
+            let lookup = input.names.index_of(name).map_or("none".to_string(), |j| j.to_string());
+            write!(out, "{}\t", i)?;
+            out.write_all(name)?;
+            writeln!(out, "\t{}", lookup)?;
+        }
+        out.flush()?;
+        return Ok(());
+    }
 
     if config.c {
         // -c: output only the number of data rows.

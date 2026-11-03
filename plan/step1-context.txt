@@ -35,3 +35,11 @@ Item 5: implementation of -O <N>  [DECIDED]
 Item 4: exit status  [DECIDED]
 
   Errors exit with status 1 (pick uses 255, from Perl's die).
+
+
+Item 6: -u suffix width on restart  [interpretation, to confirm]
+
+  step1.txt says a restart uses "suffix _v001". This is read as: the numbers are now written with
+  3 digits, the scheme otherwise unchanged. The first occurrence keeps its name, the second gets
+  _v002, the third _v003. The suffix _v001 itself does not occur, just as _v01 does not occur with
+  2 digits.

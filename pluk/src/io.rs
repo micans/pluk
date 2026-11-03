@@ -9,6 +9,7 @@ use std::io::{self, BufRead, BufReader};
 
 use flate2::bufread::MultiGzDecoder;
 
+use crate::names::ColumnNames;
 use crate::row::Row;
 
 // Size of the read buffers. The standard library default is 8 KiB.
@@ -25,6 +26,7 @@ pub struct InputSettings {
     pub B_header: bool,                 // first accepted line holds column names (no -k)
     pub omega: Option<usize>,           // -O <N>: ragged input, N columns
     pub add_row_column: bool,           // -R: header lacks the name of the first (row name) column
+    pub make_unique: bool,              // -u: make duplicate column names unique
 }
 
 pub struct LineReader {
@@ -38,6 +40,7 @@ pub struct LineReader {
     pub header_lineno:   u64,       // physical line number of the header; 0 if none
     pub n_columns:       usize,     // number of columns in the data; 0 for empty input
     pub row_column_added: bool,     // -R took effect: n_columns is one more than the header fields
+    pub names:           ColumnNames, // column names and name -> index dictionary
     pub n_lines:         u64,       // number of lines read so far (physical line number)
     pub n_skipped:       u64,       // lines skipped
     pub n_accepted:      u64,       // data lines returned by next_line() (header excluded)
@@ -77,6 +80,7 @@ impl LineReader {
             header_lineno:   0,
             n_columns:       0,
             row_column_added: false,
+            names:           ColumnNames::numbered(0),
             n_lines:         0,
             n_skipped:       0,
             n_accepted:      0,
@@ -93,6 +97,7 @@ impl LineReader {
     fn read_first(&mut self) -> io::Result<()> {
         if !self.accept_line()? {
             self.n_columns = self.settings.omega.unwrap_or(0);   // empty input
+            self.names = ColumnNames::numbered(self.n_columns);
             return Ok(());
         }
         if self.settings.B_header {
@@ -107,8 +112,11 @@ impl LineReader {
                 self.n_columns += 1;
                 self.row_column_added = true;
             }
+            self.names = ColumnNames::from_header(&self.header, self.row_column_added, self.settings.make_unique)
+                .map_err(|msg| io::Error::new(io::ErrorKind::InvalidData, msg))?;
         } else {
             self.n_columns = self.settings.omega.unwrap_or(self.row.n_fields());
+            self.names = ColumnNames::numbered(self.n_columns);
             self.pending = true;
         }
         Ok(())

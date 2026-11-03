@@ -41,6 +41,10 @@ runpluk: data.txt big.txt
 	$(p) -kR                    < data.txt  2> o.kR.test  > /dev/null; [ $$? -eq 1 ]
 	tail -n +2 big.txt | $(p) -kO5 -c                  > o.big-omega-count.test
 	printf 'a\tb\tc\td\te\nx\ny\tz\n\tq\tr\n' | $(p) -kO3  > o.omega-lineno.test
+	printf 'a\tb\ta\tb\n1\t2\t3\t4\n'  | $(p)     2> o.dupnames.test  > /dev/null; [ $$? -eq 1 ]
+	printf 'a\t_\nr\t1\t2\n'           | $(p) -R  2> o.dupnames-R.test > /dev/null; [ $$? -eq 1 ]
+	printf 'a\tb\ta\tb\n1\t2\t3\t4\n'  | $(p) -u                 > o.dupnames-u.test
+	{ head -n 1 data.txt | sed 's/fib2/fib/'; tail -n +2 data.txt; } | $(p) -uc > o.dupnames-u-count.test
 	seq 1 1000000 > seq.tmp; $(p) < seq.tmp | head -n 2 > o.brokenpipe.test; [ $${PIPESTATUS[0]} -eq 0 ]; rm seq.tmp
 
 # Tests for temporary --test-* options. When such an option is removed, remove
@@ -76,6 +80,18 @@ runtestopt: data.txt
 	tail -n +2 big.txt | $(p) -kO1  --test-i 1                     > o.big-omega1-ti1.test
 	tail -n +2 big.txt | $(p) -kO25 --test-i 25                    > o.big-omega25-ti25.test
 	tail -n +2 big.txt | $(p) -kO25 --test-counts  2> o.counts-big-omega25.test > /dev/null
+	$(p) --test-names           < data.txt   > o.names.test
+	$(p) -k --test-names        < data.txt   > o.names-k.test
+	$(p) --test-names           < big.txt    > o.names-big.test
+	printf 'x\n' | $(p) -kO4 --test-names   > o.names-omega.test
+	$(p) --test-names           < /dev/null  > o.names-empty.test
+	printf 'a\tb\nr\t1\t2\n'    | $(p) -R --test-names  > o.names-R.test
+	printf '\ta\tb\nr\t1\t2\n'  | $(p) -R --test-names  > o.names-R-emptyfirst.test
+	printf '\ta\tb\nr\t1\t2\n'  | $(p) --test-names    > o.names-emptyfirst.test
+	printf 'foo\tfoo\tfoo_v02\tbar\tfoo\n' | $(p) -u --test-names  > o.names-u-restart.test
+	printf 'a\tb\ta\ta\tb\n'   | $(p) -u --test-names   > o.names-u.test
+	printf 'x\tx\tx_v02\tx_v002\n' | $(p) -u --test-names  > o.names-u-restart2.test
+	printf 'a\t_\nr\t1\t2\n'    | $(p) -Ru --test-names  > o.names-Ru.test
 
 %.ref : %.test
 	diff $< $@

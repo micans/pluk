@@ -26,6 +26,10 @@ pub struct Config {
     #[arg(short = 'R')]
     pub add_row_column: bool,
 
+    /// Make duplicate column names unique (suffixes _v02, _v03, ...)
+    #[arg(short = 'u')]
+    pub make_unique: bool,
+
     /// Skip lines starting with '#' at the start of input (temporary option)
     #[arg(long = "test-comment", visible_alias = "tc")]
     pub test_comment: bool,
@@ -37,6 +41,10 @@ pub struct Config {
     /// Print input counters to STDERR at the end (temporary option)
     #[arg(long = "test-counts")]
     pub test_counts: bool,
+
+    /// Print column index, name, and index looked up by name, then exit (temporary option)
+    #[arg(long = "test-names")]
+    pub test_names: bool,
 }
 
 pub fn parse_args() -> Config {
