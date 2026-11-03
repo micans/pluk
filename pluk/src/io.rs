@@ -8,6 +8,8 @@ use std::io::{self, BufRead, BufReader};
 
 use flate2::bufread::MultiGzDecoder;
 
+use crate::row::Row;
+
 // Size of the read buffers. The standard library default is 8 KiB.
 const BUFSIZE: usize = 128 * 1024;
 
@@ -23,7 +25,7 @@ pub struct LineReader {
     reader:         Box<dyn BufRead>,
     settings:       InputSettings,
     in_preamble:    bool,           // no accepted line seen yet
-    pub line:       Vec<u8>,        // current line, newline removed
+    pub row:        Row,            // current line and its fields
     pub n_lines:    u64,            // number of lines read so far (physical line number)
     pub n_skipped:  u64,            // lines skipped
     pub n_accepted: u64,            // lines returned by next_line()
@@ -54,38 +56,40 @@ impl LineReader {
             reader,
             settings,
             in_preamble: true,
-            line:        Vec::with_capacity(1024),
+            row:         Row::new(),
             n_lines:     0,
             n_skipped:   0,
             n_accepted:  0,
         })
     }
 
-    // Read the next accepted line into self.line, skipping lines as the
-    // settings require. Returns Ok(false) at end of input.
+    // Read the next accepted line into self.row and split it into fields,
+    // skipping lines as the settings require. Returns Ok(false) at end of input.
     pub fn next_line(&mut self) -> io::Result<bool> {
         while self.read_line()? {
-            if self.in_preamble && self.settings.skip_comment_preamble && self.line.starts_with(b"#") {
+            if self.in_preamble && self.settings.skip_comment_preamble && self.row.line.starts_with(b"#") {
                 self.n_skipped += 1;
                 continue;
             }
             self.in_preamble = false;
             self.n_accepted += 1;
+            self.row.split_fields();
             return Ok(true);
         }
         Ok(false)
     }
 
-    // Read the next physical line into self.line. Returns Ok(false) at end of input.
+    // Read the next physical line into self.row.line. Returns Ok(false) at end of input.
     // A final line without a trailing newline is returned as a normal line.
     fn read_line(&mut self) -> io::Result<bool> {
-        self.line.clear();                  // keeps the allocated capacity
-        let n = self.reader.read_until(b'\n', &mut self.line)?;
+        let line = &mut self.row.line;
+        line.clear();                       // keeps the allocated capacity
+        let n = self.reader.read_until(b'\n', line)?;
         if n == 0 {
             return Ok(false);
         }
-        if self.line.last() == Some(&b'\n') {
-            self.line.pop();
+        if line.last() == Some(&b'\n') {
+            line.pop();
         }
         self.n_lines += 1;
         Ok(true)

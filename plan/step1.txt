@@ -36,8 +36,9 @@ from DATASTRUCTURE-cell.notes.txt . First read this file.
       Commit.
 
    3. Split lines implicitly on tab character. Represent each field by a pointer to its first character and its length.
-      Fields are represented by struct Scalar as discussed in DATASTRUCTURE-cell.design.txt .
-      Create --test-i <N> option. When used, print column <N> preceded by a line count, otherwise output
+      Fields are represented as (start, end) offsets into the line, as decided in DATASTRUCTURE-cell.design.txt
+      (point 2). Scalars are created from fields only when computation needs them (point 3).
+      Create --test-i <N> option (<N> is 1-based). When used, print column <N> preceded by a line count, otherwise output
       the entire line as before. Document/explain how the field representation and the line representation
       use the same underlying memory.
       Commit.

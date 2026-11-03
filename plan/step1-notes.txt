@@ -80,3 +80,45 @@ Item 2: --test-comment / --tc
   To note for step2: clap reserves -h for --help and -V for --version by default. pick uses -h for
   "do not print header". Clap's automatic -h will need to be disabled (disable_help_flag) when -h is
   implemented.
+
+
+Item 3: splitting on TAB, --test-i
+
+  Representation. src/row.rs defines
+
+      struct Row {
+          line:   Vec<u8>,              // the line, newline removed
+          fields: Vec<(usize, usize)>,  // (start, end) byte offsets of each field
+      }
+
+  LineReader owns one Row and refills it for every accepted line. Skipped lines are not split.
+
+  How line and fields share memory. There is one allocation holding the bytes of the line: the
+  Vec<u8> 'line' (in C terms: a char* with a length and an allocated capacity). The fields are
+  not copies; they are offsets into that memory. Row::field(i) returns &line[start..end], a slice,
+  which is a pointer to byte 'start' of the line plus the length end - start -- the same as
+  (line + start, end - start) in C. Writing a field to output therefore writes directly from the
+  line buffer. For
+
+      line:    a \t b c \t \t d          (bytes 0..7)
+      fields:  (0,1) (2,4) (5,5) (6,7)
+
+  the third field is empty: start equals end. Both Vecs are cleared, not freed, for every line, so
+  in steady state no allocation takes place.
+
+  Safety. The slice returned by field(i) borrows the Row. The compiler rejects any attempt to read
+  the next line (which mutably borrows the Row) while such a slice is still in use, so a dangling
+  pointer into an overwritten line cannot occur. Indexing is bounds-checked: field(i) with
+  i >= n_fields() panics (aborts with a message) instead of reading invalid memory.
+
+  Splitting. A plain loop over the bytes, pushing (start, i) at every TAB, then the final field.
+  An empty line is one empty field, as in pick (Perl's split on an empty string is special-cased
+  in pick to ("") ). A faster byte search (the memchr crate, SIMD) is possible if profiling shows
+  splitting to matter; it would not change the interface.
+
+  --test-i <N> is 1-based, consistent with the column names 1..N that -k will use. Clap rejects
+  0 and non-numbers. A line with fewer than N fields prints an empty field; validation is item 5.
+
+  Tests. Unit tests for split_fields() are in src/row.rs (a #[cfg(test)] module, compiled only by
+  'cargo test'). 'make test' runs them before the Makefile tests. --test-i tests are in the
+  runtestopt group. The outputs were checked against 'cut -f<N>' for several columns.

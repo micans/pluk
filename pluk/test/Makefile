@@ -34,6 +34,13 @@ runtestopt: data.txt
 	{ printf '# c1\n';  head -n 3 data.txt; printf '# mid\n'; tail -n 2 data.txt; } | $(p) --tc > o.tc-midfile.test
 	{ printf '# c1\n#c2\n';  cat data.txt; } | gzip -c | $(p) --tc          > o.tc-gz.test
 	printf '#a\n#b\n' | $(p) --tc                                          > o.tc-allcomment.test
+	$(p) --test-i 1                         < data.txt  > o.ti-first.test
+	$(p) --test-i 13                        < data.txt  > o.ti-last.test
+	$(p) --test-i 14                        < data.txt  > o.ti-beyond.test
+	$(p) --test-i 18                        < big.txt   > o.ti-big.test
+	gzip -c big.txt | $(p) --test-i 18                  > o.ti-big-gz.test
+	{ printf '# c1\n';  cat data.txt; } | $(p) --tc --test-i 2  > o.ti-tc.test
+	printf 'a\tb\n\n\tz\nx\t\ty\n' | $(p) --test-i 2         > o.ti-empty.test
 
 %.ref : %.test
 	diff $< $@
