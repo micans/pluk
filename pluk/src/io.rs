@@ -38,6 +38,7 @@ pub struct LineReader {
     pub row:             Row,       // current line and its fields
     pub header:          Row,       // header line and column names, if B_header
     pub header_lineno:   u64,       // physical line number of the header; 0 if none
+    pub is_empty:        bool,      // input has no accepted line at all
     pub n_columns:       usize,     // number of columns in the data; 0 for empty input
     pub row_column_added: bool,     // -R took effect: n_columns is one more than the header fields
     pub names:           ColumnNames, // column names and name -> index dictionary
@@ -78,6 +79,7 @@ impl LineReader {
             row:             Row::new(),
             header:          Row::new(),
             header_lineno:   0,
+            is_empty:        false,
             n_columns:       0,
             row_column_added: false,
             names:           ColumnNames::numbered(0),
@@ -98,6 +100,7 @@ impl LineReader {
         if !self.accept_line()? {
             self.n_columns = self.settings.omega.unwrap_or(0);   // empty input
             self.names = ColumnNames::numbered(self.n_columns);
+            self.is_empty = true;
             return Ok(());
         }
         if self.settings.B_header {

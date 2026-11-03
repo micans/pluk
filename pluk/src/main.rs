@@ -2,8 +2,10 @@ mod io;
 mod names;
 mod opt;
 mod row;
+mod select;
 
 use std::io::{BufWriter, ErrorKind, Write};
+use std::os::unix::ffi::OsStringExt;
 use row::Row;
 use std::process;
 
@@ -26,6 +28,28 @@ fn run() -> std::io::Result<()> {
 
     // --test-i N is 1-based on the command line, field indexes are 0-based.
     let test_column: Option<usize> = config.test_i.map(|n| n as usize - 1);
+
+    // Column names from the command line, as bytes. into_vec() gives the bytes of an
+    // OsString (Unix only); pluk targets Unix systems, as pick does.
+    let column_args: Vec<Vec<u8>> = config.columns.iter().map(|a| a.clone().into_vec()).collect();
+
+    // As in pick, the names are checked once the first line has been read;
+    // with empty input there is nothing to check against.
+    let selection = if input.is_empty {
+        select::OutputSelection { output_colnames: Vec::new(), output_offset: Vec::new() }
+    } else {
+        select::OutputSelection::from_names(&column_args, &input.names)
+            .map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?
+    };
+
+    if config.test_select {
+        for (name, i) in selection.output_colnames.iter().zip(&selection.output_offset) {
+            out.write_all(name)?;
+            writeln!(out, "\t{}", i)?;
+        }
+        out.flush()?;
+        return Ok(());
+    }
 
     if config.test_names {
         for i in 0..input.names.len() {

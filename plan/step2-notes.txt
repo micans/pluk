@@ -1,0 +1,29 @@
+
+step2 notes: rationale for implementation choices.
+
+
+Item 1: output_colnames, output_offset
+
+  src/select.rs defines OutputSelection with the two arrays from the step file. from_names() checks
+  each command line argument, looks it up in the ColumnNames dictionary (step1 item 6) and stores
+  name and 0-based index. A name given again is skipped (its index is already present) and pick's
+  message is printed once. The duplicate test is a linear search of output_offset, which is
+  adequate for command-line-sized lists.
+
+  Arguments that will change meaning later are rejected (leading '+', or containing ':' '@' '%');
+  everything else is a plain name, including regex characters (COLSPEC.design.txt).
+
+  Command line arguments as bytes. clap delivers the column arguments as OsString, the operating
+  system's string type, which on Unix is an arbitrary byte sequence (like char *argv[]). main.rs
+  converts them to Vec<u8> with into_vec(), from std::os::unix::ffi::OsStringExt. Using String
+  instead would make clap reject arguments that are not valid UTF-8, while header names may well
+  contain such bytes. into_vec() exists on Unix only; pluk, like pick, targets Unix systems.
+
+  Timing of the check. As in pick, names are checked after the first line has been read, because
+  the column names come from it. With empty input there is nothing to check against and pluk exits
+  normally, as pick does (LineReader.is_empty).
+
+  Errors are passed to main as std::io::Error of kind InvalidInput, for the same single-error-type
+  reason as in step1 item 5.
+
+  The temporary option --test-select prints output_colnames with output_offset.

@@ -5,6 +5,7 @@
 // struct, not clap.
 
 use clap::Parser;
+use std::ffi::OsString;
 use std::process;
 
 #[derive(Parser, Debug)]
@@ -45,6 +46,15 @@ pub struct Config {
     /// Print column index, name, and index looked up by name, then exit (temporary option)
     #[arg(long = "test-names")]
     pub test_names: bool,
+
+    /// Print the selected output column names and their 0-based indexes, then exit (temporary option)
+    #[arg(long = "test-select")]
+    pub test_select: bool,
+
+    /// Column names to output
+    // OsString: arguments are taken as bytes, without requiring UTF-8 (see main.rs).
+    #[arg(value_name = "COLUMN")]
+    pub columns: Vec<OsString>,
 }
 
 pub fn parse_args() -> Config {

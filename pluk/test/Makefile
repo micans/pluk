@@ -45,6 +45,11 @@ runpluk: data.txt big.txt
 	printf 'a\t_\nr\t1\t2\n'           | $(p) -R  2> o.dupnames-R.test > /dev/null; [ $$? -eq 1 ]
 	printf 'a\tb\ta\tb\n1\t2\t3\t4\n'  | $(p) -u                 > o.dupnames-u.test
 	{ head -n 1 data.txt | sed 's/fib2/fib/'; tail -n +2 data.txt; } | $(p) -uc > o.dupnames-u-count.test
+	$(p) name nosuch            < data.txt  2> o.sel-unknown.test    > /dev/null; [ $$? -eq 1 ]
+	$(p) -k 14                  < data.txt  2> o.sel-unknown-k.test  > /dev/null; [ $$? -eq 1 ]
+	head -n 1 data.txt | $(p) nosuch        2> o.sel-unknown-headeronly.test > /dev/null; [ $$? -eq 1 ]
+	$(p) nosuch                 < /dev/null  > o.sel-empty.test
+	for a in '+fo.' 'a:b' '@x/gt/0' 'x%3A' 'x::y'; do $(p) "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.sel-unsupported.test
 	seq 1 1000000 > seq.tmp; $(p) < seq.tmp | head -n 2 > o.brokenpipe.test; [ $${PIPESTATUS[0]} -eq 0 ]; rm seq.tmp
 
 # Tests for temporary --test-* options. When such an option is removed, remove
@@ -92,6 +97,14 @@ runtestopt: data.txt
 	printf 'a\tb\ta\ta\tb\n'   | $(p) -u --test-names   > o.names-u.test
 	printf 'x\tx\tx_v02\tx_v002\n' | $(p) -u --test-names  > o.names-u-restart2.test
 	printf 'a\t_\nr\t1\t2\n'    | $(p) -Ru --test-names  > o.names-Ru.test
+	$(p) --test-select dna name fib          < data.txt  > o.sel.test
+	$(p) --test-select fib fib name fib      < data.txt  > o.sel-dup.test 2> o.sel-dup-msg.test
+	$(p) -k --test-select 13 1               < data.txt  > o.sel-k.test
+	$(p) --test-select id x dna n1           < big.txt   > o.sel-big.test
+	tail -n +2 big.txt | $(p) -kO12 --test-select 12 1   > o.sel-omega.test
+	printf 'a\tb\nr\t1\t2\n' | $(p) -R --test-select b _   > o.sel-R.test
+	printf 'log2(FC)\tcost($$)\n1\t2\n' | $(p) --test-select 'cost($$)' 'log2(FC)'  > o.sel-regexchars.test
+	printf 'a\tb\ta\n1\t2\t3\n' | $(p) -u --test-select a_v02 a  > o.sel-u.test
 
 %.ref : %.test
 	diff $< $@
