@@ -58,3 +58,25 @@ Item 1: reading lines
   Tests. pluk/test/Makefile, in the style of pick/test. 'make test' in pluk/ builds the release binary
   and runs it. The item 1 tests cover plain and gzip input, concatenated gzip members, a missing final
   newline, non-UTF-8 bytes, empty input and a broken pipe (exit status 0).
+
+
+Item 2: --test-comment / --tc
+
+  LineReader separates physical reading (read_line, private) from accepting lines (next_line, public).
+  next_line() skips lines starting with '#' while no line has been accepted yet, and only if the
+  setting is on. Later skip rules (pick's -/PAT and -//PAT) belong in next_line() as well.
+
+  Settings reach io.rs through the struct io::InputSettings, filled in by main.rs from opt::Config.
+  io.rs therefore does not depend on clap or on opt.rs; when argument parsing is replaced, io.rs is
+  unaffected. -k and -O (item 4) will be added to InputSettings.
+
+  Counters: n_lines (physical lines read), n_skipped, n_accepted. The line count printed is the
+  physical line number, as used by pick in its error messages ($.).
+
+  The option is defined with clap's 'visible_alias', which shows --tc in --help.
+
+  Tests are in the runtestopt target of test/Makefile, separate from the permanent tests.
+
+  To note for step2: clap reserves -h for --help and -V for --version by default. pick uses -h for
+  "do not print header". Clap's automatic -h will need to be disabled (disable_help_flag) when -h is
+  implemented.

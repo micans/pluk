@@ -9,9 +9,12 @@ use std::process;
 const OUT_BUFSIZE: usize = 128 * 1024;
 
 fn run() -> std::io::Result<()> {
-    let _config = opt::parse_args();
+    let config = opt::parse_args();
 
-    let mut input = io::LineReader::from_stdin()?;
+    let settings = io::InputSettings {
+        skip_comment_preamble: config.test_comment,
+    };
+    let mut input = io::LineReader::from_stdin(settings)?;
     let mut out = BufWriter::with_capacity(OUT_BUFSIZE, std::io::stdout().lock());
 
     while input.next_line()? {

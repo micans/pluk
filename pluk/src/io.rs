@@ -14,15 +14,24 @@ const BUFSIZE: usize = 128 * 1024;
 // The first two bytes of every gzip (and bgzip) stream.
 const GZIP_MAGIC: [u8; 2] = [0x1f, 0x8b];
 
+// Settings that affect input processing, filled in from the command line by main.
+pub struct InputSettings {
+    pub skip_comment_preamble: bool,    // --test-comment: skip leading lines starting with '#'
+}
+
 pub struct LineReader {
-    reader:      Box<dyn BufRead>,
-    pub line:    Vec<u8>,       // current line, newline removed
-    pub n_lines: u64,           // number of lines read so far
+    reader:         Box<dyn BufRead>,
+    settings:       InputSettings,
+    in_preamble:    bool,           // no accepted line seen yet
+    pub line:       Vec<u8>,        // current line, newline removed
+    pub n_lines:    u64,            // number of lines read so far (physical line number)
+    pub n_skipped:  u64,            // lines skipped
+    pub n_accepted: u64,            // lines returned by next_line()
 }
 
 impl LineReader {
 
-    pub fn from_stdin() -> io::Result<LineReader> {
+    pub fn from_stdin(settings: InputSettings) -> io::Result<LineReader> {
         let stdin = io::stdin().lock();
         let mut raw = BufReader::with_capacity(BUFSIZE, stdin);
 
@@ -41,12 +50,35 @@ impl LineReader {
             Box::new(raw)
         };
 
-        Ok(LineReader { reader, line: Vec::with_capacity(1024), n_lines: 0 })
+        Ok(LineReader {
+            reader,
+            settings,
+            in_preamble: true,
+            line:        Vec::with_capacity(1024),
+            n_lines:     0,
+            n_skipped:   0,
+            n_accepted:  0,
+        })
     }
 
-    // Read the next line into self.line. Returns Ok(false) at end of input.
-    // A final line without a trailing newline is returned as a normal line.
+    // Read the next accepted line into self.line, skipping lines as the
+    // settings require. Returns Ok(false) at end of input.
     pub fn next_line(&mut self) -> io::Result<bool> {
+        while self.read_line()? {
+            if self.in_preamble && self.settings.skip_comment_preamble && self.line.starts_with(b"#") {
+                self.n_skipped += 1;
+                continue;
+            }
+            self.in_preamble = false;
+            self.n_accepted += 1;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    // Read the next physical line into self.line. Returns Ok(false) at end of input.
+    // A final line without a trailing newline is returned as a normal line.
+    fn read_line(&mut self) -> io::Result<bool> {
         self.line.clear();                  // keeps the allocated capacity
         let n = self.reader.read_until(b'\n', &mut self.line)?;
         if n == 0 {

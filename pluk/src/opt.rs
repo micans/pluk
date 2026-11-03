@@ -9,6 +9,9 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(version, about = "pluk: a Rust implementation of pick")]
 pub struct Config {
+    /// Skip lines starting with '#' at the start of input (temporary option)
+    #[arg(long = "test-comment", visible_alias = "tc")]
+    pub test_comment: bool,
 }
 
 pub fn parse_args() -> Config {
