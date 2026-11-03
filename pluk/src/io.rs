@@ -17,18 +17,28 @@ const BUFSIZE: usize = 128 * 1024;
 const GZIP_MAGIC: [u8; 2] = [0x1f, 0x8b];
 
 // Settings that affect input processing, filled in from the command line by main.
+// B_header keeps the name used in the plan; Rust convention would be b_header.
+#[allow(non_snake_case)]
 pub struct InputSettings {
     pub skip_comment_preamble: bool,    // --test-comment: skip leading lines starting with '#'
+    pub B_header: bool,                 // first accepted line holds column names (no -k)
+    pub omega: Option<usize>,           // -O <N>: ragged input, N columns
 }
 
 pub struct LineReader {
-    reader:         Box<dyn BufRead>,
-    settings:       InputSettings,
-    in_preamble:    bool,           // no accepted line seen yet
-    pub row:        Row,            // current line and its fields
-    pub n_lines:    u64,            // number of lines read so far (physical line number)
-    pub n_skipped:  u64,            // lines skipped
-    pub n_accepted: u64,            // lines returned by next_line()
+    reader:              Box<dyn BufRead>,
+    pub settings:        InputSettings,
+    in_preamble:         bool,      // no accepted line seen yet
+    pending:             bool,      // self.row holds a data line not yet returned by next_line()
+    pub row:             Row,       // current line and its fields
+    pub header:          Row,       // header line and column names, if B_header
+    pub header_lineno:   u64,       // physical line number of the header; 0 if none
+    pub n_columns:       usize,     // number of columns in the data; 0 for empty input
+    pub n_lines:         u64,       // number of lines read so far (physical line number)
+    pub n_skipped:       u64,       // lines skipped
+    pub n_accepted:      u64,       // data lines returned by next_line() (header excluded)
+    pub n_short_rows:    u64,       // with -O N: data lines with fewer than N fields
+    pub n_overflow_rows: u64,       // with -O N: data lines with more than N fields
 }
 
 impl LineReader {
@@ -52,27 +62,72 @@ impl LineReader {
             Box::new(raw)
         };
 
-        Ok(LineReader {
+        let mut input = LineReader {
             reader,
             settings,
-            in_preamble: true,
-            row:         Row::new(),
-            n_lines:     0,
-            n_skipped:   0,
-            n_accepted:  0,
-        })
+            in_preamble:     true,
+            pending:         false,
+            row:             Row::new(),
+            header:          Row::new(),
+            header_lineno:   0,
+            n_columns:       0,
+            n_lines:         0,
+            n_skipped:       0,
+            n_accepted:      0,
+            n_short_rows:    0,
+            n_overflow_rows: 0,
+        };
+        input.read_first()?;
+        Ok(input)
     }
 
-    // Read the next accepted line into self.row and split it into fields,
-    // skipping lines as the settings require. Returns Ok(false) at end of input.
+    // Read the first accepted line and establish the number of columns.
+    // With B_header the line is moved to self.header; otherwise it is kept
+    // in self.row as the first data line.
+    fn read_first(&mut self) -> io::Result<()> {
+        if !self.accept_line()? {
+            self.n_columns = self.settings.omega.unwrap_or(0);   // empty input
+            return Ok(());
+        }
+        if self.settings.B_header {
+            // Exchange the two Row structs; no bytes are copied. self.row
+            // receives the empty buffers of self.header, reused for data lines.
+            std::mem::swap(&mut self.header, &mut self.row);
+            self.header_lineno = self.n_lines;
+            self.n_columns = self.header.n_fields();
+        } else {
+            self.n_columns = self.settings.omega.unwrap_or(self.row.n_fields());
+            self.pending = true;
+        }
+        Ok(())
+    }
+
+    // Make the next data line available in self.row, split into fields.
+    // Returns Ok(false) at end of input.
     pub fn next_line(&mut self) -> io::Result<bool> {
+        if self.pending {
+            self.pending = false;
+        } else if !self.accept_line()? {
+            return Ok(false);
+        }
+        self.n_accepted += 1;
+        if let Some(n) = self.settings.omega {
+            let nf = self.row.n_fields();
+            if nf < n { self.n_short_rows += 1; }
+            if nf > n { self.n_overflow_rows += 1; }
+        }
+        Ok(true)
+    }
+
+    // Read lines until one is accepted (not skipped), and split it into fields.
+    // Returns Ok(false) at end of input.
+    fn accept_line(&mut self) -> io::Result<bool> {
         while self.read_line()? {
             if self.in_preamble && self.settings.skip_comment_preamble && self.row.line.starts_with(b"#") {
                 self.n_skipped += 1;
                 continue;
             }
             self.in_preamble = false;
-            self.n_accepted += 1;
             self.row.split_fields();
             return Ok(true);
         }

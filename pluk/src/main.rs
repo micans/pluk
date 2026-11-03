@@ -3,6 +3,7 @@ mod opt;
 mod row;
 
 use std::io::{BufWriter, ErrorKind, Write};
+use row::Row;
 use std::process;
 
 // Output buffer size. Rust's stdout flushes at every newline by default;
@@ -14,6 +15,8 @@ fn run() -> std::io::Result<()> {
 
     let settings = io::InputSettings {
         skip_comment_preamble: config.test_comment,
+        B_header:              !config.k,
+        omega:                 config.omega.map(|n| n as usize),
     };
     let mut input = io::LineReader::from_stdin(settings)?;
     let mut out = BufWriter::with_capacity(OUT_BUFSIZE, std::io::stdout().lock());
@@ -21,22 +24,45 @@ fn run() -> std::io::Result<()> {
     // --test-i N is 1-based on the command line, field indexes are 0-based.
     let test_column: Option<usize> = config.test_i.map(|n| n as usize - 1);
 
-    while input.next_line()? {
-        write!(out, "{}\t", input.n_lines)?;
-        match test_column {
-            None    => out.write_all(&input.row.line)?,
-            Some(i) => {
-                // Lines with too few fields print an empty field; input
-                // validation follows in item 5.
-                if i < input.row.n_fields() {
-                    out.write_all(input.row.field(i))?;
-                }
-            }
+    if config.c {
+        // -c: output only the number of data rows.
+        while input.next_line()? { }
+        writeln!(out, "{}", input.n_accepted)?;
+    } else {
+        if input.header_lineno > 0 {
+            write_numbered(&mut out, input.header_lineno, &input.header, test_column)?;
         }
-        out.write_all(b"\n")?;
+        while input.next_line()? {
+            write_numbered(&mut out, input.n_lines, &input.row, test_column)?;
+        }
     }
     out.flush()?;
+
+    if config.test_counts {
+        eprintln!("columns={} lines={} skipped={} accepted={} short={} overflow={}",
+            input.n_columns, input.n_lines, input.n_skipped, input.n_accepted,
+            input.n_short_rows, input.n_overflow_rows);
+    }
     Ok(())
+}
+
+// Output used during step1: line number, TAB, then the line or (--test-i) one field.
+// 'out: &mut impl Write' accepts any writer, here the BufWriter on stdout.
+fn write_numbered(out: &mut impl Write, lineno: u64, row: &Row, test_column: Option<usize>)
+    -> std::io::Result<()>
+{
+    write!(out, "{}\t", lineno)?;
+    match test_column {
+        None    => out.write_all(&row.line)?,
+        Some(i) => {
+            // Lines with too few fields print an empty field; input
+            // validation follows in item 5.
+            if i < row.n_fields() {
+                out.write_all(row.field(i))?;
+            }
+        }
+    }
+    out.write_all(b"\n")
 }
 
 fn main() {

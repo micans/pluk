@@ -21,6 +21,13 @@ runpluk: data.txt big.txt
 	printf 'a\tb\nno newline at end' | $(p)  > o.nonewline.test
 	printf 'caf\xe9\t\xff\xfe\n' | $(p)      > o.nonutf8.test
 	$(p)                  < /dev/null        > o.empty.test
+	$(p) -c                     < data.txt   > o.count.test
+	$(p) -kc                    < data.txt   > o.count-k.test
+	$(p) -c                     < big.txt    > o.big-count-all.test
+	$(p) -c                     < /dev/null  > o.count-empty.test
+	head -n 1 data.txt | $(p) -c             > o.count-headeronly.test
+	gzip -c big.txt | $(p) -kc               > o.count-gz.test
+	$(p) -O3 < data.txt > /dev/null 2> o.omega-needs-k.test; [ $$? -eq 1 ]
 	seq 1 1000000 > seq.tmp; $(p) < seq.tmp | head -n 2 > o.brokenpipe.test; [ $${PIPESTATUS[0]} -eq 0 ]; rm seq.tmp
 
 # Tests for temporary --test-* options. When such an option is removed, remove
@@ -41,6 +48,14 @@ runtestopt: data.txt
 	gzip -c big.txt | $(p) --test-i 18                  > o.ti-big-gz.test
 	{ printf '# c1\n';  cat data.txt; } | $(p) --tc --test-i 2  > o.ti-tc.test
 	printf 'a\tb\n\n\tz\nx\t\ty\n' | $(p) --test-i 2         > o.ti-empty.test
+
+	$(p) -k                     < data.txt   > o.k-lineno.test
+	{ printf '#c\n';  cat data.txt; } | $(p) -c --tc   > o.tc-count.test
+	$(p) --test-counts          < data.txt   2> o.counts-header.test > /dev/null
+	$(p) -k --test-counts       < data.txt   2> o.counts-k.test      > /dev/null
+	$(p) --test-counts          < /dev/null  2> o.counts-empty.test  > /dev/null
+	printf 'a\tb\tc\td\te\nx\ny\tz\n\tq\tr\n' | $(p) -kO3 --test-counts  2> o.counts-omega.test  > /dev/null
+	{ printf '#a\n#b\n'; cat big.txt; } | $(p) -kO5 -c --tc --test-counts 2> o.counts-big-omega.test > /dev/null
 
 %.ref : %.test
 	diff $< $@

@@ -5,10 +5,23 @@
 // struct, not clap.
 
 use clap::Parser;
+use std::process;
 
 #[derive(Parser, Debug)]
 #[command(version, about = "pluk: a Rust implementation of pick")]
 pub struct Config {
+    /// Input has no header line; columns are named 1 2 ... N
+    #[arg(short = 'k')]
+    pub k: bool,
+
+    /// Only output the count of rows
+    #[arg(short = 'c')]
+    pub c: bool,
+
+    /// Ragged input: use <N> columns, merge columns at/after position <N> (requires -k)
+    #[arg(short = 'O', value_name = "N", value_parser = clap::value_parser!(u32).range(1..))]
+    pub omega: Option<u32>,
+
     /// Skip lines starting with '#' at the start of input (temporary option)
     #[arg(long = "test-comment", visible_alias = "tc")]
     pub test_comment: bool,
@@ -16,8 +29,19 @@ pub struct Config {
     /// Output only column <N> (1-based), preceded by the line count (temporary option)
     #[arg(long = "test-i", value_name = "N", value_parser = clap::value_parser!(u32).range(1..))]
     pub test_i: Option<u32>,
+
+    /// Print input counters to STDERR at the end (temporary option)
+    #[arg(long = "test-counts")]
+    pub test_counts: bool,
 }
 
 pub fn parse_args() -> Config {
-    Config::parse()
+    let config = Config::parse();
+
+    // Combinations clap does not check; messages as in pick.
+    if config.omega.is_some() && !config.k {
+        eprintln!("-O<N> requires -k");
+        process::exit(1);
+    }
+    config
 }
