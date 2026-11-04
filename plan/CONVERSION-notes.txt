@@ -20,7 +20,7 @@ I'm considering additionally operators that will assert or force type identity, 
 :=^force^foo^bar,INT
 :=^assert^tim^zut,FLOAT
 
-These would be evaluated at compile time and lead to appropriate remarks settings.
+These would be evaluated at compile time and lead to appropriate notes settings.
 
 There are still questions, for example floats can be forced to int. A string like 'fox' could
 be forced either to zero (perl behaviour) or NA (my preference).
