@@ -66,3 +66,5 @@
 
       -l and -z are not listed until implemented.
       Commit.
+
+  Status: items 1-5 implemented (see step3-notes.txt).

@@ -62,9 +62,35 @@ pub fn parse_args() -> Config {
     }
 }
 
-// Placeholder; the option listing follows in step3 item 5.
+// Output of -H and --help. Options are listed in order of importance (plan/step3.txt item 5).
+const HELP: &str = "\
+Usage: pluk [options] <column>+ < FILE
+Output the named columns of TAB-separated input (plain or gzip-compressed).
+
+Options:
+  -k          input has no header line; columns are named 1 2 .. N
+  -h          do not output the header line
+  -c          output only the number of data rows
+  -A          output all columns
+  -A<N>       as -A; <N> is the insert position for computed columns (not yet used)
+  -x          output all columns except the named ones
+  -/<pat>     skip lines matching regular expression <pat>, e.g. -/^#
+  -//<pat>    output lines matching <pat> unchanged
+  -u          make duplicate input column names unique (suffixes _v02, _v03, ..)
+  -O<N>       ragged input: <N> columns, merge columns at and after <N> (requires -k)
+  -R          header has no name for the first (row name) column; it is named _
+  --sam       SAM input: implies -k and -O12, skips lines starting with @
+  --sam-h     as --sam, but outputs lines starting with @ unchanged
+
+  -H, --help  print this help
+  --version   print the version
+
+Short options combine, e.g. -kO12/^#. Options take effect from left to right.
+In <pat>, write / as %2F.
+";
+
 fn print_help() {
-    println!("Usage: pluk [options] <column>+ < FILE");
+    print!("{}", HELP);
 }
 
 pub fn parse(args: &[Vec<u8>]) -> Result<Parsed, String> {

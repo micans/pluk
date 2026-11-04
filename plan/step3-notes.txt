@@ -116,3 +116,19 @@ Item 4: -/PAT and -//PAT filtering, --test-comment retired
   o.tc-midfile.ref is listed in RETIRED_REFS and excluded from rundiff.
   New tests: pat-* (purge, pass, both, pass before purge, -c with pass-through, regex flags,
   purged header, byte matching, \xHH escapes, gzip, with --sam and --sam-h, pattern errors).
+
+
+Item 5: -H and --help
+
+  opt.rs holds the text in a constant HELP, printed by print_help(); -H and --help both lead to
+  Parsed::Help and exit 0 before input is read. -H must be a word of its own, as in pick (-kH is
+  an option error).
+
+  Layout: usage line, one-line description, then one line per option in the order of the step
+  file, with the argument form (-A<N>, -O<N>, -/<pat>) in a fixed-width first column. -A and -A<N>
+  have separate lines since they differ in meaning. -H/--help and --version close the list, and
+  two final lines state the general rules: short options combine, options act from left to
+  right, '/' in a pattern is written %2F. Column specification syntax is not explained yet.
+  -l and -z, and the --test options, are not listed.
+
+  Tests: help, help-long (identical output), help-bundle.
