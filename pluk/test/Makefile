@@ -181,6 +181,15 @@ runtestopt: data.txt
 	printf 'log2(FC)\tcost($$)\n1\t2\n' | $(p) --test-select 'cost($$)' 'log2(FC)'  > o.sel-regexchars.test
 	printf 'a\tb\ta\n1\t2\t3\n' | $(p) -u --test-select a_v02 a  > o.sel-u.test
 	$(p) --sam-h -A --test-counts    < sam.txt    2> o.counts-sam.test  > /dev/null
+	$(p) --test-dict --fd-x=data.txt                        < /dev/null  > o.dict-fd.test
+	$(p) --test-dict --kdict-k=<(gzip -c data.txt)          < /dev/null  > o.dict-kd-gz.test
+	$(p) --test-dict --fdict-b=big.txt --kd-c=big.txt       < /dev/null  > o.dict-big.test
+	$(p) --test-dict --fd-x=<(printf 'a\nb\tB\tC\n\tE\n') < /dev/null  > o.dict-fd-fields.test
+	$(p) --test-dict --cd-c/a%3Db=a:A,b,%41:%2C, --cdict-e/=x:  < /dev/null  > o.dict-cd.test
+	$(p) --test-dict --kd-a/__EXIT__=data.txt --kd-b/%5F_EXIT__=data.txt  < /dev/null  > o.dict-exit.test
+	$(p) --test-dict --fd-x/d1=data.txt --cd-x=Ann:Z,new:N --cd-y=a --cd-x/d2=q  < /dev/null  > o.dict-merge.test 2> o.dict-merge-msg.test
+	$(p) --test-dict --cd-x/d1=a --cd-x/__EXIT__=b --cd-x/d2=c --cd-x=d  < /dev/null  > o.dict-merge-exit.test 2> /dev/null
+	for a in --fd-x --fd-=f --fd-x= --fd-x/d --kd-x+=f --cdict-x --cd-x=a:b:c --fd-x=/nonexistent; do $(p) --test-dict "$$a" < /dev/null; [ $$? -eq 1 ] || exit 1; done 2> o.dict-errors.test
 
 %.ref : %.test
 	diff $< $@

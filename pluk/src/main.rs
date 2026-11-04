@@ -1,3 +1,4 @@
+mod dict;
 mod io;
 mod names;
 mod opt;
@@ -20,10 +21,27 @@ fn run() -> std::io::Result<()> {
 
     // As in pick: without column names there is nothing to do; checked before reading input.
     if config.columns.is_empty() && !config.all && !config.excise && !config.c
-        && !lineno_mode && !config.test_names && !config.test_select
+        && !lineno_mode && !config.test_names && !config.test_select && !config.test_dict
     {
         eprintln!("pluk: no columns given. Use --help for help, -h suppresses header line output");
         eprintln!("pluk only works as a pipe, so invoke e.g. as: pluk foo bar < data.txt");
+        return Ok(());
+    }
+
+    // Dictionaries are read once all options are known, before any input is read
+    // (plan/step4.txt, design considerations).
+    let dicts = match dict::Dicts::load(&config.dicts) {
+        Ok(dicts) => dicts,
+        Err(msg)  => {
+            eprintln!("pluk: {}", msg);
+            process::exit(1);
+        }
+    };
+
+    if config.test_dict {
+        let mut out = BufWriter::with_capacity(OUT_BUFSIZE, std::io::stdout().lock());
+        dicts.write_test(&mut out)?;
+        out.flush()?;
         return Ok(());
     }
 

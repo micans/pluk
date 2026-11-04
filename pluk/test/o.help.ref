@@ -16,6 +16,17 @@ Options:
   --sam       SAM input: implies -k and -O12, skips lines starting with @
   --sam-h     as --sam, but outputs lines starting with @ unchanged
 
+Dictionaries (NAME: letters, digits, _; lookup is not yet implemented):
+  --kd-NAME=FILE          keys from the first column of FILE, all values 1
+  --fd-NAME=FILE          keys and values from the first two columns of FILE
+  --cd-NAME=k1:v1,k2:v2   keys and values from the list; k without :v has value 1
+  --kd-NAME/DEFAULT=...   as above, DEFAULT is the value for keys not found;
+                          __EXIT__ makes a failed lookup an error. Without
+                          DEFAULT a key not found maps to itself.
+  --kdict- --fdict- --cdict- are synonyms. A repeated NAME adds to the dictionary.
+  FILE may be gzip-compressed. In DEFAULT write = as %3D; in --cd write , and :
+  as %2C and %3A.
+
   -H, --help  print this help
   --version   print the version
 

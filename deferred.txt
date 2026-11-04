@@ -2,3 +2,6 @@
 - column specifications: : lists, -k ranges and + regexes
 - (done in step3 item 4: -/PAT and -//PAT with the regex crate, --tc retired)
 - the Scalar, numeric and conversion design ahead of computes
+- --fastq-dict-NAME (step4: rarely used)
+- faster hasher for dictionary lookups (default SipHash); measure once lookup exists (step4)
+- option to protect the first (header) line from -/PAT and -//PAT

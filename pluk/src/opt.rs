@@ -12,6 +12,8 @@
 use std::os::unix::ffi::OsStringExt;
 use std::process;
 
+use crate::dict::{DictKind, DictSpec, NotFound};
+
 #[derive(Debug, Default)]
 pub struct Config {
     pub no_header: bool,                // -h
@@ -27,11 +29,13 @@ pub struct Config {
     pub sam_h: bool,                    // --sam-h
     pub pat_purge: Option<Vec<u8>>,     // -/PAT, %-decoded
     pub pat_pass: Option<Vec<u8>>,      // -//PAT, %-decoded
+    pub dicts: Vec<DictSpec>,           // --kd- --fd- --cd- options, in command line order
     pub test_i: Option<u32>,            // --test-i=N (temporary)
     pub test_lineno: bool,              // --test-lineno (temporary)
     pub test_counts: bool,              // --test-counts (temporary)
     pub test_names: bool,               // --test-names (temporary)
     pub test_select: bool,              // --test-select (temporary)
+    pub test_dict: bool,                // --test-dict (temporary)
     pub columns: Vec<Vec<u8>>,          // column arguments
 }
 
@@ -82,6 +86,17 @@ Options:
   --sam       SAM input: implies -k and -O12, skips lines starting with @
   --sam-h     as --sam, but outputs lines starting with @ unchanged
 
+Dictionaries (NAME: letters, digits, _; lookup is not yet implemented):
+  --kd-NAME=FILE          keys from the first column of FILE, all values 1
+  --fd-NAME=FILE          keys and values from the first two columns of FILE
+  --cd-NAME=k1:v1,k2:v2   keys and values from the list; k without :v has value 1
+  --kd-NAME/DEFAULT=...   as above, DEFAULT is the value for keys not found;
+                          __EXIT__ makes a failed lookup an error. Without
+                          DEFAULT a key not found maps to itself.
+  --kdict- --fdict- --cdict- are synonyms. A repeated NAME adds to the dictionary.
+  FILE may be gzip-compressed. In DEFAULT write = as %3D; in --cd write , and :
+  as %2C and %3A.
+
   -H, --help  print this help
   --version   print the version
 
@@ -121,6 +136,10 @@ pub fn parse(args: &[Vec<u8>]) -> Result<Parsed, String> {
 
 // A '--' option, one per word. Returns Some for options that end parsing.
 fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String> {
+    if let Some((kind, rest)) = dict_option(long) {
+        config.dicts.push(parse_dict_spec(kind, rest, long)?);
+        return Ok(None);
+    }
     match long {
         b"help"    => return Ok(Some(Parsed::Help)),
         b"version" => return Ok(Some(Parsed::Version)),
@@ -135,6 +154,7 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
         b"test-counts"          => config.test_counts = true,
         b"test-names"           => config.test_names = true,
         b"test-select"          => config.test_select = true,
+        b"test-dict"            => config.test_dict = true,
         _ if long.starts_with(b"test-i=") => {
             let n = parse_number::<u32>(&long[7..]);
             match n {
@@ -148,6 +168,44 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
         _ => return Err(format!("Unrecognised long option --{}", String::from_utf8_lossy(long))),
     }
     Ok(None)
+}
+
+// Dictionary options: the kind, and the part after the prefix (NAME[/DEFAULT]=SOURCE).
+fn dict_option(long: &[u8]) -> Option<(DictKind, &[u8])> {
+    const PREFIXES: [(&[u8], DictKind); 6] = [
+        (b"kd-", DictKind::Keys),   (b"kdict-", DictKind::Keys),
+        (b"fd-", DictKind::Pairs),  (b"fdict-", DictKind::Pairs),
+        (b"cd-", DictKind::Inline), (b"cdict-", DictKind::Inline),
+    ];
+    PREFIXES.iter().find_map(|&(prefix, kind)| long.strip_prefix(prefix).map(|rest| (kind, rest)))
+}
+
+// NAME[/DEFAULT]=SOURCE. NAME is [A-Za-z0-9_]+ (pick: \w+). DEFAULT extends to the
+// first '=' and is %-decoded (pick does not decode it); it may be empty.
+fn parse_dict_spec(kind: DictKind, rest: &[u8], long: &[u8]) -> Result<DictSpec, String> {
+    let option = [b"--", long].concat();
+    let usage = || {
+        let source = if kind == DictKind::Inline { "k:v,.." } else { "FILE" };
+        let prefix = &long[..long.len() - rest.len()];
+        format!("{}: expected --{}NAME[/DEFAULT]={}", String::from_utf8_lossy(&option),
+                String::from_utf8_lossy(prefix), source)
+    };
+    let name_len = rest.iter().take_while(|&&b| b.is_ascii_alphanumeric() || b == b'_').count();
+    if name_len == 0 {
+        return Err(usage());
+    }
+    let mut tail = &rest[name_len..];
+    let mut not_found = None;
+    if let Some(t) = tail.strip_prefix(b"/") {
+        let eq = t.iter().position(|&b| b == b'=').ok_or_else(usage)?;
+        not_found = Some(NotFound::from_default(pct_decode(&t[..eq])));
+        tail = &t[eq..];
+    }
+    let source = tail.strip_prefix(b"=").ok_or_else(usage)?;
+    if source.is_empty() {
+        return Err(usage());
+    }
+    Ok(DictSpec { option, kind, name: rest[..name_len].to_vec(), not_found, source: source.to_vec() })
 }
 
 // A bundle of '-' options, without the leading '-', scanned left to right.
@@ -353,6 +411,25 @@ mod tests {
     fn unknown_options() {
         assert_eq!(run(&["-kw"]).unwrap_err(), "Option string not fully parsed: -w remains");
         assert_eq!(run(&["--nosuch"]).unwrap_err(), "Unrecognised long option --nosuch");
+    }
+
+    #[test]
+    fn dict_options() {
+        let c = run(&["--fd-x=f.txt", "--kdict-y_2/=g", "--cd-z/a%3Db=k:v", "--kd-w/__EXIT__=h"]).unwrap();
+        let s = &c.dicts;
+        assert_eq!(s.len(), 4);
+        assert_eq!((s[0].kind, &s[0].name[..], &s[0].not_found, &s[0].source[..]),
+                   (DictKind::Pairs, &b"x"[..], &None, &b"f.txt"[..]));
+        assert_eq!((s[1].kind, &s[1].name[..], &s[1].not_found),
+                   (DictKind::Keys, &b"y_2"[..], &Some(NotFound::Value(Vec::new()))));
+        assert_eq!((s[2].kind, &s[2].not_found, &s[2].source[..]),
+                   (DictKind::Inline, &Some(NotFound::Value(b"a=b".to_vec())), &b"k:v"[..]));
+        assert_eq!(s[3].not_found, Some(NotFound::Exit));
+        assert_eq!(s[0].option, b"--fd-x=f.txt".to_vec());
+        for bad in ["--fd-=f", "--fd-x", "--fd-x=", "--fd-x/d", "--fd-x!=f"] {
+            assert!(run(&[bad]).is_err(), "{}", bad);
+        }
+        assert_eq!(run(&["--fd-x"]).unwrap_err(), "--fd-x: expected --fd-NAME[/DEFAULT]=FILE");
     }
 
     #[test]

@@ -5,7 +5,7 @@
 // plan/step1-notes.txt for the rationale.
 
 use std::cmp::Ordering;
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Read};
 
 use flate2::bufread::MultiGzDecoder;
 use regex::bytes::{Regex, RegexBuilder};
@@ -71,23 +71,7 @@ pub struct LineReader {
 impl LineReader {
 
     pub fn from_stdin(settings: InputSettings) -> io::Result<LineReader> {
-        let stdin = io::stdin().lock();
-        let mut raw = BufReader::with_capacity(BUFSIZE, stdin);
-
-        // fill_buf() returns the buffered bytes without consuming them, so the
-        // check does not lose any input. A single read may in principle return
-        // fewer than two bytes; for a pipe or file at the start of input this
-        // does not happen in practice.
-        let is_gzip = raw.fill_buf()?.starts_with(&GZIP_MAGIC);
-
-        let reader: Box<dyn BufRead> = if is_gzip {
-            // MultiGzDecoder continues across concatenated gzip members,
-            // which is what bgzip files consist of.
-            let decoder = MultiGzDecoder::new(raw);
-            Box::new(BufReader::with_capacity(BUFSIZE, decoder))
-        } else {
-            Box::new(raw)
-        };
+        let reader = open_buffered(io::stdin().lock())?;
 
         let mut input = LineReader {
             reader,
@@ -249,6 +233,28 @@ impl LineReader {
         }
         self.n_lines += 1;
         Ok(true)
+    }
+}
+
+
+// A buffered reader for source (STDIN or a file), decompressing if the source
+// starts with the gzip magic bytes. Used for the input and for dictionary files.
+pub fn open_buffered<R: Read + 'static>(source: R) -> io::Result<Box<dyn BufRead>> {
+    let mut raw = BufReader::with_capacity(BUFSIZE, source);
+
+    // fill_buf() returns the buffered bytes without consuming them, so the
+    // check does not lose any input. A single read may in principle return
+    // fewer than two bytes; for a pipe or file at the start of input this
+    // does not happen in practice.
+    let is_gzip = raw.fill_buf()?.starts_with(&GZIP_MAGIC);
+
+    if is_gzip {
+        // MultiGzDecoder continues across concatenated gzip members,
+        // which is what bgzip files consist of.
+        let decoder = MultiGzDecoder::new(raw);
+        Ok(Box::new(BufReader::with_capacity(BUFSIZE, decoder)))
+    } else {
+        Ok(Box::new(raw))
     }
 }
 

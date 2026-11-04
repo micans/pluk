@@ -44,6 +44,11 @@
       (step3-notes.txt item 4).
     - --sam and --sam-h keep skipping or passing '@' lines when -/PAT or -//PAT is also given
       (step3-notes.txt item 4).
+    - Dictionaries (step4.txt, step4-notes.txt): --td^key/default order (pick: /default^key);
+      %-decoded defaults; no named table dictionaries and no tmap; repeated NAME merges with a
+      diagnostic, __EXIT__ sticky; only --sam/f.fasta sets the SAM reference; seqlen reserved;
+      fasta '>' without identifier and repeated identifiers are errors; --cd ignores empty
+      pairs and refuses a pair with more than one ':'.
 
 # Coding guidelines
 
