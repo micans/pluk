@@ -27,7 +27,6 @@ pub struct Config {
     pub sam_h: bool,                    // --sam-h
     pub pat_purge: Option<Vec<u8>>,     // -/PAT, %-decoded
     pub pat_pass: Option<Vec<u8>>,      // -//PAT, %-decoded
-    pub test_comment: bool,             // --test-comment, --tc (temporary)
     pub test_i: Option<u32>,            // --test-i=N (temporary)
     pub test_lineno: bool,              // --test-lineno (temporary)
     pub test_counts: bool,              // --test-counts (temporary)
@@ -106,7 +105,6 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
             config.k     = true;
             config.omega = Some(12);
         }
-        b"test-comment" | b"tc" => config.test_comment = true,
         b"test-lineno"          => config.test_lineno = true,
         b"test-counts"          => config.test_counts = true,
         b"test-names"           => config.test_names = true,

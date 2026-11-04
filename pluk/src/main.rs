@@ -31,8 +31,21 @@ fn run() -> std::io::Result<()> {
     #[allow(non_snake_case)]
     let B_print_header = !config.k && !config.no_header && !config.c;
 
+    // -/PAT and -//PAT; an invalid pattern is reported like an option error.
+    let compile = |pat: &Option<Vec<u8>>, what: &str| match pat {
+        None    => None,
+        Some(p) => match io::compile_pattern(p, what) {
+            Ok(re)   => Some(re),
+            Err(msg) => {
+                eprintln!("{}", msg);
+                process::exit(1);
+            }
+        },
+    };
+
     let settings = io::InputSettings {
-        skip_comment_preamble: config.test_comment,
+        pat_purge:             compile(&config.pat_purge, "-/PAT"),
+        pat_pass:              compile(&config.pat_pass, "-//PAT"),
         B_header:              !config.k,
         omega:                 config.omega.map(|n| n as usize),
         add_row_column:        config.add_row_column,
@@ -131,7 +144,7 @@ fn run() -> std::io::Result<()> {
         eprintln!("columns={} lines={} skipped={} accepted={} short={} overflow={}",
             input.n_columns, input.n_lines, input.n_skipped, input.n_accepted,
             input.n_short_rows, input.n_overflow_rows);
-        if input.settings.sam != io::SamMode::Off {
+        if input.settings.sam != io::SamMode::Off || input.settings.pat_pass.is_some() {
             eprintln!("passthrough={}", input.n_passthrough);
         }
     }

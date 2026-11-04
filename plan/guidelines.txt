@@ -40,6 +40,10 @@
     - In -/PAT and -//PAT a literal '/' must be written as %2F, and an empty pattern is refused
       (step3.txt item 2, step3-notes.txt item 3).
     - Repeated flag letters in an option bundle are accepted (step3-notes.txt item 3).
+    - -/PAT and -//PAT use Rust regex syntax (no backreferences or lookaround), matching on bytes
+      (step3-notes.txt item 4).
+    - --sam and --sam-h keep skipping or passing '@' lines when -/PAT or -//PAT is also given
+      (step3-notes.txt item 4).
 
 # Coding guidelines
 

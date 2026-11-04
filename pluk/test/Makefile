@@ -6,12 +6,15 @@ SHELL=/bin/bash
 
 p=../target/release/pluk
 
-.PHONY: test runpluk runtestopt rundiff
+.PHONY: test runpluk runtestopt rundiff runretired
 
 test: runpluk runtestopt rundiff
 	@echo "--- All tests passed ---"
 
-rundiff: $(wildcard *.ref)
+# Reference files produced only by retired invocations (target runretired).
+RETIRED_REFS = o.tc-midfile.ref
+
+rundiff: $(filter-out $(RETIRED_REFS), $(wildcard *.ref))
 
 runpluk: data.txt big.txt sam.txt
 	$(p) --test-lineno                  < data.txt         > o.lineno.test
@@ -105,6 +108,20 @@ runpluk: data.txt big.txt sam.txt
 	$(p) name -h                     < data.txt  2> o.opt-col-dash.test > /dev/null; [ $$? -eq 1 ]
 	$(p) -kO3 --sam 3                < sam.txt    > o.opt-order-sam.test 2> /dev/null
 	for a in -kO -kO0 -kw --nosuch -//a/b -/a/b -/ -// --test-i=0 --sam/x.fa -A99999999999999999999; do $(p) "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.opt-errors.test
+	{ printf '# c1\n#c2\n'; head -n 4 data.txt; printf '# mid\n'; tail -n 2 data.txt; } | $(p) '-/^#' name fib   > o.pat-purge.test
+	{ printf '# c1\n#c2\n'; head -n 4 data.txt; printf '# mid\n'; tail -n 2 data.txt; } | $(p) '-//^#' name fib  > o.pat-pass.test
+	{ printf '# c1\n#c2\n'; head -n 4 data.txt; printf '# mid\n'; tail -n 2 data.txt; } | $(p) '-//^#' -c       > o.pat-pass-count.test
+	$(p) '-/^Bob//^Ann' name fib     < data.txt   > o.pat-both.test
+	$(p) '-/A//An' name fib          < data.txt   > o.pat-pass-first.test
+	$(p) '-/(?i)^ann' name           < data.txt   > o.pat-regex.test
+	$(p) '-/\d\d' name ms            < data.txt   > o.pat-header.test
+	printf 'a\tb\n\xe9x\t1\nzz\t2\n' | $(p) '-/^.x' a   > o.pat-bytes.test
+	printf 'a\tb\ncaf\xc3\xa9\t1\nzz\t2\n' | $(p) '-/\xc3\xa9' a   > o.pat-utf8.test
+	gzip -c data.txt | $(p) '-/^C' name           > o.pat-gz.test
+	$(p) --sam '-/\tchr2\t' -A          < sam.txt    > o.pat-sam.test       2> /dev/null
+	$(p) --sam-h '-/^@SQ' -A         < sam.txt    > o.pat-samh.test      2> /dev/null
+	$(p) '-/^r00' --sam-h 1          < sam.txt    > o.pat-samh-purge.test 2> /dev/null
+	for a in '-/(' '-/%FF'; do $(p) "$$a" name < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.pat-errors.test
 	seq 1 1000000 > seq.tmp; $(p) --test-lineno < seq.tmp | head -n 2 > o.brokenpipe.test; [ $${PIPESTATUS[0]} -eq 0 ]; rm seq.tmp
 
 # Tests for temporary --test-* options. When such an option is removed, remove
@@ -112,28 +129,28 @@ runpluk: data.txt big.txt sam.txt
 # plan step file. See plan/guidelines.txt.
 
 runtestopt: data.txt
-	{ printf '# c1\n#c2\n';  cat data.txt; } | $(p) --test-lineno --test-comment          > o.tc-skip.test
-	{ printf '# c1\n#c2\n';  cat data.txt; } | $(p) --test-lineno --tc                    > o.tc-alias.test
+	{ printf '# c1\n#c2\n';  cat data.txt; } | $(p) --test-lineno '-/^#'          > o.tc-skip.test
+	{ printf '# c1\n#c2\n';  cat data.txt; } | $(p) --test-lineno '-/^%23'                    > o.tc-alias.test
 	{ printf '# c1\n#c2\n';  cat data.txt; } | $(p) --test-lineno -kO13                   > o.tc-noskip.test
-	{ printf '# c1\n';  head -n 3 data.txt; printf '# mid\n'; tail -n 2 data.txt; } | $(p) --test-lineno -kO13 --tc > o.tc-midfile.test
-	{ printf '# c1\n#c2\n';  cat data.txt; } | gzip -c | $(p) --test-lineno --tc          > o.tc-gz.test
-	printf '#a\n#b\n' | $(p) --test-lineno --tc                                          > o.tc-allcomment.test
+	{ printf '# c1\n';  head -n 3 data.txt; printf '# mid\n'; tail -n 2 data.txt; } | $(p) --test-lineno -kO13 '-/^#' > o.pat-midfile.test
+	{ printf '# c1\n#c2\n';  cat data.txt; } | gzip -c | $(p) --test-lineno '-/^#'          > o.tc-gz.test
+	printf '#a\n#b\n' | $(p) --test-lineno '-/^#'                                          > o.tc-allcomment.test
 	$(p) --test-i=1                         < data.txt  > o.ti-first.test
 	$(p) --test-i=13                        < data.txt  > o.ti-last.test
 	$(p) --test-i=14                        < data.txt  > o.ti-beyond.test
 	$(p) --test-i=18                        < big.txt   > o.ti-big.test
 	gzip -c big.txt | $(p) --test-i=18                  > o.ti-big-gz.test
-	{ printf '# c1\n';  cat data.txt; } | $(p) --tc --test-i=2  > o.ti-tc.test
+	{ printf '# c1\n';  cat data.txt; } | $(p) '-/^#' --test-i=2  > o.ti-tc.test
 	printf 'a\tb\n\n\tz\nx\t\ty\n' | $(p) -kO3 --test-i=2    > o.ti-empty.test
 
 	$(p) --test-lineno -k                     < data.txt   > o.k-lineno.test
-	{ printf '#c\n';  cat data.txt; } | $(p) -c --tc   > o.tc-count.test
+	{ printf '#c\n';  cat data.txt; } | $(p) -c '-/^#'   > o.tc-count.test
 	$(p) --test-lineno --test-counts          < data.txt   2> o.counts-header.test > /dev/null
 	$(p) --test-lineno -k --test-counts       < data.txt   2> o.counts-k.test      > /dev/null
 	$(p) --test-lineno --test-counts          < /dev/null  2> o.counts-empty.test  > /dev/null
 	printf 'a\tb\nr1\t1\t2\n' | $(p) --test-lineno -R --test-counts  2> o.counts-R.test  > /dev/null
 	printf 'a\tb\tc\td\te\nx\ny\tz\n\tq\tr\n' | $(p) --test-lineno -kO3 --test-counts  2> o.counts-omega.test  > /dev/null
-	{ printf '#a\n#b\n'; cat big.txt; } | $(p) -kO5 -c --tc --test-counts 2> o.counts-big-omega.test > /dev/null
+	{ printf '#a\n#b\n'; cat big.txt; } | $(p) -kO5 -c '-/^#' --test-counts 2> o.counts-big-omega.test > /dev/null
 	printf 'a\tb\tc\td\te\nx\ny\tz\n\tq\tr\n' | $(p) -kO3 --test-i=2   > o.omega-ti2.test
 	printf 'a\tb\tc\td\te\nx\ny\tz\n\tq\tr\n' | $(p) -kO3 --test-i=3   > o.omega-ti3.test
 	tail -n +2 big.txt | $(p) -kO5  --test-i=5                     > o.big-omega5-ti5.test
@@ -167,3 +184,18 @@ runtestopt: data.txt
 
 clean:
 	rm -f o.*.test
+
+# Retired invocations, no longer run (see plan/step3-notes.txt item 4).
+# --test-comment/--tc was removed in step3 item 4; equivalent invocations using -/^#
+# in runtestopt write the same .test files, except o.tc-midfile (--tc only skipped
+# leading lines; -/^# skips all), replaced by o.pat-midfile.
+
+runretired: data.txt big.txt
+	{ printf '# c1\n#c2\n';  cat data.txt; } | $(p) --test-lineno --test-comment          > o.tc-skip.test
+	{ printf '# c1\n#c2\n';  cat data.txt; } | $(p) --test-lineno --tc                    > o.tc-alias.test
+	{ printf '# c1\n';  head -n 3 data.txt; printf '# mid\n'; tail -n 2 data.txt; } | $(p) --test-lineno -kO13 --tc > o.tc-midfile.test
+	{ printf '# c1\n#c2\n';  cat data.txt; } | gzip -c | $(p) --test-lineno --tc          > o.tc-gz.test
+	printf '#a\n#b\n' | $(p) --test-lineno --tc                                          > o.tc-allcomment.test
+	{ printf '# c1\n';  cat data.txt; } | $(p) --tc --test-i=2  > o.ti-tc.test
+	{ printf '#c\n';  cat data.txt; } | $(p) -c --tc   > o.tc-count.test
+	{ printf '#a\n#b\n'; cat big.txt; } | $(p) -kO5 -c --tc --test-counts 2> o.counts-big-omega.test > /dev/null

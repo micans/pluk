@@ -1,0 +1,5 @@
+@HD	VN:1.6	SO:unsorted
+@SQ	SN:chr1	LN:1000
+@SQ	SN:chr2	LN:500
+@PG	ID:hand	PN:handwritten
+@CO	comment in the middle

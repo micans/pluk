@@ -67,3 +67,52 @@ Item 3: bespoke parser, clap removed
   now takes its value in the same word. Output is unchanged. All other invocations run unchanged.
   New tests: opt-bundle, opt-A-neg, opt-dashdash, opt-col-dash (a dash word after the first column
   name is a column name, as in pick), opt-order-sam, opt-errors; and unit tests in opt.rs.
+
+
+Item 4: -/PAT and -//PAT filtering, --test-comment retired
+
+  Crate: regex (regex::bytes), the standard Rust regex crate; it brings regex-automata,
+  regex-syntax, aho-corasick and memchr as dependencies. The bytes variant matches on &[u8], so
+  lines that are not valid UTF-8 are handled.
+
+  io.rs:
+    - InputSettings.pat_purge and pat_pass hold the compiled patterns; skip_comment_preamble and
+      the in_preamble flag are gone.
+    - accept_line() tests every line, the header line included, before splitting, as in pick:
+      first whether to pass it through (-//PAT, or an '@' line with --sam-h), then whether to skip
+      it (-/PAT, or an '@' line with --sam). A line matching both is passed through, as in pick.
+      Both count as skipped; pass-through lines are also counted as such. The SAM '@' prefix test
+      of step2 item 4 is kept, so a user pattern applies in addition to it. In pick --sam and -/PAT
+      share one pattern variable, and 'pick --sam -/PAT' no longer skips '@' lines.
+    - compile_pattern() builds the regex with Unicode mode off. Matching is then on bytes, as in
+      Perl without 'use utf8': '.' matches any byte except newline; \w \d \s and (?i) are
+      ASCII-only. A literal non-ASCII character in the pattern still matches its UTF-8 bytes.
+      The crate takes the pattern as a str, so a pattern that is not valid UTF-8 after %-decoding
+      (e.g. %FF) is refused; such bytes can be written as \xFF in the pattern.
+    - Lines are matched without their trailing newline. Perl matched with it, but '$' in Perl
+      matches before a final newline, so ordinary patterns behave the same.
+  main.rs compiles the patterns before reading input; a regex syntax error is reported as an
+  option error (exit 1). --test-counts now also prints passthrough= when -//PAT is given.
+
+  Rust regex syntax differs from Perl's mainly in lacking backreferences and lookaround; such a
+  pattern is a syntax error.
+
+  Cost, on big.txt repeated to 1,000,000 rows (100 MB), pluk -A to /dev/null:
+      no pattern               0.085 s
+      -/^#zz                   0.096 s
+      -/zzz                    0.093 s
+      -/(?i)ACGTACGTTT         0.114 s
+      -//^#zz -/xyz            0.113 s
+
+  Comparison with pick for 18 invocations: identical, except where expected: pick has no gzip
+  input from STDIN; the --sam/-/PAT interaction above; pick's sequence length lookup message
+  (deferred); and the step1 duplicate-name message when the header line is purged.
+
+  Tests. --test-comment and --tc are removed. Their invocations are kept, not run, in the new
+  target runretired of test/Makefile. In runtestopt they are replaced by the same invocations
+  with -/^# (with -/^%23 for the former --tc alias test, exercising %-decoding), writing the same
+  .test files and compared against the unchanged .ref files. The exception is tc-midfile: --tc
+  only skipped leading '#' lines, -/^# skips them anywhere, so it is replaced by pat-midfile;
+  o.tc-midfile.ref is listed in RETIRED_REFS and excluded from rundiff.
+  New tests: pat-* (purge, pass, both, pass before purge, -c with pass-through, regex flags,
+  purged header, byte matching, \xHH escapes, gzip, with --sam and --sam-h, pattern errors).

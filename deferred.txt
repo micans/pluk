@@ -1,4 +1,4 @@
 - the --bam step, using noodles
 - column specifications: : lists, -k ranges and + regexes
-- -/PAT and -//PAT with the regex crate, which retires --tc
+- (done in step3 item 4: -/PAT and -//PAT with the regex crate, --tc retired)
 - the Scalar, numeric and conversion design ahead of computes

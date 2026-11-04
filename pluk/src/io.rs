@@ -8,6 +8,7 @@ use std::cmp::Ordering;
 use std::io::{self, BufRead, BufReader};
 
 use flate2::bufread::MultiGzDecoder;
+use regex::bytes::{Regex, RegexBuilder};
 
 use crate::names::ColumnNames;
 use crate::row::Row;
@@ -30,14 +31,15 @@ pub enum SamMode {
 #[derive(Clone, Copy, PartialEq)]
 pub enum LineKind {
     Data,           // a data line, split into fields
-    PassThrough,    // a line to be output unchanged (--sam-h); not split
+    PassThrough,    // a line to be output unchanged (-//PAT, --sam-h); not split
 }
 
 // Settings that affect input processing, filled in from the command line by main.
 // B_header keeps the name used in the plan; Rust convention would be b_header.
 #[allow(non_snake_case)]
 pub struct InputSettings {
-    pub skip_comment_preamble: bool,    // --test-comment: skip leading lines starting with '#'
+    pub pat_purge: Option<Regex>,       // -/PAT: skip matching lines
+    pub pat_pass: Option<Regex>,        // -//PAT: output matching lines unchanged
     pub B_header: bool,                 // first accepted line holds column names (no -k)
     pub omega: Option<usize>,           // -O <N>: ragged input, N columns
     pub add_row_column: bool,           // -R: header lacks the name of the first (row name) column
@@ -48,7 +50,6 @@ pub struct InputSettings {
 pub struct LineReader {
     reader:              Box<dyn BufRead>,
     pub settings:        InputSettings,
-    in_preamble:         bool,      // no accepted line seen yet
     pending:             bool,      // self.row holds a data line not yet returned by next_line()
     split_order:         Ordering,  // with -O N: current line had fewer/exactly/more than N fields
     pub row:             Row,       // current line and its fields
@@ -91,7 +92,6 @@ impl LineReader {
         let mut input = LineReader {
             reader,
             settings,
-            in_preamble:     true,
             pending:         false,
             split_order:     Ordering::Equal,
             row:             Row::new(),
@@ -192,20 +192,25 @@ impl LineReader {
     // or is to be passed through. Returns Ok(None) at end of input.
     fn accept_line(&mut self) -> io::Result<Option<LineKind>> {
         while self.read_line()? {
-            if self.in_preamble && self.settings.skip_comment_preamble && self.row.line.starts_with(b"#") {
+            // As in pick, every line (the header line included) is tested before it is
+            // split: a line to pass through first, then a line to skip. Both count as
+            // skipped. SAM header lines ('@', anywhere in the input) are recognised with
+            // a prefix test, in addition to the user's patterns.
+            let line = &self.row.line;
+            let is_sam_header = self.settings.sam != SamMode::Off && line.starts_with(b"@");
+            let pass = (is_sam_header && self.settings.sam == SamMode::PassThrough)
+                || self.settings.pat_pass.as_ref().is_some_and(|re| re.is_match(line));
+            let purge = (is_sam_header && self.settings.sam == SamMode::Skip)
+                || self.settings.pat_purge.as_ref().is_some_and(|re| re.is_match(line));
+            if pass {
+                self.n_skipped += 1;
+                self.n_passthrough += 1;
+                return Ok(Some(LineKind::PassThrough));
+            }
+            if purge {
                 self.n_skipped += 1;
                 continue;
             }
-            // SAM header lines, anywhere in the input (as in pick).
-            if self.settings.sam != SamMode::Off && self.row.line.starts_with(b"@") {
-                self.n_skipped += 1;
-                if self.settings.sam == SamMode::PassThrough {
-                    self.n_passthrough += 1;
-                    return Ok(Some(LineKind::PassThrough));
-                }
-                continue;
-            }
-            self.in_preamble = false;
             let mut n_found = 0;
             match self.settings.omega {
                 Some(n) => (n_found, self.split_order) = self.row.split_fields_limit(n),
@@ -247,6 +252,19 @@ impl LineReader {
     }
 }
 
+
+// Compile a -/PAT or -//PAT pattern (already %-decoded). Unicode mode is off, so
+// that matching is on bytes as in Perl without 'use utf8': '.' matches any byte
+// except newline, and \w, \d, \s and case-insensitive matching are ASCII-only.
+// The regex crate takes the pattern as a str, so the pattern must be valid UTF-8.
+pub fn compile_pattern(pat: &[u8], what: &str) -> Result<Regex, String> {
+    let pat = std::str::from_utf8(pat)
+        .map_err(|_| format!("{}: pattern is not valid UTF-8 (use \\xHH escapes for bytes)", what))?;
+    RegexBuilder::new(pat)
+        .unicode(false)
+        .build()
+        .map_err(|e| format!("{}: {}", what, e))
+}
 
 // Approximation of Perl's looks_like_number: the bytes, with surrounding white
 // space removed, parse as a floating point number. This accepts integers,
