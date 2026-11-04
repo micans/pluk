@@ -182,3 +182,41 @@ Item 3: --fasta-dict-NAME
   whose messages contain the file name use a temporary file fa.tmp rather than process
   substitution, as /dev/fd/NN may differ between systems. Unit test additions in
   opt.rs (dict_options). o.help.ref and o.help-long.ref updated.
+
+
+Item 4: --sam/FILE, --sam-h/FILE
+
+  The SAM reference is an ordinary fasta dictionary named SAMFA, as in pick, with default
+  __EXIT__. Keeping pick's name means a compute can use ^SAMFA,map as in pick, and the SAM
+  operators of a later step find the reference through the same name-to-index map as any other
+  dictionary (dict::SAM_REFERENCE).
+
+  Parsing (opt.rs). --sam/FILE and --sam-h/FILE act as --sam and --sam-h at their position
+  (set_sam(), now shared, so the order rule for -O still holds: --sam/FILE -O3 gives -O3) and
+  add a DictSpec of kind Fasta for SAMFA, loaded with the other dictionaries in command line
+  order. An empty FILE is an option error.
+
+  Reserved names. dict::is_reserved() lists SAMFA (item 4a adds seqlen). Dictionary options
+  (--kd, --fd, --cd, --fasta-dict) refuse a reserved NAME; --td refuses a table with a non-key
+  column of that name. pick allows --fdict-SAMFA, which silently mixes with the reference.
+
+  Differences from pick:
+    - --fasta-dict-NAME does not become the SAM reference (decided before implementation).
+    - A repeated --sam/FILE merges into SAMFA with the merge message of item 1; pick reads both
+      into SAMFA and prints its "multiple fasta dictionaries" warning only when a second fasta
+      dictionary of another name is read.
+    - pick prints "-- Sequences for SAM reference lookup loaded from FILE in dictionary SAMFA"
+      at its default verbosity; pluk prints nothing (pluk has no verbosity levels yet).
+
+  Test data: test/sam.fa (new), the reference for test/sam.txt: chr1 of 1000 and chr2 of 500
+  bases, as in its @SQ lines, 60 bases per line. Random bases (Python, seed 42), with the
+  aligned parts of the reads written in at their positions (r001, r002, r004, r006, r007, r008;
+  r003 has an invalid FLAG and does not match), so that later SAM operator steps have a
+  consistent reference.
+
+  Tests: samref-A and samref-h-sel (output identical to sam-A and samh-sel: the file changes
+  nothing else), samref-dict, samref-dict-gz (with another dictionary), samref-merge (+ -msg),
+  samref-errors (empty FILE, missing file, reserved name in --fd, --fasta-dict and a --td
+  column). In opt-errors, --sam/x.fa ("not yet supported") is replaced by --sam/ (empty
+  FILE); o.opt-errors.ref changed accordingly. Unit test sam_reference in opt.rs. Help
+  references updated.

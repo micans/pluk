@@ -12,7 +12,7 @@
 use std::os::unix::ffi::OsStringExt;
 use std::process;
 
-use crate::dict::{DictKind, DictSpec, NotFound};
+use crate::dict::{self, DictKind, DictSpec, NotFound};
 
 #[derive(Debug, Default)]
 pub struct Config {
@@ -85,6 +85,9 @@ Options:
   -R          header has no name for the first (row name) column; it is named _
   --sam       SAM input: implies -k and -O12, skips lines starting with @
   --sam-h     as --sam, but outputs lines starting with @ unchanged
+  --sam/FILE, --sam-h/FILE
+              as --sam and --sam-h; reference sequences are read from fasta
+              FILE into the dictionary SAMFA (default __EXIT__)
 
 Dictionaries (NAME: letters, digits, _; lookup is not yet implemented):
   --kd-NAME=FILE          keys from the first column of FILE, all values 1
@@ -156,12 +159,8 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
         b"help"    => return Ok(Some(Parsed::Help)),
         b"version" => return Ok(Some(Parsed::Version)),
         // --sam and --sam-h imply -k and -O12; a later -O overrides.
-        b"sam" | b"sam-h" => {
-            config.sam   = long == b"sam";
-            config.sam_h = long == b"sam-h";
-            config.k     = true;
-            config.omega = Some(12);
-        }
+        b"sam"   => set_sam(config, false),
+        b"sam-h" => set_sam(config, true),
         b"test-lineno"          => config.test_lineno = true,
         b"test-counts"          => config.test_counts = true,
         b"test-names"           => config.test_names = true,
@@ -175,11 +174,35 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
             }
         }
         _ if long.starts_with(b"sam/") || long.starts_with(b"sam-h/") => {
-            return Err("--sam/<fastafile> not yet supported".to_string());
+            // --sam/FILE, --sam-h/FILE: as --sam, --sam-h, with FILE read as the fasta
+            // dictionary SAMFA, default __EXIT__ (as pick). A repeated --sam/FILE merges.
+            let pass_header = long.starts_with(b"sam-h/");
+            let file = &long[if pass_header { 6 } else { 4 }..];
+            if file.is_empty() {
+                return Err(format!("--{}: expected --{}FILE", String::from_utf8_lossy(long),
+                                   String::from_utf8_lossy(long)));
+            }
+            set_sam(config, pass_header);
+            config.dicts.push(DictSpec {
+                option: [b"--", long].concat(),
+                kind: DictKind::Fasta,
+                name: dict::SAM_REFERENCE.to_vec(),
+                key_column: None,
+                not_found: Some(NotFound::Exit),
+                source: file.to_vec(),
+            });
         }
         _ => return Err(format!("Unrecognised long option --{}", String::from_utf8_lossy(long))),
     }
     Ok(None)
+}
+
+// --sam and --sam-h imply -k and -O12 at their position; a later -O overrides.
+fn set_sam(config: &mut Config, pass_header: bool) {
+    config.sam   = !pass_header;
+    config.sam_h = pass_header;
+    config.k     = true;
+    config.omega = Some(12);
 }
 
 // Dictionary options: the kind, and the part after the prefix (NAME[/DEFAULT]=SOURCE).
@@ -206,6 +229,11 @@ fn parse_dict_spec(kind: DictKind, rest: &[u8], long: &[u8]) -> Result<DictSpec,
     let name_len = rest.iter().take_while(|&&b| b.is_ascii_alphanumeric() || b == b'_').count();
     if name_len == 0 {
         return Err(usage());
+    }
+    let name = &rest[..name_len];
+    if dict::is_reserved(name) {
+        return Err(format!("{}: {} is a reserved dictionary name", String::from_utf8_lossy(&option),
+                           String::from_utf8_lossy(name)));
     }
     let (mut not_found, source) = parse_default_source(&rest[name_len..]).ok_or_else(usage)?;
     // As in pick, a fasta dictionary without default fails on a key not found.
@@ -519,6 +547,21 @@ mod tests {
             assert!(run(&[bad]).is_err(), "{}", bad);
         }
         assert!(run(&["--tdx=f"]).unwrap_err().starts_with("Unrecognised long option"));
+    }
+
+    #[test]
+    fn sam_reference() {
+        let c = run(&["-O3", "--sam-h/ref.fa", "--sam/r2.fa"]).unwrap();
+        assert!(c.sam && !c.sam_h && c.k);
+        assert_eq!(c.omega, Some(12));
+        assert_eq!(c.dicts.len(), 2);
+        assert_eq!((c.dicts[0].kind, &c.dicts[0].name[..], &c.dicts[0].not_found, &c.dicts[0].source[..]),
+                   (DictKind::Fasta, &b"SAMFA"[..], &Some(NotFound::Exit), &b"ref.fa"[..]));
+        assert_eq!(run(&["--sam/ref.fa", "-O3"]).unwrap().omega, Some(3));
+        assert!(run(&["--sam/"]).is_err());
+        assert!(run(&["--sam-h/"]).is_err());
+        assert!(run(&["--fd-SAMFA=f"]).is_err());
+        assert!(run(&["--fasta-dict-SAMFA=f"]).is_err());
     }
 
     #[test]

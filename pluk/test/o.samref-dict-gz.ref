@@ -1,0 +1,2 @@
+dict	SAMFA	not-found=__EXIT__	keys=3
+dict	x	not-found=key	keys=13

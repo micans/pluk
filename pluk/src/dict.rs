@@ -18,6 +18,15 @@ use std::path::Path;
 use crate::io::open_buffered;
 use crate::opt::pct_decode;
 
+// The dictionary holding the SAM reference sequences (--sam/FILE), named as in pick.
+pub const SAM_REFERENCE: &[u8] = b"SAMFA";
+
+// Names that dictionary options and table columns cannot define; pluk fills these
+// dictionaries itself.
+pub fn is_reserved(name: &[u8]) -> bool {
+    name == SAM_REFERENCE
+}
+
 // The source of a dictionary.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DictKind {
@@ -147,6 +156,12 @@ impl Dicts {
             Some(key) => header.iter().position(|name| name == key).ok_or_else(||
                 format!("{}: no column [{}] in {}", option, String::from_utf8_lossy(key), path.display()))?,
         };
+        for (i, name) in header.iter().enumerate() {
+            if i != key_index && is_reserved(name) {
+                return Err(format!("{}: column name [{}] in {} is a reserved dictionary name", option,
+                                   String::from_utf8_lossy(name), path.display()));
+            }
+        }
         let mut seen = HashSet::new();
         for name in &header {
             if !seen.insert(name) {

@@ -7,5 +7,5 @@ Unrecognised long option --nosuch
 -/PAT: empty pattern
 -//PAT: empty pattern
 --test-i=<N> N must be a positive number
---sam/<fastafile> not yet supported
+--sam/: expected --sam/FILE
 -A<N> N out of range
