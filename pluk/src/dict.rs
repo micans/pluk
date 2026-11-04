@@ -21,10 +21,13 @@ use crate::opt::pct_decode;
 // The dictionary holding the SAM reference sequences (--sam/FILE), named as in pick.
 pub const SAM_REFERENCE: &[u8] = b"SAMFA";
 
+// The dictionary of SAM sequence lengths, from @SQ header lines (item 4a), named as in pick.
+pub const SEQ_LENGTHS: &[u8] = b"seqlen";
+
 // Names that dictionary options and table columns cannot define; pluk fills these
 // dictionaries itself.
 pub fn is_reserved(name: &[u8]) -> bool {
-    name == SAM_REFERENCE
+    name == SAM_REFERENCE || name == SEQ_LENGTHS
 }
 
 // The source of a dictionary.
@@ -133,6 +136,45 @@ impl Dicts {
                 self.list.last_mut().unwrap()
             }
         }
+    }
+
+    // SAM input: create the dictionary seqlen from the @SQ header lengths (a repeated
+    // name takes the last length), not-found value 0, as in pick. With a SAM
+    // reference (--sam/FILE) the lengths are compared as in pick's sam_check_reflen:
+    // a sequence missing from the header gets its fasta length, a disagreement is
+    // reported and the header length is kept, and a summary line follows.
+    // The key '*' of the reference (unmapped reads) is not compared.
+    pub fn add_sam_lengths(&mut self, header: &[(Vec<u8>, u64)]) {
+        let mut lengths: HashMap<Vec<u8>, u64> = header.iter().cloned().collect();
+        if let Some(&r) = self.index.get(SAM_REFERENCE) {
+            let reference = &self.list[r].map;
+            let n_header = lengths.len();
+            let mut names: Vec<&Vec<u8>> = reference.keys().filter(|k| k.as_slice() != b"*").collect();
+            names.sort();
+            let (mut n_shared, mut n_conflict) = (0, 0);
+            for name in &names {
+                let fasta_length = reference[*name].len() as u64;
+                match lengths.get(*name) {
+                    None => {
+                        lengths.insert(name.to_vec(), fasta_length);
+                    }
+                    Some(&header_length) => {
+                        n_shared += 1;
+                        if header_length != fasta_length {
+                            n_conflict += 1;
+                            eprintln!("pluk: sequence {} has length {} in the SAM header and {} in the \
+                                       reference; using {}", String::from_utf8_lossy(name),
+                                      header_length, fasta_length, header_length);
+                        }
+                    }
+                }
+            }
+            eprintln!("pluk: SAM reference lengths: header/fasta/shared/conflict {}/{}/{}/{}",
+                      n_header, names.len(), n_shared, n_conflict);
+        }
+        let map = lengths.into_iter().map(|(k, v)| (k, v.to_string().into_bytes())).collect();
+        self.index.insert(SEQ_LENGTHS.to_vec(), self.list.len());
+        self.list.push(Dict { name: SEQ_LENGTHS.to_vec(), map, not_found: NotFound::Value(b"0".to_vec()) });
     }
 
     // --td: the first line holds the column names. Every column other than the key

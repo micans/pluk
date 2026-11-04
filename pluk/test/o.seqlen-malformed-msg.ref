@@ -1,0 +1,2 @@
+pluk: @SQ line 1 without SN: or valid LN: field, ignored [@SQ	SN:x]
+pluk: @SQ line 3 without SN: or valid LN: field, ignored [@SQ	SN:z	LN:abc]

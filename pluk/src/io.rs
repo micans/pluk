@@ -60,6 +60,9 @@ pub struct LineReader {
     pub row_column_added: bool,     // -R took effect: n_columns is one more than the header fields
     pub names:           ColumnNames, // column names and name -> index dictionary
     pub passthrough_preamble: Vec<Vec<u8>>, // pass-through lines read before the first data line
+    pub sam_seqlen:      Vec<(Vec<u8>, u64)>, // SAM @SQ lines before the first data line: name, length
+    in_preamble:         bool,      // no data line read yet (read_first() has not finished)
+    late_sq_warned:      bool,      // an @SQ line after the first data line has been reported
     pub n_lines:         u64,       // number of lines read so far (physical line number)
     pub n_skipped:       u64,       // lines skipped (including pass-through lines, as in pick)
     pub n_passthrough:   u64,       // lines passed through unchanged
@@ -86,6 +89,9 @@ impl LineReader {
             row_column_added: false,
             names:           ColumnNames::numbered(0),
             passthrough_preamble: Vec::new(),
+            sam_seqlen:      Vec::new(),
+            in_preamble:     true,
+            late_sq_warned:  false,
             n_lines:         0,
             n_skipped:       0,
             n_passthrough:   0,
@@ -103,6 +109,12 @@ impl LineReader {
     // Pass-through lines before it are stored in self.passthrough_preamble,
     // to be output first.
     fn read_first(&mut self) -> io::Result<()> {
+        let result = self.read_first_line();
+        self.in_preamble = false;
+        result
+    }
+
+    fn read_first_line(&mut self) -> io::Result<()> {
         loop {
             match self.accept_line()? {
                 Some(LineKind::Data)        => break,
@@ -176,6 +188,9 @@ impl LineReader {
     // or is to be passed through. Returns Ok(None) at end of input.
     fn accept_line(&mut self) -> io::Result<Option<LineKind>> {
         while self.read_line()? {
+            if self.settings.sam != SamMode::Off && self.row.line.starts_with(b"@SQ\t") {
+                self.note_sq_line();
+            }
             // As in pick, every line (the header line included) is tested before it is
             // split: a line to pass through first, then a line to skip. Both count as
             // skipped. SAM header lines ('@', anywhere in the input) are recognised with
@@ -211,6 +226,26 @@ impl LineReader {
             return Ok(Some(LineKind::Data));
         }
         Ok(None)
+    }
+
+    // A SAM @SQ line: record the sequence name (SN:) and length (LN:) for the
+    // dictionary seqlen (plan/step4.txt item 4a). Only lines before the first data
+    // line are used; SAM puts @SQ lines in the header. A malformed line, and a later
+    // @SQ line (once), are reported and otherwise ignored.
+    fn note_sq_line(&mut self) {
+        if !self.in_preamble {
+            if !self.late_sq_warned {
+                eprintln!("pluk: @SQ line {} after the first alignment line not used for sequence lengths",
+                          self.n_lines);
+                self.late_sq_warned = true;
+            }
+            return;
+        }
+        match parse_sq(&self.row.line) {
+            Some(entry) => self.sam_seqlen.push(entry),
+            None => eprintln!("pluk: @SQ line {} without SN: or valid LN: field, ignored [{}]",
+                              self.n_lines, String::from_utf8_lossy(&self.row.line)),
+        }
     }
 
     // pick's check on the first 5 data lines of SAM input, applied to lines with
@@ -259,6 +294,25 @@ pub fn open_buffered<R: Read + 'static>(source: R) -> io::Result<Box<dyn BufRead
 }
 
 
+// The SN: and LN: fields of an @SQ line, in any order. None if either is missing,
+// or LN is not a number.
+fn parse_sq(line: &[u8]) -> Option<(Vec<u8>, u64)> {
+    let mut name = None;
+    let mut length = None;
+    for field in line.split(|&b| b == b'\t').skip(1) {
+        if let Some(v) = field.strip_prefix(b"SN:") {
+            name = Some(v.to_vec());
+        } else if let Some(v) = field.strip_prefix(b"LN:") {
+            length = std::str::from_utf8(v).ok().and_then(|s| s.parse::<u64>().ok());
+        }
+    }
+    match (name, length) {
+        (Some(n), Some(l)) if !n.is_empty() => Some((n, l)),
+        _ => None,
+    }
+}
+
+
 // Compile a -/PAT or -//PAT pattern (already %-decoded). Unicode mode is off, so
 // that matching is on bytes as in Perl without 'use utf8': '.' matches any byte
 // except newline, and \w, \d, \s and case-insensitive matching are ASCII-only.
@@ -279,5 +333,19 @@ fn looks_like_number(bytes: &[u8]) -> bool {
     match std::str::from_utf8(bytes) {
         Ok(s)  => s.trim().parse::<f64>().is_ok(),
         Err(_) => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sq_fields() {
+        assert_eq!(parse_sq(b"@SQ\tSN:chr1\tLN:1000"), Some((b"chr1".to_vec(), 1000)));
+        assert_eq!(parse_sq(b"@SQ\tLN:5\tAS:x\tSN:y"), Some((b"y".to_vec(), 5)));
+        assert_eq!(parse_sq(b"@SQ\tSN:x"), None);
+        assert_eq!(parse_sq(b"@SQ\tSN:\tLN:5"), None);
+        assert_eq!(parse_sq(b"@SQ\tSN:z\tLN:-1"), None);
     }
 }

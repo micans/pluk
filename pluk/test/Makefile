@@ -104,6 +104,7 @@ runpluk: data.txt big.txt sam.txt
 	$(p) --sam -R 1                  < sam.txt   2> o.sam-R.test   > /dev/null; [ $$? -eq 1 ]
 	$(p) --sam/sam.fa -A             < sam.txt    > o.samref-A.test     2> /dev/null
 	$(p) --sam-h/sam.fa 1 4          < sam.txt    > o.samref-h-sel.test 2> /dev/null
+	{ cat sam.txt; printf '@SQ\tSN:chr9\tLN:5\n@SQ\tSN:chr8\tLN:5\n'; } | $(p) --sam -c  > o.seqlen-late.test  2>&1
 	$(p) -Ahk                        < data.txt   > o.opt-bundle.test
 	$(p) -A-1                        < data.txt   > o.opt-A-neg.test
 	$(p) -- name fib                 < data.txt   > o.opt-dashdash.test
@@ -210,6 +211,12 @@ runtestopt: data.txt
 	$(p) --test-dict --sam-h/<(gzip -c sam.fa) --fd-x=data.txt  < /dev/null | grep '^dict'  > o.samref-dict-gz.test
 	printf '>chr3\nAC\n>chr1\nT\n' > fa.tmp; $(p) --test-dict --sam/sam.fa --sam-h/fa.tmp  < /dev/null  > o.samref-merge.test 2> o.samref-merge-msg.test; rm fa.tmp
 	printf 'k\tSAMFA\n1\t2\n' > td.tmp; for a in --sam/ --sam-h/ --sam/nonexistent --fd-SAMFA=data.txt --fasta-dict-SAMFA/x=sam.fa --td=td.tmp; do $(p) --test-dict "$$a" < /dev/null; [ $$? -eq 1 ] || exit 1; done 2> o.samref-errors.test; rm td.tmp
+	$(p) --sam --test-dict                  < sam.txt    > o.seqlen.test
+	$(p) --sam-h/sam.fa --test-dict         < sam.txt    > o.seqlen-ref.test      2> o.seqlen-ref-msg.test
+	printf '>chr1\nACGT\n>chr3\nGG\n' > fa.tmp; grep -v 'SN:chr2' sam.txt | $(p) --sam/fa.tmp --test-dict  > o.seqlen-conflict.test  2> o.seqlen-conflict-msg.test; rm fa.tmp
+	{ printf '@SQ\tSN:x\n@SQ\tLN:5\tSN:y\n@SQ\tSN:z\tLN:abc\n@SQ\tSN:y\tLN:6\n'; cat sam.txt; } | $(p) --sam --test-dict  > o.seqlen-malformed.test  2> o.seqlen-malformed-msg.test
+	$(p) --test-dict --cd-a=b               < sam.txt    > o.seqlen-nosam.test
+	printf 'k\tseqlen\n1\t2\n' > td.tmp; for a in --fd-seqlen=data.txt --cd-seqlen=a --td=td.tmp; do $(p) --test-dict "$$a" < /dev/null; [ $$? -eq 1 ] || exit 1; done 2> o.seqlen-errors.test; rm td.tmp
 
 %.ref : %.test
 	diff $< $@

@@ -1,0 +1,2 @@
+pluk: sequence chr1 has length 1000 in the SAM header and 4 in the reference; using 1000
+pluk: SAM reference lengths: header/fasta/shared/conflict 1/2/1/1

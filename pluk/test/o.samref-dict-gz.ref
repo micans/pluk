@@ -1,2 +1,3 @@
 dict	SAMFA	not-found=__EXIT__	keys=3
 dict	x	not-found=key	keys=13
+dict	seqlen	not-found=value:0	keys=2

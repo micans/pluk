@@ -220,3 +220,48 @@ Item 4: --sam/FILE, --sam-h/FILE
   column). In opt-errors, --sam/x.fa ("not yet supported") is replaced by --sam/ (empty
   FILE); o.opt-errors.ref changed accordingly. Unit test sam_reference in opt.rs. Help
   references updated.
+
+
+Item 4a: SAM sequence lengths (seqlen) and the reference length check
+
+  Where seqlen lives. All dictionaries are kept in Dicts, which main owns; the input reader
+  should not need access to it. io.rs therefore only collects the @SQ lengths
+  (LineReader.sam_seqlen) while read_first() reads up to the first data line, and main calls
+  Dicts::add_sam_lengths() right after LineReader::from_stdin(). That is the point where pick
+  runs its check too (at the first data line), and the header is complete then: SAM puts @SQ
+  lines in the header, before the alignments.
+  Difference from pick: an @SQ line after the first data line is not used. pick adds it to
+  seqlen while streaming. pluk reports the first such line on STDERR and ignores them.
+
+  Reading @SQ lines (io.rs). In SAM mode (--sam, --sam-h, with or without FILE) every line
+  starting with "@SQ<TAB>" is examined before the pass/skip decision, so user patterns such as
+  -/^@SQ do not hide it. parse_sq() takes the SN: and LN: fields in any order; pick's pattern
+  /SN:(\S+)\s+LN:(\d+)/ requires SN directly before LN. A line without SN, with an empty SN, or
+  without a numeric LN is reported (pluk: @SQ line N without SN: or valid LN: field, ignored);
+  pick ignores it silently. A repeated SN takes the last length, as in pick.
+  in_preamble marks the reading of the first line; read_first() is split into a wrapper that
+  clears the flag and read_first_line(), so the flag is cleared on every exit path.
+
+  seqlen (dict.rs, add_sam_lengths). Created in SAM mode, with not-found value 0, as in pick;
+  values are decimal byte strings like any other dictionary value. With SAMFA present the check
+  follows pick's sam_check_reflen: for each reference sequence (sorted, '*' excluded) a length
+  missing from the header is taken from the fasta; a disagreement is reported and the header
+  length kept; then a summary line, always printed (pick prints it at default verbosity):
+      pluk: sequence chr1 has length 1000 in the SAM header and 4 in the reference; using 1000
+      pluk: SAM reference lengths: header/fasta/shared/conflict 1/2/1/1
+  pick's line is "-- [N] WARNING header/fasta length disagreement 1000/4 -- picking header/1000",
+  without the sequence name. pick also adds '*' to seqlen with the fasta length 0; pluk leaves it
+  out, as a lookup failure yields 0 anyway. The counts agree with pick on the tested cases.
+  The per-line length lookup and pick's "N times a reference sequence length lookup failed"
+  message belong to the SAM operators of a later step.
+  seqlen is reserved (dict::is_reserved), refused for options and table columns as SAMFA.
+
+  --test-dict now prints after the input header has been read (it previously exited before
+  reading STDIN), so that seqlen is included. Tests with --test-dict and SAM mode therefore show
+  seqlen as well: samref-dict, samref-dict-gz, samref-merge and samref-merge-msg (summary line)
+  changed accordingly.
+
+  Tests: seqlen, seqlen-ref (+ -msg), seqlen-conflict (+ -msg; chr2 missing from the header,
+  chr1 shorter, chr3 only in the fasta), seqlen-malformed (+ -msg; repeated SN), seqlen-late
+  (in runpluk, @SQ after the alignments, with -c), seqlen-nosam (no seqlen without SAM mode),
+  seqlen-errors (reserved name in --fd, --cd and a --td column). Unit test sq_fields in io.rs.

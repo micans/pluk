@@ -1,0 +1,7 @@
+dict	SAMFA	not-found=__EXIT__	keys=3
+*	
+chr1	ACGT
+chr3	GG
+dict	seqlen	not-found=value:0	keys=2
+chr1	1000
+chr3	2

@@ -30,20 +30,13 @@ fn run() -> std::io::Result<()> {
 
     // Dictionaries are read once all options are known, before any input is read
     // (plan/step4.txt, design considerations).
-    let dicts = match dict::Dicts::load(&config.dicts) {
+    let mut dicts = match dict::Dicts::load(&config.dicts) {
         Ok(dicts) => dicts,
         Err(msg)  => {
             eprintln!("pluk: {}", msg);
             process::exit(1);
         }
     };
-
-    if config.test_dict {
-        let mut out = BufWriter::with_capacity(OUT_BUFSIZE, std::io::stdout().lock());
-        dicts.write_test(&mut out)?;
-        out.flush()?;
-        return Ok(());
-    }
 
     // As in pick: header output on by default, off with -k; -h and -c always switch it off.
     #[allow(non_snake_case)]
@@ -73,6 +66,18 @@ fn run() -> std::io::Result<()> {
                                else               { io::SamMode::Off },
     };
     let mut input = io::LineReader::from_stdin(settings)?;
+
+    // SAM sequence lengths are known once the header has been read (plan/step4.txt item 4a).
+    if config.sam || config.sam_h {
+        dicts.add_sam_lengths(&input.sam_seqlen);
+    }
+
+    if config.test_dict {
+        let mut out = BufWriter::with_capacity(OUT_BUFSIZE, std::io::stdout().lock());
+        dicts.write_test(&mut out)?;
+        out.flush()?;
+        return Ok(());
+    }
     let mut out = BufWriter::with_capacity(OUT_BUFSIZE, std::io::stdout().lock());
 
     // --test-i N is 1-based on the command line, field indexes are 0-based.

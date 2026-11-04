@@ -46,7 +46,8 @@
       (step3-notes.txt item 4).
     - Dictionaries (step4.txt, step4-notes.txt): --td^key/default order (pick: /default^key);
       %-decoded defaults; no named table dictionaries and no tmap; repeated NAME merges with a
-      diagnostic, __EXIT__ sticky; only --sam/f.fasta sets the SAM reference; SAMFA and seqlen reserved;
+      diagnostic, __EXIT__ sticky; only --sam/f.fasta sets the SAM reference; SAMFA and seqlen reserved; @SQ lines after
+      the first alignment line are not used for seqlen (warning);
       fasta '>' without identifier, repeated identifiers and data before the first '>' are errors; --cd ignores empty
       pairs and refuses a pair with more than one ':'; --td refuses a '^' in DEFAULT (catches
       pick's order) and a repeated column name in the table header.
