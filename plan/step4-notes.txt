@@ -1,0 +1,93 @@
+step4 notes: decisions and rationale for implementation choices.
+
+
+Decisions taken before implementation
+
+  Differences from pick, decided explicitly:
+    - --td^key/default=path: key before default. pick has /default^key; pick given ^key/default
+      takes 'key/default' as the key column name.
+    - Defaults in dictionary options are %-decoded (as -/PAT), so '=' can be written %3D.
+    - No named table dictionaries, hence no tmap (see below).
+    - Repeated NAME merges with a diagnostic; pick merges silently. __EXIT__ is sticky.
+    - A table column name equal to an existing dictionary name merges with a diagnostic; pick
+      merges silently.
+    - Only --sam/f.fasta sets the SAM reference. In pick the first fasta dictionary loaded,
+      including --fasta-dict-NAME, becomes the SAM reference.
+    - seqlen is a reserved dictionary name. In pick --sam discards a user --fdict-seqlen.
+    - In a fasta file a '>' line without identifier, and a repeated identifier, are errors. pick
+      appends the former to the previous sequence and lets the latter overwrite.
+
+  Table dictionaries without NAME
+
+    Only the unnamed form of pick is implemented: every non-key column becomes an ordinary
+    dictionary named after its header, used with ^COLNAME,map. This is consistent:
+      - there is one flat namespace of dictionaries and one lookup operator, map. A dictionary
+        name in a compute resolves to a single dictionary, so the compile-time replacement of
+        ^NAME,map by ^<offset>,map covers all kinds. tmap would have needed a pair
+        (table, column), resolved from two constants.
+      - merging (repeated NAME) applies to table columns in the same way as to --fd and --cd.
+      - the table name was only a prefix that kept column names apart. Without it, two tables with
+        a column of the same name merge, with a diagnostic. If this becomes a problem, a later
+        option could add a prefix to column dictionary names; this is not needed now.
+    A consequence for storage: since a table column can merge with any other dictionary, each
+    column is stored as an ordinary dictionary with its own copy of the keys (as pick does),
+    rather than sharing one key index per table. Sharing would save memory for wide tables but
+    complicates merging; it can be revisited if memory becomes an issue.
+    The key column itself does not become a dictionary.
+
+  Load order
+
+    Option parsing records dictionary specifications; dictionaries are loaded afterwards, in the
+    order given, so merge order is command-line order. Later, a syntactic parse of filters and
+    computes will sit between option parsing and loading, so a syntax error fails before a large
+    file is read. Name resolution (columns, dictionaries) follows loading and the header.
+
+  Item 4a split from item 4
+
+    The length check of --sam/f.fasta needs the seqlen dictionary filled from @SQ header lines,
+    which pluk did not yet parse. Item 4 provides the reference; 4a adds seqlen and the check.
+
+
+Item 1: --kd, --fd, --cd
+
+  Files: src/dict.rs (new), opt.rs (parsing), io.rs (open_buffered), main.rs (loading, --test-dict).
+
+  Parsing. parse_long() first checks the six prefixes kd- kdict- fd- fdict- cd- cdict-
+  (dict_option), then parse_dict_spec() splits NAME[/DEFAULT]=SOURCE: NAME is the longest run of
+  [A-Za-z0-9_] (pick: \w+), DEFAULT runs to the first '=' and is %-decoded, SOURCE must be
+  non-empty. The result is a DictSpec stored in Config.dicts in command line order; the whole
+  option is kept for messages. A default is stored as Option<NotFound>: None means no default
+  was given, which matters when merging. NotFound::from_default() turns __EXIT__ (after
+  decoding, so %5F_EXIT__ counts too) into NotFound::Exit.
+
+  Storage. Dicts holds a Vec<Dict> and a HashMap from name to Vec index, as planned for
+  compile-time resolution. A Dict is a HashMap<Vec<u8>, Vec<u8>> plus its NotFound. Values of
+  --kd are stored as "1" like any other value; a separate key-only representation would save a
+  small allocation per key but adds a second code path to lookup.
+
+  Loading. main.rs calls Dicts::load() after option parsing and the no-columns check, before
+  STDIN is read. get_or_create() returns the existing dictionary for a repeated NAME (message on
+  STDERR, default replaced unless the current one is __EXIT__) or appends a new one. Files are
+  opened with io::open_buffered(), the gzip detection moved out of LineReader::from_stdin() so
+  that both use it. Files are read as pick does: the key is the first TAB-separated field;
+  --fd takes the second field as value, or 1 if the line has one field; --kd always 1. A
+  repeated key takes the last value. Lines are not checked for '\r' (pick's chomp neither).
+  File paths are taken as bytes (OsStr::from_bytes), like the other arguments.
+
+  --cd differences from pick: an empty pair (',,' or a trailing ',') is ignored (pick adds the
+  key '' for an inner empty pair); a pair with two or more ':' is an error (pick silently drops
+  the part after the second ':').
+
+  Error messages: syntax errors are option errors, without 'pluk:' prefix, as the other option
+  errors; read errors carry the 'pluk:' prefix. All exit 1.
+
+  Values checked against pick with ^x,map lookups (--fdict from data.txt, a file with one-field
+  lines and an empty key, --cdict with %-decoding and a default, --kdict).
+
+  Speed: a 1,000,000-line --fd file loads in 0.41 s (pick: 4.3 s).
+
+  Tests: --test-dict (temporary, runtestopt) prints each dictionary: name, not-found setting,
+  number of keys, then sorted key TAB value lines. New tests dict-fd, dict-kd-gz (via process
+  substitution), dict-big, dict-fd-fields, dict-cd, dict-exit, dict-merge (+ -msg),
+  dict-merge-exit, dict-errors. o.help.ref and o.help-long.ref updated for the dictionary
+  section of the help text. Unit tests in opt.rs (dict_options) and dict.rs.

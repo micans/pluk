@@ -1,0 +1,118 @@
+
+- reading dictionaries
+
+  In this step the task is to implement pick's dictionary-reading capabilities. We will introduce
+  --kd, --fd, --cd and --td as synonyms for --kdict, --fdict, --cdict and --table-dict, respectively. Additionally
+  --tdict is also a synonym for --table-dict. For now, only reading and storage of dictionaries
+  needs to be considered. Lookup is relevant of course but will be implemented later.
+
+  For now we will not store dictionary order, unlike pick. Unless we get it for free.
+
+  I propose to use dict.rs for this functionality.
+
+  Dictionaries are read after option parsing has completed (opt.rs records the specifications,
+  main.rs loads them), not during option parsing as in pick. Dictionary files may be
+  gzip-compressed, as in pick.
+
+  A temporary option --test-dict prints all dictionaries (names, not-found setting, keys and
+  values, sorted) so that this step can be tested before lookup exists.
+
+  1   Implement
+        --kd-NAME=path      (--kdict-NAME)  keys only; every value is 1
+        --fd-NAME=path      (--fdict-NAME)  key TAB value; a line with only a key gets value 1,
+                                            fields after the second are ignored
+        --cd-NAME=csv       (--cdict-NAME)  key:value,key:value; a pair without ':' gets value 1;
+                                            keys and values are %-decoded
+
+      and the syntax that specifies a default if a key is not found, e.g. --kd-NAME/not-found=path-to-file .
+      The default extends to the first '=' and is %-decoded (intended difference from pick), so
+      '=' is written %3D. An empty default (--kd-NAME/=path) is the empty string.
+      Without a default, a failing lookup yields the key itself, as in pick.
+      Prepare for the convention that __EXIT__ is a special default indicating failure should result
+      in case of a failing lookup.
+      NAME is \w+ as in pick.
+
+      Repeated NAME (also across kinds, e.g. --fd-x and --cd-x) merges into one dictionary, with a
+      diagnostic message on STDERR. A later key overrides an earlier one. A later default
+      replaces an earlier one, except that __EXIT__ is sticky: once set, a later merge cannot drop it.
+
+      Discuss, commit.
+
+  2   Implement --td and its variants: specifying a default as above, specifying a column name to use for the row key, e.g.
+      --td^key=path-to-file and combined usage --td^key/default=path-to-file.
+
+      The order ^key/default differs from pick's /default^key (intended difference from pick).
+      Synonyms --tdict and --table-dict.
+
+      Table dictionaries have no NAME: each column other than the key column becomes a dictionary
+      named after its column header, used with ^COLNAME,map. Named table dictionaries
+      (pick's --table-dict-NAME=path) and the tmap operator are not implemented; --td-NAME=path is
+      an option error. The default applies to every column dictionary of the table.
+      The key column defaults to the first column. A repeated key is an error, as in pick.
+      A column name equal to an existing dictionary name merges, as in item 1.
+
+      Discuss, commit.
+
+  3   Implement --fasta-dict-NAME=path, with optional /default as above.
+
+      Propose to read into a large buffer, sequences as slices.
+      Preference to use bespoke parsing without pulling in a crate. Identifier is identified by '>(\S+)' .
+      As in pick the default is __EXIT__ when none is given, and the key '*' maps to the empty
+      string (SAM unmapped reads). A '>' line without identifier and a repeated identifier are errors.
+
+      For now we will not implement --fastq-dict, as I have rarely if ever used it.
+      Discuss, commit.
+
+  4   Extend the option --sam and --sam-h to allow
+
+      --sam/f.fasta     with checks as in pick, default value __EXIT__
+      --sam-h/f.fasta   as above
+
+      This fasta dictionary is the SAM reference; unlike pick, --fasta-dict-NAME never becomes the
+      SAM reference.
+
+      Discuss, commit.
+
+  4a  SAM sequence lengths. With --sam and --sam-h, @SQ header lines (SN:name LN:length) fill the
+      dictionary seqlen, not-found value 0. With --sam/f.fasta, at the first data line the fasta
+      sequence lengths are compared with seqlen as in pick (sam_check_reflen): lengths missing from
+      the header are taken from the fasta, a disagreement gives a warning and the header length
+      is kept, followed by a summary line. The name seqlen is reserved and refused in dictionary
+      options (pick silently discarded a user --fdict-seqlen).
+
+      Discuss, commit.
+
+
+  Design considerations
+
+  Looking ahead, dictionary names in computes have historically always been constants.
+  These constants are not currently resolved at (pick) compile time, but this should be possible, similar
+  to how pick inspects and resolves certain operator usage currently.
+  Hence I propose keeping a list of dictionaries, alongside with a dictionary of the dictionary names.
+  After exhausting all arguments, we will know all dictionary names.
+  Looking ahead, we can, at compile time, replace <somekey>^NAME,map with <somekey>^<offset>,map
+  where <offset> is stored in Scalar.i .
+
+  I have considered postponing loading the dictionaries until the full command line has been parsed, in
+  order to fail early in case of syntax or stack issues. This would point to a multi-stage process:
+
+  - parse option arguments
+  - shallow compile of filter and compute arguments, validate dictionary usage
+  - obtain column names
+  - deep compile of filter and compute arguments
+  - read dictionary files
+  - for table dictionaries, validate dictionary names
+
+  One issue is that table dictionary names are not known until they are read,
+  so this would necessitate leap-of-faith reasoning during the shallow compile. I lean towards the alternative
+
+  - parse option arguments
+  - load all dictionaries
+  - obtain column names
+  - deep compile of filter and compute arguments
+
+  Agreed, with a purely syntactic parse of filter and compute arguments (tokens, operator arity,
+  stack depth) directly after option parsing. It needs no dictionary or column names, so no
+  leap of faith; all name resolution happens in the deep compile. See step4-notes.txt.
+
+  Comment on all aspects relating to dictionaries as discussed in this step.

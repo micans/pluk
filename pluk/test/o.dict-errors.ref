@@ -1,0 +1,8 @@
+--fd-x: expected --fd-NAME[/DEFAULT]=FILE
+--fd-=f: expected --fd-NAME[/DEFAULT]=FILE
+--fd-x=: expected --fd-NAME[/DEFAULT]=FILE
+--fd-x/d: expected --fd-NAME[/DEFAULT]=FILE
+--kd-x+=f: expected --kd-NAME[/DEFAULT]=FILE
+--cdict-x: expected --cdict-NAME[/DEFAULT]=k:v,..
+pluk: --cd-x=a:b:c: more than one ':' in [a:b:c] (write ':' as %3A)
+pluk: --fd-x=/nonexistent: cannot read /nonexistent: No such file or directory (os error 2)

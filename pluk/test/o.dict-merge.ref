@@ -1,0 +1,18 @@
+dict	x	not-found=value:d2	keys=15
+Ann	Z
+Bob	1
+Charlie	2
+Dan	3
+Esme	5
+Fred	8
+Gillian	13
+Harriet	21
+Inky	34
+John	55
+Kelly	89
+Lucy	144
+name	fib
+new	N
+q	1
+dict	y	not-found=key	keys=1
+a	1
