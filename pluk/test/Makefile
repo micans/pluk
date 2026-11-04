@@ -199,6 +199,11 @@ runtestopt: data.txt
 	printf 'a\n1\n2\n' | $(p) --test-dict --td=/dev/stdin  > o.tdict-keyonly.test
 	for a in '--td^fib=data.txt' '--td^nosuch=data.txt' --td=/dev/null --td-x=f --tdict-x=f --td/d^dna=data.txt '--td^=f' --td^k --td=; do $(p) --test-dict "$$a" < /dev/null; [ $$? -eq 1 ] || exit 1; done 2> o.tdict-errors.test
 	for t in 'a\tb\tb\nk\t1\t2\n' 'a\tb\nk\t1\t2\n' 'a\tb\nk\t1\nk\t2\n'; do printf "$$t" | $(p) --test-dict --td=/dev/stdin; [ $$? -eq 1 ] || exit 1; done 2> o.tdict-errors-file.test
+	$(p) --test-dict --fasta-dict-f=<(printf '\n>s1 description\nACGT\nTTGG\n\nCC\n>s2\n>s3\tx\nGATTACA\n')  < /dev/null  > o.fadict.test
+	$(p) --test-dict --fasta-dict-g/NF=<(printf '>a\nAC\nGT\n>b\nTT' | gzip -c)  < /dev/null  > o.fadict-gz.test
+	printf '>a\nAC\n' > fa.tmp; $(p) --test-dict --cd-f/d=a:1,z:2 --fasta-dict-f=fa.tmp --cd-f/d2=y:3  < /dev/null  > o.fadict-merge.test 2> o.fadict-merge-msg.test; rm fa.tmp
+	for t in '>\nAC\n' '> s\nAC\n' '>a\nA\n>a\nC\n' 'AC\n>a\n'; do printf "$$t" > fa.tmp; $(p) --test-dict --fasta-dict-e=fa.tmp < /dev/null; [ $$? -eq 1 ] || exit 1; done 2> o.fadict-errors-file.test; rm fa.tmp
+	for a in --fasta-dict-=f --fasta-dict-x --fasta-dict-x= --fasta-dict-x=/nonexistent; do $(p) --test-dict "$$a" < /dev/null; [ $$? -eq 1 ] || exit 1; done 2> o.fadict-errors.test
 
 %.ref : %.test
 	diff $< $@

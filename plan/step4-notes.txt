@@ -134,3 +134,51 @@ Item 2: --td, --tdict, --table-dict
   tdict-errors (option errors and table errors), tdict-errors-file (repeated column name, field
   count, repeated key). Unit test table_options in opt.rs. o.help.ref and o.help-long.ref
   updated for the --td lines.
+
+
+Item 3: --fasta-dict-NAME
+
+  Storage: owned values, not one buffer with ranges. The step file proposed reading the file
+  into a large buffer with sequences as slices (ranges). Since item 1 every dictionary is a
+  HashMap from owned key to owned value, and a repeated NAME merges, also across kinds (a fasta
+  dictionary with --cd of the same name). Ranges into a buffer would need a second form of
+  dictionary value, visible to merging and later to lookup. With owned values there is one
+  form; peak memory is about the total sequence size, as each finished sequence is moved into
+  the dictionary and trimmed to its length (a growing Vec may have up to twice the capacity it
+  needs). The cost is one allocation per sequence, the same as one per value for --fd.
+
+  Parsing (opt.rs). fasta-dict- is a seventh prefix in dict_option(); NAME/DEFAULT as item 1.
+  A fasta dictionary without a default gets __EXIT__ (as pick), set in parse_dict_spec(), so
+  that a fasta file merged into an existing dictionary also sets __EXIT__ (pick does the same,
+  read_fadict sets dictnotfound).
+
+  Reading (dict.rs, read_fasta). Line by line with read_line(). A '>' line starts a record; the
+  identifier extends to the first white space (is_ascii_whitespace: space, \t, \n, \f, \r; Perl's
+  \s also has \v). The following lines are appended to the sequence; empty lines contribute
+  nothing. After the file, '*' maps to the empty sequence, as in pick (unmapped SAM reads).
+  Lines are not checked for '\r', as pick (chomp).
+  Differences from pick, all errors: a '>' line without identifier (pick: appended to the
+  previous sequence), a repeated identifier within a file (pick: the last one wins), and
+  non-empty lines before the first '>' (pick: ignored). Empty lines before the first '>' are
+  allowed. Repeated identifiers are detected with a HashSet of this file's identifiers, for the
+  same reason as with tables (the dictionary may already have keys from a merge).
+  Unlike pick, no message about SAM reference lookup is printed; only --sam/FILE (item 4) sets
+  the SAM reference.
+
+  Checked against pick with ^f,map lookups: multi-line sequences, description after the
+  identifier, empty sequence, '*', a default, and __EXIT__ failing.
+
+  Speed and memory (peak RSS):
+                                                      pluk               pick
+    5 sequences, 200 MB, 60-char lines                0.15 s  193 MB     9.3 s  243 MB
+    1,000,000 sequences of 100 bases (110 MB)         0.98 s  353 MB     6.8 s  275 MB
+  For many short sequences the overhead per record dominates: two owned Vecs (id, sequence),
+  the hash map entry, and the id copy in the repeated-identifier set. If this matters, the
+  buffer-with-ranges design is the remedy, at the cost discussed above.
+
+  Tests: fadict (multi-line, description, empty sequence, leading empty line), fadict-gz (with
+  default), fadict-merge (+ -msg; __EXIT__ set by the fasta merge, kept after --cd/d2),
+  fadict-errors-file, fadict-errors. Fasta inputs are written with printf in the Makefile; tests
+  whose messages contain the file name use a temporary file fa.tmp rather than process
+  substitution, as /dev/fd/NN may differ between systems. Unit test additions in
+  opt.rs (dict_options). o.help.ref and o.help-long.ref updated.

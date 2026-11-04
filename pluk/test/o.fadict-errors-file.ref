@@ -1,0 +1,4 @@
+pluk: --fasta-dict-e=fa.tmp: no identifier on line 1 of fa.tmp
+pluk: --fasta-dict-e=fa.tmp: no identifier on line 1 of fa.tmp
+pluk: --fasta-dict-e=fa.tmp: repeated identifier [a] on line 3 of fa.tmp
+pluk: --fasta-dict-e=fa.tmp: sequence data before the first '>' on line 1 of fa.tmp

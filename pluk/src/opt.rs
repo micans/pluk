@@ -93,6 +93,9 @@ Dictionaries (NAME: letters, digits, _; lookup is not yet implemented):
   --kd-NAME/DEFAULT=...   as above, DEFAULT is the value for keys not found;
                           __EXIT__ makes a failed lookup an error. Without
                           DEFAULT a key not found maps to itself.
+  --fasta-dict-NAME=FILE  sequences from fasta FILE, keyed by the identifier (up
+                          to the first white space); DEFAULT is __EXIT__ unless
+                          given, '*' maps to the empty sequence.
   --td^KEY/DEFAULT=FILE   table with column names: every column other than KEY
                           becomes a dictionary named after the column, mapping
                           the KEY value to the value in that column. ^KEY and
@@ -181,10 +184,11 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
 
 // Dictionary options: the kind, and the part after the prefix (NAME[/DEFAULT]=SOURCE).
 fn dict_option(long: &[u8]) -> Option<(DictKind, &[u8])> {
-    const PREFIXES: [(&[u8], DictKind); 6] = [
+    const PREFIXES: [(&[u8], DictKind); 7] = [
         (b"kd-", DictKind::Keys),   (b"kdict-", DictKind::Keys),
         (b"fd-", DictKind::Pairs),  (b"fdict-", DictKind::Pairs),
         (b"cd-", DictKind::Inline), (b"cdict-", DictKind::Inline),
+        (b"fasta-dict-", DictKind::Fasta),
     ];
     PREFIXES.iter().find_map(|&(prefix, kind)| long.strip_prefix(prefix).map(|rest| (kind, rest)))
 }
@@ -203,7 +207,11 @@ fn parse_dict_spec(kind: DictKind, rest: &[u8], long: &[u8]) -> Result<DictSpec,
     if name_len == 0 {
         return Err(usage());
     }
-    let (not_found, source) = parse_default_source(&rest[name_len..]).ok_or_else(usage)?;
+    let (mut not_found, source) = parse_default_source(&rest[name_len..]).ok_or_else(usage)?;
+    // As in pick, a fasta dictionary without default fails on a key not found.
+    if kind == DictKind::Fasta && not_found.is_none() {
+        not_found = Some(NotFound::Exit);
+    }
     Ok(DictSpec { option, kind, name: rest[..name_len].to_vec(), key_column: None, not_found, source })
 }
 
@@ -492,6 +500,9 @@ mod tests {
             assert!(run(&[bad]).is_err(), "{}", bad);
         }
         assert_eq!(run(&["--fd-x"]).unwrap_err(), "--fd-x: expected --fd-NAME[/DEFAULT]=FILE");
+        let c = run(&["--fasta-dict-f=a.fa", "--fasta-dict-g/=b.fa"]).unwrap();
+        assert_eq!((c.dicts[0].kind, &c.dicts[0].not_found), (DictKind::Fasta, &Some(NotFound::Exit)));
+        assert_eq!(c.dicts[1].not_found, Some(NotFound::Value(Vec::new())));
     }
 
     #[test]

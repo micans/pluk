@@ -25,6 +25,7 @@ pub enum DictKind {
     Pairs,      // --fd-NAME=FILE: key TAB value
     Inline,     // --cd-NAME=k:v,k:v
     Table,      // --td^KEY=FILE: one dictionary per column, named after the column
+    Fasta,      // --fasta-dict-NAME=FILE: identifier -> sequence
 }
 
 // Result of a failing lookup.
@@ -82,6 +83,10 @@ impl Dicts {
                 DictKind::Inline => {
                     let dict = dicts.get_or_create(&spec.name, spec);
                     parse_inline(spec, &mut dict.map)?;
+                }
+                DictKind::Fasta => {
+                    let dict = dicts.get_or_create(&spec.name, spec);
+                    read_fasta(spec, &mut dict.map)?;
                 }
                 DictKind::Table => dicts.read_table(spec)?,
             }
@@ -234,6 +239,62 @@ fn read_file(spec: &DictSpec, map: &mut HashMap<Vec<u8>, Vec<u8>>) -> Result<(),
         map.insert(key.to_vec(), value.to_vec());
     }
     Ok(())
+}
+
+// --fasta-dict. A line starting with '>' starts a record; the identifier is the
+// text after '>' up to the first white space (pick: >(\S+)). The sequence is the
+// concatenation of the lines that follow, without newlines; each sequence is stored
+// as a value of its own (plan/step4-notes.txt item 3). As in pick, the key '*' is
+// added with the empty sequence (the reference name of unmapped SAM reads).
+// Unlike pick, a '>' line without identifier, a repeated identifier, and
+// sequence data before the first '>' are errors.
+fn read_fasta(spec: &DictSpec, map: &mut HashMap<Vec<u8>, Vec<u8>>) -> Result<(), String> {
+    let option = String::from_utf8_lossy(&spec.option);
+    let path = Path::new(OsStr::from_bytes(&spec.source));
+    let error = |e: io::Error| format!("{}: cannot read {}: {}", option, path.display(), e);
+    let mut reader = open_buffered(File::open(path).map_err(error)?).map_err(error)?;
+
+    let mut line = Vec::new();
+    let mut lineno = 0;
+    let mut id: Option<Vec<u8>> = None;     // identifier of the current record
+    let mut seq: Vec<u8> = Vec::new();      // its sequence so far
+    let mut ids = HashSet::new();           // identifiers in this file
+    while read_line(&mut reader, &mut line).map_err(error)? {
+        lineno += 1;
+        if let Some(rest) = line.strip_prefix(b">") {
+            let len = rest.iter().take_while(|b| !b.is_ascii_whitespace()).count();
+            if len == 0 {
+                return Err(format!("{}: no identifier on line {} of {}", option, lineno, path.display()));
+            }
+            let new_id = rest[..len].to_vec();
+            if !ids.insert(new_id.clone()) {
+                return Err(format!("{}: repeated identifier [{}] on line {} of {}", option,
+                                   String::from_utf8_lossy(&new_id), lineno, path.display()));
+            }
+            if let Some(prev) = id.replace(new_id) {
+                store_sequence(map, prev, &mut seq);
+            }
+        } else if id.is_some() {
+            seq.extend_from_slice(&line);
+        } else if !line.is_empty() {
+            return Err(format!("{}: sequence data before the first '>' on line {} of {}",
+                               option, lineno, path.display()));
+        }
+    }
+    if let Some(prev) = id {
+        store_sequence(map, prev, &mut seq);
+    }
+    map.insert(b"*".to_vec(), Vec::new());
+    Ok(())
+}
+
+// Move the sequence into the dictionary, leaving seq empty. The stored value is
+// trimmed to its length; a Vec grows by doubling, so it may have up to twice the
+// capacity needed.
+fn store_sequence(map: &mut HashMap<Vec<u8>, Vec<u8>>, id: Vec<u8>, seq: &mut Vec<u8>) {
+    let mut value = std::mem::take(seq);
+    value.shrink_to_fit();
+    map.insert(id, value);
 }
 
 // Read the next line into line, without its newline. Returns Ok(false) at end of input.

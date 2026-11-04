@@ -56,6 +56,8 @@
   3   Implement --fasta-dict-NAME=path, with optional /default as above.
 
       Propose to read into a large buffer, sequences as slices.
+      Decided instead: each sequence is an ordinary owned dictionary value, so that merging
+      and lookup are the same for all dictionaries (step4-notes.txt item 3).
       Preference to use bespoke parsing without pulling in a crate. Identifier is identified by '>(\S+)' .
       As in pick the default is __EXIT__ when none is given, and the key '*' maps to the empty
       string (SAM unmapped reads). A '>' line without identifier and a repeated identifier are errors.
