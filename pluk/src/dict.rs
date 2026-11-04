@@ -8,7 +8,7 @@
 // opt.rs records a DictSpec for each dictionary option; Dicts::load() reads
 // them in command line order once option parsing is complete.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{self, BufRead, Write};
@@ -24,6 +24,7 @@ pub enum DictKind {
     Keys,       // --kd-NAME=FILE: keys from the first column, every value 1
     Pairs,      // --fd-NAME=FILE: key TAB value
     Inline,     // --cd-NAME=k:v,k:v
+    Table,      // --td^KEY=FILE: one dictionary per column, named after the column
 }
 
 // Result of a failing lookup.
@@ -46,7 +47,8 @@ impl NotFound {
 pub struct DictSpec {
     pub option: Vec<u8>,                // the whole option, for messages
     pub kind: DictKind,
-    pub name: Vec<u8>,
+    pub name: Vec<u8>,                  // empty for Table
+    pub key_column: Option<Vec<u8>>,    // Table: ^KEY; None for the first column
     pub not_found: Option<NotFound>,    // None: no default given
     pub source: Vec<u8>,                // file name, or k:v list for Inline
 }
@@ -72,10 +74,16 @@ impl Dicts {
     pub fn load(specs: &[DictSpec]) -> Result<Dicts, String> {
         let mut dicts = Dicts::new();
         for spec in specs {
-            let dict = dicts.get_or_create(spec);
             match spec.kind {
-                DictKind::Keys | DictKind::Pairs => read_file(spec, &mut dict.map)?,
-                DictKind::Inline                 => parse_inline(spec, &mut dict.map)?,
+                DictKind::Keys | DictKind::Pairs => {
+                    let dict = dicts.get_or_create(&spec.name, spec);
+                    read_file(spec, &mut dict.map)?;
+                }
+                DictKind::Inline => {
+                    let dict = dicts.get_or_create(&spec.name, spec);
+                    parse_inline(spec, &mut dict.map)?;
+                }
+                DictKind::Table => dicts.read_table(spec)?,
             }
         }
         Ok(dicts)
@@ -85,14 +93,14 @@ impl Dicts {
         self.list.len()
     }
 
-    // The dictionary named in spec. A new one is created if the name is not yet
-    // in use; otherwise spec merges into the existing one, with a message.
+    // The dictionary called name, for spec. A new one is created if the name is
+    // not yet in use; otherwise spec merges into the existing one, with a message.
     // A default replaces an earlier one, except that __EXIT__ is kept.
-    fn get_or_create(&mut self, spec: &DictSpec) -> &mut Dict {
-        match self.index.get(&spec.name) {
+    fn get_or_create(&mut self, name: &[u8], spec: &DictSpec) -> &mut Dict {
+        match self.index.get(name) {
             Some(&i) => {
                 eprintln!("pluk: {}: merging into existing dictionary {}",
-                          String::from_utf8_lossy(&spec.option), String::from_utf8_lossy(&spec.name));
+                          String::from_utf8_lossy(&spec.option), String::from_utf8_lossy(name));
                 let dict = &mut self.list[i];
                 if let Some(nf) = &spec.not_found {
                     if dict.not_found != NotFound::Exit {
@@ -102,15 +110,78 @@ impl Dicts {
                 dict
             }
             None => {
-                self.index.insert(spec.name.clone(), self.list.len());
+                self.index.insert(name.to_vec(), self.list.len());
                 self.list.push(Dict {
-                    name: spec.name.clone(),
+                    name: name.to_vec(),
                     map: HashMap::new(),
                     not_found: spec.not_found.clone().unwrap_or(NotFound::Key),
                 });
                 self.list.last_mut().unwrap()
             }
         }
+    }
+
+    // --td: the first line holds the column names. Every column other than the key
+    // column becomes a dictionary named after the column, mapping the key to the
+    // value in that column; the default applies to all of them. As in pick, a
+    // repeated key and a line whose number of fields differs from the header are
+    // errors. Unlike pick, a repeated column name is an error (pick: the last wins).
+    fn read_table(&mut self, spec: &DictSpec) -> Result<(), String> {
+        let option = String::from_utf8_lossy(&spec.option);
+        let path = Path::new(OsStr::from_bytes(&spec.source));
+        let error = |e: io::Error| format!("{}: cannot read {}: {}", option, path.display(), e);
+        let mut reader = open_buffered(File::open(path).map_err(error)?).map_err(error)?;
+
+        let mut line = Vec::new();
+        if !read_line(&mut reader, &mut line).map_err(error)? {
+            return Err(format!("{}: table {} is empty", option, path.display()));
+        }
+        let header: Vec<Vec<u8>> = line.split(|&b| b == b'\t').map(|f| f.to_vec()).collect();
+        let key_index = match &spec.key_column {
+            None      => 0,
+            Some(key) => header.iter().position(|name| name == key).ok_or_else(||
+                format!("{}: no column [{}] in {}", option, String::from_utf8_lossy(key), path.display()))?,
+        };
+        let mut seen = HashSet::new();
+        for name in &header {
+            if !seen.insert(name) {
+                return Err(format!("{}: repeated column name [{}] in {}", option,
+                                   String::from_utf8_lossy(name), path.display()));
+            }
+        }
+
+        // Dictionary index for each column; None for the key column.
+        let mut targets: Vec<Option<usize>> = Vec::with_capacity(header.len());
+        for (i, name) in header.iter().enumerate() {
+            if i == key_index {
+                targets.push(None);
+            } else {
+                self.get_or_create(name, spec);
+                targets.push(Some(self.index[name.as_slice()]));
+            }
+        }
+
+        let mut keys = HashSet::new();
+        let mut lineno = 1;
+        while read_line(&mut reader, &mut line).map_err(error)? {
+            lineno += 1;
+            let fields: Vec<&[u8]> = line.split(|&b| b == b'\t').collect();
+            if fields.len() != header.len() {
+                return Err(format!("{}: {} fields on line {} of {}, header has {}", option,
+                                   fields.len(), lineno, path.display(), header.len()));
+            }
+            let key = fields[key_index];
+            if !keys.insert(key.to_vec()) {
+                return Err(format!("{}: repeated key [{}] on line {} of {}", option,
+                                   String::from_utf8_lossy(key), lineno, path.display()));
+            }
+            for (field, target) in fields.iter().zip(&targets) {
+                if let Some(d) = *target {
+                    self.list[d].map.insert(key.to_vec(), field.to_vec());
+                }
+            }
+        }
+        Ok(())
     }
 
     // --test-dict: per dictionary a line with name, not-found setting and number of
@@ -153,14 +224,7 @@ fn read_file(spec: &DictSpec, map: &mut HashMap<Vec<u8>, Vec<u8>>) -> Result<(),
     let file = File::open(path).map_err(error)?;
     let mut reader = open_buffered(file).map_err(error)?;
     let mut line = Vec::new();
-    loop {
-        line.clear();
-        if reader.read_until(b'\n', &mut line).map_err(error)? == 0 {
-            break;
-        }
-        if line.last() == Some(&b'\n') {
-            line.pop();
-        }
+    while read_line(&mut reader, &mut line).map_err(error)? {
         let mut fields = line.splitn(3, |&b| b == b'\t');
         let key = fields.next().unwrap_or(b"");     // splitn always yields at least one item
         let value: &[u8] = match (spec.kind, fields.next()) {
@@ -170,6 +234,18 @@ fn read_file(spec: &DictSpec, map: &mut HashMap<Vec<u8>, Vec<u8>>) -> Result<(),
         map.insert(key.to_vec(), value.to_vec());
     }
     Ok(())
+}
+
+// Read the next line into line, without its newline. Returns Ok(false) at end of input.
+fn read_line(reader: &mut Box<dyn BufRead>, line: &mut Vec<u8>) -> io::Result<bool> {
+    line.clear();
+    if reader.read_until(b'\n', line)? == 0 {
+        return Ok(false);
+    }
+    if line.last() == Some(&b'\n') {
+        line.pop();
+    }
+    Ok(true)
 }
 
 // --cd: comma-separated key:value pairs, keys and values %-decoded as in pick.
@@ -199,7 +275,7 @@ mod tests {
 
     fn spec(kind: DictKind, name: &str, not_found: Option<NotFound>, source: &str) -> DictSpec {
         DictSpec { option: b"--test".to_vec(), kind, name: name.as_bytes().to_vec(),
-                   not_found, source: source.as_bytes().to_vec() }
+                   key_column: None, not_found, source: source.as_bytes().to_vec() }
     }
 
     fn value<'a>(dicts: &'a Dicts, name: &str, key: &str) -> Option<&'a [u8]> {

@@ -48,7 +48,8 @@
       %-decoded defaults; no named table dictionaries and no tmap; repeated NAME merges with a
       diagnostic, __EXIT__ sticky; only --sam/f.fasta sets the SAM reference; seqlen reserved;
       fasta '>' without identifier and repeated identifiers are errors; --cd ignores empty
-      pairs and refuses a pair with more than one ':'.
+      pairs and refuses a pair with more than one ':'; --td refuses a '^' in DEFAULT (catches
+      pick's order) and a repeated column name in the table header.
 
 # Coding guidelines
 

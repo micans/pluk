@@ -1,0 +1,3 @@
+pluk: --td=/dev/stdin: repeated column name [b] in /dev/stdin
+pluk: --td=/dev/stdin: 3 fields on line 2 of /dev/stdin, header has 2
+pluk: --td=/dev/stdin: repeated key [k] on line 3 of /dev/stdin

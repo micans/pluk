@@ -23,9 +23,14 @@ Dictionaries (NAME: letters, digits, _; lookup is not yet implemented):
   --kd-NAME/DEFAULT=...   as above, DEFAULT is the value for keys not found;
                           __EXIT__ makes a failed lookup an error. Without
                           DEFAULT a key not found maps to itself.
-  --kdict- --fdict- --cdict- are synonyms. A repeated NAME adds to the dictionary.
-  FILE may be gzip-compressed. In DEFAULT write = as %3D; in --cd write , and :
-  as %2C and %3A.
+  --td^KEY/DEFAULT=FILE   table with column names: every column other than KEY
+                          becomes a dictionary named after the column, mapping
+                          the KEY value to the value in that column. ^KEY and
+                          /DEFAULT are optional; KEY defaults to the first column.
+  --kdict- --fdict- --cdict- are synonyms, as are --tdict --table-dict for --td.
+  A repeated NAME adds to the dictionary. FILE may be gzip-compressed.
+  In KEY write / and = as %2F and %3D, in DEFAULT = as %3D; in --cd , and : as
+  %2C and %3A.
 
   -H, --help  print this help
   --version   print the version

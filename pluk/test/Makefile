@@ -190,6 +190,15 @@ runtestopt: data.txt
 	$(p) --test-dict --fd-x/d1=data.txt --cd-x=Ann:Z,new:N --cd-y=a --cd-x/d2=q  < /dev/null  > o.dict-merge.test 2> o.dict-merge-msg.test
 	$(p) --test-dict --cd-x/d1=a --cd-x/__EXIT__=b --cd-x/d2=c --cd-x=d  < /dev/null  > o.dict-merge-exit.test 2> /dev/null
 	for a in --fd-x --fd-=f --fd-x= --fd-x/d --kd-x+=f --cdict-x --cd-x=a:b:c --fd-x=/nonexistent; do $(p) --test-dict "$$a" < /dev/null; [ $$? -eq 1 ] || exit 1; done 2> o.dict-errors.test
+	$(p) --test-dict --td=data.txt                          < /dev/null  > o.tdict.test
+	$(p) --test-dict '--tdict^dna/DF=data.txt'              < /dev/null  > o.tdict-key.test
+	$(p) --test-dict --table-dict^id/__EXIT__=<(cut -f 17,1,20 big.txt | gzip -c)  < /dev/null  > o.tdict-big-gz.test
+	$(p) --test-dict --td^b%2Fc=<(printf 'a\tb/c\n1\tk\n')  < /dev/null  > o.tdict-keyenc.test
+	$(p) --test-dict --fd-fib=<(printf 'zz\t9\n') --td/__EXIT__=data.txt --cd-fib/x=Q:1  < /dev/null  > o.tdict-merge.test 2> o.tdict-merge-msg.test
+	printf 'a\tb\n' | $(p) --test-dict --td=/dev/stdin     > o.tdict-headeronly.test
+	printf 'a\n1\n2\n' | $(p) --test-dict --td=/dev/stdin  > o.tdict-keyonly.test
+	for a in '--td^fib=data.txt' '--td^nosuch=data.txt' --td=/dev/null --td-x=f --tdict-x=f --td/d^dna=data.txt '--td^=f' --td^k --td=; do $(p) --test-dict "$$a" < /dev/null; [ $$? -eq 1 ] || exit 1; done 2> o.tdict-errors.test
+	for t in 'a\tb\tb\nk\t1\t2\n' 'a\tb\nk\t1\t2\n' 'a\tb\nk\t1\nk\t2\n'; do printf "$$t" | $(p) --test-dict --td=/dev/stdin; [ $$? -eq 1 ] || exit 1; done 2> o.tdict-errors-file.test
 
 %.ref : %.test
 	diff $< $@

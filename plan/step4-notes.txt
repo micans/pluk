@@ -91,3 +91,46 @@ Item 1: --kd, --fd, --cd
   substitution), dict-big, dict-fd-fields, dict-cd, dict-exit, dict-merge (+ -msg),
   dict-merge-exit, dict-errors. o.help.ref and o.help-long.ref updated for the dictionary
   section of the help text. Unit tests in opt.rs (dict_options) and dict.rs.
+
+
+Item 2: --td, --tdict, --table-dict
+
+  Parsing (opt.rs). table_option() recognises table-dict, tdict and td (longest first) when the
+  next byte is one of ^ / = -; anything else falls through to "Unrecognised long option", so
+  --tdx=f is not taken as a table option. parse_table_spec() reads [^KEY][/DEFAULT]=FILE:
+    - '-' after the option name (--td-NAME) is refused with a message pointing to the
+      supported form.
+    - KEY extends to the first '/' or '=' and is %-decoded, so a column name containing '/' or
+      '=' is written with %2F or %3D. An empty KEY is an error.
+    - A '^' in DEFAULT is refused. pick's order is /DEFAULT^KEY; without this check
+      --td/d^k=f would silently become the default 'd^k' with the first column as key. A literal
+      '^' in a default is written %5E.
+    - [/DEFAULT]=SOURCE is now parsed by parse_default_source(), shared with item 1.
+  DictSpec gained key_column; for a table, name is empty.
+
+  Loading (dict.rs, Dicts::read_table). The first line gives the column names. The key column
+  is the first column, or the one named by KEY. For every other column get_or_create() yields a
+  dictionary named after the column (merging, with message, as in item 1); its index is kept in
+  targets, so that each data line is distributed over the dictionaries by position. get_or_create()
+  now takes the name separately from the spec, since table dictionaries take their name from the
+  file. read_line() is shared with read_file().
+  Checks, as in pick: an empty file, KEY not found, a line whose number of fields differs from
+  the header, and a repeated key are errors (pick: "Table read error", "Repeated key"). A
+  repeated key is detected with a HashSet of the keys of this table, not with the dictionaries
+  themselves, since those may already contain the key from an earlier merge.
+  Difference from pick: a repeated column name in the table header is an error; in pick the
+  later column overwrites the earlier one in the same dictionary.
+  A table with only a key column creates no dictionaries; a header without data lines creates
+  empty ones.
+
+  Values checked against pick with ^col,map lookups (--tdict=data.txt, --tdict/DF^dna).
+
+  Speed: 1,000,000 rows with 3 value columns load in 2.1 s (pick 5.5 s): per row three
+  dictionary inserts plus one insert in the repeated-key set, each copying the key. The faster
+  hasher in deferred.txt applies here as well.
+
+  Tests: tdict, tdict-key, tdict-big-gz (^id, __EXIT__, gzip), tdict-keyenc (%2F in KEY),
+  tdict-merge (+ -msg; with --fd and --cd, __EXIT__ sticky), tdict-headeronly, tdict-keyonly,
+  tdict-errors (option errors and table errors), tdict-errors-file (repeated column name, field
+  count, repeated key). Unit test table_options in opt.rs. o.help.ref and o.help-long.ref
+  updated for the --td lines.

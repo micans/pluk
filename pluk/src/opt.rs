@@ -29,7 +29,7 @@ pub struct Config {
     pub sam_h: bool,                    // --sam-h
     pub pat_purge: Option<Vec<u8>>,     // -/PAT, %-decoded
     pub pat_pass: Option<Vec<u8>>,      // -//PAT, %-decoded
-    pub dicts: Vec<DictSpec>,           // --kd- --fd- --cd- options, in command line order
+    pub dicts: Vec<DictSpec>,           // dictionary options, in command line order
     pub test_i: Option<u32>,            // --test-i=N (temporary)
     pub test_lineno: bool,              // --test-lineno (temporary)
     pub test_counts: bool,              // --test-counts (temporary)
@@ -93,9 +93,14 @@ Dictionaries (NAME: letters, digits, _; lookup is not yet implemented):
   --kd-NAME/DEFAULT=...   as above, DEFAULT is the value for keys not found;
                           __EXIT__ makes a failed lookup an error. Without
                           DEFAULT a key not found maps to itself.
-  --kdict- --fdict- --cdict- are synonyms. A repeated NAME adds to the dictionary.
-  FILE may be gzip-compressed. In DEFAULT write = as %3D; in --cd write , and :
-  as %2C and %3A.
+  --td^KEY/DEFAULT=FILE   table with column names: every column other than KEY
+                          becomes a dictionary named after the column, mapping
+                          the KEY value to the value in that column. ^KEY and
+                          /DEFAULT are optional; KEY defaults to the first column.
+  --kdict- --fdict- --cdict- are synonyms, as are --tdict --table-dict for --td.
+  A repeated NAME adds to the dictionary. FILE may be gzip-compressed.
+  In KEY write / and = as %2F and %3D, in DEFAULT = as %3D; in --cd , and : as
+  %2C and %3A.
 
   -H, --help  print this help
   --version   print the version
@@ -136,6 +141,10 @@ pub fn parse(args: &[Vec<u8>]) -> Result<Parsed, String> {
 
 // A '--' option, one per word. Returns Some for options that end parsing.
 fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String> {
+    if let Some(rest) = table_option(long) {
+        config.dicts.push(parse_table_spec(rest, long)?);
+        return Ok(None);
+    }
     if let Some((kind, rest)) = dict_option(long) {
         config.dicts.push(parse_dict_spec(kind, rest, long)?);
         return Ok(None);
@@ -194,18 +203,71 @@ fn parse_dict_spec(kind: DictKind, rest: &[u8], long: &[u8]) -> Result<DictSpec,
     if name_len == 0 {
         return Err(usage());
     }
-    let mut tail = &rest[name_len..];
+    let (not_found, source) = parse_default_source(&rest[name_len..]).ok_or_else(usage)?;
+    Ok(DictSpec { option, kind, name: rest[..name_len].to_vec(), key_column: None, not_found, source })
+}
+
+// [/DEFAULT]=SOURCE, shared by all dictionary options. DEFAULT extends to the
+// first '=' and is %-decoded; SOURCE must be non-empty. None if malformed.
+fn parse_default_source(tail: &[u8]) -> Option<(Option<NotFound>, Vec<u8>)> {
+    let mut tail = tail;
     let mut not_found = None;
     if let Some(t) = tail.strip_prefix(b"/") {
-        let eq = t.iter().position(|&b| b == b'=').ok_or_else(usage)?;
+        let eq = t.iter().position(|&b| b == b'=')?;
         not_found = Some(NotFound::from_default(pct_decode(&t[..eq])));
         tail = &t[eq..];
     }
-    let source = tail.strip_prefix(b"=").ok_or_else(usage)?;
+    let source = tail.strip_prefix(b"=")?;
     if source.is_empty() {
-        return Err(usage());
+        return None;
     }
-    Ok(DictSpec { option, kind, name: rest[..name_len].to_vec(), not_found, source: source.to_vec() })
+    Some((not_found, source.to_vec()))
+}
+
+// Table dictionary options --td --tdict --table-dict: the part after the option
+// name, if it starts with ^ / = or - (the last for the refused form --td-NAME).
+fn table_option(long: &[u8]) -> Option<&[u8]> {
+    for prefix in [&b"table-dict"[..], b"tdict", b"td"] {
+        if let Some(rest) = long.strip_prefix(prefix) {
+            if matches!(rest.first(), Some(b'^' | b'/' | b'=' | b'-')) {
+                return Some(rest);
+            }
+        }
+    }
+    None
+}
+
+// [^KEY][/DEFAULT]=FILE. KEY extends to the first '/' or '=' and is %-decoded.
+// The order ^KEY/DEFAULT differs from pick (/DEFAULT^KEY); a '^' in DEFAULT is
+// refused, so that pick's order is not silently read as a default containing '^'.
+fn parse_table_spec(rest: &[u8], long: &[u8]) -> Result<DictSpec, String> {
+    let option = [b"--", long].concat();
+    let prefix = String::from_utf8_lossy(&long[..long.len() - rest.len()]).into_owned();
+    let what = String::from_utf8_lossy(&option).into_owned();
+    let usage = || format!("{}: expected --{}[^KEY][/DEFAULT]=FILE", what, prefix);
+    if rest.starts_with(b"-") {
+        return Err(format!("{}: named table dictionaries are not supported, use --{}[^KEY][/DEFAULT]=FILE",
+                           what, prefix));
+    }
+    let mut tail = rest;
+    let mut key_column = None;
+    if let Some(t) = tail.strip_prefix(b"^") {
+        let end = t.iter().position(|&b| b == b'/' || b == b'=').ok_or_else(usage)?;
+        if end == 0 {
+            return Err(usage());
+        }
+        key_column = Some(pct_decode(&t[..end]));
+        tail = &t[end..];
+    }
+    if let Some(t) = tail.strip_prefix(b"/") {
+        let default = &t[..t.iter().position(|&b| b == b'=').unwrap_or(t.len())];
+        if default.contains(&b'^') {
+            return Err(format!("{}: '^' in DEFAULT; the key column comes first, --{}^KEY/DEFAULT=FILE \
+                                (write a literal ^ as %5E)", what, prefix));
+        }
+    }
+    let (not_found, source) = parse_default_source(tail).ok_or_else(usage)?;
+    Ok(DictSpec { option, kind: DictKind::Table, name: Vec::new(), key_column, not_found, source })
 }
 
 // A bundle of '-' options, without the leading '-', scanned left to right.
@@ -430,6 +492,22 @@ mod tests {
             assert!(run(&[bad]).is_err(), "{}", bad);
         }
         assert_eq!(run(&["--fd-x"]).unwrap_err(), "--fd-x: expected --fd-NAME[/DEFAULT]=FILE");
+    }
+
+    #[test]
+    fn table_options() {
+        let c = run(&["--td=f", "--tdict^k%2Fx/d=g", "--table-dict/__EXIT__=h", "--td^k=i"]).unwrap();
+        let s = &c.dicts;
+        assert!(s.iter().all(|d| d.kind == DictKind::Table && d.name.is_empty()));
+        assert_eq!((&s[0].key_column, &s[0].not_found, &s[0].source[..]), (&None, &None, &b"f"[..]));
+        assert_eq!((&s[1].key_column, &s[1].not_found),
+                   (&Some(b"k/x".to_vec()), &Some(NotFound::Value(b"d".to_vec()))));
+        assert_eq!(s[2].not_found, Some(NotFound::Exit));
+        assert_eq!((&s[3].key_column, &s[3].not_found), (&Some(b"k".to_vec()), &None));
+        for bad in ["--td", "--td-x=f", "--tdict-x=f", "--td^=f", "--td^k", "--td/d^k=f", "--td=", "--td^k/d"] {
+            assert!(run(&[bad]).is_err(), "{}", bad);
+        }
+        assert!(run(&["--tdx=f"]).unwrap_err().starts_with("Unrecognised long option"));
     }
 
     #[test]
