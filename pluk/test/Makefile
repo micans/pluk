@@ -99,6 +99,12 @@ runpluk: data.txt big.txt sam.txt
 	gzip -c sam.txt | $(p) --sam -A               > o.sam-gz.test       2> /dev/null
 	$(p) --sam -O3 3                 < sam.txt    > o.sam-O3.test       2> /dev/null
 	$(p) --sam -R 1                  < sam.txt   2> o.sam-R.test   > /dev/null; [ $$? -eq 1 ]
+	$(p) -Ahk                        < data.txt   > o.opt-bundle.test
+	$(p) -A-1                        < data.txt   > o.opt-A-neg.test
+	$(p) -- name fib                 < data.txt   > o.opt-dashdash.test
+	$(p) name -h                     < data.txt  2> o.opt-col-dash.test > /dev/null; [ $$? -eq 1 ]
+	$(p) -kO3 --sam 3                < sam.txt    > o.opt-order-sam.test 2> /dev/null
+	for a in -kO -kO0 -kw --nosuch -//a/b -/a/b -/ -// --test-i=0 --sam/x.fa -A99999999999999999999; do $(p) "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.opt-errors.test
 	seq 1 1000000 > seq.tmp; $(p) --test-lineno < seq.tmp | head -n 2 > o.brokenpipe.test; [ $${PIPESTATUS[0]} -eq 0 ]; rm seq.tmp
 
 # Tests for temporary --test-* options. When such an option is removed, remove
@@ -112,13 +118,13 @@ runtestopt: data.txt
 	{ printf '# c1\n';  head -n 3 data.txt; printf '# mid\n'; tail -n 2 data.txt; } | $(p) --test-lineno -kO13 --tc > o.tc-midfile.test
 	{ printf '# c1\n#c2\n';  cat data.txt; } | gzip -c | $(p) --test-lineno --tc          > o.tc-gz.test
 	printf '#a\n#b\n' | $(p) --test-lineno --tc                                          > o.tc-allcomment.test
-	$(p) --test-i 1                         < data.txt  > o.ti-first.test
-	$(p) --test-i 13                        < data.txt  > o.ti-last.test
-	$(p) --test-i 14                        < data.txt  > o.ti-beyond.test
-	$(p) --test-i 18                        < big.txt   > o.ti-big.test
-	gzip -c big.txt | $(p) --test-i 18                  > o.ti-big-gz.test
-	{ printf '# c1\n';  cat data.txt; } | $(p) --tc --test-i 2  > o.ti-tc.test
-	printf 'a\tb\n\n\tz\nx\t\ty\n' | $(p) -kO3 --test-i 2    > o.ti-empty.test
+	$(p) --test-i=1                         < data.txt  > o.ti-first.test
+	$(p) --test-i=13                        < data.txt  > o.ti-last.test
+	$(p) --test-i=14                        < data.txt  > o.ti-beyond.test
+	$(p) --test-i=18                        < big.txt   > o.ti-big.test
+	gzip -c big.txt | $(p) --test-i=18                  > o.ti-big-gz.test
+	{ printf '# c1\n';  cat data.txt; } | $(p) --tc --test-i=2  > o.ti-tc.test
+	printf 'a\tb\n\n\tz\nx\t\ty\n' | $(p) -kO3 --test-i=2    > o.ti-empty.test
 
 	$(p) --test-lineno -k                     < data.txt   > o.k-lineno.test
 	{ printf '#c\n';  cat data.txt; } | $(p) -c --tc   > o.tc-count.test
@@ -128,11 +134,11 @@ runtestopt: data.txt
 	printf 'a\tb\nr1\t1\t2\n' | $(p) --test-lineno -R --test-counts  2> o.counts-R.test  > /dev/null
 	printf 'a\tb\tc\td\te\nx\ny\tz\n\tq\tr\n' | $(p) --test-lineno -kO3 --test-counts  2> o.counts-omega.test  > /dev/null
 	{ printf '#a\n#b\n'; cat big.txt; } | $(p) -kO5 -c --tc --test-counts 2> o.counts-big-omega.test > /dev/null
-	printf 'a\tb\tc\td\te\nx\ny\tz\n\tq\tr\n' | $(p) -kO3 --test-i 2   > o.omega-ti2.test
-	printf 'a\tb\tc\td\te\nx\ny\tz\n\tq\tr\n' | $(p) -kO3 --test-i 3   > o.omega-ti3.test
-	tail -n +2 big.txt | $(p) -kO5  --test-i 5                     > o.big-omega5-ti5.test
-	tail -n +2 big.txt | $(p) -kO1  --test-i 1                     > o.big-omega1-ti1.test
-	tail -n +2 big.txt | $(p) -kO25 --test-i 25                    > o.big-omega25-ti25.test
+	printf 'a\tb\tc\td\te\nx\ny\tz\n\tq\tr\n' | $(p) -kO3 --test-i=2   > o.omega-ti2.test
+	printf 'a\tb\tc\td\te\nx\ny\tz\n\tq\tr\n' | $(p) -kO3 --test-i=3   > o.omega-ti3.test
+	tail -n +2 big.txt | $(p) -kO5  --test-i=5                     > o.big-omega5-ti5.test
+	tail -n +2 big.txt | $(p) -kO1  --test-i=1                     > o.big-omega1-ti1.test
+	tail -n +2 big.txt | $(p) -kO25 --test-i=25                    > o.big-omega25-ti25.test
 	tail -n +2 big.txt | $(p) --test-lineno -kO25 --test-counts  2> o.counts-big-omega25.test > /dev/null
 	$(p) --test-names           < data.txt   > o.names.test
 	$(p) -k --test-names        < data.txt   > o.names-k.test

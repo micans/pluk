@@ -1,0 +1,69 @@
+
+step3 notes: rationale for implementation choices.
+
+
+Item 1: why bespoke option parsing
+
+  Steps 1 and 2 use clap. pick's command line interface has properties that a standard parser
+  does not support, or supports only through workarounds. Three examples, from current and
+  anticipated options:
+
+  1  Bundling with attached arguments, including patterns. In -A4kO8/^# the option -A takes an
+     optional number (4), k is a plain flag, O takes a required number (8), and / introduces a
+     pattern (^#) that extends to the end of the word and may contain any character. The parser
+     must know the argument shape of each option within a single word. clap supports bundled
+     flags, but not an optional attached value followed by further flags, nor a '/' separator.
+
+  2  Option names that carry data. The anticipated dictionary options (--kd-NAME/default=,
+     --fd-NAME/..., --td^colname/... in plan/sketch) embed a user-chosen name and default in the
+     option itself. They cannot be declared in a fixed option table; the parser must recognise a
+     prefix and decompose the remainder.
+
+  3  Order-dependent meaning. pick processes options from left to right, so 'pick --sam -O3' uses
+     -O3 and 'pick -O3 --sam' uses -O12. clap collects values without their order; pluk currently
+     gives an explicit -O priority (step2 item 4). A bespoke parser makes this a deliberate choice,
+     either pick's order rule or a priority rule, rather than one imposed by the crate.
+
+  A minor additional point: clap claims -h for help, which had to be disabled in step2 item 2,
+  since pick uses -h for "no header".
+
+
+Item 3: bespoke parser, clap removed
+
+  src/opt.rs. parse() takes the arguments as bytes and returns Parsed: Run(Config), Help or
+  Version; errors are returned as a String. parse_args() wraps it: it prints help, version or the
+  error message (exit 1) and exits, so that parse() itself has no side effects and can be unit
+  tested. Config keeps the field names of the clap version, so main.rs is nearly unchanged;
+  columns is now Vec<Vec<u8>> directly (the into_vec() conversion moved from main.rs to opt.rs).
+
+  Structure, as decided in item 2:
+    - parse() walks the words; '--' ends the options, '-H' (a word of its own, as in pick) ends
+      parsing with Help. A word starting with '--' goes to parse_long(), any other '-' word to
+      parse_bundle().
+    - parse_long() matches the whole word (after '--') against the known names with a byte-string
+      match. Options with a value use the form --name=value, as pick does (--demux-buffer=N).
+    - parse_bundle() scans character by character. A and O read an attached number (number_len,
+      parse_number); '/' hands the rest of the word to parse_patterns().
+    - Combination checks (-O needs -k, -R excludes -k) run once all options are known.
+  Order rule: --sam and --sam-h set -k and -O12 at their position, so a later -O overrides them and
+  an earlier one is overridden. This replaces the explicit -O priority of step2 item 4 and now
+  agrees with pick; checked against pick for both orders (test opt-order-sam, existing sam-O3).
+
+  Patterns: parse_patterns() splits /PAT, //PAT and /PAT1//PAT2, refuses an empty pattern or one
+  containing '/', and %-decodes with pct_decode() (pick's urldecode: %XX with two hex digits,
+  anything else kept). The patterns are stored in Config but not yet used (item 4).
+
+  -A<N> is stored as insert_offset (i64) and not yet acted upon.
+
+  Small differences from pick in this item:
+    - A flag letter repeated in a bundle (-kk) is accepted; pick reports the second one as not
+      parsed. Left-to-right scanning makes repetition harmless.
+    - -O without digits gives "-O<N> requires an attached number N, e.g. -O12" instead of pick's
+      "Option string not fully parsed: -O remains".
+    - An empty pattern is refused. In pick, -// sets an empty pass pattern that matches every line.
+    - --version prints "pluk <version>"; --help and -H print a one-line placeholder until item 5.
+
+  Test changes. --test-i N became --test-i=N (12 invocations in test/Makefile), as a '--' option
+  now takes its value in the same word. Output is unchanged. All other invocations run unchanged.
+  New tests: opt-bundle, opt-A-neg, opt-dashdash, opt-col-dash (a dash word after the first column
+  name is a column name, as in pick), opt-order-sam, opt-errors; and unit tests in opt.rs.

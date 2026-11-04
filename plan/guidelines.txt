@@ -37,6 +37,9 @@
     - regex column names are introduced by a leading '+' and match the whole name (COLSPEC.design.txt, 1).
     - -u (make duplicate input column names unique) and the duplicate check on input names (step1 item 6).
     - -R cannot be combined with -k (step1-context.txt).
+    - In -/PAT and -//PAT a literal '/' must be written as %2F, and an empty pattern is refused
+      (step3.txt item 2, step3-notes.txt item 3).
+    - Repeated flag letters in an option bundle are accepted (step3-notes.txt item 3).
 
 # Coding guidelines
 

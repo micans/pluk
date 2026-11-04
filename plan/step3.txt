@@ -1,0 +1,68 @@
+
+- Bespoke option parsing, -/PAT and -//PAT filtering, -H.
+
+  1   Document in step3-notes.txt why we need to implement our own option parsing, anticipating future needs.
+      (Done; no code, no commit of its own.)
+
+  2   Parsing structure (decided). Follow pick:
+        - Command line words are processed left to right while they start with '-'; a bare '--' ends the
+          options. The remaining words are column arguments.
+        - A '--' option is one per word and is not bundled.
+        - '-' options can all be bundled in one word. pluk scans a bundle left to right, character by
+          character, so that an error can point at the offending character (pick removes known parts
+          with substitutions; the accepted bundles are the same).
+          Unknown characters are an error with pick's message:
+            Option string not fully parsed: <rest> remains
+        - Order rule: options take effect left to right, the last one wins, as in pick. Thus
+          'pluk --sam -O3' uses 3 and 'pluk -O3 --sam' uses 12. This replaces the explicit -O priority
+          of step2 item 4.
+        - O<num> requires attached digits, as in pick: -O8 and -kO8 are valid, -O 8 is an error.
+        - A<num> takes optional attached digits, possibly negative (-A, -A4, -A-1), as in pick.
+          -A <num> is not supported (<num> could be a column name). <num> is parsed and stored but not
+          yet acted upon (insert position for computed columns).
+        - /PAT and //PAT must be part of a '-' word: -/PAT, -//PAT, or at the end of a bundle, e.g.
+          -A4kO8/^#. A word without a leading dash is a column argument.
+          Within a bundle, /PAT and //PAT extend to the end of the word; both can be given as
+          -/PAT1//PAT2. A literal '/' inside a pattern is an error and must be written as %2F, so
+          that -//PAT1/PAT2 is refused rather than read as the pass pattern 'PAT1/PAT2'.
+          Patterns are %-decoded (%XX), as in pick.
+
+  3   Implement the parser for the currently available options, replacing clap:
+      -k -h -c -A -x -u -O -R --sam --sam-h and the --test options, plus -/PAT and -//PAT (parsed only).
+      Some test invocations may need to change; document any such change in step3-notes.txt and keep
+      the existing tests running.
+      Add the intended differences from pick decided in this step to guidelines.txt.
+      Commit.
+
+  4   Activate -/PAT and -//PAT filtering, using the regex crate (regex::bytes, so that lines that are
+      not valid UTF-8 are handled). As in pick:
+        - both patterns are tested against every input line, including the header line, before
+          splitting;
+        - the pass pattern is tested first; a matching line is output unchanged and counts as skipped;
+        - otherwise a line matching the purge pattern is skipped.
+      --sam and --sam-h keep their separate '@' prefix test (step2 item 4); a user pattern applies in
+      addition. (In pick they share the pattern slot, so 'pick --sam -/^#' loses the '^@' filter.)
+      Rust's regex syntax lacks backreferences and lookaround; this is an intended difference.
+      Retire --test-comment/--tc: its tests are omitted from running (documented) and equivalent
+      invocations using -/^# are added against the same .ref files.
+      Commit.
+
+  5   Implement -H, with --help as a synonym. Take inspiration from pick -H output, but the main goal is
+      consistent and logical output, with important options first. For now no syntax is explained,
+      unlike pick -H output. Options in order of importance:
+
+        -k
+        -h
+        -c
+        -A
+        -x
+        -/PAT
+        -//PAT
+        -u
+        -O<num>
+        -R
+        --sam
+        --sam-h
+
+      -l and -z are not listed until implemented.
+      Commit.

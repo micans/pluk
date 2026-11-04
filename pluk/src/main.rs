@@ -6,7 +6,6 @@ mod row;
 mod select;
 
 use std::io::{BufWriter, ErrorKind, Write};
-use std::os::unix::ffi::OsStringExt;
 use std::process;
 
 // Output buffer size. Rust's stdout flushes at every newline by default;
@@ -48,9 +47,8 @@ fn run() -> std::io::Result<()> {
     // --test-i N is 1-based on the command line, field indexes are 0-based.
     let test_column: Option<usize> = config.test_i.map(|n| n as usize - 1);
 
-    // Column names from the command line, as bytes. into_vec() gives the bytes of an
-    // OsString (Unix only); pluk targets Unix systems, as pick does.
-    let column_args: Vec<Vec<u8>> = config.columns.iter().map(|a| a.clone().into_vec()).collect();
+    // Column names from the command line, as bytes (see opt.rs).
+    let column_args = &config.columns;
 
     // As in pick, the names are checked once the first line has been read;
     // with empty input there is nothing to check against.
@@ -60,11 +58,11 @@ fn run() -> std::io::Result<()> {
         // As in pick, -x takes precedence over -A.
         let names = &input.names;
         let result = if config.excise {
-            select::OutputSelection::complement(&column_args, names)
+            select::OutputSelection::complement(column_args, names)
         } else if config.all {
-            select::OutputSelection::all(&column_args, names)
+            select::OutputSelection::all(column_args, names)
         } else {
-            select::OutputSelection::from_names(&column_args, names)
+            select::OutputSelection::from_names(column_args, names)
         };
         result.map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?
     };

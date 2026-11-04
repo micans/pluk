@@ -1,0 +1,11 @@
+-O<N> requires an attached number N, e.g. -O12
+-O<N> N must be positive
+Option string not fully parsed: -w remains
+Unrecognised long option --nosuch
+-//PAT: write '/' inside a pattern as %2F [a/b]
+-/PAT: write '/' inside a pattern as %2F [a/b]
+-/PAT: empty pattern
+-//PAT: empty pattern
+--test-i=<N> N must be a positive number
+--sam/<fastafile> not yet supported
+-A<N> N out of range
