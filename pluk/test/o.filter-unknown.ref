@@ -1,0 +1,3 @@
+pluk: (Select) handle [z] in select does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+pluk: (Indirection preselect) handle [z] in preselect does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+pluk: (Indirection select) handle [z] in select does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna

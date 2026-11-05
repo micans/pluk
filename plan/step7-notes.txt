@@ -29,3 +29,64 @@ Decisions taken before implementation
       every comparison except /ne/); an integer too large for Int -> F.
     - Bit filters: abs() as pick; a float value fails and is counted (no implicit f -> i).
     - Regex filters (~ /~): the regex crate's dialect, as for -/PAT; ~ matches anywhere.
+
+
+Item 1: @ and @@ filters, numeric and string comparisons
+
+  Files: src/num.rs and src/filter.rs (new); opt.rs (trailing arguments, -o, -s, help), main.rs
+  (compile after the header, keep() in the -c and output loops, end-of-run report), names.rs
+  (joined(), now shared with select.rs), Cargo.toml (feature int128), Makefile (test-int128).
+
+  num.rs. The Int alias (i64, i128 with --features int128), Num { I, F }, parse_num() and the
+  comparison dispatcher compare() over cmp_ii / cmp_ff, as NUMERIC.design.txt. Integer syntax
+  is checked first ([+-]digits) so that '1e3' and '5.' are F; an integer that does not fit Int
+  falls through to the f64 parser and becomes F.
+
+  Argument parsing (opt.rs, filter::parse_filter). Every trailing argument starting with '@' is
+  a filter, the others are column names, in any order (as pick). @@ before @, and @assert@ is
+  refused as not yet supported. find_operator() follows pick's two forms: the first token
+  [/~][a-z]{2,19}[/~] ends NAME (an unknown token is an error, as pick: "unrecognised
+  operator"); otherwise the first '=' or '~', with a preceding '/'. VALUE extends to the next
+  '/' or '~'; anything after it is an extra argument, refused for these operators with a hint to
+  write %2F or %7E. All operators of pick are known; those of later items give "not yet
+  supported". Numeric constants are parsed here, so a non-numeric constant is an option error
+  before input is read. Syntax errors are option errors (no 'pluk:' prefix, exit 1).
+  Difference from pick: ':' (column) and '^' (literal) are tested on the raw VALUE, before
+  %-decoding, so %3Ax is the literal ':x' (pick decodes first, making it a column reference).
+  This follows the rule for '+' in COLSPEC.design.txt.
+
+  Compilation (Filters::compile, after the header). Column names resolved with pick's messages
+  ((Select) / (Preselect) / (Indirection select) / (Indirection preselect) handle [x] in ... does
+  not reference a known entity among ...). The hint "You used x (a column handle) as a constant
+  ..., did you want :x?" as pick, except (a) for a constant given as ^VALUE, which is explicitly
+  literal, and (b) for a number with a numeric operator: with -k every column is named by a
+  number and pick gives the hint for every numeric constant. With empty input nothing is
+  compiled.
+
+  Evaluation (Filters::keep). @@ filters first, then @ filters (computes will go in between);
+  AND within a stage, OR with -s (@@) or -o (@); evaluation stops at the first filter that
+  decides (pick evaluates all). Numeric: both sides parsed per row with parse_num (no cache yet;
+  it comes with computes); NA on either side fails the comparison and is counted per filter.
+  NaN satisfies only /ne/ (IEEE). String: byte comparison (Vec/slice Ord), as Perl without
+  locale. Because evaluation stops early, a filter counts the non-numeric values among the rows
+  on which it was evaluated. Report at the end, per filter with a non-zero count:
+      pluk: @x/lt/5: 3 values not a number (rows not kept)
+  The header line is not filtered; with -k it is a data row (and 'name' is not a number). -c
+  counts the rows kept. Pass-through lines are not filtered. The temporary --test-lineno and
+  --test-i outputs are not filtered.
+
+  Checked against pick: the same invocations (strcmp, big-or, big-and, filter-num, -str,
+  -column, -or, -count, -k, -int, -int-eq, -sam) give identical output; strcmp and big-or
+  equal pick's own .ref files. The tests filter-na and filter-ne show the agreed difference
+  (pick keeps '', 'fox', '0x10' as 0 and ' 4' as 4).
+
+  Speed: 1,000,000 SAM lines, pluk --sam -c 0.28 s without filter, 0.26-0.27 s with one or two
+  filters (pick --sam -c @@4/gt/500000: 9.5 s).
+
+  Tests: strcmp and big-or (from pick, with pick's refs), big-and, filter-num, filter-str
+  (each invocation labelled), filter-column, filter-or (-s, -o, across stages), filter-count,
+  filter-k, filter-na (+ -msg), filter-ne, filter-int and filter-int-eq (largest i64, an
+  integer beyond i64, 1e3 = 1000, -0 = 0; same results with int128), filter-hint,
+  filter-errors, filter-unknown, filter-sam, filter-bam. sel-unsupported: '@x/gt/0' is now a
+  filter, replaced by '@assert@x/gt/0'. Help references updated. Unit tests in num.rs (parse,
+  comparisons) and filter.rs (parsing, comparisons). make test-int128 passes.

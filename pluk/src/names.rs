@@ -69,6 +69,12 @@ impl ColumnNames {
         &self.names[i]
     }
 
+    // All names separated by commas, as pick lists them in messages.
+    pub fn joined(&self) -> String {
+        let all: Vec<String> = self.names.iter().map(|n| String::from_utf8_lossy(n).into_owned()).collect();
+        all.join(",")
+    }
+
     // Index of the column with the given name, if it exists.
     pub fn index_of(&self, name: &[u8]) -> Option<usize> {
         self.index.get(name).copied()

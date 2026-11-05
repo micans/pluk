@@ -1,0 +1,6 @@
+x	y
+3	c
+1e1	d
+inf	g
+nan	h
+pluk: @x/ne/5: 2 values not a number (rows not kept)

@@ -1,7 +1,9 @@
 mod bam;
 mod dict;
+mod filter;
 mod io;
 mod names;
+mod num;
 mod opt;
 mod output;
 mod row;
@@ -117,6 +119,14 @@ fn run() -> std::io::Result<()> {
         result.map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?
     };
 
+    // Filters are compiled once the column names are known.
+    let mut filters = if input.is_empty {
+        filter::Filters::none()
+    } else {
+        filter::Filters::compile(&config.filters, &input.names, config.or_pre, config.or_post)
+            .map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?
+    };
+
     if config.test_select {
         for (name, i) in selection.output_colnames.iter().zip(&selection.output_offset) {
             out.write_all(name)?;
@@ -145,13 +155,15 @@ fn run() -> std::io::Result<()> {
     }
 
     if config.c {
-        // -c: output only the number of data rows.
+        // -c: output only the number of data rows that pass the filters.
+        let mut n_kept: u64 = 0;
         while let Some(kind) = input.next_line()? {
-            if kind == io::LineKind::PassThrough {
-                output::write_line(&mut out, &input.row.line)?;
+            match kind {
+                io::LineKind::Data        => if filters.keep(&input.row) { n_kept += 1 },
+                io::LineKind::PassThrough => output::write_line(&mut out, &input.row.line)?,
             }
         }
-        writeln!(out, "{}", input.n_accepted)?;
+        writeln!(out, "{}", n_kept)?;
     } else if lineno_mode {
         if input.header_lineno > 0 {
             output::write_numbered(&mut out, input.header_lineno, &input.header, test_column)?;
@@ -170,12 +182,15 @@ fn run() -> std::io::Result<()> {
         }
         while let Some(kind) = input.next_line()? {
             match kind {
-                io::LineKind::Data        => writer.write_row(&mut out, &input.row)?,
+                io::LineKind::Data => if filters.keep(&input.row) {
+                    writer.write_row(&mut out, &input.row)?
+                },
                 io::LineKind::PassThrough => output::write_line(&mut out, &input.row.line)?,
             }
         }
     }
     out.flush()?;
+    filters.report_na();
 
     if config.test_counts {
         eprintln!("columns={} lines={} skipped={} accepted={} short={} overflow={}",

@@ -13,6 +13,7 @@ use std::os::unix::ffi::OsStringExt;
 use std::process;
 
 use crate::dict::{self, DictKind, DictSpec, NotFound};
+use crate::filter::{parse_filter, FilterSpec};
 
 #[derive(Debug, Default)]
 pub struct Config {
@@ -39,6 +40,9 @@ pub struct Config {
     pub test_dict: bool,                // --test-dict (temporary)
     pub test_samsort: bool,             // --test-samsort (temporary)
     pub columns: Vec<Vec<u8>>,          // column arguments
+    pub filters: Vec<FilterSpec>,       // @ and @@ filters, in command line order
+    pub or_post: bool,                  // -o: OR the @ filters
+    pub or_pre: bool,                   // -s: OR the @@ filters
 }
 
 // Result of a successful parse: run, or print help or version and exit.
@@ -70,13 +74,14 @@ pub fn parse_args() -> Config {
 
 // Output of -H and --help. Options are listed in order of importance (plan/step3.txt item 5).
 const HELP: &str = "\
-Usage: pluk [options] <column>+ < FILE
-Output the named columns of TAB-separated input (plain or gzip-compressed).
+Usage: pluk [options] <column|filter>+ < FILE
+Output the named columns of TAB-separated input (plain or gzip-compressed),
+optionally only the rows that pass the filters.
 
 Options:
   -k          input has no header line; columns are named 1 2 .. N
   -h          do not output the header line
-  -c          output only the number of data rows
+  -c          output only the number of data rows (that pass the filters)
   -A          output all columns
   -A<N>       as -A; <N> is the insert position for computed columns (not yet used)
   -x          output all columns except the named ones
@@ -85,6 +90,8 @@ Options:
   -u          make duplicate input column names unique (suffixes _v02, _v03, ..)
   -O<N>       ragged input: <N> columns, merge columns at and after <N> (requires -k)
   -R          header has no name for the first (row name) column; it is named _
+  -o          keep rows that pass any @ filter (default: all)
+  -s          keep rows that pass any @@ filter (default: all)
   --sam       SAM input: implies -k and -O12, skips lines starting with @.
               BAM input is recognised and read as SAM
   --sam-h     as --sam, but outputs lines starting with @ unchanged
@@ -93,6 +100,13 @@ Options:
               FILE into the dictionary SAMFA (default __EXIT__)
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
+
+Filters (given among the columns; VALUE is %-decoded, e.g. %2F for '/'):
+  @NAME/op/VALUE  numeric comparison of column NAME with VALUE, op one of
+                  lt le eq ge gt ne. A value that is not a number fails.
+  @NAME~op~VALUE  string (byte) comparison, op as above
+  @NAME/op/:NAME2 compare with column NAME2; ^VALUE is VALUE taken literally
+  @@NAME...       as @, applied before computes (computes are not yet supported)
 
 Dictionaries (NAME: letters, digits, _; lookup is not yet implemented):
   --kd-NAME=FILE          keys from the first column of FILE, all values 1
@@ -145,7 +159,14 @@ pub fn parse(args: &[Vec<u8>]) -> Result<Parsed, String> {
             parse_bundle(&word[1..], &mut config)?;
         }
     }
-    config.columns = args[i..].to_vec();
+    // The trailing arguments: column names and filters, mixed as in pick.
+    for arg in &args[i..] {
+        if arg.starts_with(b"@") {
+            config.filters.push(parse_filter(arg)?);
+        } else {
+            config.columns.push(arg.clone());
+        }
+    }
     check_combinations(&config)?;
     Ok(Parsed::Run(config))
 }
@@ -328,6 +349,8 @@ fn parse_bundle(chars: &[u8], config: &mut Config) -> Result<(), String> {
             b'k' => config.k = true,
             b'h' => config.no_header = true,
             b'c' => config.c = true,
+            b'o' => config.or_post = true,
+            b's' => config.or_pre = true,
             b'x' => config.excise = true,
             b'R' => config.add_row_column = true,
             b'u' => config.make_unique = true,

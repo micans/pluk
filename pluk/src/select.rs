@@ -86,9 +86,6 @@ fn check_supported(arg: &[u8]) -> Result<(), String> {
 
 // pick's message, listing all column names separated by commas.
 fn unknown_name_message(arg: &[u8], names: &ColumnNames) -> String {
-    let all: Vec<String> = (0..names.len())
-        .map(|i| String::from_utf8_lossy(names.name(i)).into_owned())
-        .collect();
     format!("(Output) handle [{}] in output does not reference a known entity among {}",
-            String::from_utf8_lossy(arg), all.join(","))
+            String::from_utf8_lossy(arg), names.joined())
 }

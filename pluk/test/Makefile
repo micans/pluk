@@ -52,7 +52,7 @@ runpluk: data.txt big.txt sam.txt sam-clean.txt sam.bam sam-clean.bgz bam-tags.b
 	$(p) -k 14                  < data.txt  2> o.sel-unknown-k.test  > /dev/null; [ $$? -eq 1 ]
 	head -n 1 data.txt | $(p) nosuch        2> o.sel-unknown-headeronly.test > /dev/null; [ $$? -eq 1 ]
 	$(p) nosuch                 < /dev/null  > o.sel-empty.test
-	for a in '+fo.' 'a:b' '@x/gt/0' 'x%3A' 'x::y'; do $(p) "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.sel-unsupported.test
+	for a in '+fo.' 'a:b' '@assert@x/gt/0' 'x%3A' 'x::y'; do $(p) "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.sel-unsupported.test
 	$(p) sq fib                      < data.txt   > o.sq-fib.test        # from pick/test
 	$(p) -A                          < data.txt   > o.-A.test            # from pick/test
 	$(p) -x                          < data.txt   > o.-x.test            # from pick/test
@@ -122,6 +122,24 @@ runpluk: data.txt big.txt sam.txt sam-clean.txt sam.bam sam-clean.bgz bam-tags.b
 	for n in 200 400; do head -c $$n bam-tags.bam | $(p) --threads=1 --sam -c; [ $$? -eq 1 ] || exit 1; done 2> o.bam-truncated-t1.test
 	for a in --threads=0 --threads=x --threads= --threads=-2; do $(p) "$$a" -A < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.threads-errors.test
 	$(p) --threads=3 -c               < data.txt        > o.threads-text.test
+	$(p) fib @fib~le~5 @fib~gt~20   < data.txt   > o.strcmp.test
+	$(p) -o id n1 f1 @n1/lt/-40 @f1/ge/0.95  < big.txt  > o.big-or.test
+	$(p) id n1 f1 @n1/lt/-40 @f1/ge/0.95     < big.txt  > o.big-and.test
+	{ for a in @ud/lt/0 @ud/le/-2 @ud/eq/1 @ud/ne/1 @ud/ge/1.0 @ms/gt/0.2 @ms/le/%2E25; do echo "$$a"; $(p) -h name ud ms "$$a" < data.txt; done; } > o.filter-num.test
+	{ for a in @fib~lt~3 @fib~eq~13 @fib~ne~13 @fib~ge~5 @fx~gt~d @fx~eq~ @foo11~le~b_o_b; do echo "$$a"; $(p) -h name fib fx foo11 "$$a" < data.txt; done; } > o.filter-str.test
+	$(p) -h name fib fib2 @fib/gt/:fib2 @@fx~ne~:name  < data.txt  > o.filter-column.test
+	{ $(p) -s name ud @@ud/eq/1 @@ud/eq/-2 < data.txt; $(p) -s name ud @@ud/eq/1 @ud/eq/-2 < data.txt; $(p) -so name ud @ud/eq/1 @ud/eq/-2 < data.txt; } > o.filter-or.test
+	$(p) -c @f1/lt/0.5 @@n2/ge/0     < big.txt    > o.filter-count.test
+	$(p) -k 1 2 @2/gt/3              < data.txt   > o.filter-k.test
+	printf 'x\ty\n\ta\nfox\tb\n3\tc\n1e1\td\n0x10\te\n 4\tf\ninf\tg\nnan\th\n' | $(p) x y @x/lt/5 @@y~ne~a > o.filter-na.test 2> o.filter-na-msg.test
+	printf 'x\ty\n\ta\nfox\tb\n3\tc\n1e1\td\ninf\tg\nnan\th\n' | $(p) x y @x/ne/5    > o.filter-ne.test 2>&1
+	printf 'a\tb\n9223372036854775807\t9223372036854775806\n99999999999999999999\t9223372036854775807\n1e3\t1000\n-0\t0\n' | $(p) -h a b @a/gt/:b > o.filter-int.test
+	printf 'a\tb\n9223372036854775807\t9223372036854775806\n99999999999999999999\t9223372036854775807\n1e3\t1000\n-0\t0\n' | $(p) -h a b @a/eq/:b > o.filter-int-eq.test
+	$(p) name ud @ud~eq~fx @@ud~eq~^fx  < data.txt   > o.filter-hint.test 2>&1
+	for a in @x/gt/abc @x/foo/3 @x/gt/3/1 @/gt/3 @x=3 @x~a @x/ep/3 @+x/gt/3 @assert@x/gt/3 @x @x/gt/:; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-errors.test
+	for a in @z/gt/3 @@name/gt/:z @fib~eq~:z; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-unknown.test
+	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.txt   2> /dev/null > o.filter-sam.test
+	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.bam   > o.filter-bam.test
 	$(p) -Ahk                        < data.txt   > o.opt-bundle.test
 	$(p) -A-1                        < data.txt   > o.opt-A-neg.test
 	$(p) -- name fib                 < data.txt   > o.opt-dashdash.test

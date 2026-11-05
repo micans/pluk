@@ -1,0 +1,38 @@
+@fib~lt~3
+Ann	1	dog	a_n_n
+Bob	1	cat	b_o_b
+Charlie	2	bat	ch_ar_lie
+Gillian	13	bug	gi_ll_ian
+Harriet	21	rat	ha_rr_iet
+Lucy	144	swift	l_u_c_y
+@fib~eq~13
+Gillian	13	bug	gi_ll_ian
+@fib~ne~13
+Ann	1	dog	a_n_n
+Bob	1	cat	b_o_b
+Charlie	2	bat	ch_ar_lie
+Dan	3	cow	d_a_n
+Esme	5	owl	e_s_m_e
+Fred	8	pig	f_r_e_d
+Harriet	21	rat	ha_rr_iet
+Inky	34	ant	i_n_k_y
+John	55	fly	j_o_h_n
+Kelly	89	eagle	k_e_l_l_y
+Lucy	144	swift	l_u_c_y
+@fib~ge~5
+Esme	5	owl	e_s_m_e
+Fred	8	pig	f_r_e_d
+John	55	fly	j_o_h_n
+Kelly	89	eagle	k_e_l_l_y
+@fx~gt~d
+Ann	1	dog	a_n_n
+Esme	5	owl	e_s_m_e
+Fred	8	pig	f_r_e_d
+Harriet	21	rat	ha_rr_iet
+John	55	fly	j_o_h_n
+Kelly	89	eagle	k_e_l_l_y
+Lucy	144	swift	l_u_c_y
+@fx~eq~
+@foo11~le~b_o_b
+Ann	1	dog	a_n_n
+Bob	1	cat	b_o_b

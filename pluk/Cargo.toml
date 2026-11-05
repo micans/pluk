@@ -3,6 +3,10 @@ name = "pluk"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+# Int = i128 instead of i64 for computed values (plan/NUMERIC.design.txt section 6).
+int128 = []
+
 [dependencies]
 flate2 = "1.1.10"
 regex = "1.13.1"
