@@ -4,6 +4,9 @@ mod names;
 mod opt;
 mod output;
 mod row;
+// Not yet called; wired in with the first SAM operator step (plan/step5.txt item 3).
+#[allow(dead_code)]
+mod samseq;
 mod select;
 
 use std::io::{BufWriter, ErrorKind, Write};

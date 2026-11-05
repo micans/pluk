@@ -36,3 +36,52 @@ Item 2: @HD sort order
   samsort (sam.txt as is), samsort-coord (SO:coordinate with GO:query, --sam-h), samsort-goref,
   samsort-unrec (messages), samsort-late (@HD not first: ignored), samsort-nosam (no SAM mode),
   samsort-pat (-/^@HD does not hide it). Unit tests hd_fields and grouped_by_read in io.rs.
+
+
+Item 3: src/samseq.rs
+
+  Pure computation, not yet called. main.rs declares the module with #[allow(dead_code)] until
+  the first SAM operator step wires it in; the attribute is removed then.
+
+  Interface. GroupCache::process(qname, flag, cigar, seq, qual) is to be called for every SAM
+  data row, before filtering. It returns a Fill outcome; the caller applies the mode, writes
+  diagnostics and keeps counters. This keeps policy (mode option, messages) out of the module
+  and makes every case visible in the unit tests. The outcomes:
+    Present          SEQ stored, cached as a source
+    NotSource        SEQ stored, not cached: ambiguous segment, or no usable CIGAR
+    LengthMismatch   SEQ length differs from Q, or QUAL (not '*') from SEQ: not cached
+    Filled           SEQ and QUAL for the target; QUAL '*' if the source has QUAL '*'
+    Ambiguous        SEQ '*' with an ambiguous segment: skip
+    NoCigar          SEQ '*' with CIGAR '*' or malformed: Q is unknown, so not even N-fillable
+    LengthConflict   SEQ '*', a source of the segment has another L (carries Q for mode N)
+    NotFound         SEQ '*', no source contains the piece (carries Q for mode N)
+  unknown_sequence(q) gives the mode-N SEQ and QUAL.
+
+  The QUAL length check (QUAL not '*' and of another length than SEQ) was not in the design; the
+  spec requires equal lengths, and slicing a shorter QUAL would fail. Such a row is treated as
+  LengthMismatch.
+
+  CIGAR (parse_cigar). Operations M I S = X add to Q; D N P add nothing; H is allowed only as
+  the first operation, the last, or both (spec). Anything else (unknown operation, missing or
+  trailing length, overflow, H in between, two H at one end) gives None, treated as CIGAR '*'.
+
+  Storage. A source keeps SEQ and QUAL as in the row (reference orientation); they are turned to
+  the original orientation only when a target is filled. Caching happens on every row with a
+  sequence, filling only for SEQ '*' rows, so the conversion is done where it is rare. The copy
+  of SEQ and QUAL per source is needed because the line buffer is reused. Filled rows are not
+  cached: their piece is part of an existing source.
+
+  Search. Backward over the sources; sources of another segment are passed over. A source of the
+  same segment with another L is passed over too, but noted: if no source contains the piece,
+  the outcome is LengthConflict rather than NotFound.
+
+  Complement. IUPAC codes (R/Y, K/M, B/V, D/H; S, W, N unchanged) and U, case kept; other bytes
+  unchanged. pick's rc() complements only acgtu/ACGTU (U to A), leaving IUPAC codes as they are.
+  To be decided with the SAM operators (which use rc() as well) whether this becomes a listed
+  difference from pick.
+
+  Unit tests: segments, cigars, pieces, revcomp (with unknown_sequence), same_piece, strand
+  (all four strand combinations with hard clips), slice_from_unclipped_primary (the design's
+  L = 150 example), source_is_supplementary (hard-clipped primary, supplementary source,
+  soft-clipped target not found), most_recent_source, new_group, length_conflict,
+  invalid_sources, paired_segments (interleaved R1/R2), ambiguous_segments.
