@@ -44,6 +44,9 @@
       (step3-notes.txt item 4).
     - --sam and --sam-h keep skipping or passing '@' lines when -/PAT or -//PAT is also given
       (step3-notes.txt item 4).
+    - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
+      options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
+      binary reference list; @SQ lines that differ from that list are an error (step6.txt).
     - Dictionaries (step4.txt, step4-notes.txt): --td^key/default order (pick: /default^key);
       %-decoded defaults; no named table dictionaries and no tmap; repeated NAME merges with a
       diagnostic, __EXIT__ sticky; only --sam/f.fasta sets the SAM reference; SAMFA and seqlen reserved; @SQ lines after

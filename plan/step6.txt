@@ -1,0 +1,57 @@
+
+- Bam reading. Implement --bam --bam-h --bam/file.fa --bam-h/file.fa .
+
+  We'll use the noodles crate as anticipated in step2.
+
+  Give a brief overview of the technical side of bam reading, e.g. how header records and regular (alignment) records
+  are streamed, what the interface/function calls look like, and proposals for how to efficiently translate an alignment record to
+  the fields that pluk needs in its processing.
+
+  I think you may have mentioned that only fields that are needed (as inferred from selections and computes) can be
+  loaded. At the same time the plan currently states 'decode each record and present it as a SAM text line from io.rs'.
+  I agree with the modularity and isolation this provides; in that case it may simply be the case that unneeded fields are deposited
+  as empty fields in the text line. Discuss.
+
+  Propose the items to work on.
+
+
+
+  Outcome of the discussion (rationale and measurements in step6-notes.txt)
+
+  BAM is read with noodles (noodles-bam, noodles-sam, noodles-bgzf). There are no --bam options:
+  --sam and --sam-h (with or without /FILE) accept BAM input, recognised from its content, in the
+  same way that gzip input is recognised. pick has no BAM support; this is an addition.
+
+  A BamReader (src/bam.rs) implements BufRead and produces SAM text: the header first, then one
+  line per record. LineReader reads from it as from STDIN, so everything downstream (@HD and @SQ
+  handling, --sam-h pass-through, -/PAT, seqlen, the sequence fill) is unchanged. Records are
+  formatted by pluk itself from the lazy noodles record accessors, so that the output is
+  identical to samtools view (float tags as %g) and a field mask can be added later.
+
+  1   BAM detection. In open_buffered, after the gzip check: decompress the first BGZF block from
+      the read buffer (without consuming input, so that pipes work), and check for the magic
+      bytes BAM\1; an empty first block moves the check to the next block. With --sam or --sam-h
+      BAM input is read as BAM; without a SAM option BAM input is an error:
+          pluk: input is BAM; use --sam or --sam-h
+      Plain and gzip/bgzip-compressed SAM text are read as before. Until item 2 the BAM path can
+      end in a "not yet supported" error. Commit.
+
+  2   src/bam.rs: BamReader (BufRead) with noodles, single-threaded decompression.
+        - Header: the header text verbatim (noodles' parsed header reorders lines). If the text
+          has no @SQ lines, @SQ lines generated from the binary reference list are appended after
+          it, as samtools does, so that seqlen and the reference length check work. If the text
+          has @SQ lines that differ from the binary list (count, names or lengths), pluk exits
+          with an error naming the first difference (noodles refuses such files as well;
+          samtools prints the text and names records from the list).
+        - Records: pluk's own SAM text formatter (QNAME, FLAG, RNAME from the binary list, POS,
+          MAPQ, CIGAR, RNEXT with '=', PNEXT, TLEN, SEQ, QUAL, tags of all types with float tags
+          as C's %g).
+      Tests: a BAM version of a cleaned test/sam.txt (sam.txt has lines that cannot be stored in
+      BAM), compared with the --sam output on the SAM text; a tag-rich BAM and a header without
+      @SQ lines, with .ref files made from samtools view, so the suite does not need samtools;
+      the @SQ mismatch error; BAM without a SAM option; gzip input via bgzip-style blocks.
+      Test BAM files are created once and committed. Commit.
+
+  3   Multithreaded decompression with noodles' MultithreadedReader, 4 workers by default, and an
+      option to set the number (name to be settled in this item; suggestion --threads=N, as it
+      may later serve other work such as gzip; 1 means single-threaded). Commit.

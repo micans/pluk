@@ -1,4 +1,4 @@
-- the --bam step, using noodles
+- (done in step6: BAM input under --sam/--sam-h, using noodles; no --bam options)
 - column specifications: : lists, -k ranges and + regexes
 - (done in step3 item 4: -/PAT and -//PAT with the regex crate, --tc retired)
 - the Scalar, numeric and conversion design ahead of computes
@@ -10,3 +10,8 @@
   e.g. --sam-seqmiss=N|skip|exit); per-row diagnostics up to a limit and end-of-run counters; the warning for input not grouped
   by read (LineReader.sam_order, step5 item 2);
   end-to-end tests, possibly with the references and SAM files in align/
+- BAM field mask (step6): once computes exist, BamReader writes only the fields that selections
+  and computes need and leaves the others empty. FLAG must always be written (looks-like-SAM
+  check, sequence fill); -A, -x and --sam-h need all fields.
+- BAM record formatting in a separate thread from pluk's own processing (step6), if measurements
+  show a gain.

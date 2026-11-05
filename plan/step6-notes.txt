@@ -1,0 +1,100 @@
+step6 notes: decisions and rationale for implementation choices.
+
+
+Decisions taken before implementation
+
+  BAM in brief
+
+    A BAM file is BGZF: a series of independent gzip members of at most 64 KB, readable by any
+    multi-member gzip decoder (pluk's flate2 MultiGzDecoder included) and decompressible in
+    parallel. Decompressed it holds the magic bytes BAM\1, the SAM header text (verbatim), a
+    binary list of reference names and lengths, and the records. A record has a fixed 32-byte
+    part (reference index, 0-based position, MAPQ, FLAG, mate reference index and position,
+    TLEN, lengths), then the NUL-terminated name, CIGAR as 32-bit operations, SEQ packed 4 bits
+    per base, QUAL as raw Phred values (0xFF for '*') and binary typed tags. RNAME and RNEXT are
+    indexes into the binary reference list.
+
+    noodles: bam::io::Reader::new(raw) wraps the BGZF decoder; Reader::from(decoder) accepts
+    another decoder (flate2 MultiGzDecoder, bgzf MultithreadedReader). header_reader() gives the
+    raw header parts, read_header() a parsed sam::Header. read_record(&mut record) refills one
+    reused record buffer; bam::Record decodes lazily, its accessors (name, flags, cigar,
+    sequence, quality_scores, data, ...) are views into the raw bytes.
+
+  noodles rather than an own decoder
+
+    The guidelines prefer fewer crates; noodles-bam, -sam and -bgzf bring about 36 crates
+    (indexmap, bstr, memchr, noodles-csi, ...). The format is simple enough for an own decoder
+    on top of flate2 (300-400 lines), but parallel BGZF decompression would be further work.
+    noodles was anticipated in step2, is well tested and provides the multithreaded reader.
+
+  Measurements (scratch project, 1,000,000 records of 150 bases, BAM 160 MB, SAM 357 MB)
+
+    noodles decode only, single thread                       0.84 s
+    noodles decode + SAM text (noodles writer), 1 thread     1.09 s
+    noodles MultithreadedReader, decode, 2/4/8 workers       0.42 / 0.22 / 0.11 s
+    the same, decode + SAM text, 4 workers                   0.26 s
+    samtools view (1 thread) / samtools view -@4             3.15 / 0.35 s
+    pluk --sam -c on the SAM text                            0.25 s
+    samtools view | pluk --sam -c                            1.42 s
+
+    Decompression dominates and scales with threads; SAM text formatting adds about 0.25 s per
+    million records, about as much as pluk's own processing of the text. Records written by the
+    noodles writer were byte-identical to samtools view on this data.
+
+  Integration: a BufRead producing SAM text
+
+    BamReader (src/bam.rs) implements BufRead: when its buffer is empty it decodes the next
+    records and writes them as SAM text into it; the header comes first. LineReader reads from
+    it exactly as from STDIN. This is the isolation the plan asked for ("present it as a SAM
+    text line from io.rs"), at the level of the byte stream; everything downstream is unchanged.
+    The cost is one copy per line.
+
+  Own record formatter rather than the noodles writer
+
+    The noodles writer differs from samtools for float tags: noodles 0.00001, 3.1415927, 1e20;
+    samtools (C's %g) 1e-05, 3.14159, 1e+20. pluk formats records itself, with a %g emulation
+    (Rust has no %g), so that the output equals samtools view. An own formatter is also needed
+    for the deferred field mask, so the work is not done twice.
+
+  Header: verbatim text, @SQ from the binary list when absent, mismatch is an error
+
+    The noodles parsed header regroups lines (@CO moved after @PG); the raw text keeps the order,
+    so the text is written verbatim. Records use only the binary reference list. Tested with
+    hand-made BAM files:
+      - text without @SQ lines: samtools view -h appends @SQ lines generated from the binary list
+        after the text; noodles inserts them after @HD. pluk follows samtools, so that seqlen and
+        the reference length check (step4 item 4a), which read @SQ lines, work for such files.
+      - text @SQ lines that differ from the binary list (chrX/77 against chr1/1000): samtools
+        prints the text and names the records from the list, so its output contradicts itself;
+        noodles refuses the file ("SAM header and binary reference sequence dictionaries
+        mismatch"). pluk exits with an error naming the first difference: the file is broken,
+        and seqlen would silently use wrong lengths.
+
+  BAM recognised under --sam; no --bam options
+
+    Recognising BAM costs little. BGZF is gzip, so BAM is caught by the existing gzip check, but
+    BGZF does not identify BAM (bgzip-compressed SAM text is BGZF too); the content decides. The
+    read buffer (128 KB) holds the whole first BGZF block (at most 64 KB), which is decompressed
+    from the buffer with flate2 to compare the first four bytes with BAM\1. Nothing is consumed,
+    so this works on pipes, and the untouched stream goes to the gzip text path or to the noodles
+    reader (the multithreaded one included).
+      - --sam / --sam-h with BAM input: read as BAM, silently, as gzip is decompressed silently.
+      - BAM without a SAM option: error "input is BAM; use --sam or --sam-h". SAM mode changes how
+        input is read (-k, -O12, '@' lines); switching it on implicitly would change the meaning
+        of a command line because of the input format.
+      - The --bam family planned in step2 is dropped: --sam reads SAM, gzipped SAM and BAM, and
+        --sam/FILE gives the reference for all. pick has no --bam, so compatibility is unaffected.
+
+  Unneeded fields as empty fields: deferred
+
+    Agreed in principle, deferred (deferred.txt): pluk cannot yet infer which fields are needed
+    (no computes), -A, -x and --sam-h need all fields, the gain is bounded (formatting is a
+    fifth to a quarter of the cost, and threads remove most of the decompression cost), and an
+    empty field is not a valid SAM value: FLAG must always be written for the looks-like-SAM
+    check and the sequence fill. The design is a field mask passed to BamReader.
+
+  Threads
+
+    Decompression is multithreaded by default (4 workers) with an option for the number; 1
+    gives single-threaded decompression. The name is settled in item 3 (suggestion --threads=N,
+    not tied to BAM, as it may later serve other work).
