@@ -90,7 +90,10 @@ SAM operator step (deferred.txt).
 6. Sort order and limitations
 
    - Input is assumed to be grouped by read (aligner output, GO:query, SO:queryname,
-     SO:unsorted). With SO:coordinate in the @HD line pluk warns at the header (step5 item 2).
+     SO:unsorted). The SO: and GO: tags of an @HD line on the first line are recorded (step5
+     item 2). When the fill is active and the input is not grouped by read (SO:coordinate, or
+     GO:reference without SO:queryname; SO decides when SO and GO disagree), pluk warns once.
+     No warning without the fill: most coordinate-sorted input never needs it.
      A group that reappears later in the file is not detected: that would require remembering
      every QNAME.
    - The search goes backwards only. In name-sorted files a secondary with SEQ '*' may precede

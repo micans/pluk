@@ -1,0 +1,5 @@
+pluk: @HD line 1 has unrecognised SO:sorted, default used
+pluk: @HD line 1 has unrecognised GO:x, default used
+SO	unknown
+GO	none
+grouped_by_read	yes

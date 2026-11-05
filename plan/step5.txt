@@ -45,10 +45,12 @@
   1   Write plan/SAMSEQ.design.txt: grouping and segments, the containment rule, sanity rules,
       the missing-sequence modes, sort order, limitations, and what pick does. Commit.
 
-  2   @HD sort-order check. In SAM mode (--sam, --sam-h, with or without FILE) warn at the header
-      when the @HD line has SO:coordinate. SO:queryname, SO:unsorted, GO:query, unknown values
-      and the absence of an @HD line pass silently. Tests with small variants of the
-      test/sam.txt header. Commit.
+  2   @HD sort order. In SAM mode (--sam, --sam-h, with or without FILE) record SO: and GO: of
+      an @HD line on the first input line (the spec position). The warning for SO:coordinate (and
+      GO:reference) is given only once the fill is active, in the first SAM operator step:
+      most coordinate-sorted input is never filled, and a warning now would be noise.
+      A temporary option --test-samsort prints the recorded order. Tests with small variants of
+      the test/sam.txt header. Commit.
 
   3   src/samseq.rs with pure functions, not yet called from the main loop: FLAG bits (strand,
       segment), CIGAR clips and full read length, a row's piece, the group cache with the

@@ -36,6 +36,7 @@ pub struct Config {
     pub test_names: bool,               // --test-names (temporary)
     pub test_select: bool,              // --test-select (temporary)
     pub test_dict: bool,                // --test-dict (temporary)
+    pub test_samsort: bool,             // --test-samsort (temporary)
     pub columns: Vec<Vec<u8>>,          // column arguments
 }
 
@@ -166,6 +167,7 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
         b"test-names"           => config.test_names = true,
         b"test-select"          => config.test_select = true,
         b"test-dict"            => config.test_dict = true,
+        b"test-samsort"         => config.test_samsort = true,
         _ if long.starts_with(b"test-i=") => {
             let n = parse_number::<u32>(&long[7..]);
             match n {

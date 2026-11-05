@@ -217,6 +217,13 @@ runtestopt: data.txt
 	{ printf '@SQ\tSN:x\n@SQ\tLN:5\tSN:y\n@SQ\tSN:z\tLN:abc\n@SQ\tSN:y\tLN:6\n'; cat sam.txt; } | $(p) --sam --test-dict  > o.seqlen-malformed.test  2> o.seqlen-malformed-msg.test
 	$(p) --test-dict --cd-a=b               < sam.txt    > o.seqlen-nosam.test
 	printf 'k\tseqlen\n1\t2\n' > td.tmp; for a in --fd-seqlen=data.txt --cd-seqlen=a --td=td.tmp; do $(p) --test-dict "$$a" < /dev/null; [ $$? -eq 1 ] || exit 1; done 2> o.seqlen-errors.test; rm td.tmp
+	$(p) --sam --test-samsort               < sam.txt    > o.samsort.test
+	sed '1s/SO:unsorted/SO:coordinate\tGO:query/' sam.txt | $(p) --sam-h --test-samsort   > o.samsort-coord.test
+	sed '1s/SO:unsorted/GO:reference/' sam.txt | $(p) --sam --test-samsort                > o.samsort-goref.test
+	sed '1s/SO:unsorted/SO:sorted\tGO:x/' sam.txt | $(p) --sam --test-samsort             > o.samsort-unrec.test 2>&1
+	{ grep -v '^@HD' sam.txt; printf '@HD\tVN:1.6\tSO:coordinate\n'; } | $(p) --sam --test-samsort  > o.samsort-late.test 2>&1
+	sed '1s/SO:unsorted/SO:coordinate/' sam.txt | $(p) -k --test-samsort                  > o.samsort-nosam.test
+	sed '1s/SO:unsorted/SO:coordinate/' sam.txt | $(p) --sam '-/^@HD' --test-samsort      > o.samsort-pat.test
 
 %.ref : %.test
 	diff $< $@

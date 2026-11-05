@@ -27,6 +27,63 @@ pub enum SamMode {
     PassThrough,    // --sam-h: output '@' lines unchanged
 }
 
+// The SO: (sort order) and GO: (grouping) tags of a SAM @HD line. Recorded for the
+// fill of a missing SEQ, which assumes the rows of a read to be adjacent
+// (plan/SAMSEQ.design.txt section 6). Without an @HD line, or without the tag, the
+// spec defaults apply: SO:unknown, GO:none.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum SamSort {
+    Unknown,
+    Unsorted,
+    QueryName,
+    Coordinate,
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum SamGroup {
+    None,
+    Query,
+    Reference,
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct SamOrder {
+    pub sort:  SamSort,
+    pub group: SamGroup,
+}
+
+impl SamOrder {
+    pub const DEFAULT: SamOrder = SamOrder { sort: SamSort::Unknown, group: SamGroup::None };
+
+    // Whether the rows of a read can be assumed adjacent. Only coordinate order
+    // and grouping by reference say otherwise. A sort order implies a grouping, so
+    // SO decides when SO and GO disagree.
+    pub fn grouped_by_read(&self) -> bool {
+        match self.sort {
+            SamSort::Coordinate => false,
+            SamSort::QueryName  => true,
+            SamSort::Unknown | SamSort::Unsorted => self.group != SamGroup::Reference,
+        }
+    }
+
+    pub fn sort_name(&self) -> &'static str {
+        match self.sort {
+            SamSort::Unknown    => "unknown",
+            SamSort::Unsorted   => "unsorted",
+            SamSort::QueryName  => "queryname",
+            SamSort::Coordinate => "coordinate",
+        }
+    }
+
+    pub fn group_name(&self) -> &'static str {
+        match self.group {
+            SamGroup::None      => "none",
+            SamGroup::Query     => "query",
+            SamGroup::Reference => "reference",
+        }
+    }
+}
+
 // The kind of line made available by next_line().
 #[derive(Clone, Copy, PartialEq)]
 pub enum LineKind {
@@ -61,6 +118,7 @@ pub struct LineReader {
     pub names:           ColumnNames, // column names and name -> index dictionary
     pub passthrough_preamble: Vec<Vec<u8>>, // pass-through lines read before the first data line
     pub sam_seqlen:      Vec<(Vec<u8>, u64)>, // SAM @SQ lines before the first data line: name, length
+    pub sam_order:       SamOrder,  // SAM @HD sort order and grouping (first line only)
     in_preamble:         bool,      // no data line read yet (read_first() has not finished)
     late_sq_warned:      bool,      // an @SQ line after the first data line has been reported
     pub n_lines:         u64,       // number of lines read so far (physical line number)
@@ -90,6 +148,7 @@ impl LineReader {
             names:           ColumnNames::numbered(0),
             passthrough_preamble: Vec::new(),
             sam_seqlen:      Vec::new(),
+            sam_order:       SamOrder::DEFAULT,
             in_preamble:     true,
             late_sq_warned:  false,
             n_lines:         0,
@@ -191,6 +250,11 @@ impl LineReader {
             if self.settings.sam != SamMode::Off && self.row.line.starts_with(b"@SQ\t") {
                 self.note_sq_line();
             }
+            // The SAM spec requires @HD, if present, to be the first line; a later
+            // @HD line is ignored.
+            if self.settings.sam != SamMode::Off && self.n_lines == 1 && self.row.line.starts_with(b"@HD\t") {
+                self.note_hd_line();
+            }
             // As in pick, every line (the header line included) is tested before it is
             // split: a line to pass through first, then a line to skip. Both count as
             // skipped. SAM header lines ('@', anywhere in the input) are recognised with
@@ -245,6 +309,17 @@ impl LineReader {
             Some(entry) => self.sam_seqlen.push(entry),
             None => eprintln!("pluk: @SQ line {} without SN: or valid LN: field, ignored [{}]",
                               self.n_lines, String::from_utf8_lossy(&self.row.line)),
+        }
+    }
+
+    // A SAM @HD line: record SO: and GO:. A value not in the spec is reported and
+    // the default for the tag is kept.
+    fn note_hd_line(&mut self) {
+        let (order, unrecognised) = parse_hd(&self.row.line);
+        self.sam_order = order;
+        for field in unrecognised {
+            eprintln!("pluk: @HD line {} has unrecognised {}, default used",
+                      self.n_lines, String::from_utf8_lossy(field));
         }
     }
 
@@ -313,6 +388,34 @@ fn parse_sq(line: &[u8]) -> Option<(Vec<u8>, u64)> {
 }
 
 
+// The SO: and GO: fields of an @HD line, with the spec defaults for absent tags,
+// and the fields whose value is not in the spec (their tag keeps the default).
+// A repeated tag takes the last value.
+fn parse_hd(line: &[u8]) -> (SamOrder, Vec<&[u8]>) {
+    let mut order = SamOrder::DEFAULT;
+    let mut unrecognised = Vec::new();
+    for field in line.split(|&b| b == b'\t').skip(1) {
+        if let Some(v) = field.strip_prefix(b"SO:") {
+            order.sort = match v {
+                b"unknown"    => SamSort::Unknown,
+                b"unsorted"   => SamSort::Unsorted,
+                b"queryname"  => SamSort::QueryName,
+                b"coordinate" => SamSort::Coordinate,
+                _ => { unrecognised.push(field); SamSort::Unknown }
+            };
+        } else if let Some(v) = field.strip_prefix(b"GO:") {
+            order.group = match v {
+                b"none"      => SamGroup::None,
+                b"query"     => SamGroup::Query,
+                b"reference" => SamGroup::Reference,
+                _ => { unrecognised.push(field); SamGroup::None }
+            };
+        }
+    }
+    (order, unrecognised)
+}
+
+
 // Compile a -/PAT or -//PAT pattern (already %-decoded). Unicode mode is off, so
 // that matching is on bytes as in Perl without 'use utf8': '.' matches any byte
 // except newline, and \w, \d, \s and case-insensitive matching are ASCII-only.
@@ -347,5 +450,29 @@ mod tests {
         assert_eq!(parse_sq(b"@SQ\tSN:x"), None);
         assert_eq!(parse_sq(b"@SQ\tSN:\tLN:5"), None);
         assert_eq!(parse_sq(b"@SQ\tSN:z\tLN:-1"), None);
+    }
+
+    #[test]
+    fn hd_fields() {
+        let order = |sort, group| SamOrder { sort, group };
+        let none: Vec<&[u8]> = Vec::new();
+        assert_eq!(parse_hd(b"@HD\tVN:1.6"), (SamOrder::DEFAULT, none.clone()));
+        assert_eq!(parse_hd(b"@HD\tVN:1.6\tSO:coordinate"), (order(SamSort::Coordinate, SamGroup::None), none.clone()));
+        assert_eq!(parse_hd(b"@HD\tGO:query\tVN:1.6"), (order(SamSort::Unknown, SamGroup::Query), none.clone()));
+        assert_eq!(parse_hd(b"@HD\tSO:queryname\tSS:queryname:natural"), (order(SamSort::QueryName, SamGroup::None), none.clone()));
+        assert_eq!(parse_hd(b"@HD\tSO:sorted\tGO:x"), (SamOrder::DEFAULT, vec![&b"SO:sorted"[..], &b"GO:x"[..]]));
+        assert_eq!(parse_hd(b"@HD\tSO:unsorted\tSO:coordinate"), (order(SamSort::Coordinate, SamGroup::None), none.clone()));
+    }
+
+    #[test]
+    fn grouped_by_read() {
+        let grouped = |sort, group| SamOrder { sort, group }.grouped_by_read();
+        assert!(grouped(SamSort::Unknown, SamGroup::None));
+        assert!(grouped(SamSort::Unsorted, SamGroup::Query));
+        assert!(grouped(SamSort::QueryName, SamGroup::Reference));
+        assert!(!grouped(SamSort::Coordinate, SamGroup::None));
+        assert!(!grouped(SamSort::Coordinate, SamGroup::Query));
+        assert!(!grouped(SamSort::Unsorted, SamGroup::Reference));
+        assert!(!grouped(SamSort::Unknown, SamGroup::Reference));
     }
 }

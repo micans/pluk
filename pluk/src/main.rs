@@ -22,6 +22,7 @@ fn run() -> std::io::Result<()> {
     // As in pick: without column names there is nothing to do; checked before reading input.
     if config.columns.is_empty() && !config.all && !config.excise && !config.c
         && !lineno_mode && !config.test_names && !config.test_select && !config.test_dict
+        && !config.test_samsort
     {
         eprintln!("pluk: no columns given. Use --help for help, -h suppresses header line output");
         eprintln!("pluk only works as a pipe, so invoke e.g. as: pluk foo bar < data.txt");
@@ -70,6 +71,14 @@ fn run() -> std::io::Result<()> {
     // SAM sequence lengths are known once the header has been read (plan/step4.txt item 4a).
     if config.sam || config.sam_h {
         dicts.add_sam_lengths(&input.sam_seqlen);
+    }
+
+    // Temporary step5 output: the SAM sort order and grouping from the @HD line.
+    if config.test_samsort {
+        let order = &input.sam_order;
+        println!("SO\t{}\nGO\t{}\ngrouped_by_read\t{}", order.sort_name(), order.group_name(),
+                 if order.grouped_by_read() { "yes" } else { "no" });
+        return Ok(());
     }
 
     if config.test_dict {

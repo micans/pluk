@@ -1,0 +1,38 @@
+step5 notes: decisions and rationale for implementation choices.
+
+
+Item 1: SAMSEQ.design.txt
+
+  The design was agreed in discussion; the file records the rules and the reasons. Points
+  settled while writing it: a row with CIGAR '*' is neither a source nor fillable; rows with an
+  ambiguous segment are not used as sources either; in N mode QUAL becomes Q times '!'
+  (Phred 0), while a found source with QUAL '*' gives QUAL '*'.
+
+
+Item 2: @HD sort order
+
+  Record now, warn later. A warning for SO:coordinate only matters when a missing SEQ is filled.
+  The fill is called only when an operator needs the query sequence (as in pick), and no such
+  operator exists yet. Warning on every coordinate-sorted SAM file would be noise for the most
+  common kind of SAM input. The warning comes with the fill (deferred.txt).
+
+  Where (io.rs). In SAM mode, an "@HD<TAB>" line is examined only if it is the first input line,
+  as the spec requires @HD to be first if present; a later @HD line is ignored without a
+  message. As with @SQ, the line is examined before the pass/skip decision, so -/PAT does not
+  hide it. Without SAM mode @HD is not examined.
+
+  What (SamOrder). SO: (unknown, unsorted, queryname, coordinate) and GO: (none, query,
+  reference) as enums, with the spec defaults SO:unknown and GO:none when the line or the tag is
+  absent. A value not in the spec is reported on STDERR and the default for that tag is kept;
+  a repeated tag takes the last value (as parse_sq). SS: (sub-sort, e.g. queryname:natural) is
+  not needed: it refines the order but does not change whether reads are grouped.
+
+  grouped_by_read(). False for SO:coordinate, and for GO:reference unless SO:queryname. A sort
+  order implies a grouping, so SO decides when SO and GO disagree (SO:coordinate with GO:query
+  is not grouped by read; SO:queryname with GO:reference is). GO:reference was not in the
+  original discussion; it breaks the fill as coordinate order does.
+
+  Tests: --test-samsort (temporary, runtestopt) prints SO, GO and grouped_by_read. New tests
+  samsort (sam.txt as is), samsort-coord (SO:coordinate with GO:query, --sam-h), samsort-goref,
+  samsort-unrec (messages), samsort-late (@HD not first: ignored), samsort-nosam (no SAM mode),
+  samsort-pat (-/^@HD does not hide it). Unit tests hd_fields and grouped_by_read in io.rs.
