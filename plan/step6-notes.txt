@@ -213,3 +213,45 @@ Item 2: src/bam.rs, BamReader
     bam-seqlen (+ -msg), bam-nosq-seqlen, bam-samsort (runtestopt): seqlen from BAM headers,
     including @SQ lines generated from the binary list; @HD read from a BAM header.
   Unit tests: printf_g, header_sq, eof_marker (in bam.rs).
+
+
+Item 3: multithreaded decompression, --threads=N
+
+  Option. --threads=N (N a positive number), not tied to BAM so that it can later serve other
+  work (gzip). Default 4; both the default and N are capped at the number of processors
+  (std::thread::available_parallelism). io::bam_threads() computes the number; it is passed in
+  InputSettings.threads. With 1, noodles' single-threaded bgzf::io::Reader is used (no extra
+  threads); otherwise bgzf::io::MultithreadedReader::with_worker_count(N): a thread that reads
+  the compressed blocks and a pool of N threads that decompress them. The stream (Peeked<Stdin>
+  inside EofCheck) is Send, as the reading thread requires.
+  EofCheck's flag is now stored with Release and loaded with Acquire: it is set in the reading
+  thread and read in the main thread once the decoder has reported the end.
+
+  Measurements (1,000,000 records, 160 MB BAM):
+    pluk --sam -c         threads 1: 1.28 s   2: 0.46 s   3: 0.47 s   4: 0.46 s   6: 0.47 s
+    pluk --sam-h -A       threads 1: 1.66 s   2: 0.77 s   4: 0.75 s   8: 0.75 s
+    samtools view -@4 | pluk --sam -c: 0.37 s
+  From two threads on, the main thread is the limit: SAM formatting (about 0.2 s) and pluk's own
+  processing (about 0.25 s) run there in sequence, where samtools | pluk runs them in two
+  processes. The deferred item "formatting in a separate thread" would address this. The
+  default stays 4: with longer reads decompression takes a larger share.
+
+  BamReader change: one record per refill. Item 2 refilled the text buffer with records up to
+  128 KiB. On a stream that is still being written (a pipe from an aligner) this blocks until
+  enough records have arrived or the stream ends, although lines are already available; with
+  text input the reader passes on what the pipe delivers. refill() now formats one record per
+  call; the work per record is the same and the measurements did not change.
+
+  Early exit with a stalled producer. When pluk stops before the end of the input (an error such
+  as an unknown column), noodles' MultithreadedReader joins its reading thread on drop. If that
+  thread is blocked reading a pipe whose writer is idle, pluk waits until the writer writes or
+  closes; a writer that keeps writing ends the wait with its next write. With --threads=1 there
+  is no such thread. This is accepted; the alternative (leaking the reader with mem::forget)
+  was judged not worth the opacity.
+
+  The help text for --sam now mentions BAM input (missed in item 2).
+
+  Tests: bam-tags-t1 and bam-tags-t2 (same output as bam-tags, which now runs with the default
+  of 4 threads), bam-truncated-t1 (the truncation errors with the single-threaded reader),
+  threads-errors, threads-text (accepted with text input). o.help.ref and o.help-long.ref
+  updated. Unit tests threads in opt.rs and io.rs.

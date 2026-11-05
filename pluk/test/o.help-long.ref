@@ -13,11 +13,14 @@ Options:
   -u          make duplicate input column names unique (suffixes _v02, _v03, ..)
   -O<N>       ragged input: <N> columns, merge columns at and after <N> (requires -k)
   -R          header has no name for the first (row name) column; it is named _
-  --sam       SAM input: implies -k and -O12, skips lines starting with @
+  --sam       SAM input: implies -k and -O12, skips lines starting with @.
+              BAM input is recognised and read as SAM
   --sam-h     as --sam, but outputs lines starting with @ unchanged
   --sam/FILE, --sam-h/FILE
               as --sam and --sam-h; reference sequences are read from fasta
               FILE into the dictionary SAMFA (default __EXIT__)
+  --threads=N threads for BAM decompression (default 4, at most the number
+              of processors; 1: no separate threads)
 
 Dictionaries (NAME: letters, digits, _; lookup is not yet implemented):
   --kd-NAME=FILE          keys from the first column of FILE, all values 1

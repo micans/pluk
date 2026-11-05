@@ -6,6 +6,7 @@
 
 use std::cmp::Ordering;
 use std::io::{self, BufRead, BufReader, Chain, Cursor, Read};
+use std::num::NonZero;
 
 use flate2::bufread::MultiGzDecoder;
 use regex::bytes::{Regex, RegexBuilder};
@@ -110,6 +111,7 @@ pub struct InputSettings {
     pub add_row_column: bool,           // -R: header lacks the name of the first (row name) column
     pub make_unique: bool,              // -u: make duplicate column names unique
     pub sam: SamMode,                   // --sam, --sam-h
+    pub threads: usize,                 // --threads: BAM decompression threads (1: none)
 }
 
 pub struct LineReader {
@@ -148,7 +150,11 @@ impl LineReader {
             // BAM is presented as SAM text (plan/step6.txt item 2).
             Format::Bam => {
                 let (source, eof_seen) = EofCheck::new(source);
-                Box::new(BamReader::new(noodles_bgzf::io::Reader::new(source), eof_seen)?)
+                match NonZero::new(settings.threads).filter(|n| n.get() > 1) {
+                    None => Box::new(BamReader::new(noodles_bgzf::io::Reader::new(source), eof_seen)?),
+                    Some(n) => Box::new(BamReader::new(
+                        noodles_bgzf::io::MultithreadedReader::with_worker_count(n, source), eof_seen)?),
+                }
             }
             _ => text_reader(format, source),
         };
@@ -366,6 +372,18 @@ impl LineReader {
 }
 
 
+// Default number of BAM decompression threads; four give most of the gain
+// (plan/step6-notes.txt, measurements).
+const DEFAULT_THREADS: usize = 4;
+
+// The number of BAM decompression threads: --threads=N, or the default, in both
+// cases at most the number of processors. 1 means decompression in the main
+// thread (noodles' single-threaded BGZF reader).
+pub fn bam_threads(option: Option<u32>) -> usize {
+    let cpus = std::thread::available_parallelism().map_or(1, |n| n.get());
+    option.map_or(DEFAULT_THREADS, |n| n as usize).min(cpus)
+}
+
 // The format of an input stream, recognised from its first bytes.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Format {
@@ -580,6 +598,14 @@ mod tests {
                 assert_eq!(format_and_content(bytes, trickle), (expected, bytes.to_vec()));
             }
         }
+    }
+
+    #[test]
+    fn threads() {
+        let cpus = std::thread::available_parallelism().map_or(1, |n| n.get());
+        assert_eq!(bam_threads(Some(1)), 1);
+        assert_eq!(bam_threads(None), DEFAULT_THREADS.min(cpus));
+        assert_eq!(bam_threads(Some(100000)), cpus);
     }
 
     #[test]

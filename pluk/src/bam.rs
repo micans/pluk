@@ -15,9 +15,6 @@ use noodles_sam::alignment::record::data::field::{Tag, Value};
 
 use crate::io::parse_sq;
 
-// BamReader refills its text buffer with records up to about this size.
-const TEXT_BUFSIZE: usize = 128 * 1024;
-
 // BAM 4-bit base codes and CIGAR operation codes.
 const BASES: &[u8; 16] = b"=ACMGRSVTWYHKDBN";
 const CIGAR_OPS: &[u8; 9] = b"MIDNSHP=X";
@@ -50,7 +47,7 @@ impl<R: Read> Read for EofCheck<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let n = self.inner.read(buf)?;
         if n == 0 {
-            self.seen.store(self.tail == BGZF_EOF, Ordering::Relaxed);
+            self.seen.store(self.tail == BGZF_EOF, Ordering::Release);
         } else {
             let keep = BGZF_EOF.len();
             let new = &buf[n.saturating_sub(keep)..n];
@@ -94,25 +91,24 @@ impl<R: Read> BamReader<R> {
         })
     }
 
-    // Replace the consumed text with the SAM lines of the next records.
+    // Replace the consumed text with the SAM line of the next record. One record
+    // at a time: reading ahead would block on a live stream (a pipe from an
+    // aligner) until more records arrive, holding back lines already available.
     fn refill(&mut self) -> io::Result<()> {
         self.text.clear();
         self.pos = 0;
-        while self.text.len() < TEXT_BUFSIZE {
-            if self.reader.read_record(&mut self.record).map_err(truncated)? == 0 {
-                self.done = true;
-                if !self.eof_seen.load(Ordering::Relaxed) {
-                    return Err(io::Error::new(io::ErrorKind::UnexpectedEof,
-                        "BAM input is truncated (no BGZF end-of-file marker)"));
-                }
-                break;
+        if self.reader.read_record(&mut self.record).map_err(truncated)? == 0 {
+            self.done = true;
+            if !self.eof_seen.load(Ordering::Acquire) {
+                return Err(io::Error::new(io::ErrorKind::UnexpectedEof,
+                    "BAM input is truncated (no BGZF end-of-file marker)"));
             }
-            self.n_records += 1;
-            format_record(&self.record, &self.names, &mut self.text).map_err(|e| {
-                io::Error::new(io::ErrorKind::InvalidData, format!("BAM record {}: {}", self.n_records, e))
-            })?;
+            return Ok(());
         }
-        Ok(())
+        self.n_records += 1;
+        format_record(&self.record, &self.names, &mut self.text).map_err(|e| {
+            io::Error::new(io::ErrorKind::InvalidData, format!("BAM record {}: {}", self.n_records, e))
+        })
     }
 }
 
@@ -483,7 +479,7 @@ mod tests {
         let (mut check, seen) = EofCheck::new(data);
         let mut buf = vec![0u8; chunk];
         while check.read(&mut buf).unwrap() > 0 {}
-        seen.load(Ordering::Relaxed)
+        seen.load(Ordering::Acquire)
     }
 
     #[test]

@@ -55,3 +55,6 @@
   3   Multithreaded decompression with noodles' MultithreadedReader, 4 workers by default, and an
       option to set the number (name to be settled in this item; suggestion --threads=N, as it
       may later serve other work such as gzip; 1 means single-threaded). Commit.
+      Settled: --threads=N; default and N capped at the number of processors.
+      BamReader formats one record per refill (instead of up to 128 KiB), so that a stream
+      still being written is not held back.

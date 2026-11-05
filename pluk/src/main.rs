@@ -66,6 +66,7 @@ fn run() -> std::io::Result<()> {
         omega:                 config.omega.map(|n| n as usize),
         add_row_column:        config.add_row_column,
         make_unique:           config.make_unique,
+        threads:               io::bam_threads(config.threads),
         sam:                   if config.sam_h    { io::SamMode::PassThrough }
                                else if config.sam { io::SamMode::Skip }
                                else               { io::SamMode::Off },

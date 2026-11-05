@@ -27,6 +27,7 @@ pub struct Config {
     pub make_unique: bool,              // -u
     pub sam: bool,                      // --sam
     pub sam_h: bool,                    // --sam-h
+    pub threads: Option<u32>,           // --threads=N
     pub pat_purge: Option<Vec<u8>>,     // -/PAT, %-decoded
     pub pat_pass: Option<Vec<u8>>,      // -//PAT, %-decoded
     pub dicts: Vec<DictSpec>,           // dictionary options, in command line order
@@ -84,11 +85,14 @@ Options:
   -u          make duplicate input column names unique (suffixes _v02, _v03, ..)
   -O<N>       ragged input: <N> columns, merge columns at and after <N> (requires -k)
   -R          header has no name for the first (row name) column; it is named _
-  --sam       SAM input: implies -k and -O12, skips lines starting with @
+  --sam       SAM input: implies -k and -O12, skips lines starting with @.
+              BAM input is recognised and read as SAM
   --sam-h     as --sam, but outputs lines starting with @ unchanged
   --sam/FILE, --sam-h/FILE
               as --sam and --sam-h; reference sequences are read from fasta
               FILE into the dictionary SAMFA (default __EXIT__)
+  --threads=N threads for BAM decompression (default 4, at most the number
+              of processors; 1: no separate threads)
 
 Dictionaries (NAME: letters, digits, _; lookup is not yet implemented):
   --kd-NAME=FILE          keys from the first column of FILE, all values 1
@@ -168,6 +172,12 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
         b"test-select"          => config.test_select = true,
         b"test-dict"            => config.test_dict = true,
         b"test-samsort"         => config.test_samsort = true,
+        _ if long.starts_with(b"threads=") => {
+            match parse_number::<u32>(&long[8..]) {
+                Some(n) if n > 0 => config.threads = Some(n),
+                _ => return Err("--threads=<N> N must be a positive number".to_string()),
+            }
+        }
         _ if long.starts_with(b"test-i=") => {
             let n = parse_number::<u32>(&long[7..]);
             match n {
@@ -549,6 +559,15 @@ mod tests {
             assert!(run(&[bad]).is_err(), "{}", bad);
         }
         assert!(run(&["--tdx=f"]).unwrap_err().starts_with("Unrecognised long option"));
+    }
+
+    #[test]
+    fn threads() {
+        assert_eq!(run(&["--threads=3", "-A"]).unwrap().threads, Some(3));
+        assert_eq!(run(&["-A"]).unwrap().threads, None);
+        for bad in ["--threads=0", "--threads=", "--threads=x", "--threads=-1", "--threads"] {
+            assert!(run(&[bad, "-A"]).is_err(), "{}", bad);
+        }
     }
 
     #[test]

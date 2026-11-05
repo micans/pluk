@@ -117,6 +117,11 @@ runpluk: data.txt big.txt sam.txt sam-clean.txt sam.bam sam-clean.bgz bam-tags.b
 	$(p) --sam-h -A < bam-empty.bam | sed 's/\t$$//'  > o.bam-empty.test
 	$(p) --sam -A < bam-sqdiff.bam > /dev/null 2> o.bam-sqdiff.test; [ $$? -eq 1 ]
 	for n in 200 400; do head -c $$n bam-tags.bam | $(p) --sam -c; [ $$? -eq 1 ] || exit 1; done 2> o.bam-truncated.test
+	$(p) --threads=1 --sam-h -A < bam-tags.bam | sed 's/\t$$//'  > o.bam-tags-t1.test
+	$(p) --threads=2 --sam-h -A < bam-tags.bam | sed 's/\t$$//'  > o.bam-tags-t2.test
+	for n in 200 400; do head -c $$n bam-tags.bam | $(p) --threads=1 --sam -c; [ $$? -eq 1 ] || exit 1; done 2> o.bam-truncated-t1.test
+	for a in --threads=0 --threads=x --threads= --threads=-2; do $(p) "$$a" -A < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.threads-errors.test
+	$(p) --threads=3 -c               < data.txt        > o.threads-text.test
 	$(p) -Ahk                        < data.txt   > o.opt-bundle.test
 	$(p) -A-1                        < data.txt   > o.opt-A-neg.test
 	$(p) -- name fib                 < data.txt   > o.opt-dashdash.test
