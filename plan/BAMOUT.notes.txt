@@ -1,0 +1,87 @@
+
+BAMOUT notes: seed for BAM output (--bam), discussed during step6. Not decided; to be turned into
+a design when @ filters and computes exist, and together with --demux.
+
+
+1. The idea
+
+   --bam: BAM output. Presupposes --sam or --sam-h; equivalent to -A but writing BAM instead of
+   SAM text. The purpose is filtering (@ and @@ filters, and computes as far as filters use them)
+   with BAM in and BAM out, in pluk's streaming paradigm. The SAM/BAM header is passed through
+   unchanged.
+
+   Since BAM input needs no option (step6: recognised under --sam), --bam meaning "BAM output" is
+   unambiguous. Alternative name: -b, as samtools view -b.
+
+
+2. Feasibility with noodles
+
+   noodles provides the pieces: bam::io::Writer, bgzf::io::MultithreadedWriter (multithreaded
+   compression), and sam::Record::try_from(&[u8]), which parses one SAM text line into a record
+   that the BAM writer accepts (write_alignment_record).
+
+   Measured in a scratch project (step6), SAM text -> parse each line -> BAM, 1,000,000 records
+   of 150 bases (the file of the step6 measurements):
+     noodles, single-threaded writer        4.75 s
+     noodles, MultithreadedWriter 4 / 8     1.22 / 0.98 s
+     samtools view -b, 1 thread / -@4       9.29 / 2.33 s
+   The records read back identical with samtools view. Compression dominates the cost (far more
+   than decompression), so --threads matters more for output than for input.
+
+
+3. Fit with pluk: a writer behind the output stream
+
+   The mirror of BamReader (step6 item 2): pluk's output remains SAM text lines, and a BAM writer
+   behind the output stream parses each line and writes BAM. The isolation is the same: it works
+   the same for SAM and BAM input, and filters and computes are not involved.
+
+
+4. Points to settle
+
+   Header
+     - BAM needs the complete header before the first record. The writer collects the '@' lines
+       up to the first record, then writes the header. This fits streaming: SAM puts the header
+       first.
+     - An '@' line after the first record (as the @CO line in test/sam.txt) cannot go into BAM:
+       an error, or dropped with a warning.
+     - Unchanged header: noodles' write_header() serialises a parsed header and reorders lines
+       (as seen on input in step6). pluk writes the BAM header bytes itself (magic, l_text, text,
+       n_ref, reference list) and uses noodles for the records only. The parsed header is still
+       needed for the reference name -> index lookup.
+     - --sam drops '@' lines from the output; with --bam the header must be kept regardless.
+     - Whether to add an @PG line, as samtools does.
+
+   Output columns
+     - BAM has the 11 fixed fields plus tags: --bam means -A only; no column list, no -x.
+     - Computes serve filters only. Later, a compute named like a tag (e.g. XY:i) could be added
+       as a tag.
+     - A compute that overwrites a SAM field must leave a valid record; otherwise that row is an
+       error (the parse of the SAM line fails).
+
+   Round trip fidelity
+     - BAM in, BAM out through SAM text currently changes float tags: pluk writes %g with 6
+       significant digits (as samtools text), so 3.1415927 comes back as 3.14159. Remedy: under
+       --bam the SAM text is internal only, so BamReader can write floats with full precision
+       (shortest round-trip form, as the noodles writer does).
+     - Integer tag types can change (c -> C), since SAM text has only i and the writer picks a
+       type; samtools behaves the same. Harmless.
+     - Passing raw BAM records through unchanged would avoid all re-encoding, but needs a side
+       channel from BamReader to the writer and breaks the isolation; not proposed.
+
+   Other
+     - Refuse writing BAM to a terminal.
+     - -c, -h, -k have no meaning with --bam (decide: error or ignore).
+     - Early exit and threads: as for input (step6-notes.txt item 3), the multithreaded writer
+       must be finished (try_finish) so the BGZF end-of-file marker is written; on error paths
+       the output is incomplete by nature.
+
+
+5. Why not yet
+
+   - Without @ filters and computes, --bam is only a SAM/BAM to BAM converter, which samtools
+     already is. The value comes with filtering.
+   - --demux multiplies outputs: each needs its own header, writer and compression threads. One
+     design should cover both.
+   - It is the first output that is not a plain text stream; other output paths (demux files,
+     perhaps gzip output) should share one design.
+   Implement in the step that brings @ filters, or together with --demux.
