@@ -1,0 +1,65 @@
+
+- implement @ filter and @@ filters
+
+    After regular pluk arguments are exhausted we process the remainder.
+    For now, we will only accept filter options.
+
+    I propose to start with comperands that are constants, not yet allowing column names
+    but anticipating the latter.  If this is not convenient, ignore.
+
+    I assume that filter code will very roughly mimic what happens in pick. Discuss.
+
+    Let's start with /lt/, /le/ /eq/ /ge/ /gt/ and /ne/ and the string equivalents ~op~ .
+    Commit.
+
+    Implement = /= ~ and /~ . The last two deserve some documentation of divergence with pick (regex behaviour).
+    Commit.
+
+    Implement ~isin~ ~hasval~ ~isnotin~ ~hasnotval~ .
+    Commit.
+
+    Implement /om/ /ep/ /omx/ /epx/ .
+    Commit.
+
+    Implement all the bit filters /all/ /any/ /none/ /notall/ .
+    Commit.
+    
+
+
+
+
+  Outcome of the discussion (rationale in step7-notes.txt, numeric model in NUMERIC.design.txt)
+
+  Filters are given in the trailing argument list, mixed with column names as in pick:
+  @NAME OP VALUE (filter after computes) and @@NAME OP VALUE (filter before computes). Computes
+  (x::..., x:=...) are recognised and refused as not yet supported. VALUE is %-decoded; :NAME
+  compares with another column per row; a leading ^ forces a literal value (^:x is ':x').
+  Multiple filters are ANDed; -o ORs the @ filters, -s the @@ filters. Without computes @ and @@
+  differ only in when they are applied; the structure anticipates computes. Column names in
+  filters are plain names (a leading '+' is "not yet supported" until the column specification
+  step); with -k, column numbers.
+
+  Numeric filters follow NUMERIC.design.txt: a value that is not a number (empty, 'fox', '0x10',
+  ' 4') makes the comparison fail and is counted (pick: such values are 0); a non-numeric
+  constant is an option error; integer syntax that fits Int gives I, anything else accepted by
+  Rust's f64 parser gives F (inf, nan with IEEE semantics). New modules: num.rs (Int, Num,
+  parsing, comparison via the dispatcher) and filter.rs (parsed filters, per-row evaluation on
+  the field bytes). Bit filters take abs() as pick, but a float value fails and is counted (no
+  implicit f -> i).
+
+  Items
+
+  1   Argument parsing of @ and @@ filters, -o and -s, constants and :NAME, num.rs, filter.rs.
+      Numeric /lt/ /le/ /eq/ /ge/ /gt/ /ne/ and string ~lt~ ~le~ ~eq~ ~ge~ ~gt~ ~ne~ (byte
+      comparison). End-of-run count of non-numeric values. Tests ported from pick where
+      possible. Commit.
+
+  2   = /= ~ /~ . ~ matches anywhere (as pick); the regex dialect is that of the regex crate
+      (differences documented, as for -/PAT). Commit.
+
+  3   ~isin~ ~isnotin~ ~hasval~ ~hasnotval~ (dictionary lookups). Commit.
+
+  4   /ep/ /epx/ /om/ /omx/ with the optional extra argument; defaults 0.0001 and 2 as pick.
+      Commit.
+
+  5   Bit filters /all/ /any/ /none/ /notall/. Commit.

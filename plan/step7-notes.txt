@@ -1,0 +1,31 @@
+step7 notes: decisions and rationale for implementation choices.
+
+
+Decisions taken before implementation
+
+  pick, for reference (parse_spec, compile_select, %sel_opdefinitions, main loop):
+    - Filters are mixed with column names in the argument list and recognised by their form.
+    - @NAME OP VALUE: the first operator occurrence ends NAME (a '/', '~' or '=' in a name must
+      be %-encoded). VALUE is %-decoded; :NAME is another column; a leading ^ forces a literal.
+      /ep/ and /om/ take an optional extra argument (defaults $::EPSILON 0.0001, $::OOM 2).
+    - @@ filters are applied before computes (input column names); @ filters after computes.
+      AND by default; -o ORs @ filters, -s ORs @@ filters. A constant equal to a column name
+      gives a hint ("did you want :x").
+    - Numeric operators are Perl's: '', 'fox' and '0x10' compare as 0 (with a Perl warning),
+      ' 4' as 4; a non-numeric constant (@x/gt/abc) is 0. String operators compare bytes.
+      Bit operators use abs(int(x)): 5.9 is 5, -3 is 3.
+
+  pluk:
+    - Same argument structure; computes recognised and refused for now.
+    - :NAME implemented in item 1 (column names are resolved once the header is read).
+    - @ and @@ both implemented with -o and -s, @@ evaluated first; the slot for computes lies
+      between them.
+    - Numeric values per NUMERIC.design.txt: not a number -> NA -> the comparison fails, counted
+      and reported at the end. This differs from pick for empty fields, which are common in
+      sparse tables (@x/lt/5 keeps empty fields in pick, not in pluk; @x/ne/5 keeps 'fox' in
+      pick, not in pluk). A non-numeric constant is an error at option parsing.
+    - Number syntax: integer syntax that fits Int -> I; else whatever Rust's f64 parser accepts
+      -> F (no surrounding whitespace, no hex; inf and nan with IEEE semantics, so nan fails
+      every comparison except /ne/); an integer too large for Int -> F.
+    - Bit filters: abs() as pick; a float value fails and is counted (no implicit f -> i).
+    - Regex filters (~ /~): the regex crate's dialect, as for -/PAT; ~ matches anywhere.

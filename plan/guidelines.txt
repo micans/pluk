@@ -44,6 +44,9 @@
       (step3-notes.txt item 4).
     - --sam and --sam-h keep skipping or passing '@' lines when -/PAT or -//PAT is also given
       (step3-notes.txt item 4).
+    - Numeric filters: a value that is not a number (empty, 'fox', '0x10', ' 4') fails the
+      comparison and is counted (pick: such values count as 0); a non-numeric constant is an
+      error; bit filters do not truncate floats (step7.txt, NUMERIC.design.txt).
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).
