@@ -16,7 +16,7 @@ RETIRED_REFS = o.tc-midfile.ref
 
 rundiff: $(filter-out $(RETIRED_REFS), $(wildcard *.ref))
 
-runpluk: data.txt big.txt sam.txt
+runpluk: data.txt big.txt sam.txt sam-clean.txt sam.bam sam-clean.bgz
 	$(p) --test-lineno                  < data.txt         > o.lineno.test
 	$(p) --test-lineno                  < big.txt          > o.big-lineno.test
 	gzip -c big.txt | $(p) --test-lineno                   > o.big-lineno-gz.test
@@ -105,6 +105,9 @@ runpluk: data.txt big.txt sam.txt
 	$(p) --sam/sam.fa -A             < sam.txt    > o.samref-A.test     2> /dev/null
 	$(p) --sam-h/sam.fa 1 4          < sam.txt    > o.samref-h-sel.test 2> /dev/null
 	{ cat sam.txt; printf '@SQ\tSN:chr9\tLN:5\n@SQ\tSN:chr8\tLN:5\n'; } | $(p) --sam -c  > o.seqlen-late.test  2>&1
+	$(p) -A                          < sam.bam    > /dev/null 2> o.bam-nosam.test; [ $$? -eq 1 ]
+	$(p) --sam -A                    < sam-clean.bgz  > o.sam-bgzf.test
+	gzip -c sam-clean.txt | $(p) --sam -A           > o.sam-clean-gz.test
 	$(p) -Ahk                        < data.txt   > o.opt-bundle.test
 	$(p) -A-1                        < data.txt   > o.opt-A-neg.test
 	$(p) -- name fib                 < data.txt   > o.opt-dashdash.test

@@ -98,3 +98,41 @@ Decisions taken before implementation
     Decompression is multithreaded by default (4 workers) with an option for the number; 1
     gives single-threaded decompression. The name is settled in item 3 (suggestion --threads=N,
     not tied to BAM, as it may later serve other work).
+
+
+Item 1: BAM detection
+
+  peek_format (io.rs). The gzip check used fill_buf(), which sees only what one read() returned;
+  on a pipe that may be too little to decompress the first four bytes of a BAM stream.
+  peek_format() reads into a prefix until the format is clear, then returns the prefix in front
+  of the rest of the stream (Cursor::new(prefix).chain(source)), so no input is lost and the
+  decision does not depend on how a pipe delivers its bytes. This also settles the old caveat
+  about a read returning fewer than two bytes.
+    - Not starting with the gzip magic bytes: Text.
+    - gzip: the prefix is decompressed with MultiGzDecoder (which continues into the next member,
+      covering an empty first BGZF block) until four bytes are obtained; BAM\1 gives Bam,
+      anything else Gzip. A truncated prefix just yields fewer bytes and more input is read;
+      at end of input, or after PEEK_LIMIT (256 KiB) of input, the decision is Gzip.
+  text_reader() builds the buffered (decompressing) reader for Text and Gzip. open_buffered(),
+  used for dictionary files, now goes through peek_format() too; a BAM file given as a
+  dictionary is read as gzip text, as before.
+
+  STDIN is now read through io::stdin() instead of io::stdin().lock(): the locked handle is
+  not Send, and item 3 hands the stream to the threads of noodles' MultithreadedReader. Each
+  read() takes the lock, but reads are 128 KiB; no difference measured (1,000,000 SAM lines,
+  pluk --sam -c, 0.25 s before and after).
+
+  from_stdin(): BAM without a SAM option is an error "input is BAM; use --sam or --sam-h" (exit
+  1); with --sam or --sam-h it is "BAM input is not yet supported" until item 2.
+
+  Test data:
+    sam-clean.txt   sam.txt without the lines that cannot be stored in BAM (r003 and r007 with a
+                    non-numeric FLAG, shortline, r008 with too few fields, the @CO line between
+                    the alignments).
+    sam.bam         samtools view -b --no-PG of sam-clean.txt (samtools view -h --no-PG gives
+                    sam-clean.txt back).
+    sam-clean.bgz   sam-clean.txt in BGZF blocks (bgzip format, written with a small Python
+                    script as bgzip is not installed), to show that BGZF text is not taken for BAM.
+  Tests: bam-nosam (error), sam-bgzf and sam-clean-gz (identical output). Unit test formats in
+  io.rs: text, a lone byte, empty input, bare gzip magic, gzip and BAM, each also through a
+  reader that delivers one byte per read(), checking the format and that no input is lost.

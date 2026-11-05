@@ -5,7 +5,7 @@
 // plan/step1-notes.txt for the rationale.
 
 use std::cmp::Ordering;
-use std::io::{self, BufRead, BufReader, Read};
+use std::io::{self, BufRead, BufReader, Chain, Cursor, Read};
 
 use flate2::bufread::MultiGzDecoder;
 use regex::bytes::{Regex, RegexBuilder};
@@ -18,6 +18,13 @@ const BUFSIZE: usize = 128 * 1024;
 
 // The first two bytes of every gzip (and bgzip) stream.
 const GZIP_MAGIC: [u8; 2] = [0x1f, 0x8b];
+
+// The first four bytes of a decompressed BAM stream.
+const BAM_MAGIC: [u8; 4] = *b"BAM\x01";
+
+// How much input peek_format() reads at most to recognise BAM. The first BGZF
+// block is at most 64 KiB, and the magic bytes are at its start.
+const PEEK_LIMIT: usize = 256 * 1024;
 
 // SAM input (--sam, --sam-h): what to do with header lines, i.e. lines starting with '@'.
 #[derive(Clone, Copy, PartialEq)]
@@ -132,7 +139,16 @@ pub struct LineReader {
 impl LineReader {
 
     pub fn from_stdin(settings: InputSettings) -> io::Result<LineReader> {
-        let reader = open_buffered(io::stdin().lock())?;
+        let (format, source) = peek_format(io::stdin())?;
+        if format == Format::Bam {
+            let msg = if settings.sam == SamMode::Off {
+                "input is BAM; use --sam or --sam-h"
+            } else {
+                "BAM input is not yet supported"
+            };
+            return Err(io::Error::new(io::ErrorKind::InvalidData, msg));
+        }
+        let reader = text_reader(format, source);
 
         let mut input = LineReader {
             reader,
@@ -347,25 +363,88 @@ impl LineReader {
 }
 
 
-// A buffered reader for source (STDIN or a file), decompressing if the source
-// starts with the gzip magic bytes. Used for the input and for dictionary files.
-pub fn open_buffered<R: Read + 'static>(source: R) -> io::Result<Box<dyn BufRead>> {
-    let mut raw = BufReader::with_capacity(BUFSIZE, source);
+// The format of an input stream, recognised from its first bytes.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum Format {
+    Text,           // plain text
+    Gzip,           // gzip or bgzip compressed text
+    Bam,            // BAM: BGZF whose content starts with BAM\1
+}
 
-    // fill_buf() returns the buffered bytes without consuming them, so the
-    // check does not lose any input. A single read may in principle return
-    // fewer than two bytes; for a pipe or file at the start of input this
-    // does not happen in practice.
-    let is_gzip = raw.fill_buf()?.starts_with(&GZIP_MAGIC);
+// A stream with the bytes read by peek_format() put back in front.
+pub type Peeked<R> = Chain<Cursor<Vec<u8>>, R>;
 
-    if is_gzip {
+// Recognise the format of source without losing input: bytes are read into a
+// prefix until the format is clear, and returned in front of the rest of the
+// stream. A pipe may deliver fewer bytes per read than needed, hence the loop.
+// gzip is recognised from its magic bytes; BAM from the first four bytes of
+// the decompressed content (bgzip-compressed SAM text is BGZF too).
+pub fn peek_format<R: Read>(mut source: R) -> io::Result<(Format, Peeked<R>)> {
+    let mut prefix: Vec<u8> = Vec::new();
+    let mut chunk = vec![0u8; BUFSIZE];
+    let mut at_end = false;
+    let format = loop {
+        if prefix.len() >= GZIP_MAGIC.len() || at_end {
+            if !prefix.starts_with(&GZIP_MAGIC) {
+                break Format::Text;
+            }
+            let mut magic = [0u8; 4];
+            let n = read_prefix(&prefix, &mut magic);
+            if n == magic.len() || at_end || prefix.len() >= PEEK_LIMIT {
+                break if n == magic.len() && magic == BAM_MAGIC { Format::Bam } else { Format::Gzip };
+            }
+        }
+        let n = read_some(&mut source, &mut chunk)?;
+        if n == 0 {
+            at_end = true;
+        }
+        prefix.extend_from_slice(&chunk[..n]);
+    };
+    Ok((format, Cursor::new(prefix).chain(source)))
+}
+
+// Decompress the start of a gzip prefix into buf, as far as the prefix allows.
+// Returns the number of bytes obtained; a truncated or invalid stream simply
+// gives fewer.
+fn read_prefix(prefix: &[u8], buf: &mut [u8]) -> usize {
+    let mut decoder = MultiGzDecoder::new(prefix);
+    let mut n = 0;
+    while n < buf.len() {
+        match decoder.read(&mut buf[n..]) {
+            Ok(0) | Err(_) => break,
+            Ok(k) => n += k,
+        }
+    }
+    n
+}
+
+// read() that retries when interrupted by a signal.
+fn read_some<R: Read>(source: &mut R, buf: &mut [u8]) -> io::Result<usize> {
+    loop {
+        match source.read(buf) {
+            Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+            result => return result,
+        }
+    }
+}
+
+// A buffered reader for text: plain, or decompressed if gzip. Used for the
+// input and for dictionary files.
+pub fn text_reader<R: Read + 'static>(format: Format, source: Peeked<R>) -> Box<dyn BufRead> {
+    let raw = BufReader::with_capacity(BUFSIZE, source);
+    match format {
+        Format::Text => Box::new(raw),
         // MultiGzDecoder continues across concatenated gzip members,
         // which is what bgzip files consist of.
-        let decoder = MultiGzDecoder::new(raw);
-        Ok(Box::new(BufReader::with_capacity(BUFSIZE, decoder)))
-    } else {
-        Ok(Box::new(raw))
+        Format::Gzip | Format::Bam => Box::new(BufReader::with_capacity(BUFSIZE, MultiGzDecoder::new(raw))),
     }
+}
+
+// A buffered reader for source (a dictionary file), decompressing if the source
+// is gzip. A BAM file is read as gzip text, as before BAM was recognised.
+pub fn open_buffered<R: Read + 'static>(source: R) -> io::Result<Box<dyn BufRead>> {
+    let (format, source) = peek_format(source)?;
+    Ok(text_reader(format, source))
 }
 
 
@@ -450,6 +529,54 @@ mod tests {
         assert_eq!(parse_sq(b"@SQ\tSN:x"), None);
         assert_eq!(parse_sq(b"@SQ\tSN:\tLN:5"), None);
         assert_eq!(parse_sq(b"@SQ\tSN:z\tLN:-1"), None);
+    }
+
+    // A reader that delivers one byte per read(), as a slow pipe may.
+    struct Trickle<'a>(&'a [u8]);
+    impl Read for Trickle<'_> {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            if self.0.is_empty() || buf.is_empty() {
+                return Ok(0);
+            }
+            buf[0] = self.0[0];
+            self.0 = &self.0[1..];
+            Ok(1)
+        }
+    }
+
+    fn format_and_content(bytes: &[u8], trickle: bool) -> (Format, Vec<u8>) {
+        let mut all = Vec::new();
+        let format = if trickle {
+            let (format, mut source) = peek_format(Trickle(bytes)).unwrap();
+            source.read_to_end(&mut all).unwrap();
+            format
+        } else {
+            let (format, mut source) = peek_format(bytes).unwrap();
+            source.read_to_end(&mut all).unwrap();
+            format
+        };
+        (format, all)
+    }
+
+    #[test]
+    fn formats() {
+        let bam = std::fs::read("test/sam.bam").unwrap();
+        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        std::io::Write::write_all(&mut encoder, &std::fs::read("test/data.txt").unwrap()).unwrap();
+        let gz = encoder.finish().unwrap();
+        for trickle in [false, true] {
+            for (bytes, expected) in [
+                (&b""[..], Format::Text),
+                (&b"a"[..], Format::Text),
+                (&b"name\tx\n"[..], Format::Text),
+                (&b"\x1f\x8b"[..], Format::Gzip),
+                (&gz[..], Format::Gzip),
+                (&bam[..], Format::Bam),
+            ] {
+                // The format is recognised and no input is lost.
+                assert_eq!(format_and_content(bytes, trickle), (expected, bytes.to_vec()));
+            }
+        }
     }
 
     #[test]
