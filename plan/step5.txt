@@ -1,0 +1,59 @@
+
+-  SAM caching of read sequence for multiple mappings of the same read.
+
+  Input will be assumed to be sorted by read.
+
+  Initially we will implement read sequence caching unconditionally. In the future we may be able to infer
+  that this is not necessary and then forego it.
+
+  We will create the item or items in this step after hashing out the design first. Update step5.txt once items are defined.
+
+  Preparation
+  Achieving clarity on how read sequence caching interacts with various modes of bam/sam sorting.
+  My experience (alas without examples) is that this is not well documented and potentially buggy or not well defined
+  depending on the SAM producer.
+
+  My current suggested mode of operation (this goes beyond just pick): Keep track of sequence length and 256 and 2048
+  bits.  When a sequence is missing, retrieve the sequence for the last row for this read with the same bit/length match
+  (or the primary alignment if no such row exists), correct for strand.  Briefly analyse whether I have missed any
+  established SAM/BAM principles or conventions, either conflicting with the above or not.
+  Discuss to come to an agreed plan.
+
+  In any case, this will require maintaining a cache of rows. The cache will grow for each read with
+  identical read name to the previous row. For sequence lookup I propose a simple reverse linear search.
+
+  If the sequence cannot be retrieved, summarise what pick does at the moment.
+  For pluk, I am considering different modes: skipping the row, or creating a sequence of 'N' (or potentially 'A') of
+  the right length, or exiting, in all cases with a diagnostic and a counter.
+  Discuss
+
+
+
+  Outcome of the discussion (design in SAMSEQ.design.txt)
+
+  The fill rule: a row with SEQ '*' is filled from an earlier row of the same QNAME group and the
+  same segment whose stored piece of the read contains the piece the row needs; the piece follows
+  from the hard clips, the strand and the full read length L. Paired-end reads are supported by
+  matching on the segment (0x40/0x80); only an ambiguous segment leads to a skip. The cache is
+  updated from every data row before any filtering (differs from pick). A missing sequence is
+  filled with N by default.
+
+  Testing the fill end to end needs a SAM operator. In this step the fill logic is written and
+  unit tested but not yet called; wiring, the mode option, diagnostics and counters are deferred
+  to the first SAM operator step (deferred.txt).
+
+  1   Write plan/SAMSEQ.design.txt: grouping and segments, the containment rule, sanity rules,
+      the missing-sequence modes, sort order, limitations, and what pick does. Commit.
+
+  2   @HD sort-order check. In SAM mode (--sam, --sam-h, with or without FILE) warn at the header
+      when the @HD line has SO:coordinate. SO:queryname, SO:unsorted, GO:query, unknown values
+      and the absence of an @HD line pass silently. Tests with small variants of the
+      test/sam.txt header. Commit.
+
+  3   src/samseq.rs with pure functions, not yet called from the main loop: FLAG bits (strand,
+      segment), CIGAR clips and full read length, a row's piece, the group cache with the
+      backward containment search, reverse complement and the slicing of SEQ and QUAL. Unit
+      tests (cargo test) with inline values: same piece, slice from an unclipped primary,
+      hard-clipped primary with the piece from a supplementary, no containing source, L
+      conflict, SEQ/CIGAR length mismatch, QUAL '*', interleaved R1/R2 rows filled from the
+      right segment, ambiguous segments. Commit.

@@ -1,0 +1,119 @@
+
+SAMSEQ design: filling in a missing read sequence (SEQ '*') in SAM input.
+
+Status: DECIDED in step5. The fill logic is implemented in step5 (src/samseq.rs, unit tests only).
+It is called from the main loop, with the mode option, diagnostics and counters, in the first
+SAM operator step (deferred.txt).
+
+
+1. Background
+
+   SAM allows SEQ (and QUAL) to be '*' when the sequence is not stored, typically for secondary
+   alignments (FLAG 0x100) and sometimes for supplementary alignments (0x800). Operators that
+   need the query sequence must then take it from another row of the same read. Rows can also
+   store only part of the read: hard clips (H in CIGAR) are bases left out of SEQ.
+
+
+2. Groups and segments
+
+   - A group is a run of consecutive rows with the same QNAME. The cache holds the rows of the
+     current group that store a sequence; it is emptied when QNAME changes.
+   - The segment of a row is given by FLAG bits 0x40 and 0x80. A row with 0x1 unset is a single
+     segment, whatever 0x40/0x80 say. With 0x1 set, exactly one of 0x40 and 0x80 identifies the
+     segment (read1 or read2).
+   - The group is keyed on QNAME alone; the segment only filters the search. Aligner output and
+     name-sorted files interleave the rows of read1 and read2, and keying the group on QNAME and
+     segment would empty the cache at every switch.
+   - Ambiguous segment: 0x1 set and 0x40/0x80 both set (a middle segment of a template with more
+     than two segments) or both unset (index lost). A row that needs a fill and has an ambiguous
+     segment is not filled: it is skipped with a diagnostic and counted, whatever the mode.
+     Rows with an ambiguous segment that store a sequence are not used as a source.
+   - The cache is updated from every data row before any filtering (-/PAT, -//PAT, @@ and @
+     filters). [differs from pick, see 7]
+
+
+3. The containment rule
+
+   For a row with CIGAR c and strand s (FLAG 0x10):
+     Hl, Hr   hard clip lengths at the left and right end of the CIGAR (reference orientation)
+     Q        sum of the lengths of M, I, S, =, X (the length of SEQ when stored)
+     L        Hl + Q + Hr, the full read length
+     piece    the part of the original read that SEQ holds, in original read coordinates:
+                forward:  [Hl, L - Hr)
+                reverse:  [Hr, L - Hl)     SEQ is the reverse complement of this piece
+
+   A row with SEQ '*' (the target) computes its own L and piece from its CIGAR and strand. It is
+   filled from the most recent cached row (backward search) of the same segment with the same L
+   whose piece contains the target's piece:
+     1. bring the source SEQ into original orientation (reverse complement if the source is reverse)
+     2. take the target's piece, at offset (target start - source start)
+     3. reverse complement if the target is reverse
+   QUAL follows the same steps, reversed instead of reverse complemented. If the source QUAL is
+   '*', the target QUAL is '*'. A row with SEQ present and QUAL '*' is used as a source as is.
+
+   This makes FLAG 0x100 and 0x800 irrelevant for the lookup: what matters is which part of the
+   read a row stores, and the CIGAR gives that directly. Examples (unpaired, L = 150):
+     primary 100M50S (full read), supplementary A 100H50M (piece [100,150)), later B 100H50M with
+       SEQ '*': A and the primary both contain [100,150); the backward search takes A.
+     primary 50M100H (piece [0,50)): only A can supply B.
+     B 100S50M with SEQ '*' needs [0,150): A cannot supply it, an unclipped primary can.
+   If the file is consistent, any containing source gives the same bases.
+
+
+4. Sanity rules
+
+   - A row whose SEQ length differs from Q is counted (as pick's cigar error) and not cached as a
+     source.
+   - A target whose L differs from that of the cached rows of its segment cannot be filled
+     (counted, then handled by the mode).
+   - A row with CIGAR '*' has no piece; it is not a source, and a target with CIGAR '*' cannot be
+     filled.
+
+
+5. Missing sequence: modes
+
+   When no source contains the target's piece, the mode decides:
+     N      (default) SEQ becomes Q times 'N', QUAL becomes Q times '!'
+     skip   the row is discarded
+     exit   pluk exits with an error
+   Each case gives a diagnostic (per row up to a limit) and a counter reported at the end.
+   N rather than A: N means an unknown base in SAM and FASTA, so mismatch operators do not count
+   false matches. '!' is Phred quality 0 (error probability 1), the quality that goes with an
+   unknown base; SEQ and QUAL keep the same length, so operators that cut both need no special
+   case. Quality statistics count such rows as Q0, which is correct for unknown bases; the
+   counter shows how many rows are affected, and skip excludes them.
+   This differs from a source found with QUAL '*' (section 3): the target QUAL then stays '*',
+   as the file holds no quality values for the read. The option name is decided in the step that adds it (suggestion:
+   --sam-seqmiss=N|skip|exit).
+
+
+6. Sort order and limitations
+
+   - Input is assumed to be grouped by read (aligner output, GO:query, SO:queryname,
+     SO:unsorted). With SO:coordinate in the @HD line pluk warns at the header (step5 item 2).
+     A group that reappears later in the file is not detected: that would require remembering
+     every QNAME.
+   - The search goes backwards only. In name-sorted files a secondary with SEQ '*' may precede
+     the row that stores the sequence; it is then not filled. If this proves common, the
+     remedy is to read a whole group before processing its rows (lookahead in io.rs).
+   - Old-style names with /1 and /2 suffixes give the two segments different QNAMEs. Interleaved
+     rows then break the group at every switch; affected targets are handled by the mode and
+     counted. Suffixes are not stripped.
+   - Pair-level interpretation (mate fields, TLEN, 0x20, the SA tag) plays no role in the fill.
+     Whether SAM operators interpret templates is decided in the operator steps.
+
+
+7. What pick does
+
+   pick (sam_setup_sequences) caches only the previous row: QNAME, strand, SEQ, QUAL. A row with
+   SEQ '*' and the same QNAME as the previous row takes its SEQ (reverse complemented if the
+   strand differs) and QUAL (reversed). The cache holds the filled value, so a run of '*' rows
+   works. Segment bits, hard clips and lengths are not considered; a read2 row can receive the
+   read1 sequence. The cache is updated only when an operator needs a sequence, and only for
+   rows that reach that point: rows discarded by @@ filters or -/PAT do not update it.
+   Without a source SEQ and QUAL become empty (counter Nsam_qrymiss). The SEQ length is then
+   checked against the CIGAR (counter Nsam_cigarerr); if an operator needs the query or the
+   reference and it is missing, the row is discarded (Nsamdisc). Per-row messages need
+   verbosity 1 or 2; at the end pick prints, among others:
+     -- N times a query sequence was not available
+     -- N sam rows have been discarded due to insufficient information for compute

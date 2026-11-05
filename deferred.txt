@@ -5,3 +5,7 @@
 - --fastq-dict-NAME (step4: rarely used)
 - faster hasher for dictionary lookups (default SipHash); measure once lookup exists (step4)
 - option to protect the first (header) line from -/PAT and -//PAT
+- SAM sequence fill (step5, SAMSEQ.design.txt), for the first SAM operator step: call the fill
+  on every SAM data row before filtering; the missing-sequence mode option (name to be decided,
+  e.g. --sam-seqmiss=N|skip|exit); per-row diagnostics up to a limit and end-of-run counters;
+  end-to-end tests, possibly with the references and SAM files in align/
