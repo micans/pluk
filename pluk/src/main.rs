@@ -1,3 +1,4 @@
+mod bam;
 mod dict;
 mod io;
 mod names;

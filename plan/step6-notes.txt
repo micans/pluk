@@ -136,3 +136,80 @@ Item 1: BAM detection
   Tests: bam-nosam (error), sam-bgzf and sam-clean-gz (identical output). Unit test formats in
   io.rs: text, a lone byte, empty input, bare gzip magic, gzip and BAM, each also through a
   reader that delivers one byte per read(), checking the format and that no input is lost.
+
+
+Item 2: src/bam.rs, BamReader
+
+  Dependencies: noodles-bam 0.98, noodles-bgzf 0.52, noodles-sam 0.93 (the version noodles-bam
+  uses; needed for the tag Value/Array types). noodles requires Rust 1.91 or later.
+
+  Wiring (io.rs). from_stdin(): Format::Bam with a SAM option gives
+  BamReader::new(bgzf::io::Reader::new(EofCheck(source))) as the Box<dyn BufRead> that
+  LineReader reads. parse_sq() is now pub, shared with bam.rs.
+
+  BamReader. Implements BufRead (and Read): fill_buf() refills a text buffer with the SAM lines
+  of the next records, up to about 128 KiB, when the previous text has been consumed. The
+  header text is the first content of the buffer. One noodles Record is reused.
+
+  Header (read_header, header_text). Read through noodles' header_reader(): magic bytes, the
+  raw header text (noodles strips NUL padding), the binary reference list. The text is kept
+  verbatim, a final newline added if missing. @SQ lines of the text are parsed with parse_sq:
+    - none: @SQ lines from the binary list are appended (as samtools).
+    - present: compared with the binary list as sets of (name, length); order is not compared
+      (records refer to the binary list; samtools and noodles do not require it either). The
+      first difference is an error: count, a name without @SQ line, a length. An @SQ line
+      without SN/LN cannot be compared and is an error too.
+
+  Records (format_record). Fields from the lazy noodles accessors:
+    QNAME '*' if absent; FLAG; RNAME from the binary list ('*' for none, error for an index
+    outside it); POS and PNEXT 0 if absent; MAPQ 255 if absent; CIGAR from the raw 32-bit
+    operations ('*' if none); RNEXT '=' when equal to RNAME (and present); TLEN; SEQ from the
+    4-bit codes =ACMGRSVTWYHKDBN ('*' if empty); QUAL Phred+33, '*' if empty or the first
+    byte is 0xFF (as htslib).
+    Tags in record order: all integer types as i, A, Z, H, f with %g, B arrays with their
+    subtype and %g for floats. push_array uses a generic push_values() with a formatting
+    function argument rather than a macro.
+  Long CIGAR: a CIGAR of more than 65535 operations is stored in a CG:B:I tag with a
+  placeholder CIGAR (kSmN). noodles' cigar() already returns the real operations; samtools
+  then leaves the CG tag out, and so does pluk (is_cigar_source compares the CG values with the
+  CIGAR noodles returned). Tested with a short CIGAR stored this way (bam-cg.bam).
+
+  %g (push_g). C's %g with precision 6, from Rust's {:.5e} (for the exponent after rounding)
+  and {:.N} (fixed); trailing zeros and a trailing '.' removed; exponent with sign and at least
+  two digits; nan, inf, -inf, -0 as glibc. Rust rounds exact ties to even as glibc does
+  (checked: 1234565 gives 1.23456e+06 in both). Unit test values taken from samtools.
+
+  Truncated input. noodles reports a stream that ends inside a block or a record as
+  UnexpectedEof ("failed to fill whole buffer"), reworded as "BAM input is truncated (...)".
+  A stream that ends at a block boundary, or within the 18-byte header of a block, noodles
+  takes for a complete file. EofCheck wraps the compressed stream, keeps its last 28 bytes and
+  records whether the stream ended with the BGZF end-of-file marker (the empty block that
+  ends every complete BGZF file); without it, pluk exits with "BAM input is truncated (no BGZF
+  end-of-file marker)". samtools only warns ("EOF marker is absent") because very old BAM
+  writers did not write the marker; pluk errs on the side of not producing silently
+  incomplete output. The flag is an Arc<AtomicBool> as the stream will be read from noodles'
+  decompression threads in item 3.
+
+  Checked against samtools view -h --no-PG, byte for byte (pluk --sam-h -A, the -O12 trailing
+  TAB of lines without tags removed): the 1,000,000-record file of the measurements, the tag
+  file below, and the hand-made files. Speed (single-threaded decompression): pluk --sam -c
+  on the 160 MB BAM 1.3 s (samtools view | pluk --sam -c: 1.42 s).
+
+  Test data:
+    bam-tags.txt / .bam  all tag types with extreme integer values, floats (%g cases), A, Z
+                         with spaces, H, B arrays of every subtype including an empty one;
+                         hard and soft clips, RNEXT '=' and another reference, negative TLEN,
+                         IUPAC bases and '=', lowercase bases (BAM stores uppercase), QUAL '*'
+                         with SEQ, unmapped read with SEQ and QUAL '*', a P operation, MAPQ
+                         255, @CO after @PG. Made with samtools view -b --no-PG.
+    mkbam.py             writes the BAM files samtools cannot make from SAM text:
+                         bam-nosq.bam (no @SQ lines), bam-sqdiff.bam (an @SQ length that
+                         differs from the binary list), bam-cg.bam (CIGAR in CG),
+                         bam-empty.bam (header only). It contains its own BGZF writer.
+  Tests (.ref files of the comparisons with samtools are samtools output):
+    bam-sam, bam-samh, bam-pat     identical to the same command on sam-clean.txt
+    bam-tags, bam-nosq, bam-cg, bam-empty   samtools view -h output
+    bam-sqdiff, bam-truncated      errors (truncated at a block boundary and within a block)
+    bam-seqlen (+ -msg), bam-nosq-seqlen, bam-samsort (runtestopt): seqlen from BAM headers,
+    including @SQ lines generated from the binary list; @HD read from a BAM header.
+  Unit tests: printf_g, header_sq, eof_marker (in bam.rs).

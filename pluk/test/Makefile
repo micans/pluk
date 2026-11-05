@@ -16,7 +16,7 @@ RETIRED_REFS = o.tc-midfile.ref
 
 rundiff: $(filter-out $(RETIRED_REFS), $(wildcard *.ref))
 
-runpluk: data.txt big.txt sam.txt sam-clean.txt sam.bam sam-clean.bgz
+runpluk: data.txt big.txt sam.txt sam-clean.txt sam.bam sam-clean.bgz bam-tags.bam bam-nosq.bam bam-cg.bam bam-empty.bam bam-sqdiff.bam
 	$(p) --test-lineno                  < data.txt         > o.lineno.test
 	$(p) --test-lineno                  < big.txt          > o.big-lineno.test
 	gzip -c big.txt | $(p) --test-lineno                   > o.big-lineno-gz.test
@@ -108,6 +108,15 @@ runpluk: data.txt big.txt sam.txt sam-clean.txt sam.bam sam-clean.bgz
 	$(p) -A                          < sam.bam    > /dev/null 2> o.bam-nosam.test; [ $$? -eq 1 ]
 	$(p) --sam -A                    < sam-clean.bgz  > o.sam-bgzf.test
 	gzip -c sam-clean.txt | $(p) --sam -A           > o.sam-clean-gz.test
+	$(p) --sam -A                    < sam.bam        > o.bam-sam.test
+	$(p) --sam-h -A                  < sam.bam        > o.bam-samh.test
+	$(p) --sam '-/\tchr2\t' 1 3 4    < sam.bam        > o.bam-pat.test
+	$(p) --sam-h -A < bam-tags.bam  | sed 's/\t$$//'  > o.bam-tags.test
+	$(p) --sam-h -A < bam-nosq.bam  | sed 's/\t$$//'  > o.bam-nosq.test
+	$(p) --sam-h -A < bam-cg.bam    | sed 's/\t$$//'  > o.bam-cg.test
+	$(p) --sam-h -A < bam-empty.bam | sed 's/\t$$//'  > o.bam-empty.test
+	$(p) --sam -A < bam-sqdiff.bam > /dev/null 2> o.bam-sqdiff.test; [ $$? -eq 1 ]
+	for n in 200 400; do head -c $$n bam-tags.bam | $(p) --sam -c; [ $$? -eq 1 ] || exit 1; done 2> o.bam-truncated.test
 	$(p) -Ahk                        < data.txt   > o.opt-bundle.test
 	$(p) -A-1                        < data.txt   > o.opt-A-neg.test
 	$(p) -- name fib                 < data.txt   > o.opt-dashdash.test
@@ -227,6 +236,9 @@ runtestopt: data.txt
 	{ grep -v '^@HD' sam.txt; printf '@HD\tVN:1.6\tSO:coordinate\n'; } | $(p) --sam --test-samsort  > o.samsort-late.test 2>&1
 	sed '1s/SO:unsorted/SO:coordinate/' sam.txt | $(p) -k --test-samsort                  > o.samsort-nosam.test
 	sed '1s/SO:unsorted/SO:coordinate/' sam.txt | $(p) --sam '-/^@HD' --test-samsort      > o.samsort-pat.test
+	$(p) --sam-h/sam.fa --test-dict  < sam.bam      > o.bam-seqlen.test 2> o.bam-seqlen-msg.test
+	$(p) --sam --test-dict            < bam-nosq.bam > o.bam-nosq-seqlen.test
+	$(p) --sam --test-samsort         < bam-tags.bam > o.bam-samsort.test
 
 %.ref : %.test
 	diff $< $@

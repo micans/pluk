@@ -10,6 +10,7 @@ use std::io::{self, BufRead, BufReader, Chain, Cursor, Read};
 use flate2::bufread::MultiGzDecoder;
 use regex::bytes::{Regex, RegexBuilder};
 
+use crate::bam::{BamReader, EofCheck};
 use crate::names::ColumnNames;
 use crate::row::Row;
 
@@ -140,15 +141,17 @@ impl LineReader {
 
     pub fn from_stdin(settings: InputSettings) -> io::Result<LineReader> {
         let (format, source) = peek_format(io::stdin())?;
-        if format == Format::Bam {
-            let msg = if settings.sam == SamMode::Off {
-                "input is BAM; use --sam or --sam-h"
-            } else {
-                "BAM input is not yet supported"
-            };
-            return Err(io::Error::new(io::ErrorKind::InvalidData, msg));
-        }
-        let reader = text_reader(format, source);
+        let reader: Box<dyn BufRead> = match format {
+            Format::Bam if settings.sam == SamMode::Off => {
+                return Err(io::Error::new(io::ErrorKind::InvalidData, "input is BAM; use --sam or --sam-h"));
+            }
+            // BAM is presented as SAM text (plan/step6.txt item 2).
+            Format::Bam => {
+                let (source, eof_seen) = EofCheck::new(source);
+                Box::new(BamReader::new(noodles_bgzf::io::Reader::new(source), eof_seen)?)
+            }
+            _ => text_reader(format, source),
+        };
 
         let mut input = LineReader {
             reader,
@@ -450,7 +453,7 @@ pub fn open_buffered<R: Read + 'static>(source: R) -> io::Result<Box<dyn BufRead
 
 // The SN: and LN: fields of an @SQ line, in any order. None if either is missing,
 // or LN is not a number.
-fn parse_sq(line: &[u8]) -> Option<(Vec<u8>, u64)> {
+pub fn parse_sq(line: &[u8]) -> Option<(Vec<u8>, u64)> {
     let mut name = None;
     let mut length = None;
     for field in line.split(|&b| b == b'\t').skip(1) {

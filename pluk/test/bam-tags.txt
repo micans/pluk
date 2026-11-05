@@ -1,0 +1,13 @@
+@HD	VN:1.6	SO:queryname
+@SQ	SN:chr1	LN:1000
+@SQ	SN:chr2	LN:500
+@RG	ID:g1	SM:s1
+@CO	a comment  with  spaces
+@PG	ID:hand	PN:handwritten
+@CO	a second comment, after @PG
+q1	99	chr1	7	30	2H8M2S	=	100	103	TTAGATAAGG	ABCDEFGHIJ	XA:A:z	Xc:i:-128	XC:i:255	Xs:i:-32768	XS:i:65535	Xi:i:-2147483648	XI:i:4294967295
+q1	147	chr1	100	30	5M1I4M	=	7	-103	ACGTNRYKMS	*	XZ:Z:hello world	XH:H:1AE3	RG:Z:g1
+q2	65	chr1	9	0	3M2D3M10N4M	chr2	40	0	WBDHV=acgt	!!!!!~~~~~	XF:f:3.14159265	XG:f:1e-05	XH:f:1e20	XJ:f:1234565	XK:f:-0.5
+q3	4	*	0	0	*	*	0	0	*	*	XB:B:c,-1,2,127	XD:B:C,0,255	XE:B:s,-300,300	XG:B:S,65535	XI:B:i,-5	XJ:B:I,4294967295	XK:B:f,1.5,0.1,1e-10,-2
+q4	256	chr2	1	255	1P2M1X1=	*	0	0	*	*	NM:i:1	XE:B:c
+q5	0	chr2	3	60	4M	*	0	0	ACGT	IIII

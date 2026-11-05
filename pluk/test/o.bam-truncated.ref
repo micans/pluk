@@ -1,0 +1,2 @@
+pluk: BAM input is truncated (no BGZF end-of-file marker)
+pluk: BAM input is truncated (failed to fill whole buffer)
