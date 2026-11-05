@@ -1,6 +1,9 @@
 
 DATASTRUCTURE-cell design -- DRAFT, under discussion. Seeded from DATASTRUCTURE-cell.notes.txt.
 
+Numeric operands, integer width and NA for operands are settled in NUMERIC.design.txt
+(sections 3, 5 and 6 below are superseded there where they concern operands).
+
 Items marked [proposed] await confirmation; [open] still need discussion.
 Only the parts needed for step1 (input fields) have to be decided now. The parts concerning computation
 (numeric members, NA, the stack) can stay provisional until the bytecode interpreter discussion.

@@ -1,0 +1,141 @@
+
+NUMERIC design: numeric operands, typed operators, dispatch, overflow, integer width.
+
+Status: DECIDED (discussion after step6), ahead of the step with @ and @@ numeric filters.
+Settles DATASTRUCTURE-cell.design.txt sections 3 (enum alternative), 5 (integer width) and 6
+(NA) for operands; seeded by CONVERSION-notes.txt.
+
+Goal: operator implementations (delegates) never inspect the notes member of a Scalar. All
+type questions are settled by the compiler and the interpreter.
+
+
+1. Operands: an enum produced by the interpreter
+
+      enum Num { I(Int), F(f64) }          // Int: see 6
+
+   A numeric operand is a Num, not a Scalar. The interpreter produces it when an operator needs
+   a number, by parsing the field once:
+     - integer syntax                         -> I
+     - anything else that parses as a number  -> F   (3.14, 1e3, inf, nan)
+     - not a number ('fox', empty)            -> NA  (not 0, as Perl would give)
+   NA is not a Num value: it is handled by the dispatcher (3) before an operator is called.
+
+   The Scalar (string, cached parse result, notes) remains as the interpreter's storage; see
+   DATASTRUCTURE-cell.design.txt. Only the interpreter reads and writes notes.
+
+
+2. One parse per row and column
+
+   The interpreter caches the parse result per row and column. Uses of the same column:
+     - as a string (cat): the original field bytes; never the number re-formatted. '007' stays
+       '007', '1e3' stays '1e3'. A column used only as a string is never parsed.
+     - as f (sqrt): I is cast to f64, F used directly.
+     - as i (imul): I used directly; F is subject to the f -> i policy (5).
+   So one parse per row and column; every further use is free, a cast, or a policy decision.
+
+
+3. Typed operators and the dispatcher
+
+   An operator provides typed functions per operand combination, e.g. for binary arithmetic
+
+      fn add_ii(a: Int, b: Int) -> Option<Num>   // None: NA (overflow policy, 4)
+      fn add_ff(a: f64, b: f64) -> f64
+
+   The interpreter's dispatcher selects the function:
+
+      match (a, b) {
+          (I(x), I(y)) => op.ii(x, y),
+          (F(x), F(y)) => op.ff(x, y),
+          (I(x), F(y)) => op.ff(x as f64, y),     // mixed: promote i to f
+          (F(x), I(y)) => op.ff(x, y as f64),
+      }
+
+   - Mixed operands: promote i to f (C's usual arithmetic conversions, Perl), done once, in the
+     dispatcher.
+   - NA: the dispatcher short-circuits; the result is NA and the operator is not called.
+   - Operators with one form only (sqrt: ff only; imul: ii only) receive the conversion they need
+     from the dispatcher: i -> f is a cast, f -> i follows the policy in 5.
+   - Comparisons (the // filter operators: gt, lt, ...) exist as cmp_ii and cmp_ff.
+
+   Not both members always: i -> f is a cheap cast done when needed, and f -> i is never
+   implicit. There is no need to supply f and i up front.
+
+
+4. Integer overflow and related cases
+
+   Policy by operator, not one global rule (CONVERSION-notes.txt):
+     - generic add, mul, ...: overflow promotes to F, as in Perl and pick. The user did not ask
+       for integers.
+     - explicit iadd, imul, ...: overflow gives NA with a counter by default; a fatal mode on
+       request. The user asked for integers, so a silent float would contradict that.
+   The same policy applies to integer division by zero and to Int::MIN / -1.
+   The policy lives in the ii functions and the dispatcher (checked_add etc.: one branch on the
+   overflow flag).
+
+   Considered and rejected:
+     - wrapping: silently wrong.
+     - saturating (Int::MAX): suits signal processing, where clipping is the meaning; in data
+       analysis it gives plausible-looking wrong values, and further arithmetic on them is
+       meaningless (MAX - MAX = 0).
+     - an integer inf: as sentinels (Int::MAX/MIN) every integer operator must test its
+       operands, which reintroduces inspection, and a real Int::MAX becomes ambiguous; as a
+       third Num variant the dispatcher grows from 4 to 9 cases and every operator needs
+       infinity rules. f64 already has IEEE infinity; promotion to F covers the need.
+
+
+5. f -> i and NA policy
+
+   - f -> i is never implicit: only through an explicit operator (int, round, ...) or an
+     assertion/force (:=^force^col,INT; CONVERSION-notes.txt). An ii-only operator given an F
+     operand: warning plus conversion by default, or fatal, per user instruction (to be
+     settled with those operators).
+   - A non-numeric value ('fox') gives NA. In a filter, NA makes the comparison fail: the row is
+     not selected, and a counter reports how many rows had a non-numeric value.
+
+
+6. Integer width: compile-time choice
+
+   type Int = i64 by default; i128 with the Cargo feature int128:
+
+      #[cfg(not(feature = "int128"))] pub type Int = i64;
+      #[cfg(feature = "int128")]      pub type Int = i128;
+
+   Cost of i128: memory is negligible (operands live only on the stack and in the per-row
+   cache); add and compare cost about the same, multiply slightly more, division and modulo
+   become a library call (several times slower than i64), parsing and printing slightly
+   slower. To be measured once computes exist.
+
+   Rules so that the choice stays a compile-time switch:
+     - computed values use Int, never i64 directly: Int::MAX, Int::checked_add,
+       str::parse::<Int>().
+     - input formats keep their own fixed types (SAM FLAG, POS, BAM fields); only the compute
+       model uses Int.
+     - tests at overflow boundaries use Int::MAX or are marked per feature, so the suite passes
+       in both configurations.
+     - a make target (test-int128) builds with --features int128 and runs the suite.
+
+   Behavioural difference between the builds: results differ exactly where i64 overflows (with
+   i128 only beyond about 1.7e38). Promotion of an i128 to f64 loses more precision (f64 holds
+   53 bits exactly).
+
+
+7. Compile-time knowledge is an optimisation
+
+   When the compiler knows operand types (constants, results of typed operators, asserted
+   columns), it emits the typed function directly (add_ff) and skips the per-row match. When it
+   does not (an ordinary input column), the match costs one branch per row. Inference therefore
+   never has to be right; it can only make things faster.
+
+   No inference of a column type from a filter constant: @foo/gt/0 does not make foo an integer
+   column (a value 3.14 would break, and nothing is gained: I(0) compares correctly with F values
+   by promotion). @foo/gt/0.0 inferring float is harmless but equally unnecessary.
+
+   For the filter step: @foo/gt/0 compiles the constant to I(0); foo is parsed per row; the
+   comparison goes through the dispatcher.
+
+
+8. Caveats
+
+   - Int -> f64 is exact only up to 2^53. A mixed comparison or promotion of a very large integer
+     can lose precision; Perl has the same limit. Accepted and documented. (An exact mixed
+     comparison is possible but not planned.)
