@@ -100,3 +100,39 @@ Item 3: -E<N> -e -q
   --demux, --other, invalid forms), squash (compared with pick), squash-edge (white
   space without -e, a column with a space under -e), quiet (each message source
   without -q, with -q and with -qq; an error still shown). Help refs.
+
+
+Item 4: --A=NAME, --idx-list --name-list --idx-map, --progress
+
+  --A=NAME sets -A and Config.insert_after (%-decoded); main resolves it once the
+  header is read to the position of the first input column with that name, giving
+  insert offset position + 1 for select::OutputSelection::all (as -A<N>). A computed
+  name is not an input column and is an error, as an unknown name. Options act left
+  to right: --A=NAME clears an earlier -A<N> and -A<N> an earlier --A=NAME (plain -A
+  leaves either). Refused with -x, as -A<N>. With -k NAME is a column number. Output
+  identical to pick for NAME first, middle and last, with a filter.
+
+  --idx-list --name-list --idx-map: Config.list (opt::ListKind). main writes the list
+  after the output selection (and filters and computes) has been resolved and returns
+  before the data are read; the --sam-h preamble is not written. Indexes are the
+  1-based output offsets; a computed column has offset n_input + k, which is pick's
+  numbering (N+1, ..), and a note on stderr (pick's "List contains items from newly
+  computed columns"), silenced by -q. Empty input: nothing is written, exit 0. Two of
+  the options, or one with -c --demux --other --assert-other, are an error. Identical
+  to pick for names, computes, -A, -x, reordered names and a -k range.
+
+  --progress: Config.progress = (K, N), (1000000, 0) without =K/N; K > 0. A small
+  Progress struct in main.rs ticks per input data row, before the row is judged, in the
+  normal and the -c loop (pass-through lines do not count); a dot every K rows (eprint!,
+  stderr is unbuffered), after every N dots " %9d\n" with the row count; a newline at
+  the end (pick's layout). K*N uses saturating_mul. Not silenced by -q (asked for
+  explicitly). Identical to pick without filters and without -c; differences: with a
+  filter pick counts at the output (a rejected row on a multiple of K gives no dot),
+  and with -c pick writes no progress (its -c loop skips the progress code).
+
+  Tests: a-name (first, middle and last column, with a filter, with -k, -A<N> and
+  --A=NAME overriding each other, a %-encoded name), list-cols (the three lists,
+  computed columns with and without -q, -A, -x, reordering, -k range, -kA, --sam-h,
+  empty input), progress (counts, N = 0, with a filter, with -c, K = rows, the default
+  form), opts-edge (unknown and computed --A names, --A= empty, -x, the list
+  combinations, malformed --progress). Help refs.

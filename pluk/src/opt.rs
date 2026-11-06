@@ -23,7 +23,10 @@ pub struct Config {
     pub k: bool,                        // -k (also set by -K, --sam, --sam-h)
     pub big_k: bool,                    // -K: as -k, and output a header line of the output names
     pub all: bool,                      // -A
-    pub insert_offset: Option<i64>,     // -A<N>; not yet acted upon
+    pub insert_offset: Option<i64>,     // -A<N>
+    pub insert_after: Option<Vec<u8>>,  // --A=NAME (%-decoded): as -A<N>, N the position of NAME
+    pub list: Option<ListKind>,         // --idx-list, --name-list, --idx-map
+    pub progress: Option<(u64, u64)>,   // --progress[=K/N]: a dot every K rows, a count every N dots
     pub excise: bool,                   // -x
     pub c: bool,                        // -c
     pub omega: Option<u32>,             // -O<N>
@@ -58,6 +61,14 @@ pub struct Config {
     pub assert_other: Option<Vec<u8>>,  // --assert-other=FILE: rows failing an assertion
     pub demux: Option<Vec<u8>>,         // --demux=NAME (%-decoded column name)
     pub demux_dir: Option<Vec<u8>>,     // --demux-dir=PATH
+}
+
+// What --idx-list, --name-list and --idx-map write (plan/step16.txt decision 9).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ListKind {
+    Indexes,
+    Names,
+    Map,
 }
 
 // Result of a successful parse: run, or print help or version and exit.
@@ -126,6 +137,8 @@ Options:
   -A          output all columns
   -A<N>       as -A, with the new computed columns inserted after the first N
               input columns (N < 0: counted from the right)
+  --A=NAME    as -A, with the new computed columns inserted after input column
+              NAME
   -x          output all columns except the named ones
   -/<pat>     skip lines matching regular expression <pat>, e.g. -/^#
   -//<pat>    output lines matching <pat> unchanged
@@ -152,6 +165,11 @@ Options:
               FILE into the dictionary SAMFA (default __EXIT__)
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
+  --idx-list  write the input indexes of the output columns (computed columns
+              are numbered after the input columns) and stop after the header
+  --name-list write the output column names; --idx-map: index and name per line
+  --progress  a dot on stderr every 1000000 input rows; --progress=K/N: every
+              K rows, and the row count after every N dots
 
 Computes (given among the columns; a stack language, as pick):
   NAME::SPEC      compute column NAME and output it; NAME:=SPEC computes it
@@ -364,6 +382,33 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
         b"test-samsort"         => config.test_samsort = true,
         b"test-compute"         => config.test_compute = true,
         b"num-perl"             => config.num_perl = true,
+        b"idx-list" | b"name-list" | b"idx-map" => {
+            if config.list.is_some() {
+                return Err("--idx-list, --name-list and --idx-map cannot be combined".to_string());
+            }
+            config.list = Some(match long {
+                b"idx-list" => ListKind::Indexes,
+                b"name-list" => ListKind::Names,
+                _ => ListKind::Map,
+            });
+        }
+        b"progress" => config.progress = Some((1_000_000, 0)),
+        _ if long.starts_with(b"progress=") => {
+            let bad = || "--progress=K/N: K a positive number of rows, N a number of dots (0: no counts)".to_string();
+            let (k, n) = long[9..].split_at(long[9..].iter().position(|&b| b == b'/').ok_or_else(bad)?);
+            match (parse_number::<u64>(k), parse_number::<u64>(&n[1..])) {
+                (Some(k), Some(n)) if k > 0 => config.progress = Some((k, n)),
+                _ => return Err(bad()),
+            }
+        }
+        _ if long.starts_with(b"A=") => {
+            if long.len() == 2 {
+                return Err("--A=NAME: column name missing".to_string());
+            }
+            config.all = true;
+            config.insert_offset = None;
+            config.insert_after = Some(pct_decode(&long[2..]));
+        }
         _ if long.starts_with(b"other=") || long.starts_with(b"assert-other=") => {
             let (name, slot) = match long.strip_prefix(b"other=") {
                 Some(name) => (name, &mut config.other),
@@ -574,6 +619,7 @@ fn parse_bundle(chars: &[u8], config: &mut Config) -> Result<(), String> {
                     let n = parse_number::<i64>(&chars[j..j + len])
                         .ok_or("-A<N> N out of range")?;
                     config.insert_offset = Some(n);
+                    config.insert_after = None;
                     j += len;
                 }
             }
@@ -661,6 +707,14 @@ fn check_combinations(config: &Config) -> Result<(), String> {
     // -x takes precedence over -A, so an insert position would have no effect.
     if config.insert_offset.is_some() && config.excise {
         return Err("-A<N> cannot be combined with -x".to_string());
+    }
+    if config.insert_after.is_some() && config.excise {
+        return Err("--A=NAME cannot be combined with -x".to_string());
+    }
+    if config.list.is_some() && (config.c || config.demux.is_some() || config.other.is_some()
+                                 || config.assert_other.is_some()) {
+        return Err("--idx-list, --name-list and --idx-map cannot be combined with -c, --demux, \
+                    --other or --assert-other".to_string());
     }
     if config.demux.is_some() && config.c {
         return Err("--demux cannot be combined with -c".to_string());

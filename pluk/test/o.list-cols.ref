@@ -1,0 +1,28 @@
+pluk: the list contains computed columns (numbered after the 13 input columns)
+1	4	14
+pluk: the list contains computed columns (numbered after the 13 input columns)
+name	sq	x
+pluk: the list contains computed columns (numbered after the 13 input columns)
+1	name
+4	sq
+14	x
+1	14
+1	2	3	4	5	6	7	8	9	10	11	12	13
+3	fib2
+4	sq
+5	fx
+6	ud
+7	ms
+8	num1
+9	num2
+10	num4
+11	foo11
+12	abc
+13	dna
+4	1
+3	3
+4	4
+5	5
+1	2	3	4	5	6	7	8	9	10	11	12	13
+1	3
+exit 0

@@ -23,6 +23,8 @@ Options:
   -A          output all columns
   -A<N>       as -A, with the new computed columns inserted after the first N
               input columns (N < 0: counted from the right)
+  --A=NAME    as -A, with the new computed columns inserted after input column
+              NAME
   -x          output all columns except the named ones
   -/<pat>     skip lines matching regular expression <pat>, e.g. -/^#
   -//<pat>    output lines matching <pat> unchanged
@@ -49,6 +51,11 @@ Options:
               FILE into the dictionary SAMFA (default __EXIT__)
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
+  --idx-list  write the input indexes of the output columns (computed columns
+              are numbered after the input columns) and stop after the header
+  --name-list write the output column names; --idx-map: index and name per line
+  --progress  a dot on stderr every 1000000 input rows; --progress=K/N: every
+              K rows, and the row count after every N dots
 
 Computes (given among the columns; a stack language, as pick):
   NAME::SPEC      compute column NAME and output it; NAME:=SPEC computes it

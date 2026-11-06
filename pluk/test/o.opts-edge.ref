@@ -1,0 +1,28 @@
+pluk: --A=nosuch: no input column [nosuch] among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+exit 1
+--A=NAME: column name missing
+exit 1
+--A=NAME cannot be combined with -x
+exit 1
+pluk: --A=x: no input column [x] among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+exit 1
+--idx-list, --name-list and --idx-map cannot be combined with -c, --demux, --other or --assert-other
+exit 1
+--idx-list, --name-list and --idx-map cannot be combined with -c, --demux, --other or --assert-other
+exit 1
+--idx-list, --name-list and --idx-map cannot be combined with -c, --demux, --other or --assert-other
+exit 1
+--idx-list, --name-list and --idx-map cannot be combined with -c, --demux, --other or --assert-other
+exit 1
+--idx-list, --name-list and --idx-map cannot be combined
+exit 1
+--progress=K/N: K a positive number of rows, N a number of dots (0: no counts)
+exit 1
+--progress=K/N: K a positive number of rows, N a number of dots (0: no counts)
+exit 1
+--progress=K/N: K a positive number of rows, N a number of dots (0: no counts)
+exit 1
+--progress=K/N: K a positive number of rows, N a number of dots (0: no counts)
+exit 1
+--progress=K/N: K a positive number of rows, N a number of dots (0: no counts)
+exit 1

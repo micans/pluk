@@ -152,6 +152,16 @@ fn run() -> std::io::Result<()> {
 
     // As in pick, the names are checked once the first line has been read;
     // with empty input there is nothing to check against.
+    // --A=NAME: as -A<N> with N the position of input column NAME.
+    let insert_offset = match &config.insert_after {
+        Some(name) if !input.is_empty => {
+            let at = (0..names.n_input()).find(|&i| names.name(i) == &name[..]).ok_or_else(||
+                std::io::Error::new(ErrorKind::InvalidInput, format!("--A={}: no input column [{}] among {}",
+                    String::from_utf8_lossy(name), String::from_utf8_lossy(name), input.names.joined())))?;
+            Some(at as i64 + 1)
+        }
+        _ => config.insert_offset,
+    };
     let selection = if input.is_empty {
         select::OutputSelection { output_colnames: Vec::new(), output_offset: Vec::new() }
     } else {
@@ -159,7 +169,7 @@ fn run() -> std::io::Result<()> {
         let result = if config.excise {
             select::OutputSelection::complement(column_args, &computed, &names)
         } else if config.all {
-            select::OutputSelection::all(column_args, &computed, config.insert_offset, &names)
+            select::OutputSelection::all(column_args, &computed, insert_offset, &names)
         } else {
             select::OutputSelection::from_names(column_args, &computed, &names)
         };
@@ -183,6 +193,15 @@ fn run() -> std::io::Result<()> {
     let mut machine = exec::Machine::new(config.num_perl, config.seed.unwrap_or_else(exec::clock_seed), &dicts);
     machine.set_registers(&computes);
     let mut stages = Stages { filters, computes, machine, rowno: 0 };
+
+    // --idx-list, --name-list, --idx-map: the output columns, without reading the data.
+    if let Some(kind) = config.list {
+        if !input.is_empty {
+            write_list(&mut out, kind, &selection, names.n_input())?;
+        }
+        out.flush()?;
+        return Ok(());
+    }
 
     if config.test_select {
         for (name, i) in selection.output_colnames.iter().zip(&selection.output_offset) {
@@ -246,9 +265,13 @@ fn run() -> std::io::Result<()> {
 
     // Output rows: those that pass the filters, to stdout or --demux (for -E<N>).
     let mut n_output: u64 = 0;
+    let mut progress = config.progress.map(|(every, per_line)| Progress { every, per_line, rows: 0 });
     if config.c {
         // -c: output only the number of data rows that pass the filters.
         while let Some(kind) = input.next_line()? {
+            if let (io::LineKind::Data, Some(p)) = (&kind, &mut progress) {
+                p.tick();
+            }
             match kind {
                 io::LineKind::Data        => if route(&mut stages, &mut input.row, input.n_lines,
                                                           &mut other, &mut assert_other, &mut None)? {
@@ -275,6 +298,9 @@ fn run() -> std::io::Result<()> {
             writer.write_header(&mut out, &names)?;
         }
         while let Some(kind) = input.next_line()? {
+            if let (io::LineKind::Data, Some(p)) = (&kind, &mut progress) {
+                p.tick();
+            }
             match kind {
                 io::LineKind::Data => if route(&mut stages, &mut input.row, input.n_lines,
                                                &mut other, &mut assert_other, &mut demux)? {
@@ -289,6 +315,9 @@ fn run() -> std::io::Result<()> {
         }
     }
     out.flush()?;
+    if progress.is_some() {
+        eprintln!();
+    }
     if let Some(d) = demux {
         d.finish()?;
     }
@@ -321,6 +350,56 @@ fn run() -> std::io::Result<()> {
         }
     }
     Ok(())
+}
+
+// --idx-list, --name-list, --idx-map (plan/step16.txt decision 9): indexes are
+// 1-based; a computed column is numbered after the input columns (as pick), with
+// a note.
+fn write_list(out: &mut impl Write, kind: opt::ListKind, selection: &select::OutputSelection, n_input: usize)
+    -> std::io::Result<()>
+{
+    let pairs: Vec<(usize, &Vec<u8>)> = selection.output_offset.iter().map(|&i| i + 1)
+        .zip(&selection.output_colnames).collect();
+    match kind {
+        opt::ListKind::Indexes => {
+            let line: Vec<String> = pairs.iter().map(|(i, _)| i.to_string()).collect();
+            writeln!(out, "{}", line.join("\t"))?;
+        }
+        opt::ListKind::Names => {
+            let line: Vec<&[u8]> = pairs.iter().map(|(_, n)| &n[..]).collect();
+            out.write_all(&line.join(&b'\t'))?;
+            writeln!(out)?;
+        }
+        opt::ListKind::Map => for (i, name) in &pairs {
+            write!(out, "{}\t", i)?;
+            out.write_all(name)?;
+            writeln!(out)?;
+        },
+    }
+    if pairs.iter().any(|&(i, _)| i > n_input) {
+        note::note!("pluk: the list contains computed columns (numbered after the {} input columns)", n_input);
+    }
+    Ok(())
+}
+
+// --progress (plan/step16.txt decision 10): a dot on stderr every 'every' input data
+// rows, rejected or not, and after every 'per_line' dots the count and a newline.
+struct Progress {
+    every:    u64,
+    per_line: u64,
+    rows:     u64,
+}
+
+impl Progress {
+    fn tick(&mut self) {
+        self.rows += 1;
+        if self.rows % self.every == 0 {
+            eprint!(".");
+            if self.per_line > 0 && self.rows % self.every.saturating_mul(self.per_line) == 0 {
+                eprintln!(" {:9}", self.rows);
+            }
+        }
+    }
 }
 
 // What happens to a data row before output: the @@ stage, the computes, the @

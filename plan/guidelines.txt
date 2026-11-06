@@ -151,6 +151,11 @@
     - -q has one level (-qq is -q) and silences every message that is not an error; -v
       and -d are not taken over. -E<N> counts the rows that pass the filters (stdout or
       --demux, the -c count), not those diverted to --other or --assert-other.
+    - --progress counts input data rows, rejected or not, and also with -c (pick counts
+      at the output, so rejected rows give no dot, and -c gives no progress).
+      --idx-list --name-list --idx-map cannot be combined with each other, -c, --demux,
+      --other or --assert-other; --A=NAME must name an input column (pick: any output
+      column).
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).
