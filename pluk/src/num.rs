@@ -62,6 +62,52 @@ pub fn compare(a: Num, b: Num) -> Option<Ordering> {
     }
 }
 
+impl Num {
+    fn to_f64(self) -> f64 {
+        match self {
+            Num::I(i) => i as f64,
+            Num::F(f) => f,
+        }
+    }
+}
+
+// /ep/: whether x lies within eps of y. Integers x and y are compared exactly
+// (|x - y| as an unsigned value); if x - y overflows, or for float operands, the
+// test is done in f64 with pick's formula. NaN anywhere gives false.
+pub fn within_eps(x: Num, y: Num, eps: Num) -> bool {
+    if let (Num::I(a), Num::I(b)) = (x, y) {
+        if let Some(d) = a.checked_sub(b) {
+            let d = d.unsigned_abs();
+            return match eps {
+                Num::I(e) => e >= 0 && d <= e.unsigned_abs(),
+                Num::F(e) => (d as f64) <= e,
+            };
+        }
+    }
+    eps_ff(x.to_f64(), y.to_f64(), eps.to_f64())
+}
+
+fn eps_ff(x: f64, y: f64, eps: f64) -> bool {
+    x <= y + eps && x >= y - eps
+}
+
+// /om/: whether |x| lies within a factor k of |y|. All integers: |x| <= |y|*k and
+// |x|*k >= |y| on unsigned values (no division); a product that overflows exceeds
+// every Int, which decides its half of the test. Otherwise f64 with pick's formula.
+pub fn within_oom(x: Num, y: Num, k: Num) -> bool {
+    match (x, y, k) {
+        (Num::I(a), Num::I(b), Num::I(k)) => {
+            let (a, b, k) = (a.unsigned_abs(), b.unsigned_abs(), k.unsigned_abs());
+            b.checked_mul(k).map_or(true, |bk| a <= bk) && a.checked_mul(k).map_or(true, |ak| ak >= b)
+        }
+        _ => oom_ff(x.to_f64(), y.to_f64(), k.to_f64()),
+    }
+}
+
+fn oom_ff(x: f64, y: f64, k: f64) -> bool {
+    x.abs() <= y.abs() * k && x.abs() >= y.abs() / k
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -94,5 +140,38 @@ mod tests {
         assert_eq!(compare(F(2.5), I(2)), Some(Ordering::Greater));
         assert_eq!(compare(F(f64::NAN), I(2)), None);
         assert_eq!(compare(I(Int::MAX), I(Int::MAX - 1)), Some(Ordering::Greater));
+    }
+
+    #[test]
+    fn eps() {
+        assert!(within_eps(I(5), I(3), I(2)));
+        assert!(!within_eps(I(5), I(3), I(1)));
+        assert!(within_eps(I(-3), I(-5), F(2.0)));
+        assert!(within_eps(F(1.00005), I(1), F(0.0001)));
+        assert!(!within_eps(F(1.0002), I(1), F(0.0001)));
+        // Exact beyond 2^53: as f64 these two are equal.
+        assert!(!within_eps(I(9007199254740993), I(9007199254740992), I(0)));
+        assert!(within_eps(I(9007199254740993), I(9007199254740992), I(1)));
+        // x - y overflows: decided in f64.
+        assert!(!within_eps(I(Int::MAX), I(Int::MIN), I(1)));
+        assert!(within_eps(I(Int::MAX), I(Int::MIN), F(f64::INFINITY)));
+        assert!(!within_eps(F(f64::NAN), I(1), I(1)));
+    }
+
+    #[test]
+    fn oom() {
+        assert!(within_oom(I(4), I(2), I(2)));
+        assert!(within_oom(I(1), I(2), I(2)));
+        assert!(!within_oom(I(5), I(2), I(2)));
+        assert!(!within_oom(I(0), I(1), I(2)));
+        assert!(within_oom(I(0), I(0), I(2)));
+        assert!(within_oom(I(-4), I(3), I(2)));
+        assert!(within_oom(F(2.9), I(2), F(1.5)));
+        assert!(!within_oom(F(3.1), I(2), F(1.5)));
+        // Products that overflow, and Int::MIN.
+        assert!(within_oom(I(Int::MAX), I(Int::MAX / 2 + 1), I(2)));
+        assert!(within_oom(I(Int::MIN), I(Int::MAX), I(2)));
+        assert!(!within_oom(I(Int::MAX), I(1), I(2)));
+        assert!(!within_oom(F(f64::NAN), I(1), I(2)));
     }
 }

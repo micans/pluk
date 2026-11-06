@@ -112,6 +112,9 @@ Filters (given among the columns; VALUE is %-decoded, e.g. %2F for '/'):
   @NAME~isin~DICT the value is a key of dictionary DICT; ~isnotin~ is not
   @NAME~hasval~DICT~V  the value is a key of DICT with value V; ~hasnotval~
                   negates. Dictionary defaults play no part.
+  @NAME/ep/VALUE/E  value within E of VALUE (default 0.0001, E >= 0)
+  @NAME/om/VALUE/K  |value| within a factor K of |VALUE| (default 2, K >= 1)
+                  /E and /K are optional; /epx/ and /omx/ negate.
   @NAME/op/:NAME2 compare with column NAME2; ^VALUE is VALUE taken literally
   @@NAME...       as @, applied before computes (computes are not yet supported)
 

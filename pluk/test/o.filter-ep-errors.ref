@@ -1,0 +1,10 @@
+[@x/ep/1/]: band [] is not a number
+[@x/ep/1/-1]: the band of /ep/ must be at least 0
+[@x/ep/1/nan]: the band of /ep/ must be at least 0
+[@x/ep/1/abc]: band [abc] is not a number
+[@x/ep/1~2]: the extra argument of /ep/ is separated by '/', not '~'
+[@x/ep/1/:y]: a column (':') as extra argument not yet supported
+[@x/om/1/0.5]: the band of /om/ must be at least 1
+[@x/om/1/0]: the band of /om/ must be at least 1
+[@x/omx/1/2/3]: extra argument [2/3] contains '/' or '~' (write them as %2F or %7E)
+[@x/ep/abc]: [abc] is not a number

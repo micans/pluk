@@ -64,6 +64,8 @@ pub enum Op {
     Match(bool),    // ~ (false) and /~ (true: negated)
     IsIn(bool),     // ~isin~, ~isnotin~ (negated)
     HasVal(bool),   // ~hasval~, ~hasnotval~ (negated)
+    Ep(bool),       // /ep/, /epx/ (negated): within an additive band
+    Om(bool),       // /om/, /omx/ (negated): within a multiplicative band
 }
 
 impl Op {
@@ -71,17 +73,28 @@ impl Op {
     fn is_dict(self) -> bool {
         matches!(self, Op::IsIn(_) | Op::HasVal(_))
     }
+
+    // Whether the operands are numbers.
+    fn is_num(self) -> bool {
+        matches!(self, Op::Num(_) | Op::Ep(_) | Op::Om(_))
+    }
 }
+
+// The bands of /ep/ and /om/ when none is given, as pick ($::EPSILON, $::OOM).
+const DEFAULT_EPSILON: Num = Num::F(0.0001);
+const DEFAULT_OOM: Num = Num::I(2);
 
 // Whether an operator takes an extra argument after VALUE, and its separator.
 enum Extra {
     No,
     Required(u8),
+    Optional(u8),
 }
 
 fn extra_rule(op: Op) -> Extra {
     match op {
         Op::HasVal(_) => Extra::Required(b'~'),
+        Op::Ep(_) | Op::Om(_) => Extra::Optional(b'/'),
         _ => Extra::No,
     }
 }
@@ -94,7 +107,8 @@ const OPERATORS: [(&[u8], Option<Op>); 28] = [
     (b"~lt~", Some(Op::Str(Cmp::Lt))), (b"~le~", Some(Op::Str(Cmp::Le))),
     (b"~eq~", Some(Op::Str(Cmp::Eq))), (b"~ge~", Some(Op::Str(Cmp::Ge))),
     (b"~gt~", Some(Op::Str(Cmp::Gt))), (b"~ne~", Some(Op::Str(Cmp::Ne))),
-    (b"/ep/", None), (b"/epx/", None), (b"/om/", None), (b"/omx/", None),
+    (b"/ep/", Some(Op::Ep(false))), (b"/epx/", Some(Op::Ep(true))),
+    (b"/om/", Some(Op::Om(false))), (b"/omx/", Some(Op::Om(true))),
     (b"~isin~", Some(Op::IsIn(false))), (b"~isnotin~", Some(Op::IsIn(true))),
     (b"~hasval~", Some(Op::HasVal(false))), (b"~hasnotval~", Some(Op::HasVal(true))),
     (b"/all/", None), (b"/any/", None), (b"/none/", None), (b"/notall/", None),
@@ -118,8 +132,9 @@ pub struct FilterSpec {
     pub column: Vec<u8>,            // %-decoded
     pub op:     Op,
     pub value:  Value,              // %-decoded; a dictionary name for ~isin~ etc.
-    pub extra:  Option<Vec<u8>>,    // the extra argument (~hasval~D~v: v), %-decoded
+    pub extra:  Option<Vec<u8>>,    // the extra argument (~hasval~D~v: v; /ep/y/eps: eps), %-decoded
     const_num:  Option<Num>,        // a numeric operator's constant
+    band:       Option<Num>,        // /ep/ /om/: the band (eps, k), default if not given
     regex:      Option<Regex>,      // a regex operator's constant, compiled
     literal:    bool,               // VALUE was given as ^VALUE
 }
@@ -128,7 +143,8 @@ pub struct FilterSpec {
 //   @NAME/op/VALUE, @NAME~op~VALUE   op: 2 to 19 lowercase letters; the first
 //                                    such token ends NAME
 //   @NAME=VALUE, /=, ~, /~           the first '=' or '~' ends NAME
-//   @NAME~hasval~DICT~v              an extra argument after VALUE
+//   @NAME~hasval~DICT~v              an extra argument after VALUE (required)
+//   @NAME/ep/VALUE/eps, /om/VALUE/k   an extra argument after VALUE (optional)
 // VALUE ':NAME' refers to a column, '^...' is a literal; both tested before
 // %-decoding, so %3A is a literal ':' (pick decodes first).
 pub fn parse_filter(arg: &[u8]) -> Result<FilterSpec, String> {
@@ -173,7 +189,8 @@ pub fn parse_filter(arg: &[u8]) -> Result<FilterSpec, String> {
             return Err(format!("[{}]: {} requires an extra argument: @NAME{}VALUE{}ARG",
                                shown, op_shown, op_shown, sep as char));
         }
-        (Extra::Required(sep), Some(e)) => {
+        (Extra::Optional(_), None) => None,
+        (Extra::Required(sep) | Extra::Optional(sep), Some(e)) => {
             let arg = &e[1..];
             if e[0] != sep {
                 return Err(format!("[{}]: the extra argument of {} is separated by '{}', not '{}'",
@@ -216,10 +233,28 @@ pub fn parse_filter(arg: &[u8]) -> Result<FilterSpec, String> {
         Value::Const(pct_decode(rest))
     };
     let const_num = match (&op, &value) {
-        (Op::Num(_), Value::Const(c)) => match num::parse_num(c) {
+        (op, Value::Const(c)) if op.is_num() => match num::parse_num(c) {
             Some(n) => Some(n),
             None => return Err(format!("[{}]: [{}] is not a number", shown, String::from_utf8_lossy(c))),
         },
+        _ => None,
+    };
+    // The band of /ep/ (eps >= 0) and /om/ (k >= 1); nan is refused.
+    let band = match op {
+        Op::Ep(_) | Op::Om(_) => {
+            let (default, min, what) = match op {
+                Op::Ep(_) => (DEFAULT_EPSILON, 0, "at least 0"),
+                _ => (DEFAULT_OOM, 1, "at least 1"),
+            };
+            match &extra {
+                None => Some(default),
+                Some(e) => match num::parse_num(e) {
+                    Some(b) if num::compare(b, Num::I(min)).is_some_and(|o| o != Ordering::Less) => Some(b),
+                    Some(_) => return Err(format!("[{}]: the band of {} must be {}", shown, op_shown, what)),
+                    None => return Err(format!("[{}]: band [{}] is not a number", shown, String::from_utf8_lossy(e))),
+                },
+            }
+        }
         _ => None,
     };
     // A constant pattern is compiled now, so that a syntax error is an option error.
@@ -233,7 +268,7 @@ pub fn parse_filter(arg: &[u8]) -> Result<FilterSpec, String> {
         }
         _ => None,
     };
-    Ok(FilterSpec { text: arg.to_vec(), stage, column: pct_decode(name), op, value, extra, const_num, regex, literal })
+    Ok(FilterSpec { text: arg.to_vec(), stage, column: pct_decode(name), op, value, extra, const_num, band, regex, literal })
 }
 
 // Split at the first operator: a token [/~][a-z]{2,19}[/~] (as pick), else the
@@ -272,6 +307,7 @@ struct Filter<'d> {
     op:      Op,
     operand: Operand<'d>,
     extra:   Vec<u8>,   // ~hasval~: the value to compare with
+    band:    Num,       // /ep/ /om/: eps or k
     n_na:    u64,       // numeric comparisons that failed on a value that is not a number
 }
 
@@ -279,7 +315,7 @@ impl Filter<'_> {
     fn accept(&mut self, row: &Row) -> bool {
         let field = row.field(self.column);
         match self.op {
-            Op::Num(cmp) => {
+            Op::Num(_) | Op::Ep(_) | Op::Om(_) => {
                 let lhs = num::parse_num(field);
                 let rhs = match &self.operand {
                     Operand::Num(n) => Some(*n),
@@ -287,7 +323,12 @@ impl Filter<'_> {
                     _ => None,                      // not produced for numeric operators
                 };
                 match (lhs, rhs) {
-                    (Some(a), Some(b)) => cmp.holds(num::compare(a, b)),
+                    (Some(a), Some(b)) => match self.op {
+                        Op::Num(cmp) => cmp.holds(num::compare(a, b)),
+                        Op::Ep(negated) => num::within_eps(a, b, self.band) != negated,
+                        Op::Om(negated) => num::within_oom(a, b, self.band) != negated,
+                        _ => false,                 // not a numeric operator
+                    },
                     _ => {
                         self.n_na += 1;
                         false
@@ -387,7 +428,8 @@ impl<'d> Filters<'d> {
                 }
             };
             let extra = spec.extra.clone().unwrap_or_default();
-            let filter = Filter { text: spec.text.clone(), column, op: spec.op, operand, extra, n_na: 0 };
+            let band = spec.band.unwrap_or(Num::I(0));
+            let filter = Filter { text: spec.text.clone(), column, op: spec.op, operand, extra, band, n_na: 0 };
             match spec.stage {
                 Stage::Pre  => filters.pre.push(filter),
                 Stage::Post => filters.post.push(filter),
@@ -449,9 +491,11 @@ mod tests {
         // The first operator token ends the name.
         assert_eq!(spec("@x/lt/5").unwrap().column, b"x");
         for bad in ["@x/gt/abc", "@x/gt/", "@/gt/3", "@x/foo/3", "@x/gt/3/4", "@x~eq~a/b",
-                    "@x", "@+x/gt/3", "@x/gt/:", "@assert@x/gt/3", "@x/ep/3", "@x~", "@x/~",
+                    "@x", "@+x/gt/3", "@x/gt/:", "@assert@x/gt/3", "@x~", "@x/~",
                     "@x~^", "@x~a(", "@x~a/b", "@x=a~b", "@x~isin~", "@x~isin~:y", "@x~isin~^D",
-                    "@x~isin~D~v", "@x~hasval~D", "@x~hasval~D/v", "@x~hasval~D~:y", "@x~hasval~D~a~b"] {
+                    "@x~isin~D~v", "@x~hasval~D", "@x~hasval~D/v", "@x~hasval~D~:y", "@x~hasval~D~a~b",
+                    "@x/ep/1/", "@x/ep/1/-1", "@x/ep/1/nan", "@x/ep/1/abc", "@x/ep/1~2", "@x/ep/1/:y",
+                    "@x/om/1/0.5", "@x/om/1/0", "@x/omx/1/2/3", "@x/ep/abc"] {
             assert!(spec(bad).is_err(), "{}", bad);
         }
     }
@@ -483,6 +527,17 @@ mod tests {
         assert_eq!((f.op, f.extra), (Op::HasVal(true), Some(b"a~b".to_vec())));
         assert_eq!(spec("@x~hasval~D~").unwrap().extra, Some(Vec::new()));
         assert_eq!(spec("@x~hasval~D~%3Ay").unwrap().extra, Some(b":y".to_vec()));
+    }
+
+    #[test]
+    fn parsing_band() {
+        let f = spec("@x/ep/1").unwrap();
+        assert_eq!((f.op, f.const_num, f.band), (Op::Ep(false), Some(Num::I(1)), Some(DEFAULT_EPSILON)));
+        let f = spec("@x/omx/:y").unwrap();
+        assert_eq!((f.op, f.band), (Op::Om(true), Some(DEFAULT_OOM)));
+        assert_eq!(spec("@x/ep/:y/0").unwrap().band, Some(Num::I(0)));
+        assert_eq!(spec("@x/om/1/1.5").unwrap().band, Some(Num::F(1.5)));
+        assert_eq!(spec("@x/om/1/inf").unwrap().band, Some(Num::F(f64::INFINITY)));
     }
 
     #[test]

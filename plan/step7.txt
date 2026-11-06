@@ -96,5 +96,24 @@
 
   4   /ep/ /epx/ /om/ /omx/ with the optional extra argument; defaults 0.0001 and 2 as pick.
       Commit.
+        - Semantics as pick: /ep/ x in [y - eps, y + eps]; /om/ |x| in [|y| / k, |y| * k];
+          /epx/ /omx/ negate.
+        - The band is an optional extra argument separated by '/' (a '~' separator is refused;
+          a leading ':' is reserved). It must be a number (an option error otherwise; an
+          empty band is refused); eps >= 0 (eps = 0 is exact equality; pick takes 0 as the
+          default), k >= 1 (pick takes 0 as the default and selects nothing with k < 1);
+          inf is allowed, nan is refused.
+        - NA (either side not a number) fails the test and is counted, also for /epx/ and
+          /omx/.
+        - Arithmetic: x and y both integers: /ep/ compares |x - y| exactly with eps (checked
+          subtraction; on overflow the f64 form decides). x, y and k integers: /om/ tests
+          |x| <= |y|*k and |x|*k >= |y| on unsigned absolute values, an overflowing product
+          deciding its half of the test. Otherwise f64 with pick's formulas
+          (y - eps <= x <= y + eps; |y|/k <= |x| <= |y|*k). NaN fails /ep/ and /om/, so it
+          passes /epx/ and /omx/.
+        - Tests: big-ep and big-om (from pick, with pick's refs), filter-ep-om (labelled:
+          defaults, constant y, /epx/ /omx/, eps = 0, y = 0, negative values), filter-ep-int
+          (integers beyond 2^53 and near Int::MAX, same results with int128), errors. pick's
+          eptest1-3 need computes.
 
   5   Bit filters /all/ /any/ /none/ /notall/. Commit.

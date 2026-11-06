@@ -169,3 +169,42 @@ Item 3: ~isin~ ~isnotin~ ~hasval~ ~hasnotval~
   %-encoded ':', ~hasnotval~, a dictionary with a default and one with __EXIT__),
   filter-dict-or, filter-dict-sam (seqlen), filter-dict-bam, filter-dict-errors. Help refs
   updated. Unit tests in filter.rs (parsing_dict; error cases extended).
+
+
+Item 4: /ep/ /epx/ /om/ /omx/
+
+  Files: src/num.rs (within_eps, within_oom, Num::to_f64), src/filter.rs (Op::Ep, Op::Om,
+  Extra::Optional, the band), opt.rs (help).
+
+  Parsing. Extra::Optional(b'/') joins Extra::No and Extra::Required from item 3; the checks on
+  the extra argument (separator, no further '/' or '~', reserved ':') are shared. The band is
+  parsed with parse_num and checked with the comparison dispatcher (compare(band, I(0)) or
+  I(1) must not be Less; a NaN band is unordered and so refused too). Defaults as pick:
+  DEFAULT_EPSILON = F(0.0001), DEFAULT_OOM = I(2), so with integer columns /om/ stays in exact
+  integer arithmetic by default. A constant VALUE is parsed as for the other numeric operators
+  (Op::is_num()), so the column-name hint is skipped for numbers here too.
+
+  Evaluation shares the numeric branch of Filter::accept: both sides parsed, NA counted, then
+  the operator. /epx/ and /omx/ are the negation of the band test on numbers only; NA is not
+  negated.
+
+  Arithmetic (num.rs). within_eps: for integers x and y, x.checked_sub(y) then unsigned_abs()
+  (Rust's absolute value into the unsigned type of the same width, u64 or u128, so Int::MIN
+  has an absolute value); compared with an integer eps exactly, or as f64 with a float eps. On
+  overflow of x - y the f64 form decides (its difference is huge, so only a huge or infinite
+  eps passes). within_oom: for integer x, y and k, |x| <= |y|*k and |x|*k >= |y| on unsigned
+  values with checked_mul; None (overflow) means the product exceeds every value of the type,
+  so that half of the test holds (map_or(true, ...)). Otherwise f64 with pick's formulas, which
+  keeps results equal to pick's on float data. NaN makes every f64 comparison false.
+
+  Checked against pick: big-ep and big-om equal pick's refs; the eleven invocations of
+  filter-ep-om give identical output. filter-ep-zero shows the difference for eps = 0 (pick
+  keeps 0.14286 ~ 0.142857 with its default); its other three invocations agree with pick.
+  filter-ep-int is beyond pick's float arithmetic (9007199254740993 /ep/ ...992 with eps 0).
+
+  Tests: big-ep and big-om (from pick, with pick's refs), filter-ep-om (labelled: bands,
+  defaults, negative values, columns, @@, inf), filter-ep-zero, filter-ep-int (beyond 2^53,
+  Int::MAX and Int::MIN, overflowing products; same results with int128), filter-ep-na
+  (/epx/ with '', 'fox' and nan), filter-ep-errors. filter-errors: the 'not yet supported'
+  case is now /all/. Help refs updated. Unit tests: num.rs eps and oom, filter.rs
+  parsing_band and extended error cases.

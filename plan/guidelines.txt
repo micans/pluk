@@ -56,6 +56,10 @@
       argument of ~hasval~ must be separated by '~' and cannot contain a further '/' or '~'
       (%2F, %7E); a leading ':' in it is reserved; an unknown dictionary is reported once the
       header has been read (step7.txt item 3).
+    - /ep/ /om/ bands: optional, separated by '/', a number with eps >= 0 and k >= 1 (pick: 0
+      or empty means the default; k < 1 selects nothing); eps = 0 is exact equality. A
+      non-number fails /epx/ and /omx/ too. Integer operands are compared exactly
+      (step7.txt item 4).
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

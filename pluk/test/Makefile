@@ -136,7 +136,7 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	printf 'a\tb\n9223372036854775807\t9223372036854775806\n99999999999999999999\t9223372036854775807\n1e3\t1000\n-0\t0\n' | $(p) -h a b @a/gt/:b > o.filter-int.test
 	printf 'a\tb\n9223372036854775807\t9223372036854775806\n99999999999999999999\t9223372036854775807\n1e3\t1000\n-0\t0\n' | $(p) -h a b @a/eq/:b > o.filter-int-eq.test
 	$(p) name ud @ud~eq~fx @@ud~eq~^fx  < data.txt   > o.filter-hint.test 2>&1
-	for a in @x/gt/abc @x/foo/3 @x/gt/3/1 @/gt/3 @x/ep/3 @+x/gt/3 @assert@x/gt/3 @x @x/gt/:; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-errors.test
+	for a in @x/gt/abc @x/foo/3 @x/gt/3/1 @/gt/3 @x/all/3 @+x/gt/3 @assert@x/gt/3 @x @x/gt/:; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-errors.test
 	{ for a in @fx=dog @fx/=dog @fx= @fx/= @@foo11~_o_ @foo11/~_o_ '@fx~^[a-c]' '@fx~x|y' @name~^%5EB '@dna~(?i)^acg' '@foo11~^\w+$$' @foo11~%2F; do echo "$$a"; $(p) -h name fx foo11 dna "$$a" < data.txt; done; } > o.filter-regex.test
 	printf 'x\ty\nab.cd\t.\naxbcd\t.\nab|cd\tb|c\nabcd\tb|c\nabcd\t\n\t\n' | $(p) -h x y @x~:y   > o.filter-regex-column.test
 	printf 'x\ty\nab.cd\t.\naxbcd\t.\nab|cd\tb|c\nabcd\tb|c\nabcd\t\n\t\n' | $(p) -h x y @x/~:y  > o.filter-regex-column-neg.test
@@ -148,6 +148,13 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	$(p) --sam 1 3 @3~isin~seqlen   < sam.txt   2> /dev/null > o.filter-dict-sam.test
 	$(p) --sam 1 3 @3~isnotin~seqlen < sam.bam   > o.filter-dict-bam.test
 	for a in @fx~isin~Q @fx~isin~ @fx~isin~:D @fx~isin~^D @fx~isin~D~v @fx~hasval~D @fx~hasval~D/v @fx~hasval~D~:y @fx~hasval~D~a~b; do $(p) --cd-D=a:b name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-dict-errors.test
+	$(p) id f3 f4 @f3/ep/:f4/20      < big.txt    > o.big-ep.test
+	$(p) id n4 n5 @n4/om/:n5/1.5     < big.txt    > o.big-om.test
+	{ for a in @ms/ep/0.25/0.05 @ms/epx/0.25/0.05 @ud/ep/1 @ud/ep/-2/3 @ud/om/-1 @ud/omx/-1 @ms/om/0.3/1.5 @fib/om/:fib2 @fib/omx/:fib2 @@fib/ep/:sq/2 @ms/om/0.2/inf; do echo "$$a"; $(p) -h name fib fib2 sq ud ms "$$a" < data.txt; done; } > o.filter-ep-om.test
+	{ for a in @x/ep/:y/0 @x/ep/:y @x/om/:y @x/omx/:y/1; do echo "$$a"; printf 'x\ty\n0.14286\t0.142857\n0\t0\n0\t1\n-3\t3\n' | $(p) -h x y "$$a"; done; } > o.filter-ep-zero.test
+	{ for a in @a/ep/:b/0 @a/ep/:b/1 @a/ep/:b/inf @a/om/:b @a/omx/:b; do echo "$$a"; printf 'a\tb\n9007199254740993\t9007199254740992\n9223372036854775807\t-9223372036854775808\n9223372036854775807\t4611686018427387904\n-9223372036854775808\t9223372036854775807\n1\t9223372036854775807\n' | $(p) -h a b "$$a"; done; } > o.filter-ep-int.test
+	printf 'x\ty\n\t1\nfox\t1\n1\t\n5\t1\nnan\t1\n' | $(p) -h x y @x/epx/:y > o.filter-ep-na.test 2>&1
+	for a in @x/ep/1/ @x/ep/1/-1 @x/ep/1/nan @x/ep/1/abc @x/ep/1~2 @x/ep/1/:y @x/om/1/0.5 @x/om/1/0 @x/omx/1/2/3 @x/ep/abc; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-ep-errors.test
 	for a in @z/gt/3 @@name/gt/:z @fib~eq~:z; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-unknown.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.txt   2> /dev/null > o.filter-sam.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.bam   > o.filter-bam.test
