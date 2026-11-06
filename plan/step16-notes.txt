@@ -60,3 +60,43 @@ Item 2: -l
   starting with -, no match, a closed pipe), list-errors (-kl, -ll, -l after a column).
   Help refs. Unit tests in list.rs (every_operator_listed_once,
   filter_rows_are_filter_operators, selection) and opt.rs (encode_options).
+
+
+Item 3: -E<N> -e -q
+
+  -E<N> is a bundle option with a required attached number (as -O<N>), N >= 0; -E,
+  -Ex and -E-1 are errors. main.rs counts output rows in one counter, n_output, for
+  the normal path (stdout or --demux) and for -c (which already counted). The check
+  comes at the end of run(), after the output is flushed, the side files and demux
+  files are finished and the filter counts are reported; a mismatch is an error
+  (exit 1) naming N and the count. With empty input the count is 0. The temporary
+  --test-lineno mode does not check. pick agrees on the exit status for matching and
+  mismatching N, with and without -c; its message differs.
+
+  -e removes space, tab, newline, carriage return, vertical tab and form feed (Perl's
+  \s) from an argument that starts with @ or contains :: or := (compute::is_compute),
+  as pick, before it is classified and parsed. Column arguments keep their white space
+  (-e 'na me' is the column 'na me'). Output identical to pick for a compute, an @ and
+  an @@ filter and a compute with a tab and %20.
+
+  -q sets a process-wide flag (src/note.rs: an AtomicBool, set once from the options in
+  main before anything is read) and the macro note!, which is eprintln! unless quiet.
+  A global spares passing a quiet flag into filter, demux, select, colspec, dict and io,
+  which all report something. The messages now written with note!:
+    filter.rs   per-filter counts of values not a number / not an integer; the hint for
+                a column name used as a constant (did you want :NAME?)
+    demux.rs    the tally of files
+    main.rs     the count of rows written to --assert-other
+    select.rs   identical output column names made unique
+    colspec.rs  -k range indexes out of range dropped
+    dict.rs     merging into an existing dictionary; SAM reference length conflicts and
+                the summary of reference lengths
+    io.rs       lines that do not look like SAM; @SQ lines after the first alignment or
+                malformed; @HD with an unrecognised value
+  Still eprintln!: errors, the "no columns given" usage note, and the --test-counts
+  output (a temporary option whose output is the point).
+
+  Tests: expect-rows (matching and mismatching N with and without -c, -E0, empty input,
+  --demux, --other, invalid forms), squash (compared with pick), squash-edge (white
+  space without -e, a column with a space under -e), quiet (each message source
+  without -q, with -q and with -qq; an error still shown). Help refs.

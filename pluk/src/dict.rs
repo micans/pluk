@@ -148,7 +148,7 @@ impl Dicts {
     fn get_or_create(&mut self, name: &[u8], spec: &DictSpec) -> &mut Dict {
         match self.index.get(name) {
             Some(&i) => {
-                eprintln!("pluk: {}: merging into existing dictionary {}",
+                crate::note::note!("pluk: {}: merging into existing dictionary {}",
                           String::from_utf8_lossy(&spec.option), String::from_utf8_lossy(name));
                 let dict = &mut self.list[i];
                 if let Some(nf) = &spec.not_found {
@@ -196,14 +196,14 @@ impl Dicts {
                         n_shared += 1;
                         if header_length != fasta_length {
                             n_conflict += 1;
-                            eprintln!("pluk: sequence {} has length {} in the SAM header and {} in the \
+                            crate::note::note!("pluk: sequence {} has length {} in the SAM header and {} in the \
                                        reference; using {}", String::from_utf8_lossy(name),
                                       header_length, fasta_length, header_length);
                         }
                     }
                 }
             }
-            eprintln!("pluk: SAM reference lengths: header/fasta/shared/conflict {}/{}/{}/{}",
+            crate::note::note!("pluk: SAM reference lengths: header/fasta/shared/conflict {}/{}/{}/{}",
                       n_header, names.len(), n_shared, n_conflict);
         }
         let map = lengths.into_iter().map(|(k, v)| (k, v.to_string().into_bytes())).collect();

@@ -1,0 +1,47 @@
+== 
+name
+pluk: @fx/gt/1: 12 values not a number (rows not kept)
+-- range expansion produced some indexes out of range (now dropped)
+name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
+pluk: --cd-D=b:2: merging into existing dictionary D
+name
+File	Written	Filtered
+out/ant	1	0
+out/bat	0	1
+out/bug	0	1
+out/cat	0	1
+out/cow	0	1
+out/dog	0	1
+out/eagle	1	0
+out/fly	1	0
+out/owl	0	1
+out/pig	0	1
+out/rat	0	1
+out/swift	1	0
+pluk: 4 rows failed an assertion (written to out/q.assert)
+name
+Line 7 does not look like SAM format [r003	notanumber	chr1	9	30	5M	*	0	0	GCCTA	IIIII]
+Line 9 does not look like SAM format [shortline	0	chr2]
+r001
+-- You used fib (a column handle) as a constant in @fx=fib test, did you want :fib? --
+name
+pluk: (Select) handle [zz] in select does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+exit 1
+== -q
+name
+name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
+name
+name
+r001
+name
+pluk: (Select) handle [zz] in select does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+exit 1
+== -qq
+name
+name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
+name
+name
+r001
+name
+pluk: (Select) handle [zz] in select does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+exit 1

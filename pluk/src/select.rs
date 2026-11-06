@@ -40,7 +40,7 @@ impl OutputSelection {
             }
         }
         if have_duplicate {
-            eprintln!("-- Identical output column names exist (will make unique)");
+            crate::note::note!("-- Identical output column names exist (will make unique)");
         }
         Ok(OutputSelection::from_offsets(output_offset, names))
     }

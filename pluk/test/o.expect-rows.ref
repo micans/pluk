@@ -1,0 +1,56 @@
+name
+Inky
+John
+Kelly
+Lucy
+pluk: -E12: expected 12 output rows, found 4
+exit 1
+name
+Inky
+John
+Kelly
+Lucy
+exit 0
+name
+Inky
+John
+Kelly
+Lucy
+pluk: -E3: expected 3 output rows, found 4
+exit 1
+4
+exit 0
+4
+pluk: -E5: expected 5 output rows, found 4
+exit 1
+name
+Inky
+John
+Kelly
+Lucy
+pluk: -E0: expected 0 output rows, found 4
+exit 1
+exit 0
+File	Written	Filtered
+out/ant	1	0
+out/bat	0	1
+out/bug	0	1
+out/cat	0	1
+out/cow	0	1
+out/dog	0	1
+out/eagle	1	0
+out/fly	1	0
+out/owl	0	1
+out/pig	0	1
+out/rat	0	1
+out/swift	1	0
+pluk: -E1: expected 1 output row, found 4
+exit 1
+pluk: -E9: expected 9 output rows, found 8
+exit 1
+-E<N> requires an attached non-negative number N, e.g. -E10
+exit 1
+-E<N> requires an attached non-negative number N, e.g. -E10
+exit 1
+-E<N> requires an attached non-negative number N, e.g. -E10
+exit 1

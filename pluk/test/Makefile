@@ -296,6 +296,10 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	$(p) --help                      < /dev/null  > o.help-long.test
 	$(p) -kH                         < data.txt  2> o.help-bundle.test > /dev/null; [ $$? -eq 1 ]
 	{ $(p) -z 'a:b^c' 'x%y' 'p,q/r~s=t@u+v' 'a.b c' 1.5 -k ''; $(p) -z "$$(printf 'tab\there\nnl\x7f\xe9')"; $(p) -zz 'a%3Ab' 'a%20b' '%zz%4' 'x%2c%2C' -k; $(p) -zz "$$($(p) -z 'p,q/r~s=t@u+v%')"; $(p) -z; $(p) -zz | head -n 1; } > o.z-encode.test
+	{ for a in -E12 -E4 -E3 -cE4 -cE5 -E0; do $(p) $$a name @fib/gt/30 < data.txt; echo "exit $$?"; done; $(p) -E0 name < /dev/null; echo "exit $$?"; $(p) -E1 --demux=fx --demux-dir=out name '@fib/gt/30' < data.txt; echo "exit $$?"; $(p) -E9 --other=out/e.other name '@fib/gt/3' < data.txt > /dev/null; echo "exit $$?"; for a in -E -Ex -E-1; do $(p) $$a name < data.txt; echo "exit $$?"; done; } > o.expect-rows.test 2>&1
+	$(p) -e name 'x:: fib ^1 ,add' '@ fib /gt/ 3' '@@ sq /lt/ 100' 'y:=	name ^%20 , len' 'z::y' < data.txt > o.squash.test
+	{ $(p) name 'x:: fib ^1 ,add' < data.txt; echo "exit $$?"; $(p) -e 'na me' < data.txt; echo "exit $$?"; } > o.squash-edge.test 2>&1
+	{ for q in '' -q -qq; do echo "== $$q"; $(p) $$q name '@fx/gt/1' < data.txt; $(p) $$q -k 1-20 < data.txt | head -n 1; $(p) $$q --cd-D=a:1 --cd-D=b:2 name < data.txt | head -n 1; $(p) $$q --demux=fx --demux-dir=out name '@fib/gt/30' < data.txt; $(p) $$q --assert-other=out/q.assert name '@assert@fib/lt/30' < data.txt | head -n 1; $(p) $$q --sam 1 < sam.txt | head -n 1; $(p) $$q name '@fx=fib' < data.txt | head -n 1; $(p) $$q name '@zz/gt/1' < data.txt; echo "exit $$?"; done; } > o.quiet.test 2>&1
 	{ $(p) -l; $(p) -l bit,time md5; $(p) -k -l filter; $(p) -l eq isin; $(p) -l -h; echo "exit $$?"; $(p) -l nosuch,zz; echo "exit $$?"; $(p) -l | head -n 1; } > o.list-ops.test 2>&1
 	{ $(p) -kl; echo "exit $$?"; $(p) -ll; echo "exit $$?"; $(p) name -l < data.txt; echo "exit $$?"; } > o.list-errors.test 2>&1
 	{ $(p) -zzz a; echo "exit $$?"; $(p) -kz a; echo "exit $$?"; $(p) name -z < data.txt; echo "exit $$?"; } > o.z-errors.test 2>&1

@@ -1,0 +1,4 @@
+pluk: (Compute) handle [ fib ] in compute x does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+exit 1
+pluk: (Output) handle [na me] in output does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+exit 1

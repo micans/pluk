@@ -307,7 +307,7 @@ impl LineReader {
             if self.settings.sam != SamMode::Off && self.n_accepted < 5
                 && self.split_order == Ordering::Less && !self.looks_like_sam(n_found)
             {
-                eprintln!("Line {} does not look like SAM format [{}]",
+                crate::note::note!("Line {} does not look like SAM format [{}]",
                           self.n_lines, String::from_utf8_lossy(&self.row.line));
                 self.n_skipped += 1;
                 continue;
@@ -324,7 +324,7 @@ impl LineReader {
     fn note_sq_line(&mut self) {
         if !self.in_preamble {
             if !self.late_sq_warned {
-                eprintln!("pluk: @SQ line {} after the first alignment line not used for sequence lengths",
+                crate::note::note!("pluk: @SQ line {} after the first alignment line not used for sequence lengths",
                           self.n_lines);
                 self.late_sq_warned = true;
             }
@@ -332,7 +332,7 @@ impl LineReader {
         }
         match parse_sq(&self.row.line) {
             Some(entry) => self.sam_seqlen.push(entry),
-            None => eprintln!("pluk: @SQ line {} without SN: or valid LN: field, ignored [{}]",
+            None => crate::note::note!("pluk: @SQ line {} without SN: or valid LN: field, ignored [{}]",
                               self.n_lines, String::from_utf8_lossy(&self.row.line)),
         }
     }
@@ -343,7 +343,7 @@ impl LineReader {
         let (order, unrecognised) = parse_hd(&self.row.line);
         self.sam_order = order;
         for field in unrecognised {
-            eprintln!("pluk: @HD line {} has unrecognised {}, default used",
+            crate::note::note!("pluk: @HD line {} has unrecognised {}, default used",
                       self.n_lines, String::from_utf8_lossy(field));
         }
     }

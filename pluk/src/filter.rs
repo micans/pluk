@@ -630,7 +630,7 @@ impl<'d> Filters<'d> {
                 Value::Column(name) => Operand::Column(lookup(name, &format!("Indirection {}", kind))?),
                 Value::Const(c) => {
                     if !c.is_empty() && names.index_of(c).is_some() && spec.const_num.is_none() && !spec.literal {
-                        eprintln!("-- You used {} (a column handle) as a constant in {} test, did you want :{}? --",
+                        crate::note::note!("-- You used {} (a column handle) as a constant in {} test, did you want :{}? --",
                                   String::from_utf8_lossy(c), String::from_utf8_lossy(&spec.text),
                                   String::from_utf8_lossy(c));
                     }
@@ -681,9 +681,9 @@ impl<'d> Filters<'d> {
                     let s = if n == 1 { "" } else { "s" };
                     let text = String::from_utf8_lossy(&f.text);
                     if f.columns.len() == 1 {
-                        eprintln!("pluk: {}: {} value{} not {} (row{} not kept)", text, n, s, what, s);
+                        crate::note::note!("pluk: {}: {} value{} not {} (row{} not kept)", text, n, s, what, s);
                     } else {
-                        eprintln!("pluk: {}: {} row{} with a value not {} (not kept)", text, n, s, what);
+                        crate::note::note!("pluk: {}: {} row{} with a value not {} (not kept)", text, n, s, what);
                     }
                 }
             }

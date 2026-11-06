@@ -8,6 +8,7 @@ mod filter;
 mod io;
 mod list;
 mod names;
+mod note;
 mod num;
 mod ops;
 mod opt;
@@ -29,6 +30,7 @@ const OUT_BUFSIZE: usize = 128 * 1024;
 
 fn run() -> std::io::Result<()> {
     let config = opt::parse_args();
+    note::set_quiet(config.quiet);
 
     // Temporary (step10): the parsed computes; the compiled form follows once the
     // header has been read.
@@ -242,19 +244,20 @@ fn run() -> std::io::Result<()> {
         _ => None,
     };
 
+    // Output rows: those that pass the filters, to stdout or --demux (for -E<N>).
+    let mut n_output: u64 = 0;
     if config.c {
         // -c: output only the number of data rows that pass the filters.
-        let mut n_kept: u64 = 0;
         while let Some(kind) = input.next_line()? {
             match kind {
                 io::LineKind::Data        => if route(&mut stages, &mut input.row, input.n_lines,
                                                           &mut other, &mut assert_other, &mut None)? {
-                    n_kept += 1
+                    n_output += 1
                 },
                 io::LineKind::PassThrough => output::write_line(&mut out, &input.row.line)?,
             }
         }
-        writeln!(out, "{}", n_kept)?;
+        writeln!(out, "{}", n_output)?;
     } else if lineno_mode {
         if input.header_lineno > 0 {
             output::write_numbered(&mut out, input.header_lineno, &input.header, test_column)?;
@@ -275,6 +278,7 @@ fn run() -> std::io::Result<()> {
             match kind {
                 io::LineKind::Data => if route(&mut stages, &mut input.row, input.n_lines,
                                                &mut other, &mut assert_other, &mut demux)? {
+                    n_output += 1;
                     match &mut demux {
                         Some(d) => d.write(&input.row, input.n_lines)?,
                         None => writer.write_row(&mut out, &input.row)?,
@@ -293,12 +297,20 @@ fn run() -> std::io::Result<()> {
     }
     if let Some(file) = assert_other {
         if file.n_rows > 0 {
-            eprintln!("pluk: {} row{} failed an assertion (written to {})", file.n_rows,
+            note::note!("pluk: {} row{} failed an assertion (written to {})", file.n_rows,
                       if file.n_rows == 1 { "" } else { "s" }, String::from_utf8_lossy(&file.name));
         }
         file.finish()?;
     }
     stages.filters.report_na();
+
+    // -E<N>: checked at the end; the rows have been written (as pick).
+    if let Some(n) = config.expect {
+        if n != n_output && !lineno_mode {
+            return Err(std::io::Error::new(ErrorKind::InvalidData,
+                       format!("-E{}: expected {} output row{}, found {}", n, n, if n == 1 { "" } else { "s" }, n_output)));
+        }
+    }
 
     if config.test_counts {
         eprintln!("columns={} lines={} skipped={} accepted={} short={} overflow={}",

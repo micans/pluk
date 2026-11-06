@@ -92,9 +92,9 @@ impl Demux {
     // Complete all files and write the tally to stderr, sorted by file name.
     pub fn finish(mut self) -> io::Result<()> {
         self.files.sort_by(|a, b| a.path.cmp(&b.path));
-        eprintln!("File\tWritten\tFiltered");
+        crate::note::note!("File\tWritten\tFiltered");
         for file in self.files {
-            eprintln!("{}\t{}\t{}", String::from_utf8_lossy(&file.path), file.written, file.filtered);
+            crate::note::note!("{}\t{}\t{}", String::from_utf8_lossy(&file.path), file.written, file.filtered);
             file.sink.finish()?;
         }
         Ok(())

@@ -167,7 +167,7 @@ impl ColSpec {
                     let (found, dropped) = range.indexes(names.n_input());
                     let found: Vec<usize> = found.into_iter().map(|i| names.current(i)).collect();
                     if dropped {
-                        eprintln!("-- range expansion produced some indexes out of range (now dropped)");
+                        crate::note::note!("-- range expansion produced some indexes out of range (now dropped)");
                     }
                     if found.is_empty() {
                         return Err(format!("({}) range [{}] in {} selects no column (there are {})",
