@@ -1,0 +1,50 @@
+
+- Computes: groundwork
+
+  Introduce computes (x::spec, x:=spec, ::spec) with the parsing, compilation and execution
+  machinery and a minimal set of operators that exercises every path. Operator families
+  (string, math, regex, sam without rbt, ...) follow in later steps, mostly as table entries
+  plus functions. Design: COMPUTE.design.txt (with NUMERIC.design.txt, COLSPEC.design.txt).
+
+
+  Outcome of the discussion
+
+  - pick's three phases (parse, compile, run) are kept, with separate types per phase.
+  - Values on the stack: enum Value { Field, Bytes, Num, Na } (COMPUTE.design.txt 3).
+  - Computed fields in a second per-row buffer; row.field(i) serves input and computed
+    columns alike (7).
+  - Floats are written round-trip with an exponent outside 1e-4 <= |x| < 1e16; --num-perl
+    writes them as Perl (%.15g) (7). NA is written as NA.
+  - The result of a compute is the concatenation of the stack; an empty stack gives an empty
+    field, also for ::; stack underflow is a compile-time error (6, 7).
+  - Multi-column operands (splat) are included; multi-column NAME (map), __, capture-group
+    renaming, in-place computes (-i) and prefix/suffix names are deferred to a later step,
+    where their syntax is revisited (8). A NAME that already exists is an error until then.
+  - Later references to a NAME see the compute (as pick's handle_map).
+  - -A<N> stays unused.
+
+
+  Items
+
+  1   COMPUTE.design.txt. Commit.
+
+  2   Parsing: computes recognised among the trailing arguments (replacing 'computes not yet
+      supported'), NAME and SPEC, tokens ^ : , with %-decoding, column tokens as ColSpec,
+      unnamed computes (PLUKAAAAA, ...), the operator table (src/ops.rs or similar) with the
+      seed operators of item 4, unknown operators and a multi-column NAME as option errors.
+      A temporary --test-compute prints the parsed form. Commit.
+
+  3   Compilation: column tokens expanded and resolved, splat, index N + i and name binding,
+      existing NAME refused, static stack and type check (underflow errors before input is
+      read), the prepare hook (a constant regex compiled), output selection with computed
+      columns (also -A, -x), @ filters on computed columns, @@ filters on input columns
+      only. --test-compute prints the compiled form. Commit.
+
+  4   Execution: the per-row loop between the @@ and @ stages, the stack, the computed
+      buffer, number formatting and --num-perl, NA output. Seed operators, one per path:
+        stack      dup pop xch
+        string     cat
+        numeric    add (typed dispatch, i -> f promotion, overflow -> F as Perl)
+        regex      one operator with a constant pattern (prepare hook)
+        whole stack  addall
+      Tests compare with pick (with --num-perl where floats are printed). Commit.

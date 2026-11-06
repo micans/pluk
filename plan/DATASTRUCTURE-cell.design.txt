@@ -2,7 +2,9 @@
 DATASTRUCTURE-cell design -- DRAFT, under discussion. Seeded from DATASTRUCTURE-cell.notes.txt.
 
 Numeric operands, integer width and NA for operands are settled in NUMERIC.design.txt
-(sections 3, 5 and 6 below are superseded there where they concern operands).
+(sections 3, 5 and 6 below are superseded there where they concern operands). Values on the
+compute stack (sections 3 and 4) are settled in COMPUTE.design.txt section 3: an enum Value
+{ Field, Bytes, Num, Na } with a per-row parse cache, instead of the Scalar struct with flags.
 
 Items marked [proposed] await confirmation; [open] still need discussion.
 Only the parts needed for step1 (input fields) have to be decided now. The parts concerning computation

@@ -1,0 +1,151 @@
+COMPUTE design: syntax, compilation, data structures and execution of computes.
+
+Status: DECIDED (discussion before step10), except where marked [deferred] or [confirm].
+Builds on NUMERIC.design.txt (operands, typed operators, dispatch, NA, Int) and
+COLSPEC.design.txt (column specifications); settles the open items 3 and 4 of
+DATASTRUCTURE-cell.design.txt for values on the stack.
+
+
+1. Overall structure: as pick, in three phases
+
+   Parse (option parsing)      ->  ComputeSpec   (tokens, operators looked up)
+   Compile (header known)      ->  Compute       (instructions with column indexes,
+                                                   precompiled constants, stack checked)
+   Run (per data row)          ->  computed fields appended to the row
+
+   As for filters (FilterSpec -> Filter), each phase has its own types; nothing is overwritten
+   in place (pick rewrites its arrays during compilation, 'overwrite inelegant').
+
+   Per row the order is: @@assert@ and @@ filters, computes (in command line order), @assert@
+   and @ filters, output. Computes run only for rows that pass the @@ stage.
+
+
+2. Syntax (groundwork, step10)
+
+   An argument (not an option, not starting with '@') containing '::' or ':=' is a compute:
+
+      NAME::SPEC     compute NAME and output it
+      NAME:=SPEC     compute NAME without outputting it (usable by later computes, filters)
+      ::SPEC         unnamed compute, output; named PLUKAAAAA, PLUKAAAAB, ... in order
+                     (pick: PICKAAAAA, ... by Perl's string increment)
+
+   SPEC is a sequence of tokens, each introduced by one character:
+      ^VALUE    a constant, %-decoded
+      :COLSPEC  a column specification (COLSPEC.design.txt): a name, a ':' list is not
+                possible here (':' starts the next token), but a '+' regex or (-k) a range
+                is; multi-column specifications push every selected column (splat, 4)
+      ,OP       an operator
+   A SPEC not starting with one of ^ : , starts with a column (pick prepends ':').
+   The characters ^ : , inside a value or name are written %5E %3A %2C.
+
+   NAME is a plain name (%-decoded). A NAME that already exists (input column or earlier
+   compute) is an error until the in-place step (8). A list, '+' regex or range as NAME (map)
+   is 'not yet supported' (8).
+
+   Later computes, the output list and @ filters can refer to NAME; @@ filters cannot (they
+   run before computes). As in pick, a name refers to the latest definition.
+
+
+3. Values on the stack
+
+      enum Value {
+          Field(usize),       // a column of this row (input or computed); bytes not copied
+          Bytes(Vec<u8>),     // a string produced by an operator (owned)
+          Num(Num),           // I or F (NUMERIC.design.txt)
+          Na,
+      }
+
+   - Field keeps an input field as a reference until an operator needs it: used as a string
+     it is its original bytes ('007' stays '007'); used as a number it is parsed once per row
+     and column, the result cached for the row (NUMERIC.design.txt section 2).
+   - An operator that pops an owned Bytes may modify it in place and push it back (no
+     allocation); a Field is copied on first modification.
+   - Na short-circuits in the dispatcher (NUMERIC.design.txt section 3).
+   - This replaces the Scalar struct with flags of DATASTRUCTURE-cell.design.txt: one
+     representation per value, the cache holding the parse of a field.
+
+
+4. Multi-column operands (splat)
+
+   A column token with a multi-column specification (a '+' regex, a -k range) pushes all
+   selected columns, in COLSPEC order, as separate stack values. The expansion happens at
+   compile time; the static stack check counts the expanded columns. Every element must
+   select at least one column (COLSPEC.design.txt section 3).
+
+
+5. Operators
+
+   One static table entry per operator:
+      name, arity (fixed N, or the whole stack: addall, joinall, sprintf, ...),
+      operand kinds (string, number, integer, regex, constant-only), result kind,
+      category (stack, string, math, regex, sam, ...), a one-line description (for a help
+      listing), an optional prepare hook, and the implementation as a function pointer.
+
+   - Numeric operators are typed functions (add_ii, add_ff) behind the dispatcher
+     (NUMERIC.design.txt section 3).
+   - The prepare hook replaces pick's special cases in compile_compute: it receives constant
+     operands at compile time and may transform or check them (compile a regex, count the
+     format items of sprintf, fold ttu to seconds, check a SAM tag), so that the work and the
+     errors happen before input is read.
+   - Operator families are added step by step after the groundwork (string, math, regex,
+     sam without rbt, ...); each is mostly table entries plus functions.
+
+
+6. Compilation
+
+   - Column tokens are expanded (4) and resolved to indexes; unknown names give pick's
+     message '(Compute) handle [x] in compute NAME does not reference a known entity among
+     ...'.
+   - The compute receives index N + i (N input columns, i its position among computes) and
+     NAME is bound to it in the name map; later references resolve to the latest binding
+     (as pick's handle_map).
+   - Static stack check: per token the stack depth is tracked; an operator needing more
+     operands than present is a compile-time error (stack underflow, naming the compute and
+     the operator). Whole-stack operators consume the current depth.
+   - A static type stack records what is known (constant, column, result kind of an
+     operator). It is used to select typed functions where the types are known
+     (NUMERIC.design.txt section 7) and never needed for correctness.
+   - Output selection, -A, -x and @ filters are resolved against the extended name list;
+     @@ filters against the input names. With -A computed columns are appended; -A<N>
+     (insert position) remains unused [deferred].
+
+
+7. Execution and result
+
+   - One stack (Vec<Value>) is reused for all computes and rows; it is cleared, not freed.
+   - The result of a compute is the concatenation of the values left on the stack, each
+     written as text: an empty stack gives an empty field, several values are joined (as
+     pick; e.g. x::^chr:2). This holds for :: and :=. Stack underflow cannot happen at run
+     time (6).
+   - Computed fields are stored in a second per-row buffer with offsets, next to the line
+     buffer; row.field(i) serves i < N from the line and i >= N from the computed buffer,
+     so filters, output, --other and --demux need no change.
+
+   Number formatting:
+   - Integers (I) are written as integers.
+   - Floats (F) are written with the shortest digits that read back as the same f64
+     (round-trip), in plain notation for 1e-4 <= |x| < 1e16 and in exponent notation
+     otherwise; a whole number is written without '.0' (3, not 3.0); inf, -inf, nan as
+     pluk's number parser reads them. This loses no information through pluk | pluk
+     chains; rounding is explicit (format operators).
+   - --num-perl writes floats as Perl does (%.15g, Inf, NaN), for comparison with pick and
+     for users migrating scripts: 0.1+0.2 is 0.3 with --num-perl, 0.30000000000000004
+     without.
+
+   NA is written as NA.
+
+
+8. Deferred: in-place computes and multi-column NAME (map)  [deferred, syntax open]
+
+   pick allows a compute to replace a column (-i), to keep the original under a prefix or
+   suffix name (p/spec/s, p/spec//s), and a multi-column NAME (+foo\d{2}::__^1,add) that
+   applies the compute per matched column, with __ for the current column and capture group
+   1 naming the result. These belong together: without renaming, every map compute redefines
+   an existing column, which is the in-place case. They are deferred to a later step, where
+   the syntax will be revisited.
+
+   The groundwork keeps this open: computed columns always get new indexes and never
+   overwrite input fields; names are bound in a separate map, so an in-place compute can
+   later be 'compute into a new index, rebind the name, keep the original reachable under a
+   derived name', whatever the syntax. Until then a NAME that exists is an error, which can
+   be relaxed later without breaking anything.
