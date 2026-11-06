@@ -614,17 +614,19 @@ impl<'d> Filters<'d> {
         Ok(filters)
     }
 
-    // Whether a data row passes the @@ filters, then (after the place where
-    // computes will go) the @ filters. Each stage first checks its assertions:
-    // Err describes the first assertion that fails, which ends the run. So @@assert@
-    // sees every row, and @assert@ every row that passes the @@ filters (as pick).
-    pub fn keep(&mut self, row: &Row) -> Result<Verdict, String> {
+    // Whether a data row passes the @@ stage (pre) and, after the computes, the @
+    // stage (post); main.rs runs them in that order (Stages::judge). Each stage
+    // first checks its assertions: Err describes the first assertion that fails. So
+    // @@assert@ sees every row, and @assert@ every row that passes the @@ filters
+    // (as pick).
+    pub fn pre(&mut self, row: &Row) -> Result<bool, String> {
         check_all(&self.pre_assert, row)?;
-        if !stage_accepts(&mut self.pre, self.pre_or, row) {
-            return Ok(Verdict::RejectPre);
-        }
+        Ok(stage_accepts(&mut self.pre, self.pre_or, row))
+    }
+
+    pub fn post(&mut self, row: &Row) -> Result<bool, String> {
         check_all(&self.post_assert, row)?;
-        Ok(if stage_accepts(&mut self.post, self.post_or, row) { Verdict::Keep } else { Verdict::RejectPost })
+        Ok(stage_accepts(&mut self.post, self.post_or, row))
     }
 
     // Per filter, the number of rows not kept because a value was not a number,

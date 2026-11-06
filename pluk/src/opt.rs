@@ -42,6 +42,7 @@ pub struct Config {
     pub test_dict: bool,                // --test-dict (temporary)
     pub test_samsort: bool,             // --test-samsort (temporary)
     pub test_compute: bool,             // --test-compute (temporary, step10)
+    pub num_perl: bool,                 // --num-perl: write floats as Perl (%.15g)
     pub columns: Vec<ColSpec>,          // column arguments (plan/COLSPEC.design.txt)
     pub computes: Vec<ComputeSpec>,     // computes (plan/COMPUTE.design.txt), in command line order
     pub filters: Vec<FilterSpec>,       // @ and @@ filters, in command line order
@@ -124,6 +125,16 @@ Options:
               FILE into the dictionary SAMFA (default __EXIT__)
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
+
+Computes (given among the columns; a stack language, as pick):
+  NAME::SPEC      compute column NAME and output it; NAME:=SPEC computes it
+                  without output; ::SPEC is output as PLUKAAAAA, PLUKAAAAB, ..
+  SPEC is a sequence of ^VALUE (constant), :COLUMN (pushes the column; a
+  +REGEX or -k range pushes several) and ,OP (operator). A SPEC that does not
+  start with ^ : , starts with a column. The result is what is left on the
+  stack, concatenated. Operators so far: dup pop xch cat add addall del.
+  Numbers are written exactly (round-trip); NA where a number was needed.
+  --num-perl  write numbers as Perl and pick do (%.15g, Inf, NaN)
 
 Filters (given among the columns; VALUE is %-decoded, e.g. %2F for '/'):
   @NAME/op/VALUE  numeric comparison of column NAME with VALUE, op one of
@@ -243,6 +254,7 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
         b"test-dict"            => config.test_dict = true,
         b"test-samsort"         => config.test_samsort = true,
         b"test-compute"         => config.test_compute = true,
+        b"num-perl"             => config.num_perl = true,
         _ if long.starts_with(b"other=") || long.starts_with(b"assert-other=") => {
             let (name, slot) = match long.strip_prefix(b"other=") {
                 Some(name) => (name, &mut config.other),

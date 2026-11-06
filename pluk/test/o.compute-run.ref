@@ -1,0 +1,125 @@
+name fib x::fib^1,add y::^a:fib,cat
+name	fib	x	y
+Ann	1	2	a1
+Bob	1	2	a1
+Charlie	2	3	a2
+Dan	3	4	a3
+Esme	5	6	a5
+Fred	8	9	a8
+Gillian	13	14	a13
+Harriet	21	22	a21
+Inky	34	35	a34
+John	55	56	a55
+Kelly	89	90	a89
+Lucy	144	145	a144
+name z::num1:num2,add w::ms:ud,add
+name	z	w
+Ann	3	1.142857
+Bob	5	-1.714286
+Charlie	9	3.428571
+Dan	15	-3.428572
+Esme	27	5.714285
+Fred	45	-5.142858
+Gillian	81	8
+Harriet	147	-6.857143
+Inky	279	10.285714
+John	541	-8.571429
+Kelly	1055	12.571428
+Lucy	2085	-10.285715
+name d::fx^o,del d2::foo11^_,del d3::name^[aeiou],del
+name	d	d2	d3
+Ann	dg	an_n	Ann
+Bob	cat	bo_b	Bb
+Charlie	bat	char_lie	Chrlie
+Dan	cw	da_n	Dn
+Esme	wl	es_m_e	Esm
+Fred	pig	fr_e_d	Frd
+Gillian	bug	gill_ian	Gllian
+Harriet	rat	harr_iet	Hrriet
+Inky	ant	in_k_y	Inky
+John	fly	jo_h_n	Jhn
+Kelly	eagle	ke_l_l_y	Klly
+Lucy	swift	lu_c_y	Lcy
+name s::^a^b,xch u::fib,dup,cat p::^a^b,pop
+name	s	u	p
+Ann	ba	11	a
+Bob	ba	11	a
+Charlie	ba	22	a
+Dan	ba	33	a
+Esme	ba	55	a
+Fred	ba	88	a
+Gillian	ba	1313	a
+Harriet	ba	2121	a
+Inky	ba	3434	a
+John	ba	5555	a
+Kelly	ba	8989	a
+Lucy	ba	144144	a
+name x:=fib^10,add y::x^2,add @x/gt/20
+name	y
+Gillian	25
+Harriet	33
+Inky	46
+John	67
+Kelly	101
+Lucy	156
+name x::fib^1,add @@fib/gt/5 @x/lt/50
+name	x
+Fred	9
+Gillian	14
+Harriet	22
+Inky	35
+name x::^chr:fib
+name	x
+Ann	chr1
+Bob	chr1
+Charlie	chr2
+Dan	chr3
+Esme	chr5
+Fred	chr8
+Gillian	chr13
+Harriet	chr21
+Inky	chr34
+John	chr55
+Kelly	chr89
+Lucy	chr144
+-A x::ms^0.1,add
+name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna	x
+Ann	1	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA	0.242857
+Bob	1	1	4	cat	-2	0.285714	2	3	2	b_o_b	bc	CCGGTTAA	0.385714
+Charlie	2	1	9	bat	3	0.428571	4	5	3	ch_ar_lie	def	GGGGTAC	0.528571
+Dan	3	2	16	cow	-4	0.571428	8	7	2	d_a_n	ghij	TTAA	0.671428
+Esme	5	3	25	owl	5	0.714285	16	11	1	e_s_m_e	klmno	CGCGC	0.814285
+Fred	8	5	36	pig	-6	0.857142	32	13	2	f_r_e_d	pqrstu	CTTCACT	0.957142
+Gillian	13	8	49	bug	7	1.000000	64	17	3	gi_ll_ian	vwxyz	C	1.1
+Harriet	21	13	64	rat	-8	1.142857	128	19	2	ha_rr_iet	yxwv	G	1.242857
+Inky	34	21	81	ant	9	1.285714	256	23	1	i_n_k_y	uts	T	1.385714
+John	55	34	100	fly	-10	1.428571	512	29	2	j_o_h_n	rq	A	1.528571
+Kelly	89	55	121	eagle	11	1.571428	1024	31	3	k_e_l_l_y	p	AAAAAAAA	1.671428
+Lucy	144	89	144	swift	-12	1.714285	2048	37	4	l_u_c_y	grace	TCGACACGACTC	1.814285
+-x fib x::ms:ms,add name
+fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna	x
+0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA	0.285714
+1	4	cat	-2	0.285714	2	3	2	b_o_b	bc	CCGGTTAA	0.571428
+1	9	bat	3	0.428571	4	5	3	ch_ar_lie	def	GGGGTAC	0.857142
+2	16	cow	-4	0.571428	8	7	2	d_a_n	ghij	TTAA	1.142856
+3	25	owl	5	0.714285	16	11	1	e_s_m_e	klmno	CGCGC	1.42857
+5	36	pig	-6	0.857142	32	13	2	f_r_e_d	pqrstu	CTTCACT	1.714284
+8	49	bug	7	1.000000	64	17	3	gi_ll_ian	vwxyz	C	2
+13	64	rat	-8	1.142857	128	19	2	ha_rr_iet	yxwv	G	2.285714
+21	81	ant	9	1.285714	256	23	1	i_n_k_y	uts	T	2.571428
+34	100	fly	-10	1.428571	512	29	2	j_o_h_n	rq	A	2.857142
+55	121	eagle	11	1.571428	1024	31	3	k_e_l_l_y	p	AAAAAAAA	3.142856
+89	144	swift	-12	1.714285	2048	37	4	l_u_c_y	grace	TCGACACGACTC	3.42857
+-h name q::ms:ud:sq,addall
+Ann	2.142857
+Bob	2.285714
+Charlie	12.428571
+Dan	12.571428
+Esme	30.714285
+Fred	30.857142
+Gillian	57
+Harriet	57.142857
+Inky	91.285714
+John	91.428571
+Kelly	133.571428
+Lucy	133.714285

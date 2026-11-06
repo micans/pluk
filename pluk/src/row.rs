@@ -3,18 +3,25 @@
 // The fields are not copied. Field i is stored as the pair (start, end) of
 // byte offsets into the line, and retrieved as the slice line[start..end].
 // See plan/DATASTRUCTURE-cell.design.txt, point 2.
+//
+// Computed fields (plan/COMPUTE.design.txt section 7) are kept in a second
+// buffer with their own offsets; field(i) serves the input fields first and the
+// computed fields after them, so that output and filters treat both alike.
 
 use std::cmp::Ordering;
 
 pub struct Row {
     pub line:   Vec<u8>,                // the line, newline removed
     pub fields: Vec<(usize, usize)>,    // byte offsets of each field in line
+    computed:   Vec<u8>,                // computed fields, one after the other
+    computed_fields: Vec<(usize, usize)>,
 }
 
 impl Row {
 
     pub fn new() -> Row {
-        Row { line: Vec::with_capacity(1024), fields: Vec::with_capacity(64) }
+        Row { line: Vec::with_capacity(1024), fields: Vec::with_capacity(64),
+              computed: Vec::with_capacity(256), computed_fields: Vec::with_capacity(16) }
     }
 
     // Find the fields in self.line, which are separated by TAB characters.
@@ -72,10 +79,30 @@ impl Row {
     }
 
     // Field i (0-based) as a byte slice: a pointer into self.line plus a length.
-    // Panics if i is out of range; callers check against n_fields().
+    // Indexes from n_fields() on are the computed fields; a computed field that was
+    // not computed for this row (a row rejected by an @@ filter) is empty.
     pub fn field(&self, i: usize) -> &[u8] {
-        let (start, end) = self.fields[i];
-        &self.line[start..end]
+        match self.fields.get(i) {
+            Some(&(start, end)) => &self.line[start..end],
+            None => match self.computed_fields.get(i - self.fields.len()) {
+                Some(&(start, end)) => &self.computed[start..end],
+                None => &[],
+            },
+        }
+    }
+
+    // Remove the computed fields of the previous row (capacity is kept).
+    pub fn clear_computed(&mut self) {
+        self.computed.clear();
+        self.computed_fields.clear();
+    }
+
+    // Append a computed field; it gets the next index after the input fields
+    // and the fields computed before it.
+    pub fn push_computed(&mut self, value: &[u8]) {
+        let start = self.computed.len();
+        self.computed.extend_from_slice(value);
+        self.computed_fields.push((start, self.computed.len()));
     }
 }
 

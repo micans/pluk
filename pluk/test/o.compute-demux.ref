@@ -1,0 +1,41 @@
+File	Written	Filtered
+out/dm8/ant.txt	1	0
+out/dm8/bat.txt	0	1
+out/dm8/bug.txt	0	1
+out/dm8/cat.txt	0	1
+out/dm8/cow.txt	0	1
+out/dm8/dog.txt	0	1
+out/dm8/eagle.txt	1	0
+out/dm8/fly.txt	1	0
+out/dm8/owl.txt	0	1
+out/dm8/pig.txt	0	1
+out/dm8/rat.txt	0	1
+out/dm8/swift.txt	1	0
+-- ./ant.txt
+name
+Inky
+-- ./bat.txt
+name
+-- ./bug.txt
+name
+-- ./cat.txt
+name
+-- ./cow.txt
+name
+-- ./dog.txt
+name
+-- ./eagle.txt
+name
+Kelly
+-- ./fly.txt
+name
+John
+-- ./owl.txt
+name
+-- ./pig.txt
+name
+-- ./rat.txt
+name
+-- ./swift.txt
+name
+Lucy

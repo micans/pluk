@@ -120,6 +120,95 @@ pub fn bits_any(x: Int, mask: Int) -> bool {
     x.unsigned_abs() & mask.unsigned_abs() != 0
 }
 
+// Addition, typed per combination (NUMERIC.design.txt section 3). Generic add:
+// integer overflow promotes to F, as Perl and pick (section 4).
+fn add_ii(a: Int, b: Int) -> Num {
+    match a.checked_add(b) {
+        Some(c) => Num::I(c),
+        None => Num::F(a as f64 + b as f64),
+    }
+}
+
+fn add_ff(a: f64, b: f64) -> Num {
+    Num::F(a + b)
+}
+
+pub fn add(a: Num, b: Num) -> Num {
+    match (a, b) {
+        (Num::I(x), Num::I(y)) => add_ii(x, y),
+        _ => add_ff(a.to_f64(), b.to_f64()),
+    }
+}
+
+
+// Writing numbers as text (COMPUTE.design.txt section 7). Integers are written as
+// integers. Floats, by default, with the shortest digits that read back as the
+// same f64, in plain notation for 1e-4 <= |x| < 1e16 and in exponent notation
+// otherwise (exponent with sign and at least two digits, as C and Perl); with
+// perl (--num-perl) as Perl writes them, %.15g with Inf and NaN.
+pub fn write_num(out: &mut Vec<u8>, n: Num, perl: bool) {
+    use std::io::Write;
+    match n {
+        Num::I(i) => { let _ = write!(out, "{}", i); }
+        Num::F(x) if x.is_nan() => out.extend_from_slice(if perl { b"NaN" } else { b"nan" }),
+        Num::F(x) if x.is_infinite() => {
+            let text: &[u8] = match (x > 0.0, perl) {
+                (true, false) => b"inf",
+                (false, false) => b"-inf",
+                (true, true) => b"Inf",
+                (false, true) => b"-Inf",
+            };
+            out.extend_from_slice(text);
+        }
+        Num::F(x) if perl => write_g15(out, x),
+        Num::F(x) => {
+            let a = x.abs();
+            if a == 0.0 || (1e-4..1e16).contains(&a) {
+                let _ = write!(out, "{}", x);       // shortest round-trip, plain notation
+            } else {
+                let text = format!("{:e}", x);      // shortest round-trip, e.g. 1.5e-7
+                write_exponent_form(out, &text);
+            }
+        }
+    }
+}
+
+// As Perl prints a number. Perl's arithmetic preserves integers: when operands
+// hold whole values in the 64-bit range, the result is an integer (signed, or
+// unsigned up to 2^64) and is printed as one. This is approximated here: a whole
+// float in [-2^63, 2^64) is written as an integer. Otherwise C's %.15g: 15
+// significant digits; exponent notation if the exponent (after rounding) is below
+// -4 or at least 15; trailing zeros removed.
+fn write_g15(out: &mut Vec<u8>, x: f64) {
+    if x.fract() == 0.0 && x >= -9.223372036854775808e18 && x < 1.8446744073709551616e19 {
+        out.extend_from_slice((x as i128).to_string().as_bytes());
+        return;
+    }
+    let e_form = format!("{:.14e}", x);             // d.dddddddddddddde<exp>
+    let exp: i32 = e_form[e_form.find('e').unwrap() + 1..].parse().unwrap();
+    if exp < -4 || exp >= 15 {
+        let (mantissa, _) = e_form.split_once('e').unwrap();
+        let mantissa = trim_zeros(mantissa);
+        write_exponent_form(out, &format!("{}e{}", mantissa, exp));
+    } else {
+        let fixed = format!("{:.*}", (14 - exp) as usize, x);
+        out.extend_from_slice(trim_zeros(&fixed).as_bytes());
+    }
+}
+
+// Remove trailing zeros after a decimal point, and the point if nothing follows.
+fn trim_zeros(s: &str) -> &str {
+    if s.contains('.') { s.trim_end_matches('0').trim_end_matches('.') } else { s }
+}
+
+// Rust writes 1.5e-7 and 1e21; C and Perl write 1.5e-07 and 1e+21.
+fn write_exponent_form(out: &mut Vec<u8>, text: &str) {
+    let (mantissa, exp) = text.split_once('e').unwrap();
+    let exp: i32 = exp.parse().unwrap();
+    out.extend_from_slice(mantissa.as_bytes());
+    out.extend_from_slice(format!("e{}{:02}", if exp < 0 { '-' } else { '+' }, exp.abs()).as_bytes());
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -185,6 +274,40 @@ mod tests {
         assert!(within_oom(I(Int::MIN), I(Int::MAX), I(2)));
         assert!(!within_oom(I(Int::MAX), I(1), I(2)));
         assert!(!within_oom(F(f64::NAN), I(1), I(2)));
+    }
+
+    fn text(n: Num, perl: bool) -> String {
+        let mut out = Vec::new();
+        write_num(&mut out, n, perl);
+        String::from_utf8(out).unwrap()
+    }
+
+    #[test]
+    fn formatting() {
+        for (x, plain, perl) in [
+            (0.1 + 0.2, "0.30000000000000004", "0.3"), (3.0, "3", "3"), (0.5, "0.5", "0.5"),
+            (1e15, "1000000000000000", "1000000000000000"), (1e16, "1e+16", "10000000000000000"),
+            (1e21, "1e+21", "1e+21"), (9223372036854775808.0, "9.223372036854776e+18", "9223372036854775808"),
+            (-2.996432245616634e18, "-2.996432245616634e+18", "-2996432245616633856"),
+            (1.5e15, "1500000000000000", "1500000000000000"), (1.25e15 + 0.5, "1250000000000000.5", "1.25e+15"),
+            (1.5e-7, "1.5e-07", "1.5e-07"), (0.0001, "0.0001", "0.0001"), (0.00001, "1e-05", "1e-05"),
+            (-2.5, "-2.5", "-2.5"), (1.0 / 3.0, "0.3333333333333333", "0.333333333333333"),
+            (123456789.123456789, "123456789.12345679", "123456789.123457"), (0.0, "0", "0"),
+            (f64::INFINITY, "inf", "Inf"), (f64::NEG_INFINITY, "-inf", "-Inf"), (f64::NAN, "nan", "NaN"),
+            (999999999999999.9, "999999999999999.9", "1e+15"),
+        ] {
+            assert_eq!(text(F(x), false), plain, "{}", x);
+            assert_eq!(text(F(x), true), perl, "{}", x);
+        }
+        assert_eq!(text(I(-42), false), "-42");
+        assert_eq!(text(I(Int::MAX), true), Int::MAX.to_string());
+    }
+
+    #[test]
+    fn adding() {
+        assert_eq!(add(I(2), I(3)), I(5));
+        assert_eq!(add(I(2), F(0.5)), F(2.5));
+        assert_eq!(add(I(Int::MAX), I(1)), F(Int::MAX as f64 + 1.0));
     }
 
     #[test]

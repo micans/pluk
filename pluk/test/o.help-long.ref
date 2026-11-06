@@ -41,6 +41,16 @@ Options:
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
 
+Computes (given among the columns; a stack language, as pick):
+  NAME::SPEC      compute column NAME and output it; NAME:=SPEC computes it
+                  without output; ::SPEC is output as PLUKAAAAA, PLUKAAAAB, ..
+  SPEC is a sequence of ^VALUE (constant), :COLUMN (pushes the column; a
+  +REGEX or -k range pushes several) and ,OP (operator). A SPEC that does not
+  start with ^ : , starts with a column. The result is what is left on the
+  stack, concatenated. Operators so far: dup pop xch cat add addall del.
+  Numbers are written exactly (round-trip); NA where a number was needed.
+  --num-perl  write numbers as Perl and pick do (%.15g, Inf, NaN)
+
 Filters (given among the columns; VALUE is %-decoded, e.g. %2F for '/'):
   @NAME/op/VALUE  numeric comparison of column NAME with VALUE, op one of
                   lt le eq ge gt ne. A value that is not a number fails.

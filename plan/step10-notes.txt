@@ -105,3 +105,77 @@ Item 3: compiling computes
   compute-compile-ok (@ filter and --demux on a compute). sel-unsupported now checks a
   compute with an unknown column and a map NAME; colspec-errors: x::y reports the unknown
   column. Unit tests in compute.rs (compiling) and ops.rs (shape against stack effect).
+
+
+Item 4: running computes
+
+  Files: src/exec.rs (new: Value, OpFn, Machine), src/ops.rs (implementations, OpDef.fun),
+  src/num.rs (add with add_ii/add_ff, write_num, Perl formatting), src/row.rs (computed
+  fields), filter.rs (pre and post stages), main.rs (Stages::judge, route), opt.rs
+  (--num-perl, help).
+
+  Row. Computed fields go into a second buffer with offsets (push_computed, clear_computed);
+  field(i) serves the input fields and then the computed fields, and returns an empty field
+  for a computed column that was not computed for this row. Output, filters, --other and
+  --demux need no change.
+
+  Order per row (Stages::judge in main.rs): clear the computed fields, the @@ stage
+  (Filters::pre), the computes (Machine::run), the @ stage (Filters::post). Filters::keep
+  was split into pre and post for this. A row rejected by the @@ stage has no computed
+  fields; in --other its computed columns are empty (computing them only for --other would
+  run computes on rows the user filtered out first).
+
+  Machine. One stack (Vec<Value>) for all computes and rows. Field(i) pushes a reference to
+  the row's column; a constant is pushed as an owned copy (one allocation per constant per
+  row; a borrowed constant is a possible later optimisation). Operators are plain functions
+  (OpFn = fn(&mut Machine, &Row, Option<&Regex>)) that pop and push; the compiler has checked
+  the depth, so pop() cannot fail. Machine::num() parses a field once per row and column:
+  the cache holds (row generation, result) per column, and a new row only increments the
+  generation, so nothing is cleared per row. Machine::into_bytes() takes an owned string
+  over without copying (cat appends to it, del removes from it in place); a field is copied.
+  After the instructions the stack is written left to right into the computed field: fields
+  and strings as they are, numbers per write_num, NA as NA; an empty stack gives an empty
+  field.
+
+  Operators: dup (clone of the top), pop, xch, cat, add (num::add: add_ii with checked_add,
+  overflow to F; add_ff; mixed promotes to F), addall (sum of the whole stack, I(0) for an
+  empty stack, NA if any value is not a number), del (first match removed, with the regex
+  compiled at compile time).
+
+  Number formatting (num::write_num). Integers as integers. Floats by default: Rust's
+  shortest round-trip digits ({} for 1e-4 <= |x| < 1e16, {:e} otherwise), the exponent
+  rewritten as C/Perl write it (e+21, e-07); inf -inf nan. A fuzz test of 20000 values
+  (random magnitudes, random bit patterns, rounded decimals) read back identically.
+
+  --num-perl. %.15g (computed as {:.14e} for the exponent after rounding, then fixed or
+  exponent notation, trailing zeros removed), Inf and NaN. Perl's arithmetic preserves
+  integers: operands holding whole values in the 64-bit range are added as integers (signed,
+  or unsigned up to 2^64) and printed as integers, so 1e15+0 prints 1000000000000000 in Perl
+  while a float 1e15 would print 1e+15. --num-perl approximates this at output: a whole
+  float in [-2^63, 2^64) is written as an integer. Against Perl (perl -ne 'print $_+0.0')
+  on the same 20000 values: 19798 identical; the 199 differences are all whole numbers of at
+  least 1e15 written as N.0 in the input, which Perl keeps as floats (its integer test
+  depends on how the input number was spelled: -2.996432245616634e+18 becomes an integer,
+  -2386388192917832.0 does not). Not reproduced; to be revisited if it matters. The
+  approximation may also differ for operators whose Perl results are floats even when whole
+  (to be checked when those families arrive).
+
+  Overflow: 9223372036854775807+1 is a float in pluk (NUMERIC.design.txt section 4); Perl
+  gives the unsigned integer 9223372036854775808. With --num-perl both print
+  9223372036854775808 (the approximation above); without it pluk prints
+  9.223372036854776e+18.
+
+  Checked against pick (with --num-perl): compute-run (ten invocations: add, cat, del, the
+  stack operators, :=, computes in @ and @@ filters, concatenation of the stack, -A, -x,
+  addall) and compute-run-big (regex splat with addall, big.txt sums, -c with a filter on a
+  compute) are identical to pick's output.
+
+  Speed: 1,000,000 rows, two columns: no compute 0.04 s; x::b^1,add 0.16 s; y::a^_z,cat
+  0.12 s; d::a^_x,del 0.11 s; s::b:b:b,addall 0.15 s (pick x::b^1,add: 3.7 s).
+
+  Tests: compute-simple (formerly compute-not-executed, whose ref is removed), compute-run,
+  compute-run-big, compute-num (default and --num-perl, NA, inf, nan, -0.0, overflow beyond
+  i128 so that both builds agree), compute-stack (empty result, concatenation, -k range
+  splat), compute-other (@@-rejected rows have empty computed columns), compute-demux (demux
+  on a := compute). compute-compile-ok now runs. Help refs updated. Unit tests in num.rs
+  (formatting in both modes, adding).

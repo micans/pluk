@@ -1,4 +1,17 @@
-pluk: [x::^1]: computes are not yet executed
-exit 1
-pluk: [x:=^1]: computes are not yet executed
-exit 1
+name	x
+Ann	1
+Bob	1
+Charlie	1
+Dan	1
+Esme	1
+Fred	1
+Gillian	1
+Harriet	1
+Inky	1
+John	1
+Kelly	1
+Lucy	1
+exit 0
+File	Written	Filtered
+out/1	12	0
+exit 0

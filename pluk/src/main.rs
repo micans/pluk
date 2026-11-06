@@ -3,6 +3,7 @@ mod colspec;
 mod compute;
 mod demux;
 mod dict;
+mod exec;
 mod filter;
 mod io;
 mod names;
@@ -158,7 +159,7 @@ fn run() -> std::io::Result<()> {
     };
 
     // Filters are compiled once the column names are known.
-    let mut filters = if input.is_empty {
+    let filters = if input.is_empty {
         filter::Filters::none()
     } else {
         filter::Filters::compile(&config.filters, &input.names, &names, &dicts, config.or_pre, config.or_post)
@@ -171,6 +172,7 @@ fn run() -> std::io::Result<()> {
         }
         return Ok(());
     }
+    let mut stages = Stages { filters, computes, machine: exec::Machine::new(config.num_perl) };
 
     if config.test_select {
         for (name, i) in selection.output_colnames.iter().zip(&selection.output_offset) {
@@ -179,12 +181,6 @@ fn run() -> std::io::Result<()> {
         }
         out.flush()?;
         return Ok(());
-    }
-
-    // Computes are compiled (step10 item 3) but not yet executed.
-    if let Some(spec) = config.computes.first() {
-        return Err(std::io::Error::new(ErrorKind::Unsupported,
-                   format!("[{}]: computes are not yet executed", String::from_utf8_lossy(&spec.text))));
     }
 
     if config.test_names {
@@ -243,7 +239,8 @@ fn run() -> std::io::Result<()> {
         let mut n_kept: u64 = 0;
         while let Some(kind) = input.next_line()? {
             match kind {
-                io::LineKind::Data        => if route(&mut filters, &input, &mut other, &mut assert_other, &mut None)? {
+                io::LineKind::Data        => if route(&mut stages, &mut input.row, input.n_lines,
+                                                          &mut other, &mut assert_other, &mut None)? {
                     n_kept += 1
                 },
                 io::LineKind::PassThrough => output::write_line(&mut out, &input.row.line)?,
@@ -268,7 +265,8 @@ fn run() -> std::io::Result<()> {
         }
         while let Some(kind) = input.next_line()? {
             match kind {
-                io::LineKind::Data => if route(&mut filters, &input, &mut other, &mut assert_other, &mut demux)? {
+                io::LineKind::Data => if route(&mut stages, &mut input.row, input.n_lines,
+                                               &mut other, &mut assert_other, &mut demux)? {
                     match &mut demux {
                         Some(d) => d.write(&input.row, input.n_lines)?,
                         None => writer.write_row(&mut out, &input.row)?,
@@ -292,7 +290,7 @@ fn run() -> std::io::Result<()> {
         }
         file.finish()?;
     }
-    filters.report_na();
+    stages.filters.report_na();
 
     if config.test_counts {
         eprintln!("columns={} lines={} skipped={} accepted={} short={} overflow={}",
@@ -305,32 +303,55 @@ fn run() -> std::io::Result<()> {
     Ok(())
 }
 
+// What happens to a data row before output: the @@ stage, the computes, the @
+// stage (plan/COMPUTE.design.txt section 1).
+struct Stages<'d> {
+    filters:  filter::Filters<'d>,
+    computes: Vec<compute::Compute>,
+    machine:  exec::Machine,
+}
+
+impl Stages<'_> {
+    // The computed fields of the previous row are removed first, so that a row
+    // rejected by the @@ stage has none (they read as empty).
+    fn judge(&mut self, row: &mut row::Row) -> Result<filter::Verdict, String> {
+        row.clear_computed();
+        if !self.filters.pre(row)? {
+            return Ok(filter::Verdict::RejectPre);
+        }
+        if !self.computes.is_empty() {
+            self.machine.run(&self.computes, row);
+        }
+        Ok(if self.filters.post(row)? { filter::Verdict::Keep } else { filter::Verdict::RejectPost })
+    }
+}
+
 // Whether the current data row is kept. A row rejected by a filter is written to
 // --other, and if rejected by an @ filter also counted by --demux (which opens
 // its file); a row that fails an assertion is written to --assert-other, or else
 // ends the run with an error giving the line number.
-fn route(filters: &mut filter::Filters, input: &io::LineReader,
+fn route(stages: &mut Stages, row: &mut row::Row, lineno: u64,
          other: &mut Option<sink::SideFile>, assert_other: &mut Option<sink::SideFile>,
          demux: &mut Option<demux::Demux>)
     -> std::io::Result<bool>
 {
-    match filters.keep(&input.row) {
+    match stages.judge(row) {
         Ok(filter::Verdict::Keep) => Ok(true),
         Ok(verdict) => {
             if let Some(file) = other {
-                file.write_row(&input.row)?;
+                file.write_row(row)?;
             }
             if let (filter::Verdict::RejectPost, Some(d)) = (verdict, demux) {
-                d.filtered(&input.row, input.n_lines)?;
+                d.filtered(row, lineno)?;
             }
             Ok(false)
         }
         Err(msg) => match assert_other {
             Some(file) => {
-                file.write_row(&input.row)?;
+                file.write_row(row)?;
                 Ok(false)
             }
-            None => Err(std::io::Error::new(ErrorKind::InvalidData, format!("{} at line {}", msg, input.n_lines))),
+            None => Err(std::io::Error::new(ErrorKind::InvalidData, format!("{} at line {}", msg, lineno))),
         },
     }
 }

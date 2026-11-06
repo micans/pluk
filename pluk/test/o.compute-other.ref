@@ -1,0 +1,15 @@
+name	x
+Fred	9
+Gillian	14
+Harriet	22
+Inky	35
+-- out/cmp-other.txt
+name	x
+Ann	
+Bob	
+Charlie	
+Dan	
+Esme	
+John	56
+Kelly	90
+Lucy	145

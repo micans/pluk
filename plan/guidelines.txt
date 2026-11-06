@@ -78,6 +78,12 @@
       whole rows; demux file names are restricted (no empty, absolute, '.' or '..' parts),
       --demux-dir sets their directory, too many open files is an error, the tally has no
       LastFlush column, --demux-buffer has no effect, -c with --demux is refused (step9.txt).
+    - Computes (COMPUTE.design.txt): a value that is not a number gives NA in numeric
+      operators (pick: 0), written as NA; floats are written round-trip (0.1+0.2 is
+      0.30000000000000004; --num-perl writes them as Perl, approximately, step10-notes.txt
+      item 4); unnamed computes are PLUKAAAAA, ... (pick: PICKAAAAA); a regex operand must be
+      a constant; integer overflow goes to a float directly (Perl first uses unsigned 64-bit
+      integers); rows rejected by @@ filters have empty computed columns in --other.
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).
