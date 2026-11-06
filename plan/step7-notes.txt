@@ -232,8 +232,11 @@ Item 5: /all/ /any/ /none/ /notall/
   it), and the nonint tests (pick truncates 5.0, 1e3).
 
   A test pitfall: an integer beyond i64 but within i128 is I in the int128 build, so the
-  nonint test uses a 42-digit integer, beyond both. Also, make test-int128 leaves an int128
-  binary in target/release; refs must be regenerated after a plain build (make test).
+  nonint test uses a 42-digit integer, beyond both. Also, make test-int128 used to leave an
+  int128 binary in target/release, so a ref regenerated after it got int128 output. After
+  step7, test-int128 builds in its own target directory (target/int128), copies the binary to
+  target/release/pluk7 (Makefile variable PLUK128) and runs the suite against it, so
+  target/release/pluk is always the default build and the 128-bit pluk stays available.
 
   Tests: big-strbit (from pick, with pick's ref), filter-bit (labelled: all four operators,
   masks 0, 1, 5, 12, negative values, column masks, @@), filter-bit-neg, filter-bit-sam (+
