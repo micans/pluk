@@ -1,0 +1,9 @@
+x	a	b	c	d	e	f	g
+abc	4	4	4	4	2	a	
+	1	1	1	1	0		
+aaa	4	2	4	4	2	a	
+baab	5	4	5	5	2	b	
+x	a	b
+fox	NA	NA
+pluk: [d::dna^,npat]: empty pattern for npat
+exit 1

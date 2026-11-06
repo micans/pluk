@@ -228,6 +228,10 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x p s", result: "x =~ s/p/s/", doc: "Substitute pattern p by s in x (s literal)", fun: op_ed },
     OpDef { name: "edg",    pops: Pops::N(3), pushes: 1, shape: STR, prepare: Prepare::ConstRegex(1), category: Category::Regex,
             operands: "x p s", result: "x =~ s/p/s/g", doc: "Globally substitute pattern p by s in x (s literal)", fun: op_edg },
+    OpDef { name: "get",    pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::ConstRegex(0), category: Category::Regex,
+            operands: "x p", result: "p-match-of-x", doc: "Group 1 of the match of p in x, or the entire match; empty if no match", fun: op_get },
+    OpDef { name: "npat",   pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::ConstRegex(0), category: Category::Regex,
+            operands: "x p", result: "np", doc: "Number of (non-overlapping) matches of p in x", fun: op_npat },
     OpDef { name: "edbr",   pops: Pops::N(3), pushes: 1, shape: STR, prepare: Prepare::ConstRegex(1), category: Category::Regex,
             operands: "x p s", result: "x =~ s/p/s/", doc: "As ed, $1 $2 .. (groups) and $0 (match) in s", fun: op_edbr },
     OpDef { name: "edgbr",  pops: Pops::N(3), pushes: 1, shape: STR, prepare: Prepare::ConstRegex(1), category: Category::Regex,
@@ -889,6 +893,31 @@ fn op_edbr(m: &mut Machine, row: &Row, re: Option<&Regex>) {
         }
         None => x.to_vec(),
     })
+}
+
+// get and npat: pop the pattern constant and x; NA for an NA x.
+fn match_op(m: &mut Machine, row: &Row, re: Option<&Regex>, f: impl Fn(&Regex, &[u8]) -> Value) {
+    let re = re.expect("a regex operator has a compiled pattern");
+    m.pop();
+    let x = m.pop();
+    let result = match x {
+        Value::Na => Value::Na,
+        x => f(re, &m.bytes(&x, row)),
+    };
+    m.push(result);
+}
+
+// As pick: $1 if it is defined (group 1 took part), else $&; empty if no match.
+fn op_get(m: &mut Machine, row: &Row, re: Option<&Regex>) {
+    match_op(m, row, re, |re, x| match re.captures(x) {
+        Some(caps) => Value::Bytes(caps.get(1).or(caps.get(0)).unwrap().as_bytes().to_vec()),
+        None => Value::Bytes(Vec::new()),
+    })
+}
+
+// As pick's '$n++ while /p/g': the matches as Perl finds them (perl_matches).
+fn op_npat(m: &mut Machine, row: &Row, re: Option<&Regex>) {
+    match_op(m, row, re, |re, x| Value::Num(Num::I(perl_matches(re, x).len() as num::Int)))
 }
 
 // The groups of each match: the match positions as Perl finds them (perl_matches),

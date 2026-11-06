@@ -65,3 +65,23 @@ Item 2: edbr and edgbr
   matches with n*; big.txt) is identical.
 
   Tests: regex-br. Help refs. Unit test in ops.rs (expand_groups).
+
+
+Item 3: get and npat
+
+  Files: ops.rs (match_op, op_get, op_npat), opt.rs (help).
+
+  get gives group 1 if it took part in the first match, else the whole match, and an
+  empty string if there is no match: pick's (defined($1) ? $1 : $&). With
+  Captures::get(1).or(get(0)), a pattern without groups gives the whole match as well.
+  npat counts the matches as pick's '$n++ while /p/g', using perl_matches (item 1), so
+  empty matches count as in Perl. Both take the pattern as the top operand
+  (ConstRegex(0)); an NA x gives NA.
+
+  Checked against pick (--num-perl): regex-get (vowel pairs, groups that do and do not
+  take part, no match, counts of single characters and classes, n* with empty matches,
+  \d on floats; big.txt with x*) is identical. regex-get-edge keeps npat's empty-match
+  counts checked against Perl (x* a* a| a? \b on abc, '', aaa, baab), a group that does
+  not take part, no match, NA and the refused empty pattern.
+
+  Tests: regex-get, regex-get-edge. Help refs.
