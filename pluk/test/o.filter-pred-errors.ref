@@ -1,0 +1,7 @@
+[@x/ISFOO]: unrecognised predicate /ISFOO (known: /ISINT /NOTINT /ISNUM /NOTNUM)
+Filter invalid [@x/isint]: expected @NAME<op>VALUE, @NAME<op>:NAME or @NAME/PREDICATE
+[@/ISINT]: column name missing
+Filter invalid [@x/ISINT/3]: expected @NAME<op>VALUE, @NAME<op>:NAME or @NAME/PREDICATE
+Filter invalid [@x/]: expected @NAME<op>VALUE, @NAME<op>:NAME or @NAME/PREDICATE
+[@+/ISINT]: [+]: empty regex after '+'
+[@fib/gt/ISINT]: [ISINT] is not a number

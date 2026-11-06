@@ -133,3 +133,32 @@ Item 3: multi-column filter handles
   element, compute). filter-errors: '@+x/gt/3' (formerly 'not yet supported') replaced by
   '@+/gt/3' (empty regex). Help refs updated. Unit tests in filter.rs (parsing_handles,
   extended error cases).
+
+
+Item 4: /ISINT /NOTINT /ISNUM /NOTNUM
+
+  Files: src/filter.rs (Op::Pred(Pred, negated), PREDICATES, find_predicate,
+  parse_predicate, Filter::predicate), opt.rs (help).
+
+  Parsing. find_operator() is tried first, unchanged: a lowercase /xx/ token, else the first
+  '=' or '~'. Only when it finds nothing is find_predicate() tried: the argument must end in
+  /UPPERCASE. So NAME contains no '=' or '~', '@x/gt/ISINT' is /gt/ with the constant ISINT
+  (an error: not a number), and '@x~a/ISINT' is the regex operator with the value 'a/ISINT'
+  (an error: '/' must be %2F). The rule 'the first operator ends NAME' is kept. An unknown
+  uppercase token is an error listing the known predicates; lowercase /isint is not a
+  predicate ('Filter invalid', whose message now mentions @NAME/PREDICATE). The handle is a
+  column specification, so @@+foo.*/ISNUM tests every foo column.
+
+  Evaluation. Filter::predicate() uses parse_num: ISINT holds for I (integer syntax that fits
+  Int), ISNUM for I or F (so 1e3, inf and nan are numbers). An integer beyond Int is F: not
+  ISINT, but ISNUM; between i64 and i128 the two builds differ, so the tests use a 42-digit
+  integer. Predicates never count NA. The 'did you want :x' hint is skipped for the empty
+  constant of a predicate.
+
+  pick has no predicates, so there is nothing to compare against; the semantics follow
+  parse_num, which is tested against the number syntax in num.rs.
+
+  Tests: filter-pred (all four, @@, a range of number syntaxes and non-numbers),
+  filter-pred-multi (regex, list and regex alternation handles), filter-pred-other (SAM FLAG,
+  -o with another filter), filter-pred-errors. filter-errors: the 'Filter invalid' message
+  changed. Help refs updated. Unit tests in filter.rs (parsing_predicates, predicates).

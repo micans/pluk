@@ -4,5 +4,5 @@
 [@/gt/3]: column name missing
 [@+/gt/3]: [+]: empty regex after '+'
 [@assert@x/gt/3]: assertions (@assert@) not yet supported
-Filter invalid [@x]: expected @NAME<op>VALUE or @NAME<op>:NAME
+Filter invalid [@x]: expected @NAME<op>VALUE, @NAME<op>:NAME or @NAME/PREDICATE
 [@x/gt/:]: column name missing after ':'

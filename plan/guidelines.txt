@@ -65,6 +65,9 @@
       truncated but fails and is counted separately (step7.txt item 5).
     - -k ranges: a range that selects no column is an error, and a multiplier of 0 (S-E*0) is
       refused (pick: empty or repeated selection) (step8-notes.txt item 2).
+    - Additions without a pick counterpart: multi-column filter handles (lists, + regexes, -k
+      ranges; the test must hold for every column), unary predicates /ISINT /NOTINT /ISNUM
+      /NOTNUM (step8.txt items 3 and 4).
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

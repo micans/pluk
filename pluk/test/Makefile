@@ -179,6 +179,10 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	printf 'a\tb\tc\n1\t2\t3\n1\tfox\t3\n1\t2\t4.5\n' | { $(p) -h a b c @+./all/0; } > o.filter-multi-nonint.test 2>&1
 	for a in '@+zz.*/gt/0' @fib:zz/gt/0 @fib/gt/:a:b @fib/gt/:+a @fib/gt/:fib2:fib @fib:/gt/0 @fib::x/gt/0; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-multi-errors.test
 	{ $(p) -k 1 @1/gt/:2-3 < data.txt; [ $$? -eq 1 ]; } 2>> o.filter-multi-errors.test
+	{ for a in @x/ISINT @x/NOTINT @x/ISNUM @x/NOTNUM @@x/ISNUM; do echo "$$a"; printf 'x\ty\n5\t1\n-3\t2\n+7\t3\n007\t4\n5.0\t5\n1e3\t6\ninf\t7\nnan\t8\n\t9\nfox\t10\n 4\t11\n0x10\t12\n400000000000000000000000000000000000000000\t13\n' | $(p) -h x y "$$a"; done; } > o.filter-pred.test 2>&1
+	{ for a in '@+.*/ISINT' '@x:y/NOTINT' '@@+x|y/ISNUM'; do echo "$$a"; printf 'x\ty\n5\t1\n-3\t2\n+7\t3\n007\t4\n5.0\t5\n1e3\t6\ninf\t7\nnan\t8\n\t9\nfox\t10\n 4\t11\n0x10\t12\n400000000000000000000000000000000000000000\t13\n' | $(p) -h x y "$$a"; done; } > o.filter-pred-multi.test 2>&1
+	{ $(p) --sam 1 2 @2/NOTINT < sam.txt; $(p) -o name ms @ms/ISINT @fib/gt/50 < data.txt; } > o.filter-pred-other.test 2> /dev/null
+	for a in @x/ISFOO @x/isint @/ISINT @x/ISINT/3 @x/ @+/ISINT @fib/gt/ISINT; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-pred-errors.test
 	for a in @z/gt/3 @@name/gt/:z @fib~eq~:z; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-unknown.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.txt   2> /dev/null > o.filter-sam.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.bam   > o.filter-bam.test

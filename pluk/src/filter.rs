@@ -70,7 +70,20 @@ pub enum Op {
     Ep(bool),       // /ep/, /epx/ (negated): within an additive band
     Om(bool),       // /om/, /omx/ (negated): within a multiplicative band
     Bit(BitTest, bool), // /all/ /any/, /notall/ /none/ (negated)
+    Pred(Pred, bool),   // /ISINT /ISNUM, /NOTINT /NOTNUM (negated): no VALUE
 }
+
+// Unary predicates on a value (step8 item 4).
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum Pred {
+    Int,            // parse_num gives an integer (I)
+    Num,            // parse_num gives a number (I or F, including inf and nan)
+}
+
+const PREDICATES: [(&[u8], Op); 4] = [
+    (b"ISINT", Op::Pred(Pred::Int, false)), (b"NOTINT", Op::Pred(Pred::Int, true)),
+    (b"ISNUM", Op::Pred(Pred::Num, false)), (b"NOTNUM", Op::Pred(Pred::Num, true)),
+];
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum BitTest {
@@ -156,6 +169,7 @@ pub struct FilterSpec {
 //   @NAME=VALUE, /=, ~, /~           the first '=' or '~' ends NAME
 //   @NAME~hasval~DICT~v              an extra argument after VALUE (required)
 //   @NAME/ep/VALUE/eps, /om/VALUE/k   an extra argument after VALUE (optional)
+//   @NAME/ISINT                      a predicate: uppercase, last, no VALUE
 // VALUE ':NAME' refers to a column, '^...' is a literal; both tested before
 // %-decoding, so %3A is a literal ':' (pick decodes first).
 // headless (-k): ranges are allowed in the handle.
@@ -173,7 +187,11 @@ pub fn parse_filter(arg: &[u8], headless: bool) -> Result<FilterSpec, String> {
 
     let (name, op_token, rest) = match find_operator(spec) {
         Some(found) => found,
-        None => return Err(format!("Filter invalid [{}]: expected @NAME<op>VALUE or @NAME<op>:NAME", shown)),
+        None => match find_predicate(spec) {
+            Some((name, token)) => return parse_predicate(arg, stage, name, token, headless),
+            None => return Err(format!("Filter invalid [{}]: expected @NAME<op>VALUE, @NAME<op>:NAME or @NAME/PREDICATE",
+                                       shown)),
+        },
     };
     let op = match OPERATORS.iter().find(|(token, _)| *token == op_token) {
         Some((_, Some(op))) => *op,
@@ -291,6 +309,36 @@ pub fn parse_filter(arg: &[u8], headless: bool) -> Result<FilterSpec, String> {
         _ => None,
     };
     Ok(FilterSpec { text: arg.to_vec(), stage, handle, op, value, extra, const_num, band, regex, literal })
+}
+
+// A predicate: the argument ends in /UPPERCASE, with no other operator (only
+// tried when find_operator() finds none, so NAME contains no '=' or '~').
+// Returns NAME and the predicate name.
+fn find_predicate(spec: &[u8]) -> Option<(&[u8], &[u8])> {
+    let k = spec.iter().rposition(|&b| b == b'/')?;
+    let token = &spec[k + 1..];
+    if !token.is_empty() && token.iter().all(u8::is_ascii_uppercase) {
+        Some((&spec[..k], token))
+    } else {
+        None
+    }
+}
+
+fn parse_predicate(arg: &[u8], stage: Stage, name: &[u8], token: &[u8], headless: bool)
+    -> Result<FilterSpec, String>
+{
+    let shown = String::from_utf8_lossy(arg);
+    let op = match PREDICATES.iter().find(|(t, _)| *t == token) {
+        Some((_, op)) => *op,
+        None => return Err(format!("[{}]: unrecognised predicate /{} (known: /ISINT /NOTINT /ISNUM /NOTNUM)",
+                                   shown, String::from_utf8_lossy(token))),
+    };
+    if name.is_empty() {
+        return Err(format!("[{}]: column name missing", shown));
+    }
+    let handle = colspec::parse(name, headless).map_err(|e| format!("[{}]: {}", shown, e))?;
+    Ok(FilterSpec { text: arg.to_vec(), stage, handle, op, value: Value::Const(Vec::new()), extra: None,
+                    const_num: None, band: None, regex: None, literal: false })
 }
 
 // Split at the first operator: a token [/~][a-z]{2,19}[/~] (as pick), else the
@@ -412,6 +460,7 @@ impl Filter<'_> {
                 };
                 found != negated
             }
+            Op::Pred(pred, negated) => Filter::predicate(field, pred, negated),
             Op::HasVal(negated) => {
                 let found = match &self.operand {
                     Operand::Dict(d) => d.get(field).is_some_and(|v| *v == self.extra),
@@ -421,6 +470,16 @@ impl Filter<'_> {
             }
         };
         if pass { Outcome::Pass } else { Outcome::Fail }
+    }
+
+    // Predicates never count: a value that is not a number is what they test.
+    fn predicate(field: &[u8], pred: Pred, negated: bool) -> bool {
+        let holds = match (pred, num::parse_num(field)) {
+            (Pred::Int, Some(Num::I(_))) => true,
+            (Pred::Int, _) => false,
+            (Pred::Num, n) => n.is_some(),
+        };
+        holds != negated
     }
 }
 
@@ -475,7 +534,7 @@ impl<'d> Filters<'d> {
                 },
                 Value::Column(name) => Operand::Column(lookup(name, &format!("Indirection {}", kind))?),
                 Value::Const(c) => {
-                    if names.index_of(c).is_some() && spec.const_num.is_none() && !spec.literal {
+                    if !c.is_empty() && names.index_of(c).is_some() && spec.const_num.is_none() && !spec.literal {
                         eprintln!("-- You used {} (a column handle) as a constant in {} test, did you want :{}? --",
                                   String::from_utf8_lossy(c), String::from_utf8_lossy(&spec.text),
                                   String::from_utf8_lossy(c));
@@ -633,6 +692,32 @@ mod tests {
         assert!(matches!(f.handle.elements[0], Element::Range(_)));
         assert!(parse_filter(b"@2/gt/:3-4", true).is_err());
         assert!(parse_filter(b"@2/gt/:3", true).is_ok());
+    }
+
+    #[test]
+    fn parsing_predicates() {
+        let f = spec("@x/ISINT").unwrap();
+        assert_eq!((name(&f), f.op), (b"x".to_vec(), Op::Pred(Pred::Int, false)));
+        assert_eq!(spec("@@+x.*/NOTNUM").unwrap().op, Op::Pred(Pred::Num, true));
+        assert_eq!(name(&spec("@a%2Fb/ISNUM").unwrap()), b"a/b");
+        // A lowercase operator comes first: /gt/ with the (non-numeric) constant ISINT.
+        assert!(spec("@x/gt/ISINT").unwrap_err().contains("is not a number"));
+        for bad in ["@x/ISFOO", "@x/isint", "@/ISINT", "@x/ISINT/3", "@x/", "@+/ISINT"] {
+            assert!(spec(bad).is_err(), "{}", bad);
+        }
+    }
+
+    #[test]
+    fn predicates() {
+        for (v, int, numeric) in [("5", true, true), ("-3", true, true), ("+7", true, true), ("007", true, true),
+                                  ("5.0", false, true), ("1e3", false, true), ("inf", false, true),
+                                  ("nan", false, true), ("", false, false), ("fox", false, false),
+                                  (" 4", false, false), ("0x10", false, false)] {
+            assert_eq!(Filter::predicate(v.as_bytes(), Pred::Int, false), int, "{}", v);
+            assert_eq!(Filter::predicate(v.as_bytes(), Pred::Int, true), !int, "{}", v);
+            assert_eq!(Filter::predicate(v.as_bytes(), Pred::Num, false), numeric, "{}", v);
+            assert_eq!(Filter::predicate(v.as_bytes(), Pred::Num, true), !numeric, "{}", v);
+        }
     }
 
     #[test]
