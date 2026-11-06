@@ -16,7 +16,8 @@ use crate::row::Row;
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Pops {
     N(usize),       // exactly N; fewer is a stack underflow (a compile-time error)
-    All,            // the whole stack, possibly empty (addall, joinall, ...)
+    All(usize),     // the whole stack, which must hold at least this many values
+                    // (addall: 0; joinall: 1, the separator)
 }
 
 // How an operator changes the static stack (compute.rs keeps track of what is on
@@ -112,6 +113,14 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x N", result: "x'", doc: "x left zero-padded to width N", fun: op_zp },
     OpDef { name: "nchar",  pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::String,
             operands: "x c", result: "nc", doc: "Number of occurrences of c in x (non-overlapping)", fun: op_nchar },
+    OpDef { name: "catall", pops: Pops::All(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "*", result: "Stack-joined", doc: "Stringified stack", fun: op_catall },
+    OpDef { name: "joinall", pops: Pops::All(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "* s", result: "Stack-joined-by-s", doc: "Stringified stack with s as separator", fun: op_joinall },
+    OpDef { name: "join",   pops: Pops::N(3), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x y j", result: "xjy", doc: "Join two elements with string separator", fun: op_join },
+    OpDef { name: "uie",    pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x y", result: "x-or-y", doc: "Use x if not empty (and not NA), otherwise use y", fun: op_uie },
     OpDef { name: "add",    pops: Pops::N(2), pushes: 1, shape: Shape::Result(Kind::Num), prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "x y", result: "x+y", doc: "Add x and y", fun: op_add },
     OpDef { name: "sub",    pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
@@ -174,19 +183,19 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x", result: "tan(x)", doc: "Tangent of x", fun: op_tan },
     OpDef { name: "rand",   pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "x", result: "rand(x)", doc: "Random real in range [0, x) (x 0: [0, 1); see --seed)", fun: op_rand },
-    OpDef { name: "addall", pops: Pops::All,  pushes: 1, shape: Shape::Result(Kind::Num), prepare: Prepare::Nothing, category: Category::Arithmetic,
+    OpDef { name: "addall", pops: Pops::All(0),pushes: 1, shape: Shape::Result(Kind::Num), prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "*", result: "sum(Stack)", doc: "Sum of all entries in stack", fun: op_addall },
-    OpDef { name: "mulall", pops: Pops::All,  pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+    OpDef { name: "mulall", pops: Pops::All(0),pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "*", result: "product(Stack)", doc: "Product of all entries in stack", fun: op_mulall },
-    OpDef { name: "maxall", pops: Pops::All,  pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+    OpDef { name: "maxall", pops: Pops::All(0),pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "*", result: "max(Stack)", doc: "Max over all entries in stack", fun: op_maxall },
-    OpDef { name: "minall", pops: Pops::All,  pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+    OpDef { name: "minall", pops: Pops::All(0),pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "*", result: "min(Stack)", doc: "Min over all entries in stack", fun: op_minall },
-    OpDef { name: "meanall", pops: Pops::All, pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+    OpDef { name: "meanall", pops: Pops::All(0),pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "*", result: "mean(Stack)", doc: "Mean of all entries in stack", fun: op_meanall },
-    OpDef { name: "hmeanall", pops: Pops::All, pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+    OpDef { name: "hmeanall", pops: Pops::All(0),pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "*", result: "hmean(Stack)", doc: "Harmonic mean of the absolute values in stack", fun: op_hmeanall },
-    OpDef { name: "gmeanall", pops: Pops::All, pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+    OpDef { name: "gmeanall", pops: Pops::All(0),pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "*", result: "gmean(Stack)", doc: "Geometric mean of the absolute values in stack", fun: op_gmeanall },
     OpDef { name: "dd",     pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Precision,
             operands: "x N", result: "x'", doc: "x written with N decimal digits", fun: op_dd },
@@ -315,6 +324,70 @@ fn op_nchar(m: &mut Machine, row: &Row, _: Option<&Regex>) {
         }
     };
     m.push(result);
+}
+
+// Joining (decision 7): the values as text, joined by sep; NA if a value (or the
+// separator) is NA; an empty stack gives an empty string.
+fn join_values(m: &mut Machine, row: &Row, values: &[Value], sep: &[u8]) -> Value {
+    if values.iter().any(|v| matches!(v, Value::Na)) {
+        return Value::Na;
+    }
+    let mut out = Vec::new();
+    for (k, v) in values.iter().enumerate() {
+        if k > 0 {
+            out.extend_from_slice(sep);
+        }
+        out.extend_from_slice(&m.bytes(v, row));
+    }
+    Value::Bytes(out)
+}
+
+fn op_catall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    let mut values = std::mem::take(&mut m.stack);
+    let result = join_values(m, row, &values, b"");
+    values.clear();
+    m.stack = values;
+    m.push(result);
+}
+
+// The separator is the top of the stack (Pops::All(1) guarantees it is there).
+fn op_joinall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    let sep = m.pop();
+    let mut values = std::mem::take(&mut m.stack);
+    let result = match sep {
+        Value::Na => Value::Na,
+        sep => {
+            let sep = m.bytes(&sep, row).into_owned();
+            join_values(m, row, &values, &sep)
+        }
+    };
+    values.clear();
+    m.stack = values;
+    m.push(result);
+}
+
+// join x y j gives x j y (pick).
+fn op_join(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    let j = m.pop();
+    let y = m.pop();
+    let x = m.pop();
+    let result = match j {
+        Value::Na => Value::Na,
+        j => {
+            let sep = m.bytes(&j, row).into_owned();
+            join_values(m, row, &[x, y], &sep)
+        }
+    };
+    m.push(result);
+}
+
+// uie x y: x if it is not empty and not NA, otherwise y (decision 6; pick: empty
+// only). The chosen operand is pushed as it is.
+fn op_uie(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    let y = m.pop();
+    let x = m.pop();
+    let use_x = !matches!(x, Value::Na) && !m.bytes(&x, row).is_empty();
+    m.push(if use_x { x } else { y });
 }
 
 // pick's boxit: k clamped to 0 .. len.
@@ -627,7 +700,7 @@ mod tests {
     #[test]
     fn table() {
         assert_eq!(lookup(b"add").map(|op| op.pops), Some(Pops::N(2)));
-        assert_eq!(lookup(b"addall").map(|op| op.pops), Some(Pops::All));
+        assert_eq!(lookup(b"addall").map(|op| op.pops), Some(Pops::All(0)));
         assert!(lookup(b"nosuch").is_none());
         // Names are unique.
         for (i, a) in OPERATORS.iter().enumerate() {

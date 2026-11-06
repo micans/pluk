@@ -242,7 +242,7 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool)
                         }
                     }
                     Token::Op(op) => {
-                        let needed = match op.pops { Pops::N(n) => n, Pops::All => 0 };
+                        let needed = match op.pops { Pops::N(n) | Pops::All(n) => n };
                         if stack.len() < needed {
                             return Err(format!("[{}]: stack underflow at operator {} (needs {}, has {})",
                                                shown, op.name, needed, stack.len()));
@@ -254,7 +254,7 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool)
                         instrs.push(instr);
                         match op.shape {
                             Shape::Result(kind) => {
-                                let keep = match op.pops { Pops::N(n) => stack.len() - n, Pops::All => 0 };
+                                let keep = match op.pops { Pops::N(n) => stack.len() - n, Pops::All(_) => 0 };
                                 stack.truncate(keep);
                                 stack.push(Slot::Result(kind));
                             }

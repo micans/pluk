@@ -61,3 +61,34 @@ Item 2: padding and counting
 
   Tests: string-pad, string-pad-edge (negative, float and non-number widths, overlapping
   candidates, empty c, NA). Help refs.
+
+
+Item 3: joining
+
+  Files: ops.rs (catall joinall join uie; join_values; Pops::All(min)), compute.rs (the
+  stack check with the minimum), opt.rs (help).
+
+  Pops::All now carries a minimum: the whole stack, which must hold at least that many
+  values. addall and the other whole-stack operators have All(0); joinall has All(1), its
+  separator (pick declares joinall with one required operand), so '::,joinall' is a stack
+  underflow at compile time, like any other operator.
+
+  join_values writes the values as text with a separator between them; an NA value or
+  separator gives NA; no values give an empty string. catall joins the whole stack without
+  separator; joinall pops the separator first and joins the rest; join x y j gives x j y
+  (pick: "$x$j$y" from the stack order x y j). uie pushes x itself if it is not NA and not
+  empty, otherwise y (decision 6; pick tests the length only).
+
+  A testing pitfall, found here: the comparison helper used in these notes discarded
+  stderr, so an invocation that both pick and pluk refuse compared as equal. The first
+  join test had c::name:fx^:,join, where ':' starts a new (empty) column token; both
+  programs rejected it. The helper now also requires pluk to succeed and to produce data;
+  rerunning it on all 23 pick comparisons of step12 and step13 found no other such case.
+  ^%3A is the constant ':'.
+
+  Checked against pick (--num-perl): string-join (data.txt and big.txt: catall, joinall
+  with a separator, join with ':' and '_', uie with an empty and a non-empty x, an empty
+  stack for catall and a separator alone for joinall) is identical.
+
+  Tests: string-join, string-join-edge (NA in each operator, empty x for uie, joinall
+  underflow). Help refs.

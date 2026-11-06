@@ -1,0 +1,114 @@
+name	a	b	c	d	e	f	g	h
+Ann	Anndog1	Ann-dog-1	Ann:dog	Ann_0.142857	dog	dog		
+Bob	Bobcat-2	Bob-cat--2	Bob:cat	Bob_0.285714	cat	cat		
+Charlie	Charliebat3	Charlie-bat-3	Charlie:bat	Charlie_0.428571	bat	bat		
+Dan	Dancow-4	Dan-cow--4	Dan:cow	Dan_0.571428	cow	cow		
+Esme	Esmeowl5	Esme-owl-5	Esme:owl	Esme_0.714285	owl	owl		
+Fred	Fredpig-6	Fred-pig--6	Fred:pig	Fred_0.857142	pig	pig		
+Gillian	Gillianbug7	Gillian-bug-7	Gillian:bug	Gillian_1.000000	bug	bug		
+Harriet	Harrietrat-8	Harriet-rat--8	Harriet:rat	Harriet_1.142857	rat	rat		
+Inky	Inkyant9	Inky-ant-9	Inky:ant	Inky_1.285714	ant	ant		
+John	Johnfly-10	John-fly--10	John:fly	John_1.428571	fly	fly		
+Kelly	Kellyeagle11	Kelly-eagle-11	Kelly:eagle	Kelly_1.571428	eagle	eagle		
+Lucy	Lucyswift-12	Lucy-swift--12	Lucy:swift	Lucy_1.714285	swift	swift		
+id	a	b	c
+r001	r001/D/-20	quebecuniform98	dropxD
+r002	r002/B/-32	xraykilo83	dropxB
+r003	r003/C/-19	sierravictor18	dropxC
+r004	r004/A/30	whiskeyfoxtrot13	dropxA
+r005	r005/C/12	yankeexray93	dropxC
+r006	r006/D/43	romeovictor11	dropxD
+r007	r007/C/41	zulujuliet73	keepxC
+r008	r008/D/-36	indiaromeo1	dropxD
+r009	r009/C/47	charliecharlie13	dropxC
+r010	r010/C/33	uniformmike78	dropxC
+r011	r011/C/-10	mikefoxtrot25	dropxC
+r012	r012/E/-21	mikexray68	dropxE
+r013	r013/B/30	kilofoxtrot26	dropxB
+r014	r014/C/40	victorgolf70	keepxC
+r015	r015/D/-37	xraygolf2	dropxD
+r016	r016/D/5	papapapa5	dropxD
+r017	r017/E/25	echoindia14	dropxE
+r018	r018/E/-42	whiskeytango95	dropxE
+r019	r019/C/-7	limauniform55	dropxC
+r020	r020/D/-13	zulugolf59	dropxD
+r021	r021/D/-24	julietmike69	keepxD
+r022	r022/E/22	foxtrotkilo58	dropxE
+r023	r023/D/24	whiskeyromeo11	dropxD
+r024	r024/E/5	uniformlima12	dropxE
+r025	r025/A/41	kilojuliet53	dropxA
+r026	r026/B/2	deltauniform92	dropxB
+r027	r027/D/37	charliemike83	dropxD
+r028	r028/B/41	quebecjuliet18	keepxB
+r029	r029/A/43	sierraoscar37	dropxA
+r030	r030/C/40	novembercharlie62	dropxC
+r031	r031/A/-28	julietoscar28	dropxA
+r032	r032/A/-37	kiloyankee23	dropxA
+r033	r033/B/8	alphajuliet65	dropxB
+r034	r034/B/47	uniformcharlie90	dropxB
+r035	r035/B/-39	romeohotel60	keepxB
+r036	r036/D/-14	tangovictor27	dropxD
+r037	r037/A/42	hotelyankee5	dropxA
+r038	r038/E/-25	tangoquebec22	dropxE
+r039	r039/E/-40	echobravo18	dropxE
+r040	r040/E/26	hotelxray50	dropxE
+r041	r041/C/12	foxtrotyankee82	dropxC
+r042	r042/C/-10	limaxray86	keepxC
+r043	r043/E/-25	bravolima74	dropxE
+r044	r044/B/7	xrayuniform45	dropxB
+r045	r045/B/31	bravoquebec41	dropxB
+r046	r046/C/-17	bravoquebec58	dropxC
+r047	r047/A/-2	quebeccharlie36	dropxA
+r048	r048/E/48	papaquebec56	dropxE
+r049	r049/E/9	julietecho3	keepxE
+r050	r050/C/5	uniformindia15	dropxC
+r051	r051/A/42	tangogolf31	dropxA
+r052	r052/B/40	indiakilo32	dropxB
+r053	r053/E/-3	xraysierra95	dropxE
+r054	r054/E/-20	charliejuliet42	dropxE
+r055	r055/B/37	tangowhiskey17	dropxB
+r056	r056/C/42	deltacharlie87	keepxC
+r057	r057/C/-45	indiapapa12	dropxC
+r058	r058/A/-35	foxtrotxray57	dropxA
+r059	r059/C/-39	papazulu60	dropxC
+r060	r060/E/28	romeonovember1	dropxE
+r061	r061/A/27	hotelecho93	dropxA
+r062	r062/E/-12	hoteltango83	dropxE
+r063	r063/D/17	quebeclima37	keepxD
+r064	r064/A/5	mikeindia10	dropxA
+r065	r065/D/43	quebecbravo87	dropxD
+r066	r066/E/29	golfcharlie87	dropxE
+r067	r067/D/5	deltaromeo28	dropxD
+r068	r068/E/19	uniformlima66	dropxE
+r069	r069/B/-29	foxtrotdelta19	dropxB
+r070	r070/C/30	sierraoscar37	keepxC
+r071	r071/E/32	uniformpapa45	dropxE
+r072	r072/B/-17	romeoyankee90	dropxB
+r073	r073/D/39	foxtrotecho75	dropxD
+r074	r074/B/-32	deltazulu34	dropxB
+r075	r075/E/-20	bravozulu14	dropxE
+r076	r076/E/-46	zuluxray32	dropxE
+r077	r077/E/-23	indiajuliet84	keepxE
+r078	r078/A/-19	victornovember34	dropxA
+r079	r079/E/-3	golfnovember51	dropxE
+r080	r080/D/-46	foxtrotgolf86	dropxD
+r081	r081/B/-48	alphakilo38	dropxB
+r082	r082/B/-16	julietzulu56	dropxB
+r083	r083/D/-5	charliefoxtrot26	dropxD
+r084	r084/C/20	alphanovember28	keepxC
+r085	r085/B/19	golfindia12	dropxB
+r086	r086/B/-30	foxtrotdelta50	dropxB
+r087	r087/A/48	victorpapa69	dropxA
+r088	r088/C/-41	alphanovember31	dropxC
+r089	r089/B/16	yankeeindia99	dropxB
+r090	r090/B/3	alphazulu17	dropxB
+r091	r091/A/-39	limapapa54	keepxA
+r092	r092/A/-10	echooscar65	dropxA
+r093	r093/D/-4	romeopapa30	dropxD
+r094	r094/E/45	indiasierra47	dropxE
+r095	r095/B/33	hoteloscar3	dropxB
+r096	r096/D/-14	romeogolf88	dropxD
+r097	r097/E/29	kilofoxtrot52	dropxE
+r098	r098/E/-5	limadelta89	keepxE
+r099	r099/A/32	papaoscar94	dropxA
+r100	r100/B/17	novemberyankee55	dropxB

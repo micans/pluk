@@ -1,0 +1,6 @@
+x	y	a	b	c	d	e	f
+	b	b	b	NA	NA	NA	b
+fox	b	b	fox	NA	NA	NA	foxb
+a			a	NA	NA	NA	a
+pluk: [x::,joinall]: stack underflow at operator joinall (needs 1, has 0)
+exit 1

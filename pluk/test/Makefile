@@ -242,6 +242,8 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	printf 'x\tk\nabcdef\t2\nabcdef\t1.5\nabcdef\tfox\nfox\t2\nabcdef\t-3\n' | $(p) x k a::x:k,head b::x:k^1,substr c::x^1:k,strim d::x^1,add,len e::x^1,add,uc f::x:k,tail > o.string-edge.test
 	{ $(p) --num-perl name a::name^6,ppl b::name^6,ppr c::ud^4,zp d::name^2,ppr e::ms^12,ppr f::name^0,zp g::name^n,nchar h::foo11^_,nchar i::dna^A,nchar < data.txt; $(p) id a::s2^12,ppl b::n1^5,zp c::dna^G,nchar d::s1^20,ppr < big.txt; } > o.string-pad.test
 	printf 'x\tn\nabc\t5\nabc\t-1\nabc\t2.5\nabc\tfox\naaaa\t3\n' | $(p) x n a::x:n,ppl b::x:n,ppr c::x:n,zp d::x^aa,nchar e::x^,nchar f::x^1,add:n,zp > o.string-pad-edge.test
+	{ $(p) --num-perl name a::name:fx:ud,catall b::name:fx:ud^-,joinall c::name:fx^%3A,join d::name:ms^_,join e::^:fx,uie f::fx:name,uie g::^-,joinall h::,catall < data.txt; $(p) id a::id:grp:n1^/,joinall b::s1:s2,catall c::tag:grp^x,join < big.txt; } > o.string-join.test
+	{ printf 'x\ty\n\tb\nfox\tb\na\t\n' | $(p) x y a::x^1,add:y,uie b::x:y,uie c::x^1,add:y^-,join d::x:y^1,add,catall e::x:y^1,add,joinall f::x:y,catall; $(p) name 'x::,joinall' < data.txt; echo "exit $$?"; } > o.string-join-edge.test 2>&1
 	for a in @z/gt/3 @@name/gt/:z @fib~eq~:z; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-unknown.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.txt   2> /dev/null > o.filter-sam.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.bam   > o.filter-bam.test
