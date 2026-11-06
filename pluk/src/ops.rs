@@ -9,7 +9,11 @@ use md5::{Digest, Md5};
 use memchr::memmem;
 use regex::bytes::{Captures, NoExpand, Regex};
 
-use crate::compute::Attached;
+use std::cmp::Ordering;
+
+use crate::compute::{Attached, TestRhs};
+use crate::filter::{self, Outcome, Rhs};
+use crate::num::compare;
 use crate::dict::{Dict, NotFound};
 use crate::exec::{Machine, OpFn, Value};
 use crate::num::{self, Num};
@@ -50,6 +54,7 @@ pub enum Prepare {
                        // it is compiled as a regex (del: 0, ed: 1)
     ConstDict(usize),  // the operand this many places below the top must be a constant
                        // naming a dictionary (map, dord: 0)
+    Test,              // test: the filter operator and its right-hand side (compute.rs)
     FormatCount,    // a constant bottom operand is a fmtall format: its # count must
                     // match the number of values above it
 }
@@ -62,6 +67,7 @@ pub enum Category {
     Math,
     Precision,
     Dictionary,
+    Branch,
     Regex,
 }
 
@@ -139,6 +145,10 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x", result: "md5(x)", doc: "MD5 sum of x (hexadecimal)", fun: op_md5 },
     OpDef { name: "fmtall", pops: Pops::All(1), pushes: 1, shape: STR, prepare: Prepare::FormatCount, category: Category::String,
             operands: "f *", result: "Map-*-into-f", doc: "In f replace # instances by stack (\\# is a literal #)", fun: op_fmtall },
+    OpDef { name: "ifelse", pops: Pops::N(3), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Branch,
+            operands: "B x y", result: "x or y", doc: "If B put x else put y (B: a non-zero number, or a non-empty string)", fun: op_ifelse },
+    OpDef { name: "test",   pops: Pops::N(3), pushes: 1, shape: NUM, prepare: Prepare::Test, category: Category::Branch,
+            operands: "x y T", result: "B", doc: "Test T applied to x y: 1 or 0 (T a filter operator: /gt/ ~eq~ ~ ~isin~ ...)", fun: op_test },
     OpDef { name: "map",    pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
             operands: "x D", result: "map-of-x", doc: "Value of x in dictionary D (not found: as D's default)", fun: op_map },
     OpDef { name: "dord",   pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
@@ -793,6 +803,55 @@ fn choose_all(m: &mut Machine, row: &Row, max: bool) {
     values.clear();
     m.stack = values;
     m.push(result);
+}
+
+// ifelse B x y (plan/step15.txt decision 2): x if B is true, otherwise y, passed on
+// as they are. B is true if it is a number other than 0, or else if it is not
+// empty (pick's do_ifelse); an NA condition gives NA.
+fn op_ifelse(m: &mut Machine, row: &Row, _: &Attached) {
+    let y = m.pop();
+    let x = m.pop();
+    let b = m.pop();
+    let result = match b {
+        Value::Na => Value::Na,
+        b => {
+            let truth = match m.num(&b, row) {
+                Some(n) => compare(n, Num::I(0)) != Some(Ordering::Equal),
+                None => !m.bytes(&b, row).is_empty(),
+            };
+            if truth { x } else { y }
+        }
+    };
+    m.push(result);
+}
+
+// test x y T (decision 1): 1 if filter operator T holds for x and y, 0 if not, NA
+// where a filter would reject the row for a value that is not a number (or not an
+// integer), or if an operand is NA. Numeric operators use the numbers (cached per
+// field), not their text; /ep/ and /om/ use their default bands.
+fn op_test(m: &mut Machine, row: &Row, a: &Attached) {
+    let Attached::Test(op, rhs) = a else { unreachable!("test has its operator attached") };
+    m.pop();
+    let y = m.pop();
+    let x = m.pop();
+    let outcome = if matches!(x, Value::Na) || (matches!(rhs, TestRhs::Value) && matches!(y, Value::Na)) {
+        Outcome::NotNumber
+    } else if op.is_num() {
+        filter::numeric(*op, m.num(&x, row), m.num(&y, row), filter::default_band(*op))
+    } else {
+        let field = m.bytes(&x, row).into_owned();
+        let band = filter::default_band(*op);
+        match rhs {
+            TestRhs::Regex(re) => filter::evaluate(*op, &field, Rhs::Regex(re), b"", band),
+            TestRhs::Dict(d) => filter::evaluate(*op, &field, Rhs::Dict(&m.dicts.at(*d).map), b"", band),
+            TestRhs::Value => filter::evaluate(*op, &field, Rhs::Bytes(&m.bytes(&y, row)), b"", band),
+        }
+    };
+    m.push(match outcome {
+        Outcome::Pass => Value::Num(Num::I(1)),
+        Outcome::Fail => Value::Num(Num::I(0)),
+        _ => Value::Na,
+    });
 }
 
 // Dictionary operators (plan/step15.txt decision 0). The dictionary was resolved

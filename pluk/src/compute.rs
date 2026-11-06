@@ -14,6 +14,7 @@ use regex::bytes::Regex;
 
 use crate::colspec::{self, ColSpec, Element};
 use crate::dict::Dicts;
+use crate::filter;
 use crate::io::compile_pattern;
 use crate::names::ColumnNames;
 use crate::ops::{self, Kind, OpDef, Pops, Prepare, Shape};
@@ -161,6 +162,16 @@ pub enum Attached {
     None,
     Regex(Regex),
     Dict(usize),
+    Test(filter::Op, TestRhs),      // test x y T: the filter operator T and how y is used
+}
+
+// The right-hand side of test: the value y per row, or y prepared at compile time
+// (a constant regex for ~ and /~, a constant dictionary for ~isin~ and ~isnotin~).
+#[derive(Debug)]
+pub enum TestRhs {
+    Value,
+    Regex(Regex),
+    Dict(usize),
 }
 
 // What is known at compile time about a value on the stack.
@@ -263,6 +274,7 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, dicts:
                                 Instr::OpWith(op, Attached::Regex(const_regex(&instrs, &stack, pos, op, &shown)?)),
                             Prepare::ConstDict(pos) =>
                                 Instr::OpWith(op, Attached::Dict(const_dict(&instrs, &stack, pos, op, dicts, &shown)?)),
+                            Prepare::Test => Instr::OpWith(op, prepare_test(&instrs, &stack, dicts, &shown)?),
                             Prepare::FormatCount => {
                                 check_format(&instrs, &stack, &shown)?;
                                 Instr::Op(op)
@@ -328,6 +340,33 @@ fn const_dict(instrs: &[Instr], stack: &[Slot], pos: usize, op: &OpDef, dicts: &
     dicts.index_of(name).ok_or_else(|| format!("[{}]: Dictionary [{}] not found", shown, String::from_utf8_lossy(name)))
 }
 
+// test x y T (plan/step15.txt decision 1): T, the top operand, must be a constant
+// naming a filter operator with two operands (not ~hasval~ ~hasnotval~, which need
+// a third value pick's test does not pass, nor the predicates); for ~ and /~ the
+// pattern y must be a constant (compiled now), for ~isin~ and ~isnotin~ the
+// dictionary name y.
+fn prepare_test(instrs: &[Instr], stack: &[Slot], dicts: &Dicts, shown: &str) -> Result<Attached, String> {
+    let token = match stack.last() {
+        Some(Slot::Const(k)) => match &instrs[*k] {
+            Instr::Const(c) => c,
+            _ => unreachable!("Slot::Const refers to a constant"),
+        },
+        _ => return Err(format!("[{}]: the operator operand of test must be a constant (^/gt/, ^~eq~, ...)", shown)),
+    };
+    let t = String::from_utf8_lossy(token);
+    let op = filter::operator(token)
+        .ok_or_else(|| format!("[{}]: test: [{}] is not a filter operator", shown, t))?;
+    let test_op = ops::lookup(b"test").expect("test is an operator");
+    let rhs = match op {
+        filter::Op::HasVal(_) | filter::Op::Pred(..) =>
+            return Err(format!("[{}]: test: [{}] is not supported in test", shown, t)),
+        filter::Op::Match(_) => TestRhs::Regex(const_regex(instrs, stack, 1, test_op, shown)?),
+        filter::Op::IsIn(_) => TestRhs::Dict(const_dict(instrs, stack, 1, test_op, dicts, shown)?),
+        _ => TestRhs::Value,
+    };
+    Ok(Attached::Test(op, rhs))
+}
+
 // The dictionaries that a dord names with a constant (a constant token directly
 // before the operator, as pick's check for ^D,dord): they record the order of
 // their keys while they are read, which happens before computes are compiled.
@@ -373,6 +412,7 @@ pub fn describe_compiled(c: &Compute, names: &ColumnNames) -> String {
             Instr::OpWith(op, Attached::Regex(re)) => format!("  op {} (regex {})\n", op.name, re.as_str()),
             Instr::OpWith(op, Attached::Dict(d)) => format!("  op {} (dictionary {})\n", op.name, d),
             Instr::OpWith(op, Attached::None) => format!("  op {}\n", op.name),
+            Instr::OpWith(op, Attached::Test(t, _)) => format!("  op {} ({:?})\n", op.name, t),
         };
         out.push_str(&line);
     }

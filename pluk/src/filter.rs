@@ -100,7 +100,7 @@ impl Op {
     }
 
     // Whether the operands are numbers.
-    fn is_num(self) -> bool {
+    pub fn is_num(self) -> bool {
         matches!(self, Op::Num(_) | Op::Ep(_) | Op::Om(_) | Op::Bit(..))
     }
 }
@@ -378,7 +378,7 @@ enum Operand<'d> {
 
 // The outcome of a test on one column.
 #[derive(Clone, Copy, PartialEq)]
-enum Outcome {
+pub enum Outcome {
     Pass,
     Fail,
     NotNumber,      // a numeric test met a value that is not a number
@@ -445,66 +445,105 @@ impl Filter<'_> {
     }
 
     fn test(&self, field: &[u8], row: &Row) -> Outcome {
-        let pass = match self.op {
-            Op::Num(_) | Op::Ep(_) | Op::Om(_) | Op::Bit(..) => {
-                let lhs = num::parse_num(field);
-                let rhs = match &self.operand {
-                    Operand::Num(n) => Some(*n),
-                    Operand::Column(j) => num::parse_num(row.field(*j)),
-                    _ => None,                      // not produced for numeric operators
-                };
-                match (lhs, rhs) {
-                    (Some(a), Some(b)) => match self.op {
-                        Op::Num(cmp) => cmp.holds(num::compare(a, b)),
-                        Op::Ep(negated) => num::within_eps(a, b, self.band) != negated,
-                        Op::Om(negated) => num::within_oom(a, b, self.band) != negated,
-                        Op::Bit(test, negated) => match (a, b) {
-                            (Num::I(x), Num::I(m)) => match test {
-                                BitTest::All => num::bits_all(x, m) != negated,
-                                BitTest::Any => num::bits_any(x, m) != negated,
-                            },
-                            _ => return Outcome::NotInteger,
-                        },
-                        _ => false,                 // not a numeric operator
-                    },
-                    _ => return Outcome::NotNumber,
-                }
-            }
-            Op::Str(cmp) => {
-                let rhs: &[u8] = match &self.operand {
-                    Operand::Bytes(b) => b,
-                    Operand::Column(j) => row.field(*j),
-                    _ => &[],                       // not produced for string operators
-                };
-                cmp.holds(Some(field.cmp(rhs)))
-            }
-            Op::Match(negated) => {
-                let found = match &self.operand {
-                    Operand::Regex(re) => re.is_match(field),
-                    Operand::Column(j) => memmem::find(field, row.field(*j)).is_some(),
-                    _ => false,                     // not produced for regex operators
-                };
-                found != negated
-            }
-            Op::IsIn(negated) => {
-                let found = match &self.operand {
-                    Operand::Dict(d) => d.contains_key(field),
-                    _ => false,                     // not produced for dictionary operators
-                };
-                found != negated
-            }
-            Op::Pred(pred, negated) => Filter::predicate(field, pred, negated),
-            Op::HasVal(negated) => {
-                let found = match &self.operand {
-                    Operand::Dict(d) => d.get(field).is_some_and(|v| *v == self.extra),
-                    _ => false,                     // not produced for dictionary operators
-                };
-                found != negated
-            }
+        let rhs = match &self.operand {
+            Operand::Num(n) => Rhs::Num(*n),
+            Operand::Bytes(b) => Rhs::Bytes(b),
+            Operand::Regex(re) => Rhs::Regex(re),
+            Operand::Column(j) => Rhs::Bytes(row.field(*j)),
+            Operand::Dict(d) => Rhs::Dict(d),
         };
-        if pass { Outcome::Pass } else { Outcome::Fail }
+        evaluate(self.op, field, rhs, &self.extra, self.band)
     }
 
+}
+
+// The right-hand side of a test, resolved: a number, bytes (a constant, or a
+// column's value: for ~ and /~ a fixed string), a compiled regex, a dictionary.
+// Filters (Filter::test) and the compute operator test (ops.rs) build one.
+pub enum Rhs<'a> {
+    Num(Num),
+    Bytes(&'a [u8]),
+    Regex(&'a Regex),
+    Dict(&'a HashMap<Vec<u8>, Vec<u8>>),
+}
+
+// The test of operator op on a value (field) against rhs. extra is the value of
+// ~hasval~, band the band of /ep/ and /om/. Numeric operators parse both sides.
+pub fn evaluate(op: Op, field: &[u8], rhs: Rhs, extra: &[u8], band: Num) -> Outcome {
+    let pass = match op {
+        Op::Num(_) | Op::Ep(_) | Op::Om(_) | Op::Bit(..) => {
+            let rhs = match rhs {
+                Rhs::Num(n) => Some(n),
+                Rhs::Bytes(b) => num::parse_num(b),
+                _ => None,                          // not produced for numeric operators
+            };
+            return numeric(op, num::parse_num(field), rhs, band);
+        }
+        Op::Str(cmp) => match rhs {
+            Rhs::Bytes(b) => cmp.holds(Some(field.cmp(b))),
+            _ => false,                             // not produced for string operators
+        },
+        Op::Match(negated) => {
+            let found = match rhs {
+                Rhs::Regex(re) => re.is_match(field),
+                Rhs::Bytes(b) => memmem::find(field, b).is_some(),
+                _ => false,                         // not produced for regex operators
+            };
+            found != negated
+        }
+        Op::IsIn(negated) => {
+            let found = match rhs {
+                Rhs::Dict(d) => d.contains_key(field),
+                _ => false,                         // not produced for dictionary operators
+            };
+            found != negated
+        }
+        Op::Pred(pred, negated) => Filter::predicate(field, pred, negated),
+        Op::HasVal(negated) => {
+            let found = match rhs {
+                Rhs::Dict(d) => d.get(field).is_some_and(|v| v == extra),
+                _ => false,                         // not produced for dictionary operators
+            };
+            found != negated
+        }
+    };
+    if pass { Outcome::Pass } else { Outcome::Fail }
+}
+
+// A numeric operator on two numbers (None: not a number).
+pub fn numeric(op: Op, lhs: Option<Num>, rhs: Option<Num>, band: Num) -> Outcome {
+    let (Some(a), Some(b)) = (lhs, rhs) else { return Outcome::NotNumber };
+    let pass = match op {
+        Op::Num(cmp) => cmp.holds(num::compare(a, b)),
+        Op::Ep(negated) => num::within_eps(a, b, band) != negated,
+        Op::Om(negated) => num::within_oom(a, b, band) != negated,
+        Op::Bit(test, negated) => match (a, b) {
+            (Num::I(x), Num::I(m)) => match test {
+                BitTest::All => num::bits_all(x, m) != negated,
+                BitTest::Any => num::bits_any(x, m) != negated,
+            },
+            _ => return Outcome::NotInteger,
+        },
+        _ => false,                                 // not a numeric operator
+    };
+    if pass { Outcome::Pass } else { Outcome::Fail }
+}
+
+// The operator named by a token (/gt/, ~eq~, =, ~, ~isin~, ...), for the compute
+// operator test; None if the token is not a filter operator.
+pub fn operator(token: &[u8]) -> Option<Op> {
+    OPERATORS.iter().find(|(t, _)| *t == token).and_then(|(_, op)| *op)
+}
+
+// The band /ep/ and /om/ use when none is given.
+pub fn default_band(op: Op) -> Num {
+    match op {
+        Op::Om(_) => DEFAULT_OOM,
+        _ => DEFAULT_EPSILON,
+    }
+}
+
+impl Filter<'_> {
     // Predicates never count: a value that is not a number is what they test.
     // ISNUM holds for numbers other than NaN, which is not a usable number
     // (NUMERIC.design.txt section 9); inf is a number.

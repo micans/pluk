@@ -119,6 +119,9 @@
       constant; map's __EXIT__ ends the run with the line number; dord numbers the first
       appearance across merged sources (pick: line number per file, the last occurrence
       winning) and gives NA for an absent key (pick: ~0); seqlen has no order.
+    - test gives NA where a filter would reject a non-number (pick: 0 or 1 on Perl's
+      conversion); ~hasval~ and the predicates are refused in test; ifelse with an NA
+      condition gives NA.
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

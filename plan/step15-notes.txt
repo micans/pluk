@@ -49,3 +49,43 @@ Item 1: map and dord; dictionaries in computes
   Tests: dict-map, dict-dord (order of single and merged sources, NA keys), dict-ops-edge
   (__EXIT__, a dictionary from a column, an unknown dictionary, seqlen with map and dord).
   Help refs.
+
+
+Item 2: ifelse and test
+
+  Files: filter.rs (Rhs, evaluate, numeric, operator, default_band, Outcome public;
+  Filter::test now builds an Rhs and calls evaluate), compute.rs (Attached::Test,
+  TestRhs, prepare_test), ops.rs (Prepare::Test, Category::Branch, op_ifelse, op_test),
+  opt.rs (help).
+
+  test reuses the filter code. The per-column evaluation that was a method of Filter is now
+  a free function, evaluate(op, field, rhs, extra, band), whose right-hand side is a
+  borrowed view (Rhs: a number, bytes, a compiled regex, a dictionary); a filter's column
+  operand becomes bytes, which for ~ and /~ means the fixed-string match (the ~:NAME rule
+  of step7). numeric(op, lhs, rhs, band) holds the numeric operators. Filters behave as
+  before (the whole suite passes unchanged).
+
+  Compile time (prepare_test): T, the top operand, must be a constant naming a filter
+  operator (filter::operator, the token table of step7); ~hasval~ and ~hasnotval~ need a
+  third value that pick's test never passes (so they cannot succeed in pick) and the
+  predicates take no y, so both are refused. For ~ and /~ the pattern y must be a constant
+  (const_regex at position 1); for ~isin~ and ~isnotin~ the dictionary name y
+  (const_dict at position 1). The result is attached as Attached::Test(op, TestRhs).
+
+  Run time (op_test): numeric operators get the machine's numbers (Machine::num, cached
+  per field) rather than the text, so that a computed number is compared exactly also
+  with --num-perl (whose text, %.15g, could round). Pass is 1, Fail 0; where a filter
+  would reject the row for a non-number or non-integer (Outcome::NotNumber,
+  NotInteger), test gives NA, and so does an NA operand. /ep/ and /om/ use their default
+  bands.
+
+  ifelse B x y passes x or y on as they are. B is true if it is a number other than 0
+  (compared with the dispatcher, so 0.0 and -0 are false and nan is true, as Perl's !=),
+  or else if it is not empty; an NA condition gives NA.
+
+  Checked against pick: branch-test (test with numeric, string, =, regex, negated regex,
+  bit, /ep/ and /om/ operators, dictionary tests, ifelse on numbers, words, 0.0, empty and
+  floats; big.txt, including two compounds from pick's ops-branch test) is identical.
+
+  Tests: branch-test, branch-edge (NA from non-numbers and non-integers, NA condition, six
+  compile-time errors). Help refs.

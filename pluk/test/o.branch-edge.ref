@@ -1,0 +1,16 @@
+x	y	a	b	c	d
+fox	1	NA	0	NA	NA
+3	bar	NA	1	1	A
+2.5	1	1	0	NA	A
+pluk: [x::fib^3^/foo/,test]: test: [/foo/] is not a filter operator
+exit 1
+pluk: [x::fib^3:fx,test]: the operator operand of test must be a constant (^/gt/, ^~eq~, ...)
+exit 1
+pluk: [x::fib^D^~hasval~,test]: test: [~hasval~] is not supported in test
+exit 1
+pluk: [x::fib^%5E^/ISNUM,test]: test: [/ISNUM] is not a filter operator
+exit 1
+pluk: [x::fib:fx^~,test]: the pattern operand of test must be a constant (^PATTERN)
+exit 1
+pluk: [x::fib^Q^~isin~,test]: Dictionary [Q] not found
+exit 1

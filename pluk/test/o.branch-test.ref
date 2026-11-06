@@ -1,0 +1,127 @@
+name	a	b	c	d	e	f	g	h	i
+Ann	0	0	0	0	1	0	1	0	1
+Bob	0	1	1	1	1	1	0	0	0
+Charlie	0	0	0	0	1	1	1	0	0
+Dan	0	0	0	0	1	0	0	0	0
+Esme	1	0	0	0	0	1	1	0	0
+Fred	1	0	0	0	0	1	0	0	0
+Gillian	1	0	0	0	0	0	1	0	0
+Harriet	1	0	0	0	0	1	0	0	0
+Inky	1	0	0	0	0	1	1	0	0
+John	1	0	0	0	0	0	0	0	1
+Kelly	1	0	0	0	0	1	1	0	1
+Lucy	1	0	0	0	0	1	0	0	1
+name	a	b	c	d	e	f	g	h
+Ann	1	0	small	yes	Y	N	N	Y
+Bob	0	1	small	yes	Y	N	N	Y
+Charlie	0	1	small	yes	Y	N	N	Y
+Dan	0	1	small	yes	Y	N	N	Y
+Esme	1	0	big	yes	Y	N	N	Y
+Fred	0	1	big	yes	Y	N	N	Y
+Gillian	0	1	big	yes	Y	N	N	Y
+Harriet	0	1	big	yes	Y	N	N	Y
+Inky	0	1	big	yes	Y	N	N	Y
+John	0	1	big	yes	Y	N	N	Y
+Kelly	0	1	big	yes	Y	N	N	Y
+Lucy	0	1	big	yes	Y	N	N	Y
+id	a	b	c	d
+r001	uniform98	490	0	0
+r002	kilo83	972	0	1
+r003	victor18	792	0	0
+r004	whiskey	450	1	0
+r005	yankee	351	0	1
+r006	romeo	747	0	0
+r007	zulu	771	0	1
+r008	romeo1	108	0	0
+r009	charlie	242	0	1
+r010	uniform	280	1	1
+r011	foxtrot25	998	1	0
+r012	xray68	145	1	0
+r013	kilo	704	0	0
+r014	victor	260	1	1
+r015	golf2	562	0	0
+r016	papa	504	1	0
+r017	echo	690	1	0
+r018	tango95	266	0	1
+r019	uniform55	776	0	1
+r020	golf59	471	0	0
+r021	mike69	853	1	0
+r022	foxtrot	171	0	1
+r023	whiskey	613	0	0
+r024	uniform	599	0	0
+r025	kilo	681	0	0
+r026	delta	248	1	1
+r027	charlie	852	0	1
+r028	quebec	577	1	0
+r029	sierra	847	0	0
+r030	november	619	0	1
+r031	oscar28	138	0	0
+r032	yankee23	125	1	1
+r033	alpha	852	1	0
+r034	uniform	845	1	1
+r035	hotel60	212	0	1
+r036	victor27	252	0	1
+r037	hotel	244	0	1
+r038	quebec22	186	0	0
+r039	bravo18	103	1	1
+r040	hotel	164	0	0
+r041	foxtrot	345	1	1
+r042	xray86	69	0	0
+r043	lima74	667	1	1
+r044	xray	267	0	0
+r045	bravo	836	0	1
+r046	quebec58	370	1	1
+r047	charlie36	633	0	1
+r048	papa	67	0	1
+r049	juliet	163	0	1
+r050	uniform	786	0	1
+r051	tango	618	1	1
+r052	india	689	0	1
+r053	sierra95	72	1	0
+r054	juliet42	953	1	0
+r055	tango	738	1	0
+r056	delta	442	1	0
+r057	papa12	985	0	1
+r058	xray57	59	1	1
+r059	zulu60	733	1	0
+r060	romeo	540	0	1
+r061	hotel	951	1	1
+r062	tango83	370	1	0
+r063	quebec	269	1	0
+r064	mike	549	0	0
+r065	quebec	851	1	0
+r066	golf	600	1	1
+r067	delta	846	1	1
+r068	uniform	523	1	1
+r069	delta19	603	0	1
+r070	sierra	39	1	1
+r071	uniform	229	1	1
+r072	yankee90	940	1	0
+r073	foxtrot	368	1	0
+r074	zulu34	658	0	0
+r075	zulu14	387	0	0
+r076	xray32	961	1	1
+r077	juliet84	720	0	0
+r078	november34	372	0	0
+r079	november51	50	1	1
+r080	golf86	635	1	1
+r081	kilo38	687	0	1
+r082	zulu56	546	0	0
+r083	foxtrot26	424	0	0
+r084	alpha	183	0	0
+r085	golf	853	1	1
+r086	delta50	644	1	1
+r087	victor	754	0	0
+r088	november31	914	1	0
+r089	yankee	316	0	0
+r090	alpha	763	1	0
+r091	papa54	475	1	0
+r092	oscar65	488	1	1
+r093	papa30	411	1	0
+r094	india	629	1	1
+r095	hotel	281	0	0
+r096	golf88	796	1	1
+r097	kilo	988	0	1
+r098	delta89	62	0	0
+r099	papa	805	0	1
+r100	november	747	0	0
