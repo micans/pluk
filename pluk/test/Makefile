@@ -244,6 +244,7 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	printf 'x\tn\nabc\t5\nabc\t-1\nabc\t2.5\nabc\tfox\naaaa\t3\n' | $(p) x n a::x:n,ppl b::x:n,ppr c::x:n,zp d::x^aa,nchar e::x^,nchar f::x^1,add:n,zp > o.string-pad-edge.test
 	{ $(p) --num-perl name a::name:fx:ud,catall b::name:fx:ud^-,joinall c::name:fx^%3A,join d::name:ms^_,join e::^:fx,uie f::fx:name,uie g::^-,joinall h::,catall < data.txt; $(p) id a::id:grp:n1^/,joinall b::s1:s2,catall c::tag:grp^x,join < big.txt; } > o.string-join.test
 	{ printf 'x\ty\n\tb\nfox\tb\na\t\n' | $(p) x y a::x^1,add:y,uie b::x:y,uie c::x^1,add:y^-,join d::x:y^1,add,catall e::x:y^1,add,joinall f::x:y,catall; $(p) name 'x::,joinall' < data.txt; echo "exit $$?"; } > o.string-join-edge.test 2>&1
+	{ $(p) --num-perl name a::name,md5 b::foo11,urlec c::ms,urlec d::foo11,urlec,urldc e::^a%2520b,urldc f::ms,md5 < data.txt; $(p) id a::s1:s2,cat,md5 b::dna,urlec c::^%25zz%41%4a%4,urldc < big.txt; printf 'x\n\303\211mile/x y?z=1&a\ncaf\351\n' | $(p) x a::x,urlec b::x,urlec,urldc c::x,md5; printf 'x\nfox\n' | $(p) x a::x^1,add,urlec b::x^1,add,md5 c::^,md5; } > o.string-encode.test
 	for a in @z/gt/3 @@name/gt/:z @fib~eq~:z; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-unknown.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.txt   2> /dev/null > o.filter-sam.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.bam   > o.filter-bam.test

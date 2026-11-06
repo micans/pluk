@@ -92,3 +92,23 @@ Item 3: joining
 
   Tests: string-join, string-join-edge (NA in each operator, empty x for uie, joinall
   underflow). Help refs.
+
+
+Item 4: encoding
+
+  Files: Cargo.toml (md-5 = "0.11.0"; it brings hybrid-array and typenum), ops.rs (urlec
+  urldc md5, with RFC 1321 test vectors in the unit test), opt.rs (help).
+
+  urlec writes every byte except A-Z a-z 0-9 _ as %XX with uppercase hexadecimal digits,
+  as pick's urlencode. urldc is opt::pct_decode, the decoding pluk applies to its own
+  arguments, which is the same as pick's urldecode: %XX with hexadecimal digits in either
+  case; anything else (an incomplete %4, %zz) stays as it is; + is not a space. A constant
+  is decoded twice, as in pick: ^a%2520b is the argument text a%20b, which urldc makes 'a
+  b'. md5 gives the lowercase hexadecimal digest of the bytes, with the md-5 crate
+  (RustCrypto; Md5::digest), as decided: a well-tested implementation instead of our own.
+
+  Checked against pick (--num-perl): string-encode (names, underscores, floats, a round
+  trip urlec then urldc, %25 and incomplete escapes, big.txt, UTF-8 and Latin-1 input) is
+  identical, apart from its last lines (NA operands, pluk only).
+
+  Tests: string-encode. Help refs. Unit test in ops.rs (md5 test vectors).

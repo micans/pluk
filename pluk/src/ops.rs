@@ -5,11 +5,13 @@
 // the stack effect and description (parsing), the shape and prepare step
 // (compilation) and the implementation (execution, exec.rs).
 
+use md5::{Digest, Md5};
 use memchr::memmem;
 use regex::bytes::Regex;
 
 use crate::exec::{Machine, OpFn, Value};
 use crate::num::{self, Num};
+use crate::opt::pct_decode;
 use crate::row::Row;
 
 // How many values an operator takes from the stack.
@@ -121,6 +123,12 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x y j", result: "xjy", doc: "Join two elements with string separator", fun: op_join },
     OpDef { name: "uie",    pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
             operands: "x y", result: "x-or-y", doc: "Use x if not empty (and not NA), otherwise use y", fun: op_uie },
+    OpDef { name: "urlec",  pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x", result: "urlec(x)", doc: "URL encoding of x (all but A-Z a-z 0-9 _ as %XX)", fun: op_urlec },
+    OpDef { name: "urldc",  pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x", result: "urldc(x)", doc: "URL decoding of x (%XX)", fun: op_urldc },
+    OpDef { name: "md5",    pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x", result: "md5(x)", doc: "MD5 sum of x (hexadecimal)", fun: op_md5 },
     OpDef { name: "add",    pops: Pops::N(2), pushes: 1, shape: Shape::Result(Kind::Num), prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "x y", result: "x+y", doc: "Add x and y", fun: op_add },
     OpDef { name: "sub",    pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
@@ -388,6 +396,35 @@ fn op_uie(m: &mut Machine, row: &Row, _: Option<&Regex>) {
     let x = m.pop();
     let use_x = !matches!(x, Value::Na) && !m.bytes(&x, row).is_empty();
     m.push(if use_x { x } else { y });
+}
+
+// Encoding (decisions 8, 9), as pick: urlec writes every byte except A-Z a-z 0-9
+// _ as %XX (uppercase hexadecimal); urldc decodes %XX (either case), the same
+// decoding pluk applies to its arguments (opt::pct_decode); md5 gives the
+// lowercase hexadecimal digest (md-5 crate).
+fn op_urlec(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    string1(m, row, |s| {
+        let mut out = Vec::with_capacity(s.len());
+        for &b in s.iter() {
+            if b.is_ascii_alphanumeric() || b == b'_' {
+                out.push(b);
+            } else {
+                out.extend_from_slice(format!("%{:02X}", b).as_bytes());
+            }
+        }
+        *s = out;
+    })
+}
+
+fn op_urldc(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    string1(m, row, |s| *s = pct_decode(s))
+}
+
+fn op_md5(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    string1(m, row, |s| {
+        let digest = Md5::digest(&s[..]);
+        *s = digest.iter().map(|b| format!("{:02x}", b)).collect::<String>().into_bytes();
+    })
 }
 
 // pick's boxit: k clamped to 0 .. len.
@@ -702,6 +739,10 @@ mod tests {
         assert_eq!(lookup(b"add").map(|op| op.pops), Some(Pops::N(2)));
         assert_eq!(lookup(b"addall").map(|op| op.pops), Some(Pops::All(0)));
         assert!(lookup(b"nosuch").is_none());
+        // md5 of known test vectors (RFC 1321).
+        let md5 = |x: &str| Md5::digest(x.as_bytes()).iter().map(|b| format!("{:02x}", b)).collect::<String>();
+        assert_eq!(md5(""), "d41d8cd98f00b204e9800998ecf8427e");
+        assert_eq!(md5("abc"), "900150983cd24fb0d6963f7d28e17f72");
         // Names are unique.
         for (i, a) in OPERATORS.iter().enumerate() {
             assert!(OPERATORS[i + 1..].iter().all(|b| b.name != a.name), "{}", a.name);
