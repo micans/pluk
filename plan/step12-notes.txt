@@ -86,3 +86,35 @@ Item 3: rounding and functions
 
   Tests: math-func, math-func-big, math-func-edge. Help refs. Unit test in num.rs
   (rounding).
+
+
+Item 4: whole-stack operators
+
+  Files: ops.rs (whole, choose_all, op_mulall ... op_gmeanall; op_addall now uses whole),
+  num.rs (Num::is_nan), opt.rs (help).
+
+  whole() takes the stack (std::mem::take, so its capacity is reused), gets the numbers,
+  empties it and pushes the function's result: NA if any value is not a number or if the
+  function has no result. addall and mulall fold with num::add and num::mul (integers stay
+  integers, overflow to a float), 0 and 1 for an empty stack as pick. meanall is the sum
+  divided by the count (num::div, a float). hmeanall and gmeanall use pick's formulas,
+  including the absolute values: n / sum(1/|x|) and (product |x|)^(1/n). A zero makes the
+  harmonic mean 0 (IEEE n / inf; pick dies on 1/0). The geometric mean multiplies directly,
+  as pick, so many large values can overflow to inf; a mean of logarithms would avoid that
+  but change the last digits against pick (not done).
+
+  maxall and minall (choose_all) push the winning operand itself, as max and min (1.50
+  stays 1.50; of equal values the first wins). pick starts from -DBL_MAX (DBL_MAX) and
+  replaces on > (<): NaN never wins, and -inf never wins either, so maxall(-inf) is
+  -DBL_MAX in pick. pluk starts from the first value, replaces with num::replaces, and lets
+  any number replace a NaN: NaN never wins unless all values are NaN (then NaN), and
+  maxall(-inf) is -inf.
+
+  Empty stacks: meanall, hmeanall, gmeanall, maxall and minall give NA (decision 9; pick:
+  0, 0, 1, -DBL_MAX, DBL_MAX).
+
+  Checked against pick (--num-perl): math-whole (three invocations, on data.txt integers,
+  negatives and floats and on big.txt) is identical. math-whole-edge (pluk only): NaN, all
+  NaN, -inf, a non-number, a zero, equal values with different spellings, empty stacks.
+
+  Tests: math-whole, math-whole-edge. Help refs.

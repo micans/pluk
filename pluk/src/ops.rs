@@ -141,6 +141,18 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x", result: "tan(x)", doc: "Tangent of x", fun: op_tan },
     OpDef { name: "addall", pops: Pops::All,  pushes: 1, shape: Shape::Result(Kind::Num), prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "*", result: "sum(Stack)", doc: "Sum of all entries in stack", fun: op_addall },
+    OpDef { name: "mulall", pops: Pops::All,  pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "*", result: "product(Stack)", doc: "Product of all entries in stack", fun: op_mulall },
+    OpDef { name: "maxall", pops: Pops::All,  pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "*", result: "max(Stack)", doc: "Max over all entries in stack", fun: op_maxall },
+    OpDef { name: "minall", pops: Pops::All,  pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "*", result: "min(Stack)", doc: "Min over all entries in stack", fun: op_minall },
+    OpDef { name: "meanall", pops: Pops::All, pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "*", result: "mean(Stack)", doc: "Mean of all entries in stack", fun: op_meanall },
+    OpDef { name: "hmeanall", pops: Pops::All, pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "*", result: "hmean(Stack)", doc: "Harmonic mean of the absolute values in stack", fun: op_hmeanall },
+    OpDef { name: "gmeanall", pops: Pops::All, pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "*", result: "gmean(Stack)", doc: "Geometric mean of the absolute values in stack", fun: op_gmeanall },
     OpDef { name: "del",    pops: Pops::N(2), pushes: 1, shape: Shape::Result(Kind::Str), prepare: Prepare::ConstRegex, category: Category::Regex,
             operands: "x p", result: "x =~ s/p//", doc: "Delete pattern p in x", fun: op_del },
 ];
@@ -245,18 +257,86 @@ fn op_sin(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::s
 fn op_cos(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::cos) }
 fn op_tan(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::tan) }
 
-// The sum of the whole stack; an empty stack sums to 0, as pick.
-fn op_addall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+// Whole-stack operators (plan/step12.txt decision 9). whole() takes the stack,
+// gets the numbers, empties the stack (keeping its capacity) and pushes f's
+// result: NA if a value is not a number or if f has no result (an empty stack for
+// the means, maxall and minall).
+fn whole(m: &mut Machine, row: &Row, f: impl Fn(&[Num]) -> Option<Num>) {
     let mut values = std::mem::take(&mut m.stack);
-    let mut sum = Some(Num::I(0));
-    for v in values.drain(..) {
-        sum = match (sum, m.num(&v, row)) {
-            (Some(a), Some(b)) => Some(num::add(a, b)),
-            _ => None,
-        };
+    let mut nums = Vec::with_capacity(values.len());
+    let mut na = false;
+    for v in &values {
+        match m.num(v, row) {
+            Some(n) => nums.push(n),
+            None => na = true,
+        }
     }
-    m.stack = values;           // empty again, with its capacity
-    m.push(sum.map_or(Value::Na, Value::Num));
+    values.clear();
+    m.stack = values;
+    m.push(if na { Value::Na } else { f(&nums).map_or(Value::Na, Value::Num) });
+}
+
+// The sum and product of the whole stack: 0 and 1 for an empty stack (pick).
+fn op_addall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    whole(m, row, |xs| Some(xs.iter().fold(Num::I(0), |a, &b| num::add(a, b))))
+}
+
+fn op_mulall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    whole(m, row, |xs| Some(xs.iter().fold(Num::I(1), |a, &b| num::mul(a, b))))
+}
+
+fn op_meanall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    whole(m, row, |xs| {
+        let sum = xs.iter().fold(Num::I(0), |a, &b| num::add(a, b));
+        (!xs.is_empty()).then(|| num::div(sum, Num::I(xs.len() as num::Int)))
+    })
+}
+
+// As pick: n / sum(1/|x|), and (product |x|)^(1/n). A zero makes the harmonic
+// mean 0 (IEEE: n / inf; pick dies).
+fn op_hmeanall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    whole(m, row, |xs| {
+        let inv: f64 = xs.iter().map(|x| 1.0 / x.to_f64().abs()).sum();
+        (!xs.is_empty()).then(|| Num::F(xs.len() as f64 / inv))
+    })
+}
+
+fn op_gmeanall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    whole(m, row, |xs| {
+        let product: f64 = xs.iter().map(|x| x.to_f64().abs()).product();
+        (!xs.is_empty()).then(|| Num::F(product.powf(1.0 / xs.len() as f64)))
+    })
+}
+
+// maxall and minall push the winning operand itself, as max and min: the first
+// value, replaced by a later one that is greater (smaller); NaN never wins (as
+// pick, which starts from -DBL_MAX); all NaN gives NaN. NA if a value is not a
+// number; an empty stack is NA.
+fn op_maxall(m: &mut Machine, row: &Row, _: Option<&Regex>) { choose_all(m, row, true) }
+fn op_minall(m: &mut Machine, row: &Row, _: Option<&Regex>) { choose_all(m, row, false) }
+
+fn choose_all(m: &mut Machine, row: &Row, max: bool) {
+    let mut values = std::mem::take(&mut m.stack);
+    let mut best: Option<(usize, Num)> = None;
+    let mut na = values.is_empty();
+    for (k, v) in values.iter().enumerate() {
+        match m.num(v, row) {
+            None => na = true,
+            Some(n) => match best {
+                None => best = Some((k, n)),
+                Some((_, b)) if b.is_nan() && !n.is_nan() => best = Some((k, n)),
+                Some((_, b)) if num::replaces(b, n, max) => best = Some((k, n)),
+                _ => (),
+            },
+        }
+    }
+    let result = match (na, best) {
+        (false, Some((k, _))) => values.swap_remove(k),
+        _ => Value::Na,
+    };
+    values.clear();
+    m.stack = values;
+    m.push(result);
 }
 
 // Delete the first match of the pattern (compiled at compile time; the pattern

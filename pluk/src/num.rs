@@ -63,6 +63,10 @@ pub fn compare(a: Num, b: Num) -> Option<Ordering> {
 }
 
 impl Num {
+    pub fn is_nan(self) -> bool {
+        matches!(self, Num::F(x) if x.is_nan())
+    }
+
     pub fn to_f64(self) -> f64 {
         match self {
             Num::I(i) => i as f64,
