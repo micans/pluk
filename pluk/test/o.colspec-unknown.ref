@@ -1,0 +1,6 @@
+pluk: (Output) regex [+zz.*] in output matches no column among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+pluk: (Output) regex [+zz] in output matches no column among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+pluk: (Output) handle [] in output does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+pluk: (Output) handle [num(\d)] in output does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+-- a regex column name starts with '+', e.g. +num(\d) --
+pluk: (Output) regex [+fo.] in output matches no column among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna

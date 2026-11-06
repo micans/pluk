@@ -1,0 +1,32 @@
+fib:fx
+fib	fx
+1	dog
+1	cat
++num\d
+num1	num2	num4
+1	2	1
+2	3	2
++f.*
+fib	fib2	fx	foo11
+1	0	dog	a_n_n
+1	1	cat	b_o_b
+fx:+num\d:name
+fx	num1	num2	num4	name
+dog	1	2	1	Ann
+cat	2	3	2	Bob
++(?i)FI.*
+fib	fib2
+1	0
+1	1
++.*o.*
+foo11
+a_n_n
+b_o_b
++num(\d)
+num1	num2	num4
+1	2	1
+2	3	2
+fib:fib:+fi.
+-- Identical output column names exist (will make unique)
+fib
+1

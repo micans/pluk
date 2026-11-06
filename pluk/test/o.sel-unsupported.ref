@@ -1,5 +1,3 @@
-pluk: [+fo.]: regex column names (leading '+') not yet supported
-pluk: [a:b]: lists and computes (':') not yet supported
 [@assert@x/gt/0]: assertions (@assert@) not yet supported
-pluk: [x%3A]: %-encoding ('%') not yet supported
-pluk: [x::y]: lists and computes (':') not yet supported
+[x::y]: computes ('::', ':=') not yet supported
+[x:=y]: computes ('::', ':=') not yet supported

@@ -52,7 +52,7 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	$(p) -k 14                  < data.txt  2> o.sel-unknown-k.test  > /dev/null; [ $$? -eq 1 ]
 	head -n 1 data.txt | $(p) nosuch        2> o.sel-unknown-headeronly.test > /dev/null; [ $$? -eq 1 ]
 	$(p) nosuch                 < /dev/null  > o.sel-empty.test
-	for a in '+fo.' 'a:b' '@assert@x/gt/0' 'x%3A' 'x::y'; do $(p) "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.sel-unsupported.test
+	for a in '@assert@x/gt/0' 'x::y' 'x:=y'; do $(p) "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.sel-unsupported.test
 	$(p) sq fib                      < data.txt   > o.sq-fib.test        # from pick/test
 	$(p) -A                          < data.txt   > o.-A.test            # from pick/test
 	$(p) -x                          < data.txt   > o.-x.test            # from pick/test
@@ -163,6 +163,11 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	printf 'x\tm\n5\t1\n5.0\t1\n1e3\t8\n400000000000000000000000000000000000000000\t1\nfox\t1\n\t1\n7\t1.0\n7\t1\n' | { $(p) -h x m @x/all/:m; } > o.filter-bit-nonint.test 2>&1
 	printf 'x\n5\n5.0\nfox\n4\n' | $(p) -h x @x/notall/1 > o.filter-bit-nonint-neg.test 2>&1
 	for a in @x/all/5.0 @x/any/-1 @x/none/abc @x/notall/1e3 @x/all/ @x/all/5/1; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-bit-errors.test
+	{ for a in fib:fx '+num\d' '+f.*' 'fx:+num\d:name' '+(?i)FI.*' '+.*o.*' '+num(\d)' 'fib:fib:+fi.'; do echo "$$a"; $(p) "$$a" < data.txt 2>&1 | head -n 3; done; } > o.colspec.test
+	{ $(p) -x '+num\d:fib' < data.txt | head -n 2; $(p) -A '+num\d' < data.txt | head -n 2; $(p) -k 3:1 < data.txt | head -n 2; $(p) -F fib < data.txt | head -n 2; } > o.colspec-x-A-k.test
+	{ printf 'a:b\ta@b\t+c\n1\t2\t3\n' | $(p) 'a%3Ab:a@b:%2Bc'; printf 'a:b\ta@b\t+c\n1\t2\t3\n' | $(p) '+a%3A.:+\+c'; } > o.colspec-decode.test
+	for a in '+' 'a:+' '+a(' '+(?<=a)b' 'x::y'; do $(p) "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.colspec-errors.test
+	for a in '+zz.*' 'fib:+zz' 'fib:' 'num(\d)' '+fo.'; do $(p) "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.colspec-unknown.test
 	for a in @z/gt/3 @@name/gt/:z @fib~eq~:z; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-unknown.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.txt   2> /dev/null > o.filter-sam.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.bam   > o.filter-bam.test

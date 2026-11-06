@@ -12,6 +12,7 @@
 use std::os::unix::ffi::OsStringExt;
 use std::process;
 
+use crate::colspec::{self, ColSpec};
 use crate::dict::{self, DictKind, DictSpec, NotFound};
 use crate::filter::{parse_filter, FilterSpec};
 
@@ -39,7 +40,7 @@ pub struct Config {
     pub test_select: bool,              // --test-select (temporary)
     pub test_dict: bool,                // --test-dict (temporary)
     pub test_samsort: bool,             // --test-samsort (temporary)
-    pub columns: Vec<Vec<u8>>,          // column arguments
+    pub columns: Vec<ColSpec>,          // column arguments (plan/COLSPEC.design.txt)
     pub filters: Vec<FilterSpec>,       // @ and @@ filters, in command line order
     pub or_post: bool,                  // -o: OR the @ filters
     pub or_pre: bool,                   // -s: OR the @@ filters
@@ -78,6 +79,10 @@ Usage: pluk [options] <column|filter>+ < FILE
 Output the named columns of TAB-separated input (plain or gzip-compressed),
 optionally only the rows that pass the filters.
 
+Columns: a name, a list a:b:c, or +REGEX for all columns whose whole name
+matches REGEX (Rust regex syntax), e.g. +num\\d or name:+.*_p. Each part is
+%-decoded after splitting on ':' (%3A for ':', %2B for a leading '+').
+
 Options:
   -k          input has no header line; columns are named 1 2 .. N
   -h          do not output the header line
@@ -88,6 +93,7 @@ Options:
   -/<pat>     skip lines matching regular expression <pat>, e.g. -/^#
   -//<pat>    output lines matching <pat> unchanged
   -u          make duplicate input column names unique (suffixes _v02, _v03, ..)
+  -F          accepted for compatibility with pick; no effect
   -O<N>       ragged input: <N> columns, merge columns at and after <N> (requires -k)
   -R          header has no name for the first (row name) column; it is named _
   -o          keep rows that pass any @ filter (default: all)
@@ -177,7 +183,7 @@ pub fn parse(args: &[Vec<u8>]) -> Result<Parsed, String> {
         if arg.starts_with(b"@") {
             config.filters.push(parse_filter(arg)?);
         } else {
-            config.columns.push(arg.clone());
+            config.columns.push(colspec::parse(arg)?);
         }
     }
     check_combinations(&config)?;
@@ -367,6 +373,7 @@ fn parse_bundle(chars: &[u8], config: &mut Config) -> Result<(), String> {
             b'x' => config.excise = true,
             b'R' => config.add_row_column = true,
             b'u' => config.make_unique = true,
+            b'F' => (),     // pick: names are not regexes; pluk: accepted, no effect (COLSPEC.design.txt)
             b'A' => {
                 // Optional attached number, possibly negative: -A, -A4, -A-1.
                 config.all = true;
@@ -500,6 +507,10 @@ mod tests {
         }
     }
 
+    fn texts(c: &Config) -> Vec<Vec<u8>> {
+        c.columns.iter().map(|spec| spec.text.clone()).collect()
+    }
+
     #[test]
     fn bundle_with_numbers_and_pattern() {
         let c = run(&["-A4kO8/^#", "a"]).unwrap();
@@ -507,7 +518,7 @@ mod tests {
         assert_eq!(c.insert_offset, Some(4));
         assert_eq!(c.omega, Some(8));
         assert_eq!(c.pat_purge, Some(b"^#".to_vec()));
-        assert_eq!(c.columns, vec![b"a".to_vec()]);
+        assert_eq!(texts(&c), vec![b"a".to_vec()]);
     }
 
     #[test]
@@ -548,9 +559,9 @@ mod tests {
     fn words_after_options_are_columns() {
         let c = run(&["-k", "1", "-h"]).unwrap();
         assert!(!c.no_header);
-        assert_eq!(c.columns, vec![b"1".to_vec(), b"-h".to_vec()]);
+        assert_eq!(texts(&c), vec![b"1".to_vec(), b"-h".to_vec()]);
         let c = run(&["--", "-h"]).unwrap();
-        assert_eq!(c.columns, vec![b"-h".to_vec()]);
+        assert_eq!(texts(&c), vec![b"-h".to_vec()]);
     }
 
     #[test]

@@ -1,0 +1,58 @@
+step8 notes: decisions and rationale for implementation choices.
+
+
+Decisions taken before implementation
+
+  Outcome of the discussion is in step8.txt; column specification rules in COLSPEC.design.txt
+  sections 3-5. Points of rationale:
+
+    - 'All' semantics without expansion into separate filters: -o would otherwise turn
+      @foo:bar/gt/0 into 'any', silently.
+    - 'Any' deferred: not the negation of 'all' when values can be NA.
+    - /ISNUM rather than /ISFLOAT: an integer is a valid float operand (promotion), so a strict
+      'is float' test would reject a measurement column containing '3'. /ISFLOAT may come back
+      with a defined meaning if needed.
+    - Predicates in uppercase, trailing: no collision with [a-z]{2,19} operator tokens; '/~' is
+      taken by the regex operator, hence NOTINT and NOTNUM rather than a negating prefix.
+    - Assertions before filters within a stage: an integrity check should see every row that
+      reaches the stage, not only the rows the filters keep (pick: asserts after computes and
+      before @ filters).
+    - pick's parse_range accepts a range that selects nothing; pluk refuses it, following the
+      rule that every element of a column specification selects at least one column.
+
+
+Item 1: column specifications for output selection
+
+  Files: src/colspec.rs (new), opt.rs (column arguments parsed into ColSpec, -F, help),
+  select.rs (lookup via ColSpec::expand), main.rs (mod colspec).
+
+  colspec::parse() runs during option parsing: the argument is split on ':', each element is
+  either Element::Name (%-decoded) or, with a leading '+' on the raw element,
+  Element::Regex. A regex is %-decoded, compiled once as given (so that the regex crate's
+  message shows the user's pattern) and once anchored as \A(?:re)\z, which matches the whole
+  name and keeps the user's group 1 as group 1. Regex errors are therefore option errors
+  before input is read. An argument containing '::' or ':=' is a compute (not yet supported).
+
+  ColSpec::expand() runs after the header: names are looked up, regexes are matched against
+  all column names in header order; every element must select a column. Duplicates are kept;
+  OutputSelection::from_names removes them with pick's message, as before. The label and
+  kind arguments produce pick's message forms ("(Output) handle [x] in output ..."), so that
+  filters (item 3) can reuse expand() with (Select)/(Preselect). A plain name that is not
+  found and contains one of [({\*?^$.| gets a hint: '-- a regex column name starts with
+  '+', e.g. +num(\d) --'.
+
+  Capture group 1: pick uses it only to name the new columns of a compute handle; plain
+  output selection keeps the original names (checked: pick 'num(\d)' outputs num1 num2 num4,
+  pick 'num(\d)'::__ outputs columns 1 2 4). COLSPEC.design.txt section 1 said the output
+  column was renamed; corrected. Renaming will come with compute handles.
+
+  '@' inside a name (a@b) is now accepted, as pick (only a leading '@' makes a filter); '%'
+  is decoded. -F is accepted without effect.
+
+  Checked against pick (with equivalent unanchored regexes on pick's side): lists, regexes,
+  combinations, duplicates, -x and -A with regexes, -k with lists give identical output.
+
+  Tests: colspec (labelled invocations), colspec-x-A-k, colspec-decode (%3A, %2B, '@' in a
+  name, \+ in a regex), colspec-errors (option errors: empty regex, syntax, look-behind,
+  computes), colspec-unknown (no match, empty element, the hint, anchoring). sel-unsupported
+  reduced to @assert@, '::' and ':='. Help refs updated. Unit tests in colspec.rs.

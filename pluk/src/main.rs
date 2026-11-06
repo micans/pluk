@@ -1,4 +1,5 @@
 mod bam;
+mod colspec;
 mod dict;
 mod filter;
 mod io;

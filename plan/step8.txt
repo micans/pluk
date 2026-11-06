@@ -1,0 +1,114 @@
+
+- augmenting the expressive power of filters
+
+  The idea is to allow two ways of applying filters to multiple columns that can be combined. We'll discuss whether
+  this is a coherent and practical proposal, and allow some free-ranging adjacent ideas.
+
+
+  1   a list of column names joined by ':' as in @foo:bar/gt/0
+
+  2   a leading '+' introduces a regular expression applied against column names, as in @+'foo\d{2}'/gt/0 
+
+  3   allowing the combination as well, as in @+<re1>:+<re2>/gt/0
+
+
+  Some points.
+
+  -   The exact same feature is intended to be used in computes later on, e.g.
+
+        '+foo\d{2}'::__^<regex>,del
+
+      and
+
+        sum::'+foo\d{2}',addall
+
+  -   The regular expression syntax adds a small amount of visual clutter. I think it also supplies visual clarity
+      and improves on pick's implicit behaviour. This rehashes earlier discussion, but it's useful to state again.
+      The plus sign is a useful memnonic that more than one column can be selected. Selection of zero columns
+      should be an error.
+
+
+  -   Could it be worthwhile to allow @@ versions such as
+
+        @@'+foo.*'/ISINT
+
+      This is not necessarily intended for the current item, but worth discussing now.
+      The second part is expected to be an operator, .e.g '/ne/' '=', '/=', '~gt~'.
+      It seems that syntactically /ISINT (and variants) should fit the current framework.
+      I've considered (lowercase) /isint but I think the visual clarity of uppercase is useful
+      similarly to using __EXIT__ for dictionary lookup failures.
+
+      As a side note, this seems much cleaner than the construct I mooted earlier (noting that below
+      is an assert rather than a filter).
+
+        :=^assert^tim^zut,FLOAT 
+
+      This brings us to the following point
+
+  -   pick has @assert@foo:bar/gt/0 and this will carry forward to pluk. Hence, we could have
+
+        @assert@foo/ISINT
+
+      This seems useful. Pick only has after-compute assertions. I intend pluk to have @@assert@ pre-compute
+      assertions as well.
+
+  To structure the discussion, the main points are:
+
+  -  soundness of the multi-selection syntax for both filters and compute
+  -  introduction of /ISINT and /ISFLOAT.
+
+
+
+
+  Outcome of the discussion (column specification rules in COLSPEC.design.txt, sections 3-5)
+
+  A column specification is a ':'-separated list; each element is a plain name or (leading
+  '+') a regex that matches whole column names. The list is split on ':' first and each element
+  is then %-decoded, so a ':' inside a regex is written %3A ((?%3A...), [[%3Adigit%3A]]), as pick.
+  The same expansion serves output selection, filter handles and (later) compute handles and
+  operands. Every element must select at least one column (a regex without matches is an error,
+  also when other elements do match).
+
+  A filter with several columns (@foo:bar/gt/0, @+foo\d{2}/gt/0, @+re1:+re2:baz/gt/0) is a
+  single filter that holds if the test holds for every selected column. -o and -s combine it
+  with other filters as a unit (it is not expanded into separate filters, which -o would turn
+  into 'any'). 'Any column' is not provided in step8; its syntax is an open question
+  (COLSPEC.design.txt section 5). Multiple columns only on the left-hand side: a list or regex
+  in :NAME is refused. Duplicates within a filter handle are removed.
+
+  Unary predicates /ISINT /NOTINT /ISNUM /NOTNUM: no VALUE, recognised as a trailing
+  /[A-Z]+ token (uppercase cannot collide with the [a-z]{2,19} operator tokens; /~ISINT would be
+  the regex operator /~ and is not a negation). ISNUM: parse_num gives a number (I or F,
+  including inf and nan); ISINT: parse_num gives I (integer syntax that fits Int, so the i64 and
+  int128 builds differ between the two widths). No /ISFLOAT for now. Predicates never count NA:
+  they are the test.
+
+  Assertions @assert@ (after computes, as pick) and @@assert@ (before computes, new in pluk).
+  Within a stage assertions are checked before the filters, so they see every row that reaches
+  the stage. -o and -s do not apply to assertions; NA fails an assertion. The first failing row
+  ends pluk with an error (pick: 'Assert k failed for value v (compared with c) at line n').
+  --assert-other=FILE (failing rows to a file) is left for the --other/--demux step.
+
+  Items
+
+  1   Column specifications for output selection: ':' lists and '+' regexes (whole-name match,
+      %3A for ':' in a regex, %2B for a name starting with '+'), capture group 1 renames the
+      output column, every element must match, -F accepted without effect, and the hint
+      suggesting '+...' for an unknown name containing regex characters (all COLSPEC.design.txt
+      section 1). One expansion function, to be reused by filters and computes. Arguments with
+      '::' or ':=' remain computes (not yet supported). Commit.
+
+  2   -k ranges in column specifications, as pick's parse_range: N, S-E, S- (to the last
+      column), O+S-E (offset), S-E*M (multiplier), combinable in ':' lists. Indexes out of range
+      are dropped with a message as pick; a range that selects nothing is an error (pick
+      accepts it). Commit.
+
+  3   Multi-column filter handles (@ and @@) using the expansion of items 1 and 2; 'all'
+      semantics; one filter under -o/-s; duplicates removed; multiple columns refused in :NAME.
+      NA is counted per row (rows not kept because a value was not a number), since with
+      'all' and early stopping the number of values evaluated depends on column order.
+      Commit.
+
+  4   Unary predicates /ISINT /NOTINT /ISNUM /NOTNUM. Commit.
+
+  5   @assert@ and @@assert@. Commit.

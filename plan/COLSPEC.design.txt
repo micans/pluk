@@ -1,9 +1,9 @@
 
 COLSPEC design: how column names are given on the command line.
 
-Status: the regex rule below is DECIDED; it is implemented in a later step (column specifications).
-Until then (step2) only plain names are accepted. Arguments that will acquire a different meaning
-later (leading '+', or containing ':' '@' '%') are rejected with a "not yet supported" error.
+Status: the regex rule below is DECIDED. Until step8 only plain names were accepted; step8 item 1
+implements ':' lists, '+' regexes and %-decoding for output selection (src/colspec.rs).
+Computes ('::', ':=') are still rejected with a "not yet supported" error.
 
 
 1. Regex column names: leading '+'.  [DECIDED, differs from pick]
@@ -22,7 +22,10 @@ later (leading '+', or containing ':' '@' '%') are rejected with a "not yet supp
    - The leading '+' is tested on the raw argument, before %-decoding. A column name that starts
      with '+' is written %2B... ; %2Bfoo is the plain name +foo.
    - '+' on its own is an error. A regex that matches no column is an error (as in pick).
-   - Capture group 1, if present, renames the matched column in the output (as in pick).
+   - Capture group 1, if present, names the new column in a compute handle (pick:
+     'num(\d)'::__ creates columns 1 2 4). In output selection and filter handles the name is
+     not changed (pick: 'num(\d)' outputs num1 num2 num4). [Corrected in step8 item 1; earlier
+     text said the output column was renamed.]
    - Applies wherever a column name is accepted: output list, compute handles (x::...), column
      references within computes, selection handles (@...). It does not apply to regexes given as
      values (e.g. the ~ match operators, -/PAT); those are always regexes.
@@ -40,3 +43,31 @@ later (leading '+', or containing ':' '@' '%') are rejected with a "not yet supp
 
    pick features not in step2: ':'-separated lists (a:b:c), %-decoding, regex names (1.), ranges
    with -k (3-5, 18-, 2+1-3*4), prefix/suffix renaming (p/spec/s), -f (allow duplicate output names).
+
+
+3. Lists and the order of expansion  [DECIDED, step8]
+
+   A column specification is a ':'-separated list of elements; each element is a plain name, a
+   '+' regex, or with -k a range (step8.txt item 2). The argument is split on ':' first and each
+   element is %-decoded afterwards (as pick), so a ':' within a name or regex is written %3A.
+   The '+' test is on the raw element. Order: list order across elements, header order within a
+   regex or range. Every element must select at least one column.
+
+
+4. Roles of a multi-column specification  [DECIDED, step8; computes later]
+
+   - Output selection: every selected column is output (duplicates as for plain names).
+   - Filter and assertion handle (@, @@, @assert@, @@assert@): one filter that holds if the
+     test holds for every selected column; duplicates removed. Not allowed in :NAME.
+   - Compute handle ('+foo\d{2}'::__^re,del): map, the compute is applied per selected column;
+     capture group 1 renames. Duplicates to be decided in the compute step.
+   - Compute operand (sum::'+foo\d{2}',addall): splat, the selected values are pushed for an
+     n-ary operator.
+
+
+5. Open: 'any' over multiple columns
+
+   'Some column satisfies the test' cannot be expressed as the negation of 'all' because of NA
+   ('no column > 0' differs from 'every column <= 0' when a value is not a number). Ideas: a
+   quantifier marker in the position of @assert@ (@any@+foo.*/gt/0), pseudo-names as in
+   plusplusideas (@__all__, @__none__). To be settled in a later step.

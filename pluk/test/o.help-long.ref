@@ -2,6 +2,10 @@ Usage: pluk [options] <column|filter>+ < FILE
 Output the named columns of TAB-separated input (plain or gzip-compressed),
 optionally only the rows that pass the filters.
 
+Columns: a name, a list a:b:c, or +REGEX for all columns whose whole name
+matches REGEX (Rust regex syntax), e.g. +num\d or name:+.*_p. Each part is
+%-decoded after splitting on ':' (%3A for ':', %2B for a leading '+').
+
 Options:
   -k          input has no header line; columns are named 1 2 .. N
   -h          do not output the header line
@@ -12,6 +16,7 @@ Options:
   -/<pat>     skip lines matching regular expression <pat>, e.g. -/^#
   -//<pat>    output lines matching <pat> unchanged
   -u          make duplicate input column names unique (suffixes _v02, _v03, ..)
+  -F          accepted for compatibility with pick; no effect
   -O<N>       ragged input: <N> columns, merge columns at and after <N> (requires -k)
   -R          header has no name for the first (row name) column; it is named _
   -o          keep rows that pass any @ filter (default: all)
