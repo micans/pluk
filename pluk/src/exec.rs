@@ -9,6 +9,8 @@ use std::borrow::Cow;
 use regex::bytes::Regex;
 
 use crate::compute::{Attached, Compute, Instr};
+use std::collections::HashMap;
+
 use crate::dict::Dicts;
 use crate::num::{self, Num};
 use crate::row::Row;
@@ -37,6 +39,14 @@ pub struct Machine<'d> {
     perl:       bool,                       // --num-perl
     text:       Vec<u8>,                    // the result of a compute, as text
     rng:        SplitMix64,                 // for rand
+    // Per row (plan/step15.txt decisions 3, 4): the registers of save and fetch, by
+    // slot (constant names) and by name (names from columns without a slot), and
+    // the row and line number.
+    pub registers: Vec<Option<Value>>,
+    register_slots: HashMap<Vec<u8>, usize>,
+    other_registers: HashMap<Vec<u8>, Value>,
+    pub rowno:  u64,
+    pub lineno: u64,
 }
 
 // A small random number generator, splitmix64 (Steele, Lea and Flood, 2014): a
@@ -75,7 +85,37 @@ pub fn clock_seed() -> u64 {
 impl<'d> Machine<'d> {
     pub fn new(perl: bool, seed: u64, dicts: &'d Dicts) -> Machine<'d> {
         Machine { dicts, fatal: None, stack: Vec::with_capacity(16), cache: Vec::new(), generation: 0, perl,
-                  text: Vec::new(), rng: SplitMix64::new(seed) }
+                  text: Vec::new(), rng: SplitMix64::new(seed), registers: Vec::new(),
+                  register_slots: HashMap::new(), other_registers: HashMap::new(), rowno: 0, lineno: 0 }
+    }
+
+    // The register slots of the compiled computes (constant names of save and fetch).
+    pub fn set_registers(&mut self, computes: &[Compute]) {
+        for compute in computes {
+            for instr in &compute.instrs {
+                if let Instr::OpWith(_, Attached::Register(slot, name)) = instr {
+                    self.register_slots.insert(name.clone(), *slot);
+                }
+            }
+        }
+        self.registers = vec![None; self.register_slots.len()];
+    }
+
+    // save and fetch with a name from a column: the slot if the name has one.
+    pub fn store_register(&mut self, name: Vec<u8>, value: Value) {
+        match self.register_slots.get(&name) {
+            Some(&slot) => self.registers[slot] = Some(value),
+            None => {
+                self.other_registers.insert(name, value);
+            }
+        }
+    }
+
+    pub fn find_register(&self, name: &[u8]) -> Option<Value> {
+        match self.register_slots.get(name) {
+            Some(&slot) => self.registers[slot].clone(),
+            None => self.other_registers.get(name).cloned(),
+        }
     }
 
     // An operator that cannot continue (map with __EXIT__) records an error; the
@@ -91,9 +131,13 @@ impl<'d> Machine<'d> {
 
     // Run all computes on a row; each appends its result to the row. Err: an
     // operator failed (Machine::fail).
-    pub fn run(&mut self, computes: &[Compute], row: &mut Row) -> Result<(), String> {
+    // rowno: the data row number; lineno: the physical line number.
+    pub fn run(&mut self, computes: &[Compute], row: &mut Row, rowno: u64, lineno: u64) -> Result<(), String> {
         self.generation += 1;
         row.clear_computed();
+        (self.rowno, self.lineno) = (rowno, lineno);
+        self.registers.fill(None);
+        self.other_registers.clear();
         for compute in computes {
             self.stack.clear();
             for instr in &compute.instrs {

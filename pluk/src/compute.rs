@@ -13,6 +13,8 @@
 use regex::bytes::Regex;
 
 use crate::colspec::{self, ColSpec, Element};
+use std::collections::{HashMap, HashSet};
+
 use crate::dict::Dicts;
 use crate::filter;
 use crate::io::compile_pattern;
@@ -163,6 +165,7 @@ pub enum Attached {
     Regex(Regex),
     Dict(usize),
     Test(filter::Op, TestRhs),      // test x y T: the filter operator T and how y is used
+    Register(usize, Vec<u8>),       // save, fetch: the slot of a constant register name, and the name
 }
 
 // The right-hand side of test: the value y per row, or y prepared at compile time
@@ -205,6 +208,7 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, dicts:
     let mut names = input.clone();
     let mut computes = Vec::with_capacity(specs.len());
     let mut redefined = vec![false; input.len()];  // input columns redefined so far
+    let mut registers = Registers::default();
     for spec in specs {
         let shown = String::from_utf8_lossy(&spec.text);
         // A map is one compute per selected column (current bindings), in COLSPEC
@@ -275,6 +279,10 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, dicts:
                             Prepare::ConstDict(pos) =>
                                 Instr::OpWith(op, Attached::Dict(const_dict(&instrs, &stack, pos, op, dicts, &shown)?)),
                             Prepare::Test => Instr::OpWith(op, prepare_test(&instrs, &stack, dicts, &shown)?),
+                            Prepare::Register => match registers.prepare(&instrs, &stack, op, &shown)? {
+                                Some(attached) => Instr::OpWith(op, attached),
+                                None => Instr::Op(op),
+                            },
                             Prepare::FormatCount => {
                                 check_format(&instrs, &stack, &shown)?;
                                 Instr::Op(op)
@@ -292,7 +300,7 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, dicts:
                                 let n = stack.len();
                                 stack.swap(n - 1, n - 2);
                             }
-                            Shape::Pop => {
+                            Shape::Pop | Shape::Drop => {
                                 stack.pop();
                             }
                         }
@@ -367,6 +375,44 @@ fn prepare_test(instrs: &[Instr], stack: &[Slot], dicts: &Dicts, shown: &str) ->
     Ok(Attached::Test(op, rhs))
 }
 
+// Register names seen so far while compiling (plan/step15.txt decision 3): each
+// constant name gets a slot; a fetch of a constant name needs an earlier save of it
+// (in compute order), unless an earlier save used a name from a column.
+#[derive(Default)]
+struct Registers {
+    slots: HashMap<Vec<u8>, usize>,
+    saved: HashSet<Vec<u8>>,
+    dynamic_save: bool,
+}
+
+impl Registers {
+    // The name operand is the top of the stack. None: a name from a column, looked
+    // up at run time.
+    fn prepare(&mut self, instrs: &[Instr], stack: &[Slot], op: &OpDef, shown: &str) -> Result<Option<Attached>, String> {
+        let name = match stack.last() {
+            Some(Slot::Const(k)) => match &instrs[*k] {
+                Instr::Const(c) => c.clone(),
+                _ => unreachable!("Slot::Const refers to a constant"),
+            },
+            _ => {
+                if op.name == "save" {
+                    self.dynamic_save = true;
+                }
+                return Ok(None);
+            }
+        };
+        if op.name == "save" {
+            self.saved.insert(name.clone());
+        } else if !self.saved.contains(&name) && !self.dynamic_save {
+            return Err(format!("[{}]: fetch of register [{}], which no earlier save stores",
+                               shown, String::from_utf8_lossy(&name)));
+        }
+        let next = self.slots.len();
+        let slot = *self.slots.entry(name.clone()).or_insert(next);
+        Ok(Some(Attached::Register(slot, name)))
+    }
+}
+
 // The dictionaries that a dord names with a constant (a constant token directly
 // before the operator, as pick's check for ^D,dord): they record the order of
 // their keys while they are read, which happens before computes are compiled.
@@ -413,6 +459,8 @@ pub fn describe_compiled(c: &Compute, names: &ColumnNames) -> String {
             Instr::OpWith(op, Attached::Dict(d)) => format!("  op {} (dictionary {})\n", op.name, d),
             Instr::OpWith(op, Attached::None) => format!("  op {}\n", op.name),
             Instr::OpWith(op, Attached::Test(t, _)) => format!("  op {} ({:?})\n", op.name, t),
+            Instr::OpWith(op, Attached::Register(slot, name)) =>
+                format!("  op {} (register {} slot {})\n", op.name, String::from_utf8_lossy(name), slot),
         };
         out.push_str(&line);
     }

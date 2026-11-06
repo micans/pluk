@@ -151,6 +151,7 @@ Computes (given among the columns; a stack language, as pick):
     precision   dd sn frac pct pml
     dictionary  map dord
     branch      ifelse test (test x y T: T a filter operator, e.g. ^/gt/)
+    state       save fetch (registers, per row) rowno r0wno lineno
     regex       del delg ed edg edbr edgbr get npat (the pattern is a constant)
   Numbers are written exactly (round-trip); NA where a number was needed.
   --num-perl  write numbers as Perl and pick do (%.15g, Inf, NaN)

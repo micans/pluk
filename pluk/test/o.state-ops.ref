@@ -1,0 +1,27 @@
+name	a	b	c
+Ann	Annx	Ann	1!
+Bob	Bobx	Bob	1!
+Charlie	Charliex	Charlie	2!
+Dan	Danx	Dan	3!
+Esme	Esmex	Esme	5!
+Fred	Fredx	Fred	8!
+Gillian	Gillianx	Gillian	13!
+Harriet	Harrietx	Harriet	21!
+Inky	Inkyx	Inky	34!
+John	Johnx	John	55!
+Kelly	Kellyx	Kelly	89!
+Lucy	Lucyx	Lucy	144!
+name	r	s	l
+Fred	6	5	7
+Gillian	7	6	8
+Harriet	8	7	9
+Inky	9	8	10
+John	10	9	11
+Kelly	11	10	12
+Lucy	12	11	13
+name	1	0	1
+Ann	2	1	2
+Bob	3	2	3
+name	r	l
+a	1	3
+b	2	5

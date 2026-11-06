@@ -89,3 +89,41 @@ Item 2: ifelse and test
 
   Tests: branch-test, branch-edge (NA from non-numbers and non-integers, NA condition, six
   compile-time errors). Help refs.
+
+
+Item 3: save fetch rowno r0wno lineno
+
+  Files: compute.rs (Attached::Register, Registers: slots and the compile-time check),
+  exec.rs (Machine: registers by slot and by name, rowno, lineno; set_registers,
+  store_register, find_register; run takes the row and line number), ops.rs
+  (Shape::Drop, Prepare::Register, Category::State, the five operators), main.rs (Stages
+  counts data rows; judge takes the line number), opt.rs (help).
+
+  (This item was interrupted once by an API usage limit; nothing of the first attempt
+  had been written to disk, and it was redone from the plan.)
+
+  Registers. While compiling, each constant register name of save and fetch gets a slot
+  (compute::Registers), attached to the instruction as Attached::Register(slot, name).
+  A fetch of a constant name needs an earlier save of that name in compute order;
+  otherwise it is a compile-time error, unless an earlier save took its name from a
+  column (then the name may exist at run time). The machine collects the slots from the
+  compiled computes (Machine::set_registers): a Vec<Option<Value>> by slot, and a
+  name-to-slot map for names that come from columns, which use the slot if the name has
+  one and an overflow map otherwise. Both are cleared at the start of every row, as
+  pick's line cache. save stores the value and leaves it on the stack: Shape::Drop pops
+  the name's slot and keeps the value's. A missing register is NA.
+
+  Positions. Stages counts the data rows it judges (before the filters, so rows later
+  rejected count, as pick's $::Nrows); the header line is not a data row, with -k the
+  first line is (row 1), lines skipped by -/PAT and pass-through lines are not data rows.
+  lineno is the reader's physical line number (LineReader.n_lines, which counts skipped
+  lines too, as Perl's $.). Both are passed to Machine::run.
+
+  Checked against pick: ops-branch (pick test 125 of pick/test/Makefile, combining dord,
+  map with a default, uie, test, ifelse, save and fetch across computes) is identical
+  (pick has no ref file for it; ours was checked against a pick run). state-ops (save
+  and fetch within and across computes, rowno r0wno lineno with an @@ filter, with -k,
+  with lines skipped by -/PAT) is identical.
+
+  Tests: ops-branch, state-ops, state-ops-edge (names from a column, registers cleared per
+  row, two compile-time errors). Help refs.

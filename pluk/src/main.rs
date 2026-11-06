@@ -177,7 +177,9 @@ fn run() -> std::io::Result<()> {
         }
         return Ok(());
     }
-    let mut stages = Stages { filters, computes, machine: exec::Machine::new(config.num_perl, config.seed.unwrap_or_else(exec::clock_seed), &dicts) };
+    let mut machine = exec::Machine::new(config.num_perl, config.seed.unwrap_or_else(exec::clock_seed), &dicts);
+    machine.set_registers(&computes);
+    let mut stages = Stages { filters, computes, machine, rowno: 0 };
 
     if config.test_select {
         for (name, i) in selection.output_colnames.iter().zip(&selection.output_offset) {
@@ -314,18 +316,20 @@ struct Stages<'d> {
     filters:  filter::Filters<'d>,
     computes: Vec<compute::Compute>,
     machine:  exec::Machine<'d>,
+    rowno:    u64,              // data rows seen (rowno, r0wno); rejected rows count too
 }
 
 impl Stages<'_> {
     // The computed fields of the previous row are removed first, so that a row
     // rejected by the @@ stage has none (they read as empty).
-    fn judge(&mut self, row: &mut row::Row) -> Result<filter::Verdict, Failure> {
+    fn judge(&mut self, row: &mut row::Row, lineno: u64) -> Result<filter::Verdict, Failure> {
         row.clear_computed();
+        self.rowno += 1;
         if !self.filters.pre(row).map_err(Failure::Assertion)? {
             return Ok(filter::Verdict::RejectPre);
         }
         if !self.computes.is_empty() {
-            self.machine.run(&self.computes, row).map_err(Failure::Fatal)?;
+            self.machine.run(&self.computes, row, self.rowno, lineno).map_err(Failure::Fatal)?;
         }
         let kept = self.filters.post(row).map_err(Failure::Assertion)?;
         Ok(if kept { filter::Verdict::Keep } else { filter::Verdict::RejectPost })
@@ -348,7 +352,7 @@ fn route(stages: &mut Stages, row: &mut row::Row, lineno: u64,
          demux: &mut Option<demux::Demux>)
     -> std::io::Result<bool>
 {
-    match stages.judge(row) {
+    match stages.judge(row, lineno) {
         Ok(filter::Verdict::Keep) => Ok(true),
         Ok(verdict) => {
             if let Some(file) = other {

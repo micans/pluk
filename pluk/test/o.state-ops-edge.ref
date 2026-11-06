@@ -1,0 +1,7 @@
+k	v	a	b	c	d
+reg1	5	5	5	5	zz
+reg2	6	6	NA	6	zz
+pluk: [x::^q,fetch]: fetch of register [q], which no earlier save stores
+exit 1
+pluk: [x::^q,fetch]: fetch of register [q], which no earlier save stores
+exit 1

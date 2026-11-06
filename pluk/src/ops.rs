@@ -37,6 +37,7 @@ pub enum Shape {
     Dup,
     Xch,
     Pop,
+    Drop,           // save: the top operand goes, the one below stays as it was
 }
 
 // What an operator result is known to be.
@@ -55,6 +56,7 @@ pub enum Prepare {
     ConstDict(usize),  // the operand this many places below the top must be a constant
                        // naming a dictionary (map, dord: 0)
     Test,              // test: the filter operator and its right-hand side (compute.rs)
+    Register,          // save, fetch: a constant register name gets a slot (compute.rs)
     FormatCount,    // a constant bottom operand is a fmtall format: its # count must
                     // match the number of values above it
 }
@@ -68,6 +70,7 @@ pub enum Category {
     Precision,
     Dictionary,
     Branch,
+    State,
     Regex,
 }
 
@@ -149,6 +152,16 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "B x y", result: "x or y", doc: "If B put x else put y (B: a non-zero number, or a non-empty string)", fun: op_ifelse },
     OpDef { name: "test",   pops: Pops::N(3), pushes: 1, shape: NUM, prepare: Prepare::Test, category: Category::Branch,
             operands: "x y T", result: "B", doc: "Test T applied to x y: 1 or 0 (T a filter operator: /gt/ ~eq~ ~ ~isin~ ...)", fun: op_test },
+    OpDef { name: "save",   pops: Pops::N(2), pushes: 1, shape: Shape::Drop, prepare: Prepare::Register, category: Category::State,
+            operands: "x n", result: "x", doc: "Store x in register n (per row), x stays", fun: op_save },
+    OpDef { name: "fetch",  pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Register, category: Category::State,
+            operands: "n", result: "reg(n)", doc: "Value in register n (stored earlier in this row)", fun: op_fetch },
+    OpDef { name: "rowno",  pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::State,
+            operands: "-", result: "x", doc: "Current table row number (start one)", fun: op_rowno },
+    OpDef { name: "r0wno",  pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::State,
+            operands: "-", result: "x", doc: "Current table row number (start zero)", fun: op_r0wno },
+    OpDef { name: "lineno", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::State,
+            operands: "-", result: "x", doc: "Current input line number", fun: op_lineno },
     OpDef { name: "map",    pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
             operands: "x D", result: "map-of-x", doc: "Value of x in dictionary D (not found: as D's default)", fun: op_map },
     OpDef { name: "dord",   pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
@@ -854,6 +867,43 @@ fn op_test(m: &mut Machine, row: &Row, a: &Attached) {
     });
 }
 
+// Registers (plan/step15.txt decision 3): save x n stores x and leaves it on the
+// stack, fetch n gives it back; per row. A constant name has a slot (attached at
+// compile time); a name from a column is looked up by name at run time.
+fn op_save(m: &mut Machine, row: &Row, a: &Attached) {
+    let n = m.pop();
+    let x = m.stack.last().expect("stack checked at compile time").clone();
+    match a {
+        Attached::Register(slot, _) => m.registers[*slot] = Some(x),
+        _ => if !matches!(n, Value::Na) {
+            let name = m.bytes(&n, row).into_owned();
+            m.store_register(name, x);
+        },
+    }
+}
+
+fn op_fetch(m: &mut Machine, row: &Row, a: &Attached) {
+    let n = m.pop();
+    let value = match a {
+        Attached::Register(slot, _) => m.registers[*slot].clone(),
+        _ => match n {
+            Value::Na => None,
+            n => {
+                let name = m.bytes(&n, row).into_owned();
+                m.find_register(&name)
+            }
+        },
+    };
+    m.push(value.unwrap_or(Value::Na));
+}
+
+// Positions (decision 4): the data row number (header not counted; with -k the
+// first line is row 1; rows later rejected by filters count) and the physical line
+// number.
+fn op_rowno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.rowno; m.push(Value::Num(Num::I(n as num::Int))) }
+fn op_r0wno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.rowno; m.push(Value::Num(Num::I(n as num::Int - 1))) }
+fn op_lineno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.lineno; m.push(Value::Num(Num::I(n as num::Int))) }
+
 // Dictionary operators (plan/step15.txt decision 0). The dictionary was resolved
 // at compile time (Prepare::ConstDict); its name is still on the stack and popped
 // unused. An NA key gives NA.
@@ -1083,6 +1133,7 @@ mod tests {
                 Shape::Dup => op.pops == Pops::N(1) && op.pushes == 2,
                 Shape::Xch => op.pops == Pops::N(2) && op.pushes == 2,
                 Shape::Pop => op.pops == Pops::N(1) && op.pushes == 0,
+                Shape::Drop => op.pops == Pops::N(2) && op.pushes == 1,
             };
             assert!(ok, "{}", op.name);
         }
