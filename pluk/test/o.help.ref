@@ -49,6 +49,9 @@ Options:
   --sam/FILE, --sam-h/FILE
               as --sam and --sam-h; reference sequences are read from fasta
               FILE into the dictionary SAMFA (default __EXIT__)
+  --sam-nonf  keep exterior deletions and insertions; by default a leading or
+              trailing nD is removed (POS adjusted) and a leading or trailing nI
+              becomes nS, as pick (vsearch writes such alignments)
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
   --idx-list  write the input indexes of the output columns (computed columns

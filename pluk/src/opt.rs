@@ -37,6 +37,7 @@ pub struct Config {
     pub make_unique: bool,              // -u
     pub sam: bool,                      // --sam
     pub sam_h: bool,                    // --sam-h
+    pub sam_nonf: bool,                 // --sam-nonf: no normal form (plan/SAMVIEW.design.txt section 3)
     pub threads: Option<u32>,           // --threads=N
     pub pat_purge: Option<Vec<u8>>,     // -/PAT, %-decoded
     pub pat_pass: Option<Vec<u8>>,      // -//PAT, %-decoded
@@ -163,6 +164,9 @@ Options:
   --sam/FILE, --sam-h/FILE
               as --sam and --sam-h; reference sequences are read from fasta
               FILE into the dictionary SAMFA (default __EXIT__)
+  --sam-nonf  keep exterior deletions and insertions; by default a leading or
+              trailing nD is removed (POS adjusted) and a leading or trailing nI
+              becomes nS, as pick (vsearch writes such alignments)
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
   --idx-list  write the input indexes of the output columns (computed columns
@@ -374,6 +378,7 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
         // --sam and --sam-h imply -k and -O12; a later -O overrides.
         b"sam"   => set_sam(config, false),
         b"sam-h" => set_sam(config, true),
+        b"sam-nonf" => config.sam_nonf = true,
         b"test-lineno"          => config.test_lineno = true,
         b"test-counts"          => config.test_counts = true,
         b"test-names"           => config.test_names = true,
@@ -700,6 +705,9 @@ fn check_combinations(config: &Config) -> Result<(), String> {
     }
     if config.add_row_column && config.k {
         return Err("-R cannot be combined with -k".to_string());
+    }
+    if config.sam_nonf && !(config.sam || config.sam_h) {
+        return Err("--sam-nonf requires --sam or --sam-h".to_string());
     }
     if config.big_k && (config.sam || config.sam_h) {
         return Err("-K cannot be combined with --sam or --sam-h".to_string());

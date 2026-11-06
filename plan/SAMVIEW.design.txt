@@ -59,7 +59,8 @@ plan/SAMSEQ.design.txt.
      trailing nI   becomes nS
    2D3I10M2I1D becomes 3S10M2S with POS + 2; 3I2D10M becomes 3S2D10M (the D stays; it is
    part of the 5' trail, section 5). Not applied behind S or H (5S3I.. is unchanged), and S
-   and I are not merged. Unmapped records (section 6) are not rewritten.
+   and I are not merged. As pick, every record is rewritten, unmapped ones included (FLAG
+   0x4 or RNAME '*'; CIGAR '*' never changes).
 
 
 4. Stages

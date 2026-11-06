@@ -91,6 +91,19 @@ impl Row {
         }
     }
 
+    // Replace input field i by value: the line is changed and the offsets of the
+    // later fields (including padding fields at the end) are shifted, so that whole-
+    // line output and every field see the new record (SAMVIEW.design.txt section 3).
+    pub fn replace_field(&mut self, i: usize, value: &[u8]) {
+        let (start, end) = self.fields[i];
+        self.line.splice(start..end, value.iter().copied());
+        let new_end = start + value.len();
+        self.fields[i] = (start, new_end);
+        for f in &mut self.fields[i + 1..] {
+            *f = (f.0 + new_end - end, f.1 + new_end - end);
+        }
+    }
+
     // Remove the computed fields of the previous row (capacity is kept).
     pub fn clear_computed(&mut self) {
         self.computed.clear();
@@ -124,6 +137,21 @@ mod tests {
         row.line.extend_from_slice(line);
         let (_, order) = row.split_fields_limit(n);
         ((0..row.n_fields()).map(|i| row.field(i).to_vec()).collect(), order)
+    }
+
+    #[test]
+    fn replace_field() {
+        let mut row = Row::new();
+        row.line.extend_from_slice(b"a\tbb\tccc");
+        row.split_fields_limit(5);
+        row.replace_field(1, b"XXXX");
+        assert_eq!(row.line, b"a\tXXXX\tccc");
+        row.replace_field(0, b"");
+        assert_eq!(row.line, b"\tXXXX\tccc");
+        row.replace_field(2, b"z");
+        let fields: Vec<&[u8]> = (0..5).map(|i| row.field(i)).collect();
+        assert_eq!(fields, [&b""[..], b"XXXX", b"z", b"", b""]);
+        assert_eq!(row.line, b"\tXXXX\tz");
     }
 
     #[test]

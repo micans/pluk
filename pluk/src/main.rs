@@ -14,6 +14,7 @@ mod ops;
 mod opt;
 mod output;
 mod row;
+mod sam;
 // Not yet called; wired in with the first SAM operator step (plan/step5.txt item 3).
 #[allow(dead_code)]
 mod samseq;
@@ -192,7 +193,8 @@ fn run() -> std::io::Result<()> {
     }
     let mut machine = exec::Machine::new(config.num_perl, config.seed.unwrap_or_else(exec::clock_seed), &dicts);
     machine.set_registers(&computes);
-    let mut stages = Stages { filters, computes, machine, rowno: 0 };
+    let normal_form = (config.sam || config.sam_h) && !config.sam_nonf;
+    let mut stages = Stages { filters, computes, machine, rowno: 0, normal_form };
 
     // --idx-list, --name-list, --idx-map: the output columns, without reading the data.
     if let Some(kind) = config.list {
@@ -409,6 +411,7 @@ struct Stages<'d> {
     computes: Vec<compute::Compute>,
     machine:  exec::Machine<'d>,
     rowno:    u64,              // data rows seen (rowno, r0wno); rejected rows count too
+    normal_form: bool,          // SAM input without --sam-nonf (plan/SAMVIEW.design.txt section 3)
 }
 
 impl Stages<'_> {
@@ -419,6 +422,14 @@ impl Stages<'_> {
         self.rowno += 1;
         if !self.filters.pre(row).map_err(Failure::Assertion)? {
             return Ok(filter::Verdict::RejectPre);
+        }
+        // SAM input rewrites: after the @@ stage, before the computes.
+        // As pick, every record, unmapped ones included (CIGAR '*' never changes).
+        if self.normal_form && row.n_fields() > sam::CIGAR {
+            if let Some((pos, cigar)) = sam::normal_form(row.field(sam::POS), row.field(sam::CIGAR)) {
+                row.replace_field(sam::POS, &pos);
+                row.replace_field(sam::CIGAR, &cigar);
+            }
         }
         if !self.computes.is_empty() {
             self.machine.run(&self.computes, row, self.rowno, lineno).map_err(Failure::Fatal)?;

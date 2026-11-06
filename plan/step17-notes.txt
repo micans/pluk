@@ -23,3 +23,37 @@ Item 1: design files
   SAM.notes.txt: the agreed order of the SAM steps and the step17 decisions appended;
   sam_put described with the -i workaround (tested on test/sam-clean.txt) and two ideas for
   a real implementation.
+
+
+Item 2: normal form, --sam-nonf
+
+  src/sam.rs (new; the SAM view follows in item 3): sam::normal_form(pos, cigar) applies
+  pick's four rules on the bytes of the first and last operation (no full CIGAR parse:
+  the rules only look at the ends) and returns the new POS and CIGAR, or None when nothing
+  changes, so unchanged rows cost two small scans. POS that is not a number: unchanged.
+
+  Row::replace_field(i, value) splices the new value into the line and shifts the offsets of
+  the later fields (padding fields at the end included). No re-split is needed, so the -O
+  limit plays no role, and whole-line output (RowWriter.whole_line) writes the new record.
+  POS (column 4) is replaced before CIGAR (column 6); the shift keeps CIGAR's offsets right.
+
+  Called in Stages::judge after the @@ stage and before the computes (SAMVIEW.design.txt
+  section 2), for SAM input unless --sam-nonf, on every record with at least six fields.
+  The first version skipped unmapped records (FLAG 0x4, RNAME '*'), as written in the
+  design in item 1; pick rewrites them too, and the design was corrected to follow pick
+  (decision 3: pick's behaviour). A CIGAR '*' never changes.
+
+  One deliberate difference: a rule that would leave nothing (CIGAR 5D: the leading-D rule)
+  is not applied; pick writes an empty CIGAR and increases POS.
+
+  Checked against pick: --sam -A on all four pick/align SAM files (qry3vs.sam has 149
+  leading D and 80 leading I) is identical; --sam-nonf leaves the records as read; synthetic
+  records (both rules at both ends, D twice, behind S and H, I-only, unmapped by FLAG and by
+  RNAME, CIGAR '*') identical apart from 5D; @@ filters see the input POS and @ filters the
+  rewritten one, and --other rows match.
+
+  Test data: qry3vs.sam.gz and qry3mm.sam.gz (pick/align, compressed), ref3.fa (for the
+  following items). Tests: sam-nf-align (QNAME POS CIGAR of qry3vs and the start of qry3mm),
+  sam-nf (the synthetic records with and without --sam-nonf, @@ and @ filters, --other, -c,
+  --sam-h, --sam-nonf without --sam). Unit tests in sam.rs (normal_form_rules) and row.rs
+  (replace_field). Help refs.
