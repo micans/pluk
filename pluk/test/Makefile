@@ -53,7 +53,7 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	$(p) -k 14                  < data.txt  2> o.sel-unknown-k.test  > /dev/null; [ $$? -eq 1 ]
 	head -n 1 data.txt | $(p) nosuch        2> o.sel-unknown-headeronly.test > /dev/null; [ $$? -eq 1 ]
 	$(p) nosuch                 < /dev/null  > o.sel-empty.test
-	for a in 'x::y' 'x:=y'; do $(p) "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.sel-unsupported.test
+	for a in 'x::y' '+x.*::^1'; do $(p) "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.sel-unsupported.test
 	$(p) sq fib                      < data.txt   > o.sq-fib.test        # from pick/test
 	$(p) -A                          < data.txt   > o.-A.test            # from pick/test
 	$(p) -x                          < data.txt   > o.-x.test            # from pick/test
@@ -207,6 +207,8 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	mkdir out/dm6 && { ulimit -n 20; $(p) --demux=id --demux-dir=out/dm6 id < big.txt 2>&1 | grep -o -e 'cannot open more files' -e 'split the run with @@ filters on the demux column'; } > o.demux-many.test
 	mkdir out/dm7 && { for t in 'a\tb\n../y\t2\n' 'a\tb\n\t1\n' 'a\tb\n/abs\t1\n' 'a\tb\nx//y\t1\n' 'a\tb\nx/\t1\n' 'a\tb\n./x\t1\n' 'a\tb\nnodir/x\t1\n'; do printf "$$t" | $(p) --demux=a --demux-dir=out/dm7 a b; echo "exit $$?"; done; printf 'a\tb\nx\t1\n' | $(p) --demux=a --demux-dir=out/dm7 --other=out/dm7/x a b @b/gt/5; echo "exit $$?"; for a in '-c --demux=fx' '--demux=zz name' '--demux-dir=out/nodir --demux=fx name' '--demux-dir=out name' '--demux=a:b name' '--demux=+f.* name' '--demux-buffer=x name'; do $(p) $$a < data.txt; echo "exit $$?"; done; } > o.demux-errors.test 2>&1
 	{ $(p) name 'x::^1' < data.txt; echo "exit $$?"; } > o.compute-not-executed.test 2>&1
+	for a in 'x::nosuch' 'fib::^1' 'x::^1 x::^2' 'x::^1,add' 'x::,cat' 'x::^1,pop,pop' 'x::fx:fib,del' 'x::fx^,del' 'x::fx^(,del' 'x::^1 @@x/gt/0' 'x::y y::^1'; do $(p) name $$a < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.compute-compile-errors.test
+	{ $(p) name x::^1 @x/gt/0 < data.txt; echo "exit $$?"; $(p) --demux=x --demux-dir=out name x:=^1 < data.txt; echo "exit $$?"; } > o.compute-compile-ok.test 2>&1
 	for a in @z/gt/3 @@name/gt/:z @fib~eq~:z; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-unknown.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.txt   2> /dev/null > o.filter-sam.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.bam   > o.filter-bam.test
@@ -240,6 +242,8 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 # plan step file. See plan/guidelines.txt.
 
 runtestopt: data.txt
+	$(p) --test-compute name 'x::fib^1,add' 'y:=+num\d,addall' 'z::x^a,cat' 'd::fx^o,del' 's::^a^b,xch,dup,pop' '::^1:y' < data.txt > o.compute-compile.test
+	{ for a in 'name x::^1 fib' 'x::^1 name y:=^2 fib z::^3' '-A x::^1 y:=^2 z::^3' '-x fib x::^1 name' 'name x:=^1 x' 'name ::^1 ::^2' '-k 1 x::2^1'; do echo "$$a"; $(p) --test-select $$a < data.txt; done; } > o.compute-select.test
 	$(p) --test-compute 'x::fib^1,add' 'y:=^a:fib,cat' '::name,dup,xch,pop' '::^' 's::+num\d,addall' 'a%2Fb::^x%2Cy%3Az%5E' 'd::fx^o,del' name '::^2' < /dev/null > o.compute-parse.test
 	$(p) --test-compute -k 'r::2-4,addall' '5::^x' < /dev/null > o.compute-parse-k.test
 	for a in 'x::' 'x::,' 'x::^a:' 'x::^a,nosuch' '+x.*::^1' 'a:b::^1' 'p/x/s::^1' 'x::+(a' 'x::^1,addall,nosuch'; do $(p) --test-compute name "$$a" < /dev/null; [ $$? -eq 1 ] || exit 1; done 2> o.compute-parse-errors.test

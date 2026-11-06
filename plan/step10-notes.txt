@@ -46,3 +46,62 @@ Item 2: parsing computes
   operand, a number as NAME), compute-parse-errors. runpluk: compute-not-executed.
   sel-unsupported and colspec-errors: 'x::y' and 'x:=y' are now computes (not yet
   executed). Unit tests in ops.rs (table) and compute.rs (syntax, unnamed, errors).
+
+
+Item 3: compiling computes
+
+  Files: src/compute.rs (Instr, Slot, Compute, compile, const_regex, describe_compiled),
+  src/ops.rs (Shape, Kind, Prepare in the table), names.rs (ColumnNames: Clone, push),
+  select.rs (computed columns in the output), filter.rs (compile with input and extended
+  names), opt.rs (ComputeSpec.position), main.rs (compiling after the header; the extended
+  names for output, @ filters, --demux and headers).
+
+  compile() works through the computes in command line order with a growing ColumnNames:
+  the input names, then each compute's name at the next index (N + i). A name that exists
+  (input column or earlier compute) is an error ('in-place computes are not yet supported').
+  Column tokens are expanded with ColSpec::expand against the names so far, so a compute can
+  use earlier computes; a multi-column token gives one Field instruction per column (splat).
+  Messages follow pick: '(Compute) handle [x] in compute NAME does not reference ...'.
+
+  The static stack is a Vec<Slot>: Const (with the position of its instruction), Column, or
+  Result(Str|Num) for operator results; the stack operators move slots (dup copies, xch
+  swaps, pop removes), other operators pop their operands (all of them for Pops::All) and
+  push their result kind (Shape in the table). An operator with more operands than slots is
+  a stack underflow error naming the operator and the counts. The slots also serve the
+  prepare step and --test-compute; they will serve typed dispatch later
+  (NUMERIC.design.txt section 7).
+
+  Prepare. For Prepare::ConstRegex (del) the top slot must be a Const: its bytes are compiled
+  with compile_pattern (as -/PAT and the ~ filter: regex crate, Unicode mode off) and the
+  regex is attached to the operator instruction (Instr::OpRegex). The constant instruction
+  stays, so the run-time stack has the same layout as the static one; the operator uses the
+  attached regex. An empty pattern is refused (Perl would reuse the last pattern). A
+  pattern from a column is refused for now ('must be a constant'); pick compiles it per row
+  with a warning. This follows the ~:NAME decision for filters (step7 item 2) and can be
+  relaxed later.
+
+  Output. Each ComputeSpec records how many column arguments precede it (position); a '::'
+  compute is output at that place, so 'name x::^1 fib' outputs name x fib, as pick. With -A
+  and -x, the '::' computes follow the input columns (pick: new names appended); ':='
+  computes are not output, but a column argument can name them ('name x:=^1 x'), since column
+  arguments are resolved against the extended names. -A<N> stays unused.
+
+  Filters: @@ filters (and @@assert@) compile against the input names, @ filters (and
+  @assert@) against the extended names; --demux and all headers use the extended names.
+
+  Until item 4 a compute that compiles stops pluk with 'computes are not yet executed', after
+  compilation, so compile errors are reported first. --test-compute prints the parsed form
+  and, when there is input, the compiled form (instructions with 1-based column numbers and
+  names, the attached regex, the final static stack); --test-select shows the output
+  selection with computed columns.
+
+  Checked against pick (header line of pick against --test-select): seven invocations with
+  interleaved, unnamed, := , -A and -x computes give the same column order (the unnamed
+  names differ by prefix: PLUK/PICK).
+
+  Tests: runtestopt: compute-compile, compute-select. runpluk: compute-compile-errors
+  (unknown column, existing name, repeated name, underflow, del with a column pattern, an
+  empty and an invalid pattern, @@ filter on a compute, a forward reference),
+  compute-compile-ok (@ filter and --demux on a compute). sel-unsupported now checks a
+  compute with an unknown column and a map NAME; colspec-errors: x::y reports the unknown
+  column. Unit tests in compute.rs (compiling) and ops.rs (shape against stack effect).

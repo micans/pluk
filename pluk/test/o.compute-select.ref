@@ -1,0 +1,48 @@
+name x::^1 fib
+name	0
+x	13
+fib	1
+x::^1 name y:=^2 fib z::^3
+x	13
+name	0
+fib	1
+z	15
+-A x::^1 y:=^2 z::^3
+name	0
+fib	1
+fib2	2
+sq	3
+fx	4
+ud	5
+ms	6
+num1	7
+num2	8
+num4	9
+foo11	10
+abc	11
+dna	12
+x	13
+z	15
+-x fib x::^1 name
+fib2	2
+sq	3
+fx	4
+ud	5
+ms	6
+num1	7
+num2	8
+num4	9
+foo11	10
+abc	11
+dna	12
+x	13
+name x:=^1 x
+name	0
+x	13
+name ::^1 ::^2
+name	0
+PLUKAAAAA	13
+PLUKAAAAB	14
+-k 1 x::2^1
+1	0
+x	13

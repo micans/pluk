@@ -1,0 +1,56 @@
+compute x (output)
+  column [fib]
+  const [1]
+  op add
+compute y (no output)
+  column [+num\d]
+  op addall
+compute z (output)
+  column [x]
+  const [a]
+  op cat
+compute d (output)
+  column [fx]
+  const [o]
+  op del
+compute s (output)
+  const [a]
+  const [b]
+  op xch
+  op dup
+  op pop
+compute PLUKAAAAA (output)
+  const [1]
+  column [y]
+compiled x -> column 14 (output)
+  field 2 (fib)
+  const [1]
+  op add
+  stack: [num]
+compiled y -> column 15 (no output)
+  field 8 (num1)
+  field 9 (num2)
+  field 10 (num4)
+  op addall
+  stack: [num]
+compiled z -> column 16 (output)
+  field 14 (x)
+  const [a]
+  op cat
+  stack: [str]
+compiled d -> column 17 (output)
+  field 5 (fx)
+  const [o]
+  op del (regex o)
+  stack: [str]
+compiled s -> column 18 (output)
+  const [a]
+  const [b]
+  op xch
+  op dup
+  op pop
+  stack: [const const]
+compiled PLUKAAAAA -> column 19 (output)
+  const [1]
+  field 15 (y)
+  stack: [const column]

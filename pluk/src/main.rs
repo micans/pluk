@@ -28,26 +28,22 @@ const OUT_BUFSIZE: usize = 128 * 1024;
 fn run() -> std::io::Result<()> {
     let config = opt::parse_args();
 
-    // Temporary (step10): the parsed computes; no input is read.
+    // Temporary (step10): the parsed computes; the compiled form follows once the
+    // header has been read.
     if config.test_compute {
         for spec in &config.computes {
             print!("{}", compute::describe(spec));
         }
-        return Ok(());
-    }
-    // Computes are parsed (step10 item 2) but not yet executed.
-    if let Some(spec) = config.computes.first() {
-        return Err(std::io::Error::new(ErrorKind::Unsupported,
-                   format!("[{}]: computes are not yet executed", String::from_utf8_lossy(&spec.text))));
     }
 
     // Temporary step1 output: line number and line (or one field with --test-i).
     let lineno_mode = config.test_lineno || config.test_i.is_some();
 
     // As in pick: without column names there is nothing to do; checked before reading input.
-    if config.columns.is_empty() && !config.all && !config.excise && !config.c
+    if config.columns.is_empty() && !config.computes.iter().any(|c| c.output)
+        && !config.all && !config.excise && !config.c
         && !lineno_mode && !config.test_names && !config.test_select && !config.test_dict
-        && !config.test_samsort
+        && !config.test_samsort && !config.test_compute
     {
         eprintln!("pluk: no columns given. Use --help for help, -h suppresses header line output");
         eprintln!("pluk only works as a pipe, so invoke e.g. as: pluk foo bar < data.txt");
@@ -133,19 +129,30 @@ fn run() -> std::io::Result<()> {
     // Column names from the command line, as bytes (see opt.rs).
     let column_args = &config.columns;
 
+    // Computes are compiled once the column names are known (with empty input there
+    // is nothing to compile). 'names' are the input names followed by the compute
+    // names: output, @ filters and --demux see them; @@ filters only the input names.
+    let (computes, names) = if input.is_empty {
+        (Vec::new(), input.names.clone())
+    } else {
+        compute::compile(&config.computes, &input.names)
+            .map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?
+    };
+    let computed: Vec<(usize, usize)> = computes.iter().filter(|c| c.output).map(|c| (c.position, c.index)).collect();
+
     // As in pick, the names are checked once the first line has been read;
     // with empty input there is nothing to check against.
     let selection = if input.is_empty {
         select::OutputSelection { output_colnames: Vec::new(), output_offset: Vec::new() }
     } else {
         // As in pick, -x takes precedence over -A.
-        let names = &input.names;
+        let n_input = input.names.len();
         let result = if config.excise {
-            select::OutputSelection::complement(column_args, names)
+            select::OutputSelection::complement(column_args, &computed, n_input, &names)
         } else if config.all {
-            select::OutputSelection::all(column_args, names)
+            select::OutputSelection::all(column_args, &computed, n_input, &names)
         } else {
-            select::OutputSelection::from_names(column_args, names)
+            select::OutputSelection::from_names(column_args, &computed, &names)
         };
         result.map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?
     };
@@ -154,9 +161,16 @@ fn run() -> std::io::Result<()> {
     let mut filters = if input.is_empty {
         filter::Filters::none()
     } else {
-        filter::Filters::compile(&config.filters, &input.names, &dicts, config.or_pre, config.or_post)
+        filter::Filters::compile(&config.filters, &input.names, &names, &dicts, config.or_pre, config.or_post)
             .map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?
     };
+
+    if config.test_compute {
+        for c in &computes {
+            print!("{}", compute::describe_compiled(c, &names));
+        }
+        return Ok(());
+    }
 
     if config.test_select {
         for (name, i) in selection.output_colnames.iter().zip(&selection.output_offset) {
@@ -165,6 +179,12 @@ fn run() -> std::io::Result<()> {
         }
         out.flush()?;
         return Ok(());
+    }
+
+    // Computes are compiled (step10 item 3) but not yet executed.
+    if let Some(spec) = config.computes.first() {
+        return Err(std::io::Error::new(ErrorKind::Unsupported,
+                   format!("[{}]: computes are not yet executed", String::from_utf8_lossy(&spec.text))));
     }
 
     if config.test_names {
@@ -191,7 +211,7 @@ fn run() -> std::io::Result<()> {
     if !input.is_empty {
         let all = config.c && column_args.is_empty() && !config.all && !config.excise;
         let offsets: Vec<usize> = if all { (0..input.n_columns).collect() } else { selection.output_offset.clone() };
-        let header = if !config.k && !config.no_header { Some(&input.names) } else { None };
+        let header = if !config.k && !config.no_header { Some(&names) } else { None };
         for side in [&mut other, &mut assert_other].into_iter().flatten() {
             let writer = output::RowWriter::new(&offsets, input.n_columns, input.settings.omega.is_some());
             side.start(writer, &input.passthrough_preamble, header)?;
@@ -202,15 +222,15 @@ fn run() -> std::io::Result<()> {
     // the header (following -h and -k), instead of stdout.
     let mut demux = match &config.demux {
         Some(name) if !input.is_empty => {
-            let column = input.names.index_of(name).ok_or_else(|| std::io::Error::new(ErrorKind::InvalidInput,
-                format!("--demux: column [{}] not found among {}", String::from_utf8_lossy(name), input.names.joined())))?;
+            let column = names.index_of(name).ok_or_else(|| std::io::Error::new(ErrorKind::InvalidInput,
+                format!("--demux: column [{}] not found among {}", String::from_utf8_lossy(name), names.joined())))?;
             let writer = output::RowWriter::new(&selection.output_offset, input.n_columns, input.settings.omega.is_some());
             let mut start = Vec::new();
             for line in &input.passthrough_preamble {
                 output::write_line(&mut start, line)?;
             }
             if !config.k && !config.no_header {
-                writer.write_header(&mut start, &input.names)?;
+                writer.write_header(&mut start, &names)?;
             }
             let taken = [&config.other, &config.assert_other].into_iter().flatten().cloned().collect();
             Some(demux::Demux::new(column, config.demux_dir.clone(), writer, start, taken))
@@ -244,7 +264,7 @@ fn run() -> std::io::Result<()> {
         let writer = output::RowWriter::new(&selection.output_offset, input.n_columns,
                                             input.settings.omega.is_some());
         if B_print_header && !input.is_empty && demux.is_none() {
-            writer.write_header(&mut out, &input.names)?;
+            writer.write_header(&mut out, &names)?;
         }
         while let Some(kind) = input.next_line()? {
             match kind {

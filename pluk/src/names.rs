@@ -7,6 +7,7 @@ use std::collections::HashMap;
 
 use crate::row::Row;
 
+#[derive(Clone)]
 pub struct ColumnNames {
     names: Vec<Vec<u8>>,
     index: HashMap<Vec<u8>, usize>,
@@ -73,6 +74,15 @@ impl ColumnNames {
     pub fn joined(&self) -> String {
         let all: Vec<String> = self.names.iter().map(|n| String::from_utf8_lossy(n).into_owned()).collect();
         all.join(",")
+    }
+
+    // Add a name (a compute, plan/COMPUTE.design.txt section 6); returns its index.
+    // The caller has checked that the name is new.
+    pub fn push(&mut self, name: &[u8]) -> usize {
+        let i = self.names.len();
+        self.names.push(name.to_vec());
+        self.index.insert(name.to_vec(), i);
+        i
     }
 
     // Index of the column with the given name, if it exists.

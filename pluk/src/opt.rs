@@ -209,7 +209,9 @@ pub fn parse(args: &[Vec<u8>]) -> Result<Parsed, String> {
         if arg.starts_with(b"@") {
             config.filters.push(parse_filter(arg, config.k)?);
         } else if compute::is_compute(arg) {
-            config.computes.push(compute::parse(arg, config.k, &mut unnamed)?);
+            let mut spec = compute::parse(arg, config.k, &mut unnamed)?;
+            spec.position = config.columns.len();
+            config.computes.push(spec);
         } else {
             config.columns.push(colspec::parse(arg, config.k)?);
         }

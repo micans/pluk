@@ -551,11 +551,18 @@ impl<'d> Filters<'d> {
     // the hint would be given for every numeric constant).
     // Dictionary names are resolved here too: seqlen and the --td dictionaries
     // exist only once the header has been read.
-    pub fn compile(specs: &[FilterSpec], names: &ColumnNames, dicts: &'d Dicts, pre_or: bool, post_or: bool)
+    // pre_names: the input columns (@@ filters run before computes); post_names: the
+    // input columns and the computes (@ filters).
+    pub fn compile(specs: &[FilterSpec], pre_names: &ColumnNames, post_names: &ColumnNames, dicts: &'d Dicts,
+                   pre_or: bool, post_or: bool)
         -> Result<Filters<'d>, String>
     {
         let mut filters = Filters { pre_or, post_or, ..Filters::none() };
         for spec in specs {
+            let names = match spec.stage {
+                Stage::Pre => pre_names,
+                Stage::Post => post_names,
+            };
             let (what, kind) = match (spec.stage, spec.assert) {
                 (Stage::Pre, false)  => ("Preselect", "preselect"),
                 (Stage::Post, false) => ("Select", "select"),
