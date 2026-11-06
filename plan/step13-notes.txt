@@ -1,0 +1,39 @@
+step13 notes: decisions and rationale for implementation choices.
+
+  Decisions: step13.txt (decisions 1-11).
+
+
+Item 1: basic and slicing operators
+
+  Files: ops.rs (len lc uc rev rot13 substr head tail skip shed strim; the helpers
+  int_operand, string1, slice2, clamp, substr_range), opt.rs (help).
+
+  Strings are bytes (decision 1): len counts bytes, rev reverses bytes, lc and uc use
+  make_ascii_lowercase/uppercase (only A-Z, a-z change), rot13 maps ASCII letters. This is
+  what pick does, since Perl without decoding works on bytes and changes only ASCII case
+  without a locale: the comparison with UTF-8 and Latin-1 input (Émile, café, NAÏVE,
+  Latin-1 été) is identical.
+
+  Shared rules: an NA operand gives NA (a string operator does not turn NA into the text
+  NA); a count operand must be an integer (int_operand), otherwise NA (pick: Perl converts
+  1.5 to 1 and fox to 0). A number used as a string is written as text first
+  (Machine::into_bytes, with --num-perl as set).
+
+  head tail skip shed clamp k to 0 .. length (pick's boxit) and slice in place
+  (truncate, then drain the front), so no new allocation is needed for an owned string.
+
+  substr follows Perl's substr($x, $i, $k): substr_range computes the byte range, a
+  negative i counting from the end, a negative k leaving -k bytes off the end; a range
+  partly outside the string is cut to the part inside; a range wholly beyond either end
+  is undef in Perl (with a warning) and empty in pluk. Checked against Perl itself on 1734
+  combinations (strings of length 0..5, i and k in -8..8): identical. The test
+  string-substr keeps a smaller grid (lengths 0..3) as regression.
+
+  strim s nx ny takes nx bytes from the start and ny from the end (negative counts are 0),
+  empty if nothing remains (pick).
+
+  Checked against pick (--num-perl): string-basic (data.txt names, floats as strings,
+  slicing beyond the ends, negative counts; big.txt; UTF-8 and Latin-1 input) is identical.
+
+  Tests: string-basic, string-substr, string-edge (non-integer counts, NA operands,
+  negative counts). Help refs.

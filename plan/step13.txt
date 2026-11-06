@@ -1,0 +1,67 @@
+
+- String operators
+
+  The second operator family after the compute groundwork (step10) and the math operators
+  (step12). Design: COMPUTE.design.txt, DATASTRUCTURE-cell.design.txt section 1 (strings
+  are bytes).
+
+  Not in this step: the regex operators (delg ed edg edbr edgbr get npat reqm; del exists)
+  belong to the regex step; the bio operators (rc todna dnatl dnagc fasta fastq fastQ
+  forward) and the cigar operators (cgcount cgmax cgsum) to the SAM/bio steps; sprintf
+  needs a printf engine and goes with the bit/radix/format step (tohex tooct tobin ...);
+  branch, time, input and state operators (ifelse test, now ttu todate, rowno lineno, save
+  fetch pload) come later.
+
+
+  Outcome of the discussion
+
+  Operators (pick's names, semantics and descriptions unless stated):
+    basic       len lc uc rev rot13
+    slicing     substr head tail skip shed strim
+    padding     ppl ppr zp
+    counting    nchar
+    joining     catall joinall join uie                  (cat exists)
+    encoding    urlec urldc md5
+    templating  fmtall
+
+  Decisions:
+   1. Bytes, not characters, as pick (Perl without decoding): len counts bytes, rev
+      reverses bytes, substr indexes bytes, lc and uc change ASCII letters only. UTF-8
+      aware variants can be added later as separate operators.
+   2. substr x i k: Perl's semantics; a negative i counts from the end, a negative k
+      leaves that many bytes off the end; outside the string the result is empty. i and k
+      must be integers, otherwise NA.
+   3. head tail skip shed: k clamped to 0 .. length (pick's boxit); strim: negative
+      counts are 0; a non-integer count is NA.
+   4. ppl ppr zp: the width counts bytes; a negative or non-integer width is NA (Perl's
+      sprintf would left-align); zp pads the string as pick (-2 with width 4 is 00-2).
+   5. nchar x c: the number of non-overlapping occurrences of c as a substring (pick
+      compares single characters, so a multi-byte c counts 0 there); an empty c counts 0.
+   6. uie x y: y if x is empty or NA, otherwise x (pick: empty only).
+   7. catall concatenates the whole stack; joinall joins it with the top value as
+      separator; join x y j gives xjy; an empty stack gives an empty string.
+   8. urlec encodes every byte except [A-Za-z0-9_] as %XX (uppercase hex); urldc decodes
+      %XX only (no + to space); as pick.
+   9. md5: the lowercase hex digest, using the md-5 crate (RustCrypto).
+  10. fmtall f *: f is the bottom of the stack; each # is replaced by the next value, \#
+      is a literal #; a format with more or fewer # than values gives NA for that row
+      (pick reports an error per row and continues).
+  11. Numbers used as strings are written as text first (number formatting and
+      --num-perl): len of 0.1+0.2 is 19, or 3 with --num-perl (as pick).
+
+  Tests compare with pick (--num-perl where numbers are involved) wherever pick's
+  behaviour is the same.
+
+
+  Items
+
+  1   Basic and slicing: len lc uc rev rot13 substr head tail skip shed strim (decisions
+      1-3). Commit.
+
+  2   Padding and counting: ppl ppr zp nchar (decisions 4, 5). Commit.
+
+  3   Joining: catall joinall join uie (decisions 6, 7). Commit.
+
+  4   Encoding: urlec urldc md5, with the md-5 crate (decisions 8, 9). Commit.
+
+  5   fmtall (decision 10). Commit.

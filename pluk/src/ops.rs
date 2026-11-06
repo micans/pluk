@@ -81,6 +81,28 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x y", result: "y x", doc: "Exchange x and y", fun: op_xch },
     OpDef { name: "cat",    pops: Pops::N(2), pushes: 1, shape: Shape::Result(Kind::Str), prepare: Prepare::Nothing, category: Category::String,
             operands: "x y", result: "xy", doc: "Concatenation of x and y", fun: op_cat },
+    OpDef { name: "len",    pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x", result: "len(x)", doc: "Length of string x (bytes)", fun: op_len },
+    OpDef { name: "lc",     pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x", result: "lc(x)", doc: "Lower case of x (ASCII)", fun: op_lc },
+    OpDef { name: "uc",     pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x", result: "uc(x)", doc: "Upper case of x (ASCII)", fun: op_uc },
+    OpDef { name: "rev",    pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x", result: "rev(x)", doc: "String reverse of x (bytes)", fun: op_rev },
+    OpDef { name: "rot13",  pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x", result: "rot13(x)", doc: "Rot13 encoding of x", fun: op_rot13 },
+    OpDef { name: "substr", pops: Pops::N(3), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x i k", result: "x[i:i+k-1]", doc: "Substring of x starting at i (zero-based) of length k (as Perl)", fun: op_substr },
+    OpDef { name: "head",   pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x k", result: "x[0:k-1]", doc: "Initial part of string x, of length k [head,tail,skip,shed]", fun: op_head },
+    OpDef { name: "tail",   pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x k", result: "x[#x-k:#x-1]", doc: "Trailing part of string x, of length k [head,tail,skip,shed]", fun: op_tail },
+    OpDef { name: "skip",   pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x k", result: "x[k:#x-1]", doc: "Trailing part of string x, skipping first k [head,tail,skip,shed]", fun: op_skip },
+    OpDef { name: "shed",   pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x k", result: "x[0:#x-k-1]", doc: "Leading part of string x, shedding last k [head,tail,skip,shed]", fun: op_shed },
+    OpDef { name: "strim",  pops: Pops::N(3), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "s nx ny", result: "s'", doc: "Trim nx bytes from the start and ny from the end of s", fun: op_strim },
     OpDef { name: "add",    pops: Pops::N(2), pushes: 1, shape: Shape::Result(Kind::Num), prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "x y", result: "x+y", doc: "Add x and y", fun: op_add },
     OpDef { name: "sub",    pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
@@ -199,6 +221,135 @@ fn op_cat(m: &mut Machine, row: &Row, _: Option<&Regex>) {
     let mut s = m.into_bytes(x, row);
     s.extend_from_slice(&m.bytes(&y, row));
     m.push(Value::Bytes(s));
+}
+
+// String operators (plan/step13.txt). Strings are bytes (decision 1); a number is
+// written as text first (Machine::into_bytes). An operand that is NA gives NA, as
+// does a count that is not an integer.
+
+// The integer value of a count operand, None if it is not an integer.
+fn int_operand(m: &mut Machine, v: &Value, row: &Row) -> Option<num::Int> {
+    match m.num(v, row) {
+        Some(Num::I(i)) => Some(i),
+        _ => None,
+    }
+}
+
+// Pop x; push f(x) as text, or NA.
+fn string1(m: &mut Machine, row: &Row, f: impl Fn(&mut Vec<u8>)) {
+    let x = m.pop();
+    if matches!(x, Value::Na) {
+        return m.push(Value::Na);
+    }
+    let mut s = m.into_bytes(x, row);
+    f(&mut s);
+    m.push(Value::Bytes(s));
+}
+
+// Pop k and x; push x[range] where range is computed from the length and k, or NA.
+fn slice2(m: &mut Machine, row: &Row, range: impl Fn(usize, num::Int) -> (usize, usize)) {
+    let k = m.pop();
+    let x = m.pop();
+    let k = int_operand(m, &k, row);
+    let result = match (x, k) {
+        (Value::Na, _) | (_, None) => Value::Na,
+        (x, Some(k)) => {
+            let mut s = m.into_bytes(x, row);
+            let (start, end) = range(s.len(), k);
+            s.truncate(end);
+            s.drain(..start);
+            Value::Bytes(s)
+        }
+    };
+    m.push(result);
+}
+
+// pick's boxit: k clamped to 0 .. len.
+fn clamp(k: num::Int, len: usize) -> usize {
+    k.clamp(0, len as num::Int) as usize
+}
+
+fn op_len(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    let x = m.pop();
+    let result = match x {
+        Value::Na => Value::Na,
+        x => Value::Num(Num::I(m.bytes(&x, row).len() as num::Int)),
+    };
+    m.push(result);
+}
+
+fn op_lc(m: &mut Machine, row: &Row, _: Option<&Regex>) { string1(m, row, |s| s.make_ascii_lowercase()) }
+fn op_uc(m: &mut Machine, row: &Row, _: Option<&Regex>) { string1(m, row, |s| s.make_ascii_uppercase()) }
+fn op_rev(m: &mut Machine, row: &Row, _: Option<&Regex>) { string1(m, row, |s| s.reverse()) }
+
+fn op_rot13(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    string1(m, row, |s| for b in s.iter_mut() {
+        *b = match *b {
+            b'a'..=b'z' => (*b - b'a' + 13) % 26 + b'a',
+            b'A'..=b'Z' => (*b - b'A' + 13) % 26 + b'A',
+            other => other,
+        };
+    })
+}
+
+fn op_head(m: &mut Machine, row: &Row, _: Option<&Regex>) { slice2(m, row, |len, k| (0, clamp(k, len))) }
+fn op_tail(m: &mut Machine, row: &Row, _: Option<&Regex>) { slice2(m, row, |len, k| (len - clamp(k, len), len)) }
+fn op_skip(m: &mut Machine, row: &Row, _: Option<&Regex>) { slice2(m, row, |len, k| (clamp(k, len), len)) }
+fn op_shed(m: &mut Machine, row: &Row, _: Option<&Regex>) { slice2(m, row, |len, k| (0, len - clamp(k, len))) }
+
+// The byte range of Perl's substr($x, $i, $k) in a string of length len, None
+// where Perl returns undef (the substring lies beyond either end): a negative i
+// counts from the end, a negative k leaves -k bytes off the end; a substring
+// partly outside the string is cut to the part inside.
+pub fn substr_range(len: usize, i: num::Int, k: num::Int) -> Option<(usize, usize)> {
+    let len = len as num::Int;
+    let start = if i < 0 { len + i } else { i };
+    let end = if k < 0 { len + k } else { start.saturating_add(k) };
+    if start > len || end < 0 {
+        return None;
+    }
+    let (start, end) = (start.max(0), end.min(len));
+    Some((start as usize, end.max(start) as usize))
+}
+
+fn op_substr(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    let k = m.pop();
+    let i = m.pop();
+    let x = m.pop();
+    let (i, k) = (int_operand(m, &i, row), int_operand(m, &k, row));
+    let result = match (x, i, k) {
+        (Value::Na, _, _) | (_, None, _) | (_, _, None) => Value::Na,
+        (x, Some(i), Some(k)) => {
+            let s = m.into_bytes(x, row);
+            match substr_range(s.len(), i, k) {
+                Some((a, b)) => Value::Bytes(s[a..b].to_vec()),
+                None => Value::Bytes(Vec::new()),        // Perl: undef (and a warning)
+            }
+        }
+    };
+    m.push(result);
+}
+
+// strim s nx ny: nx bytes off the start and ny off the end (negative counts are 0);
+// empty if nothing remains (pick).
+fn op_strim(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    let ny = m.pop();
+    let nx = m.pop();
+    let s = m.pop();
+    let (nx, ny) = (int_operand(m, &nx, row), int_operand(m, &ny, row));
+    let result = match (s, nx, ny) {
+        (Value::Na, _, _) | (_, None, _) | (_, _, None) => Value::Na,
+        (s, Some(nx), Some(ny)) => {
+            let s = m.into_bytes(s, row);
+            let (nx, ny) = (nx.max(0) as u128, ny.max(0) as u128);
+            if nx + ny < s.len() as u128 {
+                Value::Bytes(s[nx as usize..s.len() - ny as usize].to_vec())
+            } else {
+                Value::Bytes(Vec::new())
+            }
+        }
+    };
+    m.push(result);
 }
 
 // Numeric operators: pop the operands (y first), push f's result; NA if an

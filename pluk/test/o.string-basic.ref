@@ -1,0 +1,148 @@
+name a::name,len b::name,lc c::name,uc d::name,rev e::name,rot13 f::foo11,len g::ms,len h::ms,rev
+name	a	b	c	d	e	f	g	h
+Ann	3	ann	ANN	nnA	Naa	5	8	758241.0
+Bob	3	bob	BOB	boB	Obo	5	8	417582.0
+Charlie	7	charlie	CHARLIE	eilrahC	Puneyvr	9	8	175824.0
+Dan	3	dan	DAN	naD	Qna	5	8	824175.0
+Esme	4	esme	ESME	emsE	Rfzr	7	8	582417.0
+Fred	4	fred	FRED	derF	Serq	7	8	241758.0
+Gillian	7	gillian	GILLIAN	nailliG	Tvyyvna	9	8	000000.1
+Harriet	7	harriet	HARRIET	teirraH	Uneevrg	9	8	758241.1
+Inky	4	inky	INKY	yknI	Vaxl	7	8	417582.1
+John	4	john	JOHN	nhoJ	Wbua	7	8	175824.1
+Kelly	5	kelly	KELLY	ylleK	Xryyl	9	8	824175.1
+Lucy	4	lucy	LUCY	ycuL	Yhpl	7	8	582417.1
+name a::name^2,head b::name^2,tail c::name^2,skip d::name^2,shed e::name^10,head f::name^-1,tail g::name^10,skip h::name^0,shed
+name	a	b	c	d	e	f	g	h
+Ann	An	nn	n	A	Ann			Ann
+Bob	Bo	ob	b	B	Bob			Bob
+Charlie	Ch	ie	arlie	Charl	Charlie			Charlie
+Dan	Da	an	n	D	Dan			Dan
+Esme	Es	me	me	Es	Esme			Esme
+Fred	Fr	ed	ed	Fr	Fred			Fred
+Gillian	Gi	an	llian	Gilli	Gillian			Gillian
+Harriet	Ha	et	rriet	Harri	Harriet			Harriet
+Inky	In	ky	ky	In	Inky			Inky
+John	Jo	hn	hn	Jo	John			John
+Kelly	Ke	ly	lly	Kel	Kelly			Kelly
+Lucy	Lu	cy	cy	Lu	Lucy			Lucy
+name a::name^1^2,substr b::name^-2^1,substr c::name^1^-1,substr d::name^1^1,strim e::foo11^-1^2,strim f::name^5^5,strim
+name	a	b	c	d	e	f
+Ann	nn	n	n	n	a_n	
+Bob	ob	o	o	o	b_o	
+Charlie	ha	i	harli	harli	ch_ar_l	
+Dan	an	a	a	a	d_a	
+Esme	sm	m	sm	sm	e_s_m	
+Fred	re	e	re	re	f_r_e	
+Gillian	il	a	illia	illia	gi_ll_i	
+Harriet	ar	e	arrie	arrie	ha_rr_i	
+Inky	nk	k	nk	nk	i_n_k	
+John	oh	h	oh	oh	j_o_h	
+Kelly	el	l	ell	ell	k_e_l_l	
+Lucy	uc	c	uc	uc	l_u_c	
+id	s1	s2	a	b	c	d	e
+r001	quebec	uniform98	uni	m9	QUEBEC	89mrofinu	15
+r002	xray	kilo83	kil	o8	XRAY	38olik	10
+r003	sierra	victor18	vic	r1	SIERRA	81rotciv	14
+r004	whiskey	foxtrot13	fox	t1	WHISKEY	31tortxof	16
+r005	yankee	xray93	xra	y9	YANKEE	39yarx	12
+r006	romeo	victor11	vic	r1	ROMEO	11rotciv	13
+r007	zulu	juliet73	jul	t7	ZULU	37teiluj	12
+r008	india	romeo1	rom	eo	INDIA	1oemor	11
+r009	charlie	charlie13	cha	e1	CHARLIE	31eilrahc	16
+r010	uniform	mike78	mik	e7	UNIFORM	87ekim	13
+r011	mike	foxtrot25	fox	t2	MIKE	52tortxof	13
+r012	mike	xray68	xra	y6	MIKE	86yarx	10
+r013	kilo	foxtrot26	fox	t2	KILO	62tortxof	13
+r014	victor	golf70	gol	f7	VICTOR	07flog	12
+r015	xray	golf2	gol	lf	XRAY	2flog	9
+r016	papa	papa5	pap	pa	PAPA	5apap	9
+r017	echo	india14	ind	a1	ECHO	41aidni	11
+r018	whiskey	tango95	tan	o9	WHISKEY	59ognat	14
+r019	lima	uniform55	uni	m5	LIMA	55mrofinu	13
+r020	zulu	golf59	gol	f5	ZULU	95flog	10
+r021	juliet	mike69	mik	e6	JULIET	96ekim	12
+r022	foxtrot	kilo58	kil	o5	FOXTROT	85olik	13
+r023	whiskey	romeo11	rom	o1	WHISKEY	11oemor	14
+r024	uniform	lima12	lim	a1	UNIFORM	21amil	13
+r025	kilo	juliet53	jul	t5	KILO	35teiluj	12
+r026	delta	uniform92	uni	m9	DELTA	29mrofinu	14
+r027	charlie	mike83	mik	e8	CHARLIE	38ekim	13
+r028	quebec	juliet18	jul	t1	QUEBEC	81teiluj	14
+r029	sierra	oscar37	osc	r3	SIERRA	73racso	13
+r030	november	charlie62	cha	e6	NOVEMBER	26eilrahc	17
+r031	juliet	oscar28	osc	r2	JULIET	82racso	13
+r032	kilo	yankee23	yan	e2	KILO	32eeknay	12
+r033	alpha	juliet65	jul	t6	ALPHA	56teiluj	13
+r034	uniform	charlie90	cha	e9	UNIFORM	09eilrahc	16
+r035	romeo	hotel60	hot	l6	ROMEO	06letoh	12
+r036	tango	victor27	vic	r2	TANGO	72rotciv	13
+r037	hotel	yankee5	yan	ee	HOTEL	5eeknay	12
+r038	tango	quebec22	que	c2	TANGO	22cebeuq	13
+r039	echo	bravo18	bra	o1	ECHO	81ovarb	11
+r040	hotel	xray50	xra	y5	HOTEL	05yarx	11
+r041	foxtrot	yankee82	yan	e8	FOXTROT	28eeknay	15
+r042	lima	xray86	xra	y8	LIMA	68yarx	10
+r043	bravo	lima74	lim	a7	BRAVO	47amil	11
+r044	xray	uniform45	uni	m4	XRAY	54mrofinu	13
+r045	bravo	quebec41	que	c4	BRAVO	14cebeuq	13
+r046	bravo	quebec58	que	c5	BRAVO	85cebeuq	13
+r047	quebec	charlie36	cha	e3	QUEBEC	63eilrahc	15
+r048	papa	quebec56	que	c5	PAPA	65cebeuq	12
+r049	juliet	echo3	ech	ho	JULIET	3ohce	11
+r050	uniform	india15	ind	a1	UNIFORM	51aidni	14
+r051	tango	golf31	gol	f3	TANGO	13flog	11
+r052	india	kilo32	kil	o3	INDIA	23olik	11
+r053	xray	sierra95	sie	a9	XRAY	59arreis	12
+r054	charlie	juliet42	jul	t4	CHARLIE	24teiluj	15
+r055	tango	whiskey17	whi	y1	TANGO	71yeksihw	14
+r056	delta	charlie87	cha	e8	DELTA	78eilrahc	14
+r057	india	papa12	pap	a1	INDIA	21apap	11
+r058	foxtrot	xray57	xra	y5	FOXTROT	75yarx	13
+r059	papa	zulu60	zul	u6	PAPA	06uluz	10
+r060	romeo	november1	nov	er	ROMEO	1rebmevon	14
+r061	hotel	echo93	ech	o9	HOTEL	39ohce	11
+r062	hotel	tango83	tan	o8	HOTEL	38ognat	12
+r063	quebec	lima37	lim	a3	QUEBEC	73amil	12
+r064	mike	india10	ind	a1	MIKE	01aidni	11
+r065	quebec	bravo87	bra	o8	QUEBEC	78ovarb	13
+r066	golf	charlie87	cha	e8	GOLF	78eilrahc	13
+r067	delta	romeo28	rom	o2	DELTA	82oemor	12
+r068	uniform	lima66	lim	a6	UNIFORM	66amil	13
+r069	foxtrot	delta19	del	a1	FOXTROT	91atled	14
+r070	sierra	oscar37	osc	r3	SIERRA	73racso	13
+r071	uniform	papa45	pap	a4	UNIFORM	54apap	13
+r072	romeo	yankee90	yan	e9	ROMEO	09eeknay	13
+r073	foxtrot	echo75	ech	o7	FOXTROT	57ohce	13
+r074	delta	zulu34	zul	u3	DELTA	43uluz	11
+r075	bravo	zulu14	zul	u1	BRAVO	41uluz	11
+r076	zulu	xray32	xra	y3	ZULU	23yarx	10
+r077	india	juliet84	jul	t8	INDIA	48teiluj	13
+r078	victor	november34	nov	r3	VICTOR	43rebmevon	16
+r079	golf	november51	nov	r5	GOLF	15rebmevon	14
+r080	foxtrot	golf86	gol	f8	FOXTROT	68flog	13
+r081	alpha	kilo38	kil	o3	ALPHA	83olik	11
+r082	juliet	zulu56	zul	u5	JULIET	65uluz	12
+r083	charlie	foxtrot26	fox	t2	CHARLIE	62tortxof	16
+r084	alpha	november28	nov	r2	ALPHA	82rebmevon	15
+r085	golf	india12	ind	a1	GOLF	21aidni	11
+r086	foxtrot	delta50	del	a5	FOXTROT	05atled	14
+r087	victor	papa69	pap	a6	VICTOR	96apap	12
+r088	alpha	november31	nov	r3	ALPHA	13rebmevon	15
+r089	yankee	india99	ind	a9	YANKEE	99aidni	13
+r090	alpha	zulu17	zul	u1	ALPHA	71uluz	11
+r091	lima	papa54	pap	a5	LIMA	45apap	10
+r092	echo	oscar65	osc	r6	ECHO	56racso	11
+r093	romeo	papa30	pap	a3	ROMEO	03apap	11
+r094	india	sierra47	sie	a4	INDIA	74arreis	13
+r095	hotel	oscar3	osc	ar	HOTEL	3racso	11
+r096	romeo	golf88	gol	f8	ROMEO	88flog	11
+r097	kilo	foxtrot52	fox	t5	KILO	25tortxof	13
+r098	lima	delta89	del	a8	LIMA	98atled	11
+r099	papa	oscar94	osc	r9	PAPA	49racso	11
+r100	november	yankee55	yan	e5	NOVEMBER	55eeknay	16
+x	a	b	c	d	e
+√âmile	6	√âmile	√âMILE	elimâ√	√â
+caf√©	5	caf√©	CAF√©	©√fac	ca
+NA√èVE	6	na√ève	NA√èVE	EVè√AN	NA
+ÈtÈ	3	ÈtÈ	ÈTÈ	ÈtÈ	Èt
