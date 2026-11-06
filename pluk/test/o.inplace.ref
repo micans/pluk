@@ -1,0 +1,74 @@
+-i name fib::fib^1,add
+name	fib
+Ann	2
+Bob	2
+Charlie	3
+-i name fib fib::fib^1,add
+-- Identical output column names exist (will make unique)
+name	fib
+Ann	2
+Bob	2
+-i fib::fib^1,add name fib
+-- Identical output column names exist (will make unique)
+fib	name
+2	Ann
+2	Bob
+-i name fib fib::fib^1,add x::fib^100,add
+-- Identical output column names exist (will make unique)
+name	fib	x
+Ann	2	102
+Bob	2	102
+-i name x::fib^100,add fib::fib^1,add
+name	x	fib
+Ann	101	2
+Bob	101	2
+Charlie	102	3
+-i name fib::fib^1,add @@fib/gt/55
+name	fib
+Kelly	90
+Lucy	145
+-i name fib::fib^1,add @fib/gt/55
+name	fib
+John	56
+Kelly	90
+Lucy	145
+-i fib:=fib^1,add name fib
+name	fib
+Ann	2
+Bob	2
+Charlie	3
+-i -A fib::fib^1,add
+name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
+Ann	2	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA
+Bob	2	1	4	cat	-2	0.285714	2	3	2	b_o_b	bc	CCGGTTAA
+Charlie	3	1	9	bat	3	0.428571	4	5	3	ch_ar_lie	def	GGGGTAC
+-i -x fib::fib^1,add name
+fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
+2	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA
+2	1	4	cat	-2	0.285714	2	3	2	b_o_b	bc	CCGGTTAA
+3	1	9	bat	3	0.428571	4	5	3	ch_ar_lie	def	GGGGTAC
+-i -A fib:=fib^1,add x::^1
+name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna	x
+Ann	2	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA	1
+Bob	2	1	4	cat	-2	0.285714	2	3	2	b_o_b	bc	CCGGTTAA	1
+Charlie	3	1	9	bat	3	0.428571	4	5	3	ch_ar_lie	def	GGGGTAC	1
+-i name fib::__^1,add
+name	fib
+Ann	2
+Bob	2
+Charlie	3
+-i name x:=^1 x::x^1,add
+name	x
+Ann	2
+Bob	2
+Charlie	2
+-i name x::^1 y::x x::x^1,add
+-- Identical output column names exist (will make unique)
+name	x	y
+Ann	2	1
+Bob	2	1
+-i -x fib fib:=fib^1,add
+name	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
+Ann	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA
+Bob	1	4	cat	-2	0.285714	2	3	2	b_o_b	bc	CCGGTTAA
+Charlie	1	9	bat	3	0.428571	4	5	3	ch_ar_lie	def	GGGGTAC

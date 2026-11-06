@@ -144,7 +144,9 @@ impl Range {
 
 impl ColSpec {
     // The 0-based column indexes selected, in list order across elements and
-    // header order within a regex; duplicates are kept. Every element must
+    // header order within a regex; duplicates are kept. Names refer to their
+    // current binding (in-place computes): a regex skips replaced columns, and a
+    // range maps a replaced column to its replacement. Every element must
     // select at least one column. label and kind make pick's messages, e.g.
     // "(Output) handle [x] in output does not reference ...".
     pub fn expand(&self, names: &ColumnNames, label: &str, kind: &str) -> Result<Vec<usize>, String> {
@@ -156,7 +158,10 @@ impl ColSpec {
                     None => return Err(unknown_name(name, names, label, kind)),
                 },
                 Element::Range(range) => {
-                    let (found, dropped) = range.indexes(names.len());
+                    // Ranges number the input columns (as pick); a replaced column
+                    // stands for its replacement.
+                    let (found, dropped) = range.indexes(names.n_input());
+                    let found: Vec<usize> = found.into_iter().map(|i| names.current(i)).collect();
                     if dropped {
                         eprintln!("-- range expansion produced some indexes out of range (now dropped)");
                     }
@@ -168,7 +173,7 @@ impl ColSpec {
                 }
                 Element::Regex { text, re } => {
                     let before = offsets.len();
-                    offsets.extend((0..names.len()).filter(|&i| re.is_match(names.name(i))));
+                    offsets.extend((0..names.len()).filter(|&i| names.is_current(i) && re.is_match(names.name(i))));
                     if offsets.len() == before {
                         return Err(format!("({}) regex [{}] in {} matches no column among {}",
                                            label, String::from_utf8_lossy(text), kind, names.joined()));

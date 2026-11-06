@@ -50,6 +50,10 @@ Computes (given among the columns; a stack language, as pick):
   stack, concatenated. Operators so far: dup pop xch cat add addall del.
   Numbers are written exactly (round-trip); NA where a number was needed.
   --num-perl  write numbers as Perl and pick do (%.15g, Inf, NaN)
+  -i          computes may redefine a name (in place): an input column once,
+              a computed name any number of times. Earlier references see the
+              old value, later ones and the output the new value. __ in SPEC is
+              the compute's own name (the value being replaced).
 
 Filters (given among the columns; VALUE is %-decoded, e.g. %2F for '/'):
   @NAME/op/VALUE  numeric comparison of column NAME with VALUE, op one of

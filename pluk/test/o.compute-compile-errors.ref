@@ -1,6 +1,6 @@
 pluk: (Compute) handle [nosuch] in compute x does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
-pluk: [fib::^1]: name [fib] already exists (in-place computes are not yet supported)
-pluk: [x::^2]: name [x] already exists (in-place computes are not yet supported)
+pluk: [fib::^1]: name [fib] already exists (use -i for in-place change)
+pluk: [x::^2]: name [x] already exists (use -i for in-place change)
 pluk: [x::^1,add]: stack underflow at operator add (needs 2, has 1)
 pluk: [x::,cat]: stack underflow at operator cat (needs 2, has 0)
 pluk: [x::^1,pop,pop]: stack underflow at operator pop (needs 1, has 0)

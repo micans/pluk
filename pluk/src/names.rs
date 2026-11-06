@@ -11,6 +11,7 @@ use crate::row::Row;
 pub struct ColumnNames {
     names: Vec<Vec<u8>>,
     index: HashMap<Vec<u8>, usize>,
+    n_input: usize,                 // the input columns; computes are pushed after them
 }
 
 // Internal name of the row name column (-R, or an empty first header field).
@@ -58,11 +59,16 @@ impl ColumnNames {
         for (i, name) in names.iter().enumerate() {
             index.insert(name.clone(), i);
         }
-        ColumnNames { names, index }
+        let n_input = names.len();
+        ColumnNames { names, index, n_input }
     }
 
     pub fn len(&self) -> usize {
         self.names.len()
+    }
+
+    pub fn n_input(&self) -> usize {
+        self.n_input
     }
 
     // Name of column i (0-based). Panics if i is out of range.
@@ -70,14 +76,27 @@ impl ColumnNames {
         &self.names[i]
     }
 
-    // All names separated by commas, as pick lists them in messages.
+    // All current names separated by commas, as pick lists them in messages.
     pub fn joined(&self) -> String {
-        let all: Vec<String> = self.names.iter().map(|n| String::from_utf8_lossy(n).into_owned()).collect();
+        let all: Vec<String> = (0..self.names.len()).filter(|&i| self.is_current(i))
+            .map(|i| String::from_utf8_lossy(&self.names[i]).into_owned()).collect();
         all.join(",")
     }
 
+    // With in-place computes (plan/INPLACE.design.txt) a name can be bound again: the
+    // new column gets a new index and the name refers to it from then on. Column i is
+    // current if its name still refers to it.
+    pub fn is_current(&self, i: usize) -> bool {
+        self.index.get(&self.names[i]) == Some(&i)
+    }
+
+    // The column that the name of column i refers to now.
+    pub fn current(&self, i: usize) -> usize {
+        self.index[&self.names[i]]
+    }
+
     // Add a name (a compute, plan/COMPUTE.design.txt section 6); returns its index.
-    // The caller has checked that the name is new.
+    // If the name exists, it is bound to the new index (in-place compute).
     pub fn push(&mut self, name: &[u8]) -> usize {
         let i = self.names.len();
         self.names.push(name.to_vec());

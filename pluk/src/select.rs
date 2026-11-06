@@ -17,17 +17,19 @@ pub struct OutputSelection {
 
 impl OutputSelection {
 
-    // Output the named columns, in the given order. A name given more than once is
-    // kept once, at its first position; this is reported on STDERR as pick does.
+    // Output the named columns and '::' computes, in the given order. A column
+    // given more than once is kept once, at its first position; this is reported
+    // on STDERR as pick does. A compute shows its name's final binding
+    // (INPLACE.design.txt section 2), as do names given as column arguments.
     pub fn from_names(args: &[ColSpec], computed: &[(usize, usize)], names: &ColumnNames)
         -> Result<OutputSelection, String>
     {
         let mut wanted = Vec::with_capacity(args.len() + computed.len());
         for (position, spec) in args.iter().enumerate() {
-            wanted.extend(computed.iter().filter(|(p, _)| *p == position).map(|&(_, i)| i));
+            wanted.extend(computed.iter().filter(|(p, _)| *p == position).map(|&(_, i)| names.current(i)));
             wanted.extend(spec.expand(names, "Output", "output")?);
         }
-        wanted.extend(computed.iter().filter(|(p, _)| *p >= args.len()).map(|&(_, i)| i));
+        wanted.extend(computed.iter().filter(|(p, _)| *p >= args.len()).map(|&(_, i)| names.current(i)));
         let mut output_offset: Vec<usize> = Vec::with_capacity(wanted.len());
         let mut have_duplicate = false;
         for i in wanted {
@@ -43,24 +45,31 @@ impl OutputSelection {
         Ok(OutputSelection::from_offsets(output_offset, names))
     }
 
-    // -A: output all columns, in input order. Names given as well must exist, but
-    // add nothing (as in pick, where they are duplicates of columns already present).
-    // n_input: the number of input columns.
-    pub fn all(args: &[ColSpec], computed: &[(usize, usize)], n_input: usize, names: &ColumnNames)
+    // -A: output all input columns, in input order, then the '::' computes that do
+    // not redefine an input column. A redefined input column shows its final binding
+    // at its own position. Names given as well must exist, but add nothing (as in
+    // pick, where they are duplicates of columns already present).
+    pub fn all(args: &[ColSpec], computed: &[(usize, usize)], names: &ColumnNames)
         -> Result<OutputSelection, String>
     {
         lookup(args, names)?;
-        let output_offset = (0..n_input).chain(computed.iter().map(|&(_, i)| i)).collect();
+        let input: Vec<usize> = (0..names.n_input()).map(|i| names.current(i)).collect();
+        let output_offset = input.iter().copied().chain(new_columns(computed, &input, names)).collect();
         Ok(OutputSelection::from_offsets(output_offset, names))
     }
 
-    // -x: output all columns except the named ones, in input order.
-    pub fn complement(args: &[ColSpec], computed: &[(usize, usize)], n_input: usize, names: &ColumnNames)
+    // -x: output all input columns except the named ones, in input order, then the
+    // new '::' computes as with -A. A named column that a '::' compute redefines is
+    // kept (as pick: '::' asks for output).
+    pub fn complement(args: &[ColSpec], computed: &[(usize, usize)], names: &ColumnNames)
         -> Result<OutputSelection, String>
     {
         let excluded = lookup(args, names)?;
-        let output_offset = (0..n_input).filter(|i| !excluded.contains(i))
-            .chain(computed.iter().map(|&(_, i)| i)).collect();
+        let recomputed: Vec<usize> = computed.iter().map(|&(_, i)| names.current(i)).collect();
+        let input: Vec<usize> = (0..names.n_input()).map(|i| names.current(i))
+            .filter(|f| !excluded.contains(f) || recomputed.contains(f)).collect();
+        let all_input: Vec<usize> = (0..names.n_input()).map(|i| names.current(i)).collect();
+        let output_offset = input.iter().copied().chain(new_columns(computed, &all_input, names)).collect();
         Ok(OutputSelection::from_offsets(output_offset, names))
     }
 
@@ -68,6 +77,19 @@ impl OutputSelection {
         let output_colnames = output_offset.iter().map(|&i| names.name(i).to_vec()).collect();
         OutputSelection { output_colnames, output_offset }
     }
+}
+
+// The '::' computes that are new columns (not redefinitions of the input columns
+// 'input', given as their current indexes), as current indexes, without repeats.
+fn new_columns(computed: &[(usize, usize)], input: &[usize], names: &ColumnNames) -> Vec<usize> {
+    let mut out: Vec<usize> = Vec::new();
+    for &(_, i) in computed {
+        let f = names.current(i);
+        if !input.contains(&f) && !out.contains(&f) {
+            out.push(f);
+        }
+    }
+    out
 }
 
 // The 0-based indexes selected by the specifications, in the given order,

@@ -1,0 +1,5 @@
+pluk: [fib::fib^1,add]: name [fib] already exists (use -i for in-place change)
+pluk: [fib::fib^10,add]: input column [fib] is redefined a second time (with -i an input column can be redefined once)
+pluk: [fib:=^2]: input column [fib] is redefined a second time (with -i an input column can be redefined once)
+pluk: (Compute) handle [x] in compute x does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+pluk: [x::^2]: name [x] already exists (use -i for in-place change)

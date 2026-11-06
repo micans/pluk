@@ -136,7 +136,7 @@ fn run() -> std::io::Result<()> {
     let (computes, names) = if input.is_empty {
         (Vec::new(), input.names.clone())
     } else {
-        compute::compile(&config.computes, &input.names)
+        compute::compile(&config.computes, &input.names, config.inplace)
             .map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?
     };
     let computed: Vec<(usize, usize)> = computes.iter().filter(|c| c.output).map(|c| (c.position, c.index)).collect();
@@ -147,11 +147,10 @@ fn run() -> std::io::Result<()> {
         select::OutputSelection { output_colnames: Vec::new(), output_offset: Vec::new() }
     } else {
         // As in pick, -x takes precedence over -A.
-        let n_input = input.names.len();
         let result = if config.excise {
-            select::OutputSelection::complement(column_args, &computed, n_input, &names)
+            select::OutputSelection::complement(column_args, &computed, &names)
         } else if config.all {
-            select::OutputSelection::all(column_args, &computed, n_input, &names)
+            select::OutputSelection::all(column_args, &computed, &names)
         } else {
             select::OutputSelection::from_names(column_args, &computed, &names)
         };

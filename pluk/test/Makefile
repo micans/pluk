@@ -215,6 +215,9 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	mkdir out/dm8 && { $(p) --demux=g --demux-dir=out/dm8 name g:=fx^.txt,cat @fib/gt/30 < data.txt; (cd out/dm8 && find . -type f | sort | while read -r f; do echo "-- $$f"; cat "$$f"; done); } > o.compute-demux.test 2>&1
 	for a in 'x::nosuch' 'fib::^1' 'x::^1 x::^2' 'x::^1,add' 'x::,cat' 'x::^1,pop,pop' 'x::fx:fib,del' 'x::fx^,del' 'x::fx^(,del' 'x::^1 @@x/gt/0' 'x::y y::^1'; do $(p) name $$a < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.compute-compile-errors.test
 	{ $(p) name x::^1 @x/gt/0 < data.txt; echo "exit $$?"; $(p) --demux=x --demux-dir=out name x:=^1 < data.txt; echo "exit $$?"; } > o.compute-compile-ok.test 2>&1
+	{ for a in '-i name fib::fib^1,add' '-i name fib fib::fib^1,add' '-i fib::fib^1,add name fib' '-i name fib fib::fib^1,add x::fib^100,add' '-i name x::fib^100,add fib::fib^1,add' '-i name fib::fib^1,add @@fib/gt/55' '-i name fib::fib^1,add @fib/gt/55' '-i fib:=fib^1,add name fib' '-i -A fib::fib^1,add' '-i -x fib::fib^1,add name' '-i -A fib:=fib^1,add x::^1' '-i name fib::__^1,add' '-i name x:=^1 x::x^1,add' '-i name x::^1 y::x x::x^1,add' '-i -x fib fib:=fib^1,add'; do echo "$$a"; $(p) --num-perl $$a < data.txt 2>&1 | head -n 4; done; } > o.inplace.test
+	{ printf '1\t2\t3\n4\t5\t6\n' | $(p) -k -i 2::2^10,add s::1-3,addall; printf '__\ta\n1\t2\n' | $(p) x::%5F%5F^5,add y::a^1,add; printf '__\ta\n1\t2\n' | $(p) -i a::__^7,add __; } > o.inplace-other.test
+	for a in 'fib::fib^1,add' '-i fib::fib^1,add fib::fib^10,add' '-i fib::^1 fib:=^2' 'x::__^1,add' 'x::^1 x::^2'; do $(p) $$a name < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.inplace-errors.test
 	for a in @z/gt/3 @@name/gt/:z @fib~eq~:z; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-unknown.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.txt   2> /dev/null > o.filter-sam.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.bam   > o.filter-bam.test

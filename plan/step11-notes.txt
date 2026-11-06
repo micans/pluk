@@ -1,0 +1,50 @@
+step11 notes: decisions and rationale for implementation choices.
+
+  Design: INPLACE.design.txt (decided before the step; item 1), seeded by INPLACE.notes.txt.
+
+
+Item 2: -i for single-name computes, __, output positions
+
+  Files: names.rs (is_current, current, n_input; joined lists current names), colspec.rs
+  (expansion against current bindings), compute.rs (compile with inplace: the redefinition
+  rules, __), select.rs (output with final bindings, -A and -x), opt.rs (-i, help),
+  main.rs (passing -i).
+
+  Rebinding. ColumnNames.push already bound a name to the new index (the HashMap insert
+  replaces the old entry); the old entry stays in the list, so an earlier compiled
+  reference (an index) still reaches the old column. A column is current if its name still
+  refers to it; current(i) gives the column its name refers to now. Everything that walks
+  over all names uses only current columns: a '+' regex skips replaced columns (otherwise
+  +fi.* would select both the old and the new fib), joined() (the list in messages) shows
+  each name once. A -k range numbers the input columns, as pick (its $::N is set before the
+  computes are added), and a replaced column stands for its replacement; before this item a
+  range without end (S-) ran over the computed columns as well.
+
+  Rules (compute::compile). An existing NAME without -i: '[x::..]: name [x] already exists
+  (use -i for in-place change)' (pick's hint). With -i: an input column may be redefined
+  once; a second time is an error naming the column; a computed name may be redefined any
+  number of times. The input columns redefined so far are tracked in a Vec<bool>.
+
+  __ (a column token whose raw text is __) is the compute's own name before this compute
+  binds it, so fib::__^1,add reads the old fib. Tested on the raw text: %5F%5F is a column
+  called __. Without a binding (x::__ with x new) it is the unknown-column error, as pick.
+
+  Output (select.rs). Column arguments resolve to current bindings (expansion), and '::'
+  computes are mapped to their name's current binding, so a name listed twice is output
+  once at its first position with its final value, with pick's 'Identical output column
+  names' message. -A: the input columns in order, each as its current binding, then the
+  '::' computes that are not redefinitions of input columns. -x: as -A, without the named
+  columns, except that a named column that a '::' compute redefines is kept (pick).
+
+  Run time needs no change: a redefinition is a new computed field; output and @ filters
+  use the new index, earlier computes and @@ filters the old one.
+
+  Checked against pick (with --num-perl): the fifteen invocations of test inplace (rebinding
+  before and after, @@ and @ filters, :=, -A, -x, __, repeated computed names, a compute
+  between two definitions of x) are identical; a -k range operand over a replaced column
+  sums the replacement, as pick. Difference: pick allows redefining an input column twice
+  (fib::fib^1,add fib::fib^10,add gives 12); pluk refuses it (INPLACE.design.txt).
+
+  Tests: inplace, inplace-other (range operand, %5F%5F, __ with -i), inplace-errors.
+  compute-compile-errors: the 'already exists' message now gives pick's hint. Help refs.
+  Unit test in compute.rs (inplace).

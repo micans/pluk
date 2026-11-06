@@ -167,17 +167,32 @@ pub struct Compute {
 }
 
 // Compile the computes in order. Each sees the input columns and the earlier
-// computes; its name is added at the next index. Returns the computes and the
+// computes; its name is added at the next index, or, for an existing name (-i,
+// plan/INPLACE.design.txt), bound to that new index. Returns the computes and the
 // extended names (input names followed by the compute names).
-pub fn compile(specs: &[ComputeSpec], input: &ColumnNames) -> Result<(Vec<Compute>, ColumnNames), String> {
+//
+// inplace (-i): a compute may redefine a name; an input column at most once, a
+// computed name any number of times.
+pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool)
+    -> Result<(Vec<Compute>, ColumnNames), String>
+{
     let mut names = input.clone();
     let mut computes = Vec::with_capacity(specs.len());
+    let mut redefined = vec![false; input.len()];  // input columns redefined so far
     for spec in specs {
         let shown = String::from_utf8_lossy(&spec.text);
         let name = String::from_utf8_lossy(&spec.name);
         if names.index_of(&spec.name).is_some() {
-            return Err(format!("[{}]: name [{}] already exists (in-place computes are not yet supported)",
-                               shown, name));
+            if !inplace {
+                return Err(format!("[{}]: name [{}] already exists (use -i for in-place change)", shown, name));
+            }
+            if let Some(i) = input.index_of(&spec.name) {
+                if redefined[i] {
+                    return Err(format!("[{}]: input column [{}] is redefined a second time \
+                                        (with -i an input column can be redefined once)", shown, name));
+                }
+                redefined[i] = true;
+            }
         }
         let mut instrs: Vec<Instr> = Vec::new();
         let mut stack: Vec<Slot> = Vec::new();
@@ -187,6 +202,17 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames) -> Result<(Vec<Comput
                     instrs.push(Instr::Const(c.clone()));
                     stack.push(Slot::Const(instrs.len() - 1));
                 }
+                // __ is the compute's own name, before this compute binds it: the
+                // value being replaced (INPLACE.design.txt section 4). Tested on the
+                // raw text, so %5F%5F is a column called __.
+                Token::Column(cs) if cs.text == b"__" => match names.index_of(&spec.name) {
+                    Some(i) => {
+                        instrs.push(Instr::Field(i));
+                        stack.push(Slot::Column);
+                    }
+                    None => return Err(format!("(Compute) handle [{}] in compute {} does not reference a known \
+                                                entity among {}", name, name, names.joined())),
+                },
                 Token::Column(cs) => {
                     // A multi-column specification pushes every selected column (splat).
                     for i in cs.expand(&names, "Compute", &format!("compute {}", name))? {
@@ -339,7 +365,7 @@ mod tests {
         let mut row = crate::row::Row::new();
         row.line.extend_from_slice(b"a\tn1\tn2\tb");
         row.split_fields();
-        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap())
+        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), false)
     }
 
     #[test]
@@ -356,6 +382,30 @@ mod tests {
         for bad in [&["a::^1"][..], &["x::^1", "x::^2"], &["x::^1,add"], &["x::a:b,del"], &["x::zz"], &["x::y", "y::^1"]] {
             assert!(compile_args(bad).is_err(), "{:?}", bad);
         }
+    }
+
+    fn compile_inplace(args: &[&str]) -> Result<(Vec<Compute>, ColumnNames), String> {
+        let mut unnamed = UnnamedNames::new();
+        let specs: Vec<ComputeSpec> = args.iter().map(|a| parse(a.as_bytes(), false, &mut unnamed).unwrap()).collect();
+        let mut row = crate::row::Row::new();
+        row.line.extend_from_slice(b"a\tb");
+        row.split_fields();
+        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), true)
+    }
+
+    #[test]
+    fn inplace() {
+        // a is rebound to the compute (index 2); the compute reads the old a (index 0).
+        let (c, names) = compile_inplace(&["a::__^1,add"]).unwrap();
+        assert!(matches!(c[0].instrs[0], Instr::Field(0)));
+        assert_eq!((names.index_of(b"a"), names.current(0), names.is_current(0)), (Some(2), 2, false));
+        assert_eq!(names.joined(), "b,a");
+        // Computed names may be redefined repeatedly; each sees the previous binding.
+        let (c, _) = compile_inplace(&["x:=^1", "x:=x^1,add", "x::x^1,add"]).unwrap();
+        assert!(matches!(c[2].instrs[0], Instr::Field(3)));
+        // An input column at most once.
+        assert!(compile_inplace(&["a::^1", "a::^2"]).is_err());
+        assert!(compile_inplace(&["x::__"]).is_err());
     }
 
     #[test]
