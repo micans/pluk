@@ -52,7 +52,7 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	$(p) -k 14                  < data.txt  2> o.sel-unknown-k.test  > /dev/null; [ $$? -eq 1 ]
 	head -n 1 data.txt | $(p) nosuch        2> o.sel-unknown-headeronly.test > /dev/null; [ $$? -eq 1 ]
 	$(p) nosuch                 < /dev/null  > o.sel-empty.test
-	for a in '@assert@x/gt/0' 'x::y' 'x:=y'; do $(p) "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.sel-unsupported.test
+	for a in 'x::y' 'x:=y'; do $(p) "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.sel-unsupported.test
 	$(p) sq fib                      < data.txt   > o.sq-fib.test        # from pick/test
 	$(p) -A                          < data.txt   > o.-A.test            # from pick/test
 	$(p) -x                          < data.txt   > o.-x.test            # from pick/test
@@ -183,6 +183,12 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	{ for a in '@+.*/ISINT' '@x:y/NOTINT' '@@+x|y/ISNUM'; do echo "$$a"; printf 'x\ty\n5\t1\n-3\t2\n+7\t3\n007\t4\n5.0\t5\n1e3\t6\ninf\t7\nnan\t8\n\t9\nfox\t10\n 4\t11\n0x10\t12\n400000000000000000000000000000000000000000\t13\n' | $(p) -h x y "$$a"; done; } > o.filter-pred-multi.test 2>&1
 	{ $(p) --sam 1 2 @2/NOTINT < sam.txt; $(p) -o name ms @ms/ISINT @fib/gt/50 < data.txt; } > o.filter-pred-other.test 2> /dev/null
 	for a in @x/ISFOO @x/isint @/ISINT @x/ISINT/3 @x/ @+/ISINT @fib/gt/ISINT; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-pred-errors.test
+	{ $(p) name fib @assert@fib/gt/0 '@@assert@+num\d/ISINT' < data.txt; echo "exit $$?"; } > o.assert-pass.test 2>&1
+	{ $(p) name ud @assert@ud/gt/-5 < data.txt; echo "exit $$?"; } > o.assert-fail.test 2>&1
+	{ $(p) name ud @@ud/gt/0 @assert@ud/gt/0 < data.txt; echo "exit $$?"; $(p) name ud @@ud/gt/0 @@assert@ud/gt/0 < data.txt; echo "exit $$?"; } > o.assert-stage.test 2>&1
+	{ $(p) -o name ud @fib/gt/50 @assert@ud/gt/-11 < data.txt; echo "exit $$?"; $(p) -c @assert@ud/gt/-5 < data.txt; echo "exit $$?"; } > o.assert-or-count.test 2>&1
+	{ $(p) name '@assert@+num\d/le/3' < data.txt; echo "exit $$?"; printf 'a\tb\n1\t2\n3\tfox\n' | $(p) a '@@assert@a:b/ISNUM'; echo "exit $$?"; printf 'a\tb\n1\t2\n3\tfox\n' | $(p) a '@assert@b/lt/5'; echo "exit $$?"; printf 'a\n1\n2.5\n' | $(p) a '@assert@a/all/1'; echo "exit $$?"; } > o.assert-multi.test 2>&1
+	{ $(p) --sam 1 2 @@assert@2/ISINT < sam.txt; echo "exit $$?"; } > o.assert-sam.test 2>&1
 	for a in @z/gt/3 @@name/gt/:z @fib~eq~:z; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-unknown.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.txt   2> /dev/null > o.filter-sam.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.bam   > o.filter-bam.test

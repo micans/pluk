@@ -130,6 +130,9 @@ Filters (given among the columns; VALUE is %-decoded, e.g. %2F for '/'):
   @NAME/ISINT     the value is an integer; /ISNUM: a number (also 1e3, inf,
                   nan); /NOTINT and /NOTNUM negate. No VALUE.
   @@NAME...       as @, applied before computes (computes are not yet supported)
+  @assert@..., @@assert@...  assertions: as @ and @@, but a row that fails ends
+                  pluk with an error. Checked before the filters of the same
+                  stage; -o and -s do not apply.
   NAME can be a list, +REGEX or (-k) range, as for columns: the test must
   hold for every column, e.g. @+num\\d/gt/0. A single name follows ':'.
 

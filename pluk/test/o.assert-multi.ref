@@ -1,0 +1,17 @@
+name
+Ann
+Bob
+pluk: assertion @assert@+num\d/le/3 failed: column num1 value [4] at line 4
+exit 1
+a
+1
+pluk: assertion @@assert@a:b/ISNUM failed: column b value [fox] at line 3
+exit 1
+a
+1
+pluk: assertion @assert@b/lt/5 failed: column b value [fox] (not a number) at line 3
+exit 1
+a
+1
+pluk: assertion @assert@a/all/1 failed: column a value [2.5] (not an integer) at line 3
+exit 1

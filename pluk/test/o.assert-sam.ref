@@ -1,0 +1,9 @@
+Line 7 does not look like SAM format [r003	notanumber	chr1	9	30	5M	*	0	0	GCCTA	IIIII]
+Line 9 does not look like SAM format [shortline	0	chr2]
+r001	0
+r002	16
+r004	0
+r005	4
+r006	0
+pluk: assertion @@assert@2/ISINT failed: column 2 value [nonnumeric] at line 13
+exit 1

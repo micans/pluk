@@ -68,6 +68,9 @@
     - Additions without a pick counterpart: multi-column filter handles (lists, + regexes, -k
       ranges; the test must hold for every column), unary predicates /ISINT /NOTINT /ISNUM
       /NOTNUM (step8.txt items 3 and 4).
+    - Assertions: @@assert@ (before computes) is new; a failed assertion ends pluk with exit
+      status 1 (pick: 255, Perl die) and the message 'assertion A failed: column C value [V]
+      at line N'; --assert-other is not implemented yet (step8.txt item 5).
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

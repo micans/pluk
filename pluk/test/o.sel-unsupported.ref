@@ -1,3 +1,2 @@
-[@assert@x/gt/0]: assertions (@assert@) not yet supported
 [x::y]: computes ('::', ':=') not yet supported
 [x:=y]: computes ('::', ':=') not yet supported

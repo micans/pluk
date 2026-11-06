@@ -1,0 +1,8 @@
+name	ud
+Ann	1
+Bob	-2
+Charlie	3
+Dan	-4
+Esme	5
+pluk: assertion @assert@ud/gt/-5 failed: column ud value [-6] at line 7
+exit 1

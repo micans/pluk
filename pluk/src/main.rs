@@ -160,7 +160,7 @@ fn run() -> std::io::Result<()> {
         let mut n_kept: u64 = 0;
         while let Some(kind) = input.next_line()? {
             match kind {
-                io::LineKind::Data        => if filters.keep(&input.row) { n_kept += 1 },
+                io::LineKind::Data        => if keep(&mut filters, &input)? { n_kept += 1 },
                 io::LineKind::PassThrough => output::write_line(&mut out, &input.row.line)?,
             }
         }
@@ -183,7 +183,7 @@ fn run() -> std::io::Result<()> {
         }
         while let Some(kind) = input.next_line()? {
             match kind {
-                io::LineKind::Data => if filters.keep(&input.row) {
+                io::LineKind::Data => if keep(&mut filters, &input)? {
                     writer.write_row(&mut out, &input.row)?
                 },
                 io::LineKind::PassThrough => output::write_line(&mut out, &input.row.line)?,
@@ -202,6 +202,14 @@ fn run() -> std::io::Result<()> {
         }
     }
     Ok(())
+}
+
+// Whether the current data row passes the filters; a failed assertion is an
+// error that ends the run, with the line number.
+fn keep(filters: &mut filter::Filters, input: &io::LineReader) -> std::io::Result<bool> {
+    filters.keep(&input.row).map_err(|msg| {
+        std::io::Error::new(ErrorKind::InvalidData, format!("{} at line {}", msg, input.n_lines))
+    })
 }
 
 fn main() {

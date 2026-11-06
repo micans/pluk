@@ -3,6 +3,6 @@
 [@x/gt/3/1]: extra argument [/1] not allowed with /gt/ (write '/' or '~' in VALUE as %2F or %7E)
 [@/gt/3]: column name missing
 [@+/gt/3]: [+]: empty regex after '+'
-[@assert@x/gt/3]: assertions (@assert@) not yet supported
+pluk: (Select) handle [x] in assert does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
 Filter invalid [@x]: expected @NAME<op>VALUE, @NAME<op>:NAME or @NAME/PREDICATE
 [@x/gt/:]: column name missing after ':'

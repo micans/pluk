@@ -162,3 +162,39 @@ Item 4: /ISINT /NOTINT /ISNUM /NOTNUM
   filter-pred-multi (regex, list and regex alternation handles), filter-pred-other (SAM FLAG,
   -o with another filter), filter-pred-errors. filter-errors: the 'Filter invalid' message
   changed. Help refs updated. Unit tests in filter.rs (parsing_predicates, predicates).
+
+
+Item 5: @assert@ and @@assert@
+
+  Files: src/filter.rs (FilterSpec.assert, Filter.names, first_failure, check, Filters
+  pre_assert/post_assert, keep -> Result), main.rs (keep() helper with the line number),
+  opt.rs (help).
+
+  Parsing. '@@assert@' and '@assert@' are tested before '@@' and '@'; the rest is parsed as a
+  filter (operators, predicates, multi-column handles), with assert set. In compile() an
+  assertion goes to pre_assert or post_assert; pick's message label for an unknown handle in
+  an @assert@ is '(Select) handle [x] in assert'; for @@assert@ pluk uses '(Preselect) ...
+  in preassert'.
+
+  Evaluation. Filters::keep() returns Result<bool, String>: per stage, assertions first
+  (check_all), then the filters. So @@assert@ sees every data row, and @assert@ every row that
+  passes the @@ filters, as pick (preselect, computes, assert, select). -o and -s do not apply
+  to assertions. Filter::first_failure() is shared by accept() (which counts NA and
+  non-integers) and check() (which describes the failing column and value, with '(not a
+  number)' or '(not an integer)' when that is the reason). main.rs adds the physical line
+  number (LineReader.n_lines) and returns the message as an io::Error, so it goes through
+  the normal error path ('pluk: ...', exit 1). Rust note: returning from run() drops the
+  BufWriter for stdout, which flushes it, so the rows output before the failing one are
+  written, as with pick (Perl flushes STDOUT on die).
+
+  Checked against pick: a failing @assert@ (stdout up to the failing row, line number), an
+  @assert@ after an @@ filter that removes the failing rows, -c and -o with a failing
+  assertion give the same stdout and line numbers. pick's message is 'Assert 1 failed for
+  value -6 (compared with -5) at line 7', exit status 255.
+
+  Tests: assert-pass, assert-fail, assert-stage (@assert@ after @@ filter passes, @@assert@
+  sees filtered rows), assert-or-count (-o, -c), assert-multi (failing column of a regex
+  handle, a list with a predicate, NA, non-integer), assert-sam (line number counts the @
+  header lines). sel-unsupported: '@assert@x/gt/0' removed (now valid); filter-errors:
+  '@assert@x/gt/3' now reports the unknown handle. Help refs updated. Unit tests in
+  filter.rs (parsing_assertions).

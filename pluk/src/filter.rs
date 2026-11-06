@@ -1,5 +1,7 @@
 // Row filters: @NAME<op>VALUE (applied after computes) and @@NAME<op>VALUE
-// (applied before computes); plan/step7.txt.
+// (applied before computes); plan/step7.txt. Assertions @assert@... and
+// @@assert@... have the same form; a row that fails one ends the run
+// (plan/step8.txt item 5).
 //
 // A filter argument is parsed during option parsing (parse_filter: syntax and
 // constants), and compiled once the column names are known (Filters::compile:
@@ -153,6 +155,7 @@ pub enum Value {
 pub struct FilterSpec {
     pub text:   Vec<u8>,            // the argument, for messages
     pub stage:  Stage,
+    pub assert: bool,               // @assert@ / @@assert@
     pub handle: ColSpec,            // the column(s) tested
     pub op:     Op,
     pub value:  Value,              // %-decoded; a dictionary name for ~isin~ etc.
@@ -175,12 +178,14 @@ pub struct FilterSpec {
 // headless (-k): ranges are allowed in the handle.
 pub fn parse_filter(arg: &[u8], headless: bool) -> Result<FilterSpec, String> {
     let shown = String::from_utf8_lossy(arg).into_owned();
-    let (stage, spec) = if arg.starts_with(b"@assert@") {
-        return Err(format!("[{}]: assertions (@assert@) not yet supported", shown));
+    let (stage, assert, spec) = if let Some(s) = arg.strip_prefix(b"@@assert@") {
+        (Stage::Pre, true, s)
+    } else if let Some(s) = arg.strip_prefix(b"@assert@") {
+        (Stage::Post, true, s)
     } else if let Some(s) = arg.strip_prefix(b"@@") {
-        (Stage::Pre, s)
+        (Stage::Pre, false, s)
     } else if let Some(s) = arg.strip_prefix(b"@") {
-        (Stage::Post, s)
+        (Stage::Post, false, s)
     } else {
         return Err(format!("[{}]: not a filter", shown));
     };
@@ -188,7 +193,7 @@ pub fn parse_filter(arg: &[u8], headless: bool) -> Result<FilterSpec, String> {
     let (name, op_token, rest) = match find_operator(spec) {
         Some(found) => found,
         None => match find_predicate(spec) {
-            Some((name, token)) => return parse_predicate(arg, stage, name, token, headless),
+            Some((name, token)) => return parse_predicate(arg, stage, assert, name, token, headless),
             None => return Err(format!("Filter invalid [{}]: expected @NAME<op>VALUE, @NAME<op>:NAME or @NAME/PREDICATE",
                                        shown)),
         },
@@ -308,7 +313,7 @@ pub fn parse_filter(arg: &[u8], headless: bool) -> Result<FilterSpec, String> {
         }
         _ => None,
     };
-    Ok(FilterSpec { text: arg.to_vec(), stage, handle, op, value, extra, const_num, band, regex, literal })
+    Ok(FilterSpec { text: arg.to_vec(), stage, assert, handle, op, value, extra, const_num, band, regex, literal })
 }
 
 // A predicate: the argument ends in /UPPERCASE, with no other operator (only
@@ -324,7 +329,7 @@ fn find_predicate(spec: &[u8]) -> Option<(&[u8], &[u8])> {
     }
 }
 
-fn parse_predicate(arg: &[u8], stage: Stage, name: &[u8], token: &[u8], headless: bool)
+fn parse_predicate(arg: &[u8], stage: Stage, assert: bool, name: &[u8], token: &[u8], headless: bool)
     -> Result<FilterSpec, String>
 {
     let shown = String::from_utf8_lossy(arg);
@@ -337,7 +342,7 @@ fn parse_predicate(arg: &[u8], stage: Stage, name: &[u8], token: &[u8], headless
         return Err(format!("[{}]: column name missing", shown));
     }
     let handle = colspec::parse(name, headless).map_err(|e| format!("[{}]: {}", shown, e))?;
-    Ok(FilterSpec { text: arg.to_vec(), stage, handle, op, value: Value::Const(Vec::new()), extra: None,
+    Ok(FilterSpec { text: arg.to_vec(), stage, assert, handle, op, value: Value::Const(Vec::new()), extra: None,
                     const_num: None, band: None, regex: None, literal: false })
 }
 
@@ -372,6 +377,7 @@ enum Operand<'d> {
 }
 
 // The outcome of a test on one column.
+#[derive(Clone, Copy, PartialEq)]
 enum Outcome {
     Pass,
     Fail,
@@ -382,6 +388,7 @@ enum Outcome {
 struct Filter<'d> {
     text:    Vec<u8>,
     columns: Vec<usize>,    // the columns tested, without duplicates
+    names:   Vec<Vec<u8>>,  // their names, for the message of a failed assertion
     op:      Op,
     operand: Operand<'d>,
     extra:   Vec<u8>,   // ~hasval~: the value to compare with
@@ -394,21 +401,47 @@ impl Filter<'_> {
     // The test must hold for every column; the first column that fails decides,
     // and its reason is counted (so counts are per row, not per value).
     fn accept(&mut self, row: &Row) -> bool {
-        for &c in &self.columns {
+        match self.first_failure(row) {
+            None => true,
+            Some((_, Outcome::NotNumber)) => {
+                self.n_na += 1;
+                false
+            }
+            Some((_, Outcome::NotInteger)) => {
+                self.n_nonint += 1;
+                false
+            }
+            Some(_) => false,
+        }
+    }
+
+    // The position (in self.columns) of the first column that does not pass, and
+    // why; None if the test holds for every column.
+    fn first_failure(&self, row: &Row) -> Option<(usize, Outcome)> {
+        for (k, &c) in self.columns.iter().enumerate() {
             match self.test(row.field(c), row) {
                 Outcome::Pass => (),
-                Outcome::Fail => return false,
-                Outcome::NotNumber => {
-                    self.n_na += 1;
-                    return false;
-                }
-                Outcome::NotInteger => {
-                    self.n_nonint += 1;
-                    return false;
-                }
+                other => return Some((k, other)),
             }
         }
-        true
+        None
+    }
+
+    // An assertion: Err with a description of the first failing column.
+    fn check(&self, row: &Row) -> Result<(), String> {
+        match self.first_failure(row) {
+            None => Ok(()),
+            Some((k, outcome)) => {
+                let why = match outcome {
+                    Outcome::NotNumber => " (not a number)",
+                    Outcome::NotInteger => " (not an integer)",
+                    _ => "",
+                };
+                Err(format!("assertion {} failed: column {} value [{}]{}", String::from_utf8_lossy(&self.text),
+                            String::from_utf8_lossy(&self.names[k]),
+                            String::from_utf8_lossy(row.field(self.columns[k])), why))
+            }
+        }
     }
 
     fn test(&self, field: &[u8], row: &Row) -> Outcome {
@@ -483,22 +516,23 @@ impl Filter<'_> {
     }
 }
 
-// All filters of a run, by stage. Within a stage filters are ANDed, or ORed with
-// -o (@) and -s (@@); evaluation stops at the first filter that decides.
+// All filters and assertions of a run, by stage. Within a stage filters are
+// ANDed, or ORed with -o (@) and -s (@@); evaluation stops at the first filter
+// that decides. Assertions are checked before the filters of their stage, and
+// are not affected by -o and -s.
 pub struct Filters<'d> {
-    pre:     Vec<Filter<'d>>,
-    post:    Vec<Filter<'d>>,
-    pre_or:  bool,
-    post_or: bool,
+    pre:         Vec<Filter<'d>>,
+    post:        Vec<Filter<'d>>,
+    pre_assert:  Vec<Filter<'d>>,
+    post_assert: Vec<Filter<'d>>,
+    pre_or:      bool,
+    post_or:     bool,
 }
 
 impl<'d> Filters<'d> {
     pub fn none() -> Filters<'d> {
-        Filters { pre: Vec::new(), post: Vec::new(), pre_or: false, post_or: false }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.pre.is_empty() && self.post.is_empty()
+        Filters { pre: Vec::new(), post: Vec::new(), pre_assert: Vec::new(), post_assert: Vec::new(),
+                  pre_or: false, post_or: false }
     }
 
     // Resolve column names. As pick, a constant equal to a column name gives a hint;
@@ -510,11 +544,13 @@ impl<'d> Filters<'d> {
     pub fn compile(specs: &[FilterSpec], names: &ColumnNames, dicts: &'d Dicts, pre_or: bool, post_or: bool)
         -> Result<Filters<'d>, String>
     {
-        let mut filters = Filters { pre: Vec::new(), post: Vec::new(), pre_or, post_or };
+        let mut filters = Filters { pre_or, post_or, ..Filters::none() };
         for spec in specs {
-            let (what, kind) = match spec.stage {
-                Stage::Pre  => ("Preselect", "preselect"),
-                Stage::Post => ("Select", "select"),
+            let (what, kind) = match (spec.stage, spec.assert) {
+                (Stage::Pre, false)  => ("Preselect", "preselect"),
+                (Stage::Post, false) => ("Select", "select"),
+                (Stage::Pre, true)   => ("Preselect", "preassert"),
+                (Stage::Post, true)  => ("Select", "assert"),       // as pick
             };
             let lookup = |name: &[u8], label: &str| names.index_of(name).ok_or_else(|| {
                 format!("({}) handle [{}] in {} does not reference a known entity among {}",
@@ -548,19 +584,30 @@ impl<'d> Filters<'d> {
             };
             let extra = spec.extra.clone().unwrap_or_default();
             let band = spec.band.unwrap_or(Num::I(0));
-            let filter = Filter { text: spec.text.clone(), columns, op: spec.op, operand, extra, band, n_na: 0, n_nonint: 0 };
-            match spec.stage {
-                Stage::Pre  => filters.pre.push(filter),
-                Stage::Post => filters.post.push(filter),
+            let column_names = columns.iter().map(|&c| names.name(c).to_vec()).collect();
+            let filter = Filter { text: spec.text.clone(), columns, names: column_names, op: spec.op, operand, extra, band,
+                                  n_na: 0, n_nonint: 0 };
+            match (spec.stage, spec.assert) {
+                (Stage::Pre, false)  => filters.pre.push(filter),
+                (Stage::Post, false) => filters.post.push(filter),
+                (Stage::Pre, true)   => filters.pre_assert.push(filter),
+                (Stage::Post, true)  => filters.post_assert.push(filter),
             }
         }
         Ok(filters)
     }
 
     // Whether a data row passes the @@ filters, then (after the place where
-    // computes will go) the @ filters.
-    pub fn keep(&mut self, row: &Row) -> bool {
-        stage_accepts(&mut self.pre, self.pre_or, row) && stage_accepts(&mut self.post, self.post_or, row)
+    // computes will go) the @ filters. Each stage first checks its assertions:
+    // Err describes the first assertion that fails, which ends the run. So @@assert@
+    // sees every row, and @assert@ every row that passes the @@ filters (as pick).
+    pub fn keep(&mut self, row: &Row) -> Result<bool, String> {
+        check_all(&self.pre_assert, row)?;
+        if !stage_accepts(&mut self.pre, self.pre_or, row) {
+            return Ok(false);
+        }
+        check_all(&self.post_assert, row)?;
+        Ok(stage_accepts(&mut self.post, self.post_or, row))
     }
 
     // Per filter, the number of rows not kept because a value was not a number,
@@ -581,6 +628,13 @@ impl<'d> Filters<'d> {
             }
         }
     }
+}
+
+fn check_all(assertions: &[Filter<'_>], row: &Row) -> Result<(), String> {
+    for a in assertions {
+        a.check(row)?;
+    }
+    Ok(())
 }
 
 fn stage_accepts(filters: &mut [Filter<'_>], or: bool, row: &Row) -> bool {
@@ -626,7 +680,7 @@ mod tests {
         // The first operator token ends the name.
         assert_eq!(name(&spec("@x/lt/5").unwrap()), b"x");
         for bad in ["@x/gt/abc", "@x/gt/", "@/gt/3", "@x/foo/3", "@x/gt/3/4", "@x~eq~a/b",
-                    "@x", "@+/gt/3", "@+a(/gt/3", "@x/gt/:", "@x/gt/:a:b", "@x/gt/:+a", "@x::y/gt/3", "@assert@x/gt/3", "@x~", "@x/~",
+                    "@x", "@+/gt/3", "@+a(/gt/3", "@x/gt/:", "@assert@x", "@@assert@/gt/3", "@x/gt/:a:b", "@x/gt/:+a", "@x::y/gt/3", "@x~", "@x/~",
                     "@x~^", "@x~a(", "@x~a/b", "@x=a~b", "@x~isin~", "@x~isin~:y", "@x~isin~^D",
                     "@x~isin~D~v", "@x~hasval~D", "@x~hasval~D/v", "@x~hasval~D~:y", "@x~hasval~D~a~b",
                     "@x/ep/1/", "@x/ep/1/-1", "@x/ep/1/nan", "@x/ep/1/abc", "@x/ep/1~2", "@x/ep/1/:y",
@@ -718,6 +772,15 @@ mod tests {
             assert_eq!(Filter::predicate(v.as_bytes(), Pred::Num, false), numeric, "{}", v);
             assert_eq!(Filter::predicate(v.as_bytes(), Pred::Num, true), !numeric, "{}", v);
         }
+    }
+
+    #[test]
+    fn parsing_assertions() {
+        let f = spec("@assert@x/gt/3").unwrap();
+        assert_eq!((f.stage, f.assert, name(&f)), (Stage::Post, true, b"x".to_vec()));
+        let f = spec("@@assert@+y.*/ISNUM").unwrap();
+        assert_eq!((f.stage, f.assert, f.op), (Stage::Pre, true, Op::Pred(Pred::Num, false)));
+        assert!(!spec("@@x/gt/3").unwrap().assert);
     }
 
     #[test]
