@@ -1,0 +1,120 @@
+
+- SAM groundwork: the per-row SAM view, normal form, the sequence fill, the SAM operators that
+  need no reference sequence
+
+  First of the SAM steps (seed: plan/SAM.notes.txt; pick's implementation surveyed in
+  plan/SAM.pick-survey.txt, referred to below as 'survey'). Design file written in item 1:
+  plan/SAMVIEW.design.txt. Earlier SAM work: step4 (seqlen, --sam/FILE, SAMFA), step5
+  (SAMSEQ.design.txt, src/samseq.rs, not yet wired in), step6 (BAM input).
+
+  The SAM steps (order agreed at the start of this step; the view options move after the
+  alignment display, which is how they are checked, as pick's run-test3.sh does):
+    17  groundwork (this step)
+    18  reference sequence and alignment display: aln_ref aln_aln aln_qry aln_rlr aln_qlt
+        aln_all aln_allq aln_all_pack, the ref_/qry_ substrings, aln_nedit_pia aln_nedit_piu
+        aln_posinfo patchiness patchiness2, --sam-aln-prefix --sam-aln-mrk --sam-qlt-sim
+    19  view options: --sam-aln-context --sam-aln-xy --sam-narrow-xy --sam-ND-adjust,
+        reproducing pick/align run-test3.sh and run-test4.sh
+    20  rbt: sam_rbt --sam-rbt rbt_*
+    sam_put: separately (decision 9).
+    Later: the bio operators (rc todna dnatl dnagc forward fasta fastq fastQ), --remind-me.
+
+
+  Outcome of the discussion
+
+  Operators in this step (pick's names and semantics unless stated; category sam, listed by
+  -l sam):
+    flags and tags   isforward sam_get
+    cigar strings    cgsum cgmax cgcount (string operators: available without --sam)
+    counts           ref_len ref_posx ref_posy qry_len qry_posx qry_posy
+                     ref_trail5p_N ref_matched_N ref_trail3p_N ref_trail5p_V ref_trail3p_V
+                     qry_trail5p_N qry_matched_N qry_trail3p_N
+    cigar parts      aln_trail5p_cgr aln_matched_cgr aln_trail3p_cgr
+    edits            aln_nmatch aln_nedit aln_nmatchx
+    query            qry_seq qry_qual (with the fill)
+  Not taken over: suv (a remnant of pick's early days; the values are operators), and
+  input_cigar is withheld (pick: readable only through suv).
+
+  Decisions:
+   0. pick's bugs (survey section 8) are fixed where the intent is clear, each recorded in
+      guidelines.txt; where pick's behaviour is merely particular (normal form acting on the
+      first and last cigar operation only) pluk follows it. Tests compare with pick wherever
+      pick is right.
+   1. The SAM view. pick turns these operators into lookups in a per-line hash and decides
+      at parse time, through a bit mask, which per-row stages run. pluk has a per-row SAM
+      view in the machine (as the registers, step15): its stages (cigar parse; counts;
+      later the substrings, the alignment strings and rbt) are computed when an operator
+      first needs them in a row and then kept for that row. The operators are ordinary
+      operators reading fields of the view (no hash lookup), and only what is used is
+      computed, without a mask to maintain. What must happen to every row (normal form, in
+      step19 the view options) is not lazy.
+   2. SAM operators need --sam or --sam-h; elsewhere they are a compile-time error naming
+      the option (pick: "not an operator I have available"). cgsum cgmax cgcount take the
+      cigar string from the stack and are available always (pick: string/sam).
+   3. Normal form as pick, by default for every SAM data row, also without SAM operators
+      (vsearch writes exterior deletions and insertions that should be clips): a leading
+      nD is removed and POS increased by n, a trailing nD removed, a leading and a trailing
+      nI become nS; each once, on the first and the last operation only. Off with
+      --sam-nonf. Applied after the @@ filters and before the computes (as pick): @@
+      filters and --other rows rejected by them see the input record, computes, @ filters
+      and the output (columns 4 and 6) the rewritten one.
+   4. Values that cannot be computed give NA and the row is kept (pick discards the row
+      silently): unmapped records (FLAG 0x4 or CIGAR '*'), a reference length that is not
+      known (ref_len, ref_trail3p_N), a SEQ whose length differs from the CIGAR (qry_seq,
+      qry_qual). Each reason is counted and reported at the end (silenced by -q).
+      isforward and sam_get work for every record.
+   5. Trails and the X operation. The 5' trail is the leading run of S H D N I operations,
+      the 3' trail the trailing run, the matched part what lies between; if the cigar has
+      no aligned operation (M = X) everything is 5' trail and the matched part and 3' trail
+      are empty (pick: the two trails overlap, survey 8.10). pick also counts X as exterior,
+      because its context extension writes the added context as X; pluk treats X from the
+      input as aligned (a mismatch), and the view will record how much context step19 adds
+      at each end. pick's test data have no X operations, so the comparison is unaffected.
+      The counts follow pick's definitions (survey section 2): ref_trail5p_N = POS - 1 +
+      the reference length of the 5' trail, ref_matched_N = M D N = X of the matched part,
+      ref_trail3p_N = ref_len - the two, ref_posx = ref_trail5p_N + 1, ref_posy = ref_posx +
+      ref_matched_N - 1; ref_trail5p_V / _3p_V the reference lengths of the trails; the query
+      counts I S M = X (H excluded), qry_len their sum, qry_posx/y alike. ref_len is the
+      length of the reference sequence (the seqlen dictionary: @SQ lines, or the fasta of
+      --sam/FILE). qry_len is taken from the CIGAR (pick: checked against SEQ when the
+      sequence is used; pluk: decision 4).
+   6. sam_get TAG DEFAULT: TAG a constant XX:T, XX.T or XX-T (the latter two avoid %3A, as
+      pick), checked at compile time; the value of the first optional field with that tag
+      and type, else DEFAULT. aln_nedit is the NM:i value, 0 without one (pick); aln_nmatch
+      the M = X sum of the matched part; aln_nmatchx NM minus the D and I of the matched part.
+   7. cgsum cgmax cgcount c s: the sum, the maximum or the number of the cigar operations in
+      c whose letter is in s ('*': 0, as pick). A cigar that does not parse gives NA (pick: a
+      message and the partial result).
+   8. The sequence fill (SAMSEQ.design.txt) is wired in, active when an operator needs the
+      query sequence (qry_seq qry_qual in this step). A row whose SEQ '*' cannot be filled
+      is handled by --sam-seqmiss=skip|exit: skip (default) discards the row, exit ends the
+      run with an error naming the line. The N mode of SAMSEQ.design.txt section 5 is
+      dropped (no clear use). Skipped rows are counted and reported (-q silences), and are
+      not written to --other (no filter rejected them). The warning for input not grouped
+      by read (step5 item 2) comes with the fill. SAMSEQ.design.txt is updated in item 1.
+   9. sam_put (pick: appends TAG:VALUE to the optional fields, changing an input column from
+      inside a compute) is handled separately; ideas are recorded in SAM.notes.txt in item
+      1. A workaround available now: -i with a compute on column 12, e.g.
+        pluk --sam -A -i '12::__^%09XX%3Ai%3A:VALUE'
+
+  Tests: pick/align data (copied into pluk/test, compressed where large) and synthetic
+  records for the edge cases (H, X, N, unmapped, missing lengths), compared with pick wherever
+  the behaviour is the same.
+
+
+  Items
+
+  1   plan/SAMVIEW.design.txt (the view, its stages, the definitions, NA rules, trails and
+      X, where it sits in the row pipeline); SAMSEQ.design.txt section 5 (skip|exit);
+      SAM.notes.txt (the order of the SAM steps, sam_put). Commit.
+
+  2   Normal form and --sam-nonf: rewriting columns 4 and 6 of the row after the @@ filters
+      (decision 3). Commit.
+
+  3   The SAM view and its count stage; isforward sam_get, the counts, the cigar parts,
+      aln_nmatch aln_nedit aln_nmatchx; the NA counts; -l sam (decisions 1, 2, 4-6). Commit.
+
+  4   cgsum cgmax cgcount (decision 7). Commit.
+
+  5   The fill: qry_seq qry_qual, --sam-seqmiss=skip|exit, counters and the grouping warning
+      (decision 8). Commit.

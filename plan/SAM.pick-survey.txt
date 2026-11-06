@@ -1,0 +1,237 @@
+
+Survey of pick's SAM implementation (pick/pick, 3350 lines; manual SAM section; pick/align).
+Written at the start of step17 as reference material for the SAM steps; not a design. Line
+numbers refer to pick/pick. (verified) = reproduced by running pick; (inference) = reading
+of the code not checked by running it. Spot-checked by hand: normal form (2364), the
+--sam-aln-xy right condition (2527), qry_qual's missing sambits (584-588).
+
+
+1. Operator inventory (68)
+
+   Sources: %cp_samdefs (557-582, 19 ops, merged by --sam at 1493); %suv_direct_lookup
+   (593-642, 46 'LUSPUV' ops); cgsum cgmax cgcount in the main table (463-465, string/sam).
+   sambits from %cp_sam_setup_seqs (584-588, default 0) or column 2 of %suv_direct_lookup.
+   DEP masks (165-170): RPARTS|RSEQ, QPARTS|QSEQ, ALN|RSEQ|QSEQ, RBT|DEP_SAM_ALN.
+
+   (a) Neither LUSPUV nor rbt (17)
+     cgsum cgmax cgcount (c s)   sum/max/count of the lengths of cigar items in subset s
+                                 (acigar 1717, cached per cigar; '*' gives 0)
+     aln_nmatch                  M=X sum of aln_matched_cgr
+     aln_nedit                   NM:i from column 12, else 0
+     aln_nmatchx                 NM - (D+I sum of aln_matched_cgr)
+     aln_nedit_pia               len(aln_aln) - count of | = _            (needs ALN)
+     aln_nedit_piu               len(aln_aln) - count of | _              (needs ALN)
+     aln_posinfo (n)             getalnposx 3114: x=P,c=RQ / i=P,n=N[,s=] / d= e= items joined
+                                 by ':'; indel sequence shown if n == 0 or len <= n (needs ALN)
+     patchiness patchiness2 (s d) windowed score over an alignment string (2749, 2786)
+     isforward                   FLAG & 16 ? 0 : 1
+     sam_get (tag def)           regex lookup in column 12; tag XX.x / XX-x rewritten (2030)
+     sam_put (tag val)           appends \tTAG:val to column 12; pops 2, pushes 0 (391-392)
+     suv (key)                   runtime lookup in the line cache; triggers no computation
+     qry_seq                     the query sequence (QSEQ)
+     qry_qual                    the query quality; sambits 0 (bug, section 8)
+
+   (b) Alignment display (8): aln_ref aln_aln aln_qry aln_rlr aln_qlt (LUSPUV, 618-622);
+     aln_all aln_allq aln_all_pack (cp_samdefs, 566-568): rlr ref aln qry [qlt] joined by \n
+     (\x01 for pack), each line prefixed by --sam-aln-prefix.
+
+   (c) Other LUSPUV, not rbt (23), filled by sam_compute_suv:
+     count fields only: ref_posx ref_posy ref_len qry_posx qry_posy aln_matched_cgr
+       aln_trail5p_cgr aln_trail3p_cgr ref_trail5p_N ref_matched_N ref_trail3p_N
+       qry_trail5p_N qry_matched_N qry_trail3p_N ref_trail5p_V ref_trail3p_V
+     reference substrings (RPARTS): ref_trail5p ref_matched ref_trail3p
+     query substrings (QPARTS): qry_len qry_trail5p qry_matched qry_trail3p
+     (qry_len needs QPARTS for the length cross-check at 2647)
+
+   (d) rbt (20 + --sam-rbt): sam_rbt (x y; pops 2, pushes 0), rbt_alnall (cp_samdefs,
+     DEP_SAM_RBT); LUSPUV: rbt_alnref rbt_alnaln rbt_alnqry rbt_alnrlr rbt_alnqlt rbt_refx
+     rbt_refy rbt_dx rbt_dy rbt_qryx rbt_qryy rbt_qry rbt_qrylen rbt_nmatchx rbt_nmatch
+     rbt_ndel rbt_nins rbt_nedit.
+
+   Deprecated aliases in %appreciated (647-671), e.g. alnmatch qrylen refstart, rewritten
+   with a warning (1662).
+
+
+2. The LUSPUV mechanism and the per-row order
+
+   parse_compute (1646): with --sam an op in %suv_direct_lookup becomes an instruction of
+   TYPE_LUSPUV (1636) and its sambits are OR-ed into $I_AM_SAM; an op in %cp_sam_setup_seqs
+   ORs its bits too. sam_rbt sets $::LC{suv}{__sam_rbt__} at parse time; an op with
+   BIT_SAM_RBT dies unless sam_rbt (earlier in spec order) or --sam-rbt was seen (1692).
+   Without --sam these ops are "not an operator I have available" (1675).
+   do_compute (2272): a LUSPUV instruction pushes $::LC{suv}{name}. %::LC is reset per line
+   (3171); $::LC{cigar} caches acigar parses.
+
+   sambits (149-163): 0 HAVE_SAM, 1 QSEQ, 2 RSEQ, 3 CHECKLEN (one-time sam_check_reflen),
+   4 CONTEXT (extend), 5 NONF, 6 RBT (parse check only), 7 RBT_CLXY (--sam-rbt per row),
+   8 QPARTS, 9 RPARTS, 10 ALN, 11 ALN_MRK, 12 QLT_SIM, 13 NARROW_CONTEXT, 14 ND_ADJUST.
+   (do_cache 2283 is the --pstore/--group cache, unrelated.)
+
+   Per row (3231-3248), after the @@ preselect (3218), before computes and @:
+     1. $::LC{suv}{input_cigar} = CIGAR (readable via ^input_cigar,suv)
+     2. sam_check_reflen, once
+     3. sam_introns_only (--sam-ND-adjust)
+     4. sam_narrow_view (--sam-narrow-xy)
+     5. sam_normalform, unless --sam-nonf
+     6. sam_adjust_view_extend (--sam-aln-context, --sam-aln-xy)
+     7. sam_setup_sequences if QSEQ or RSEQ (2673): fill SEQ '*' from the previous row
+        (section 5); the reference from the first fasta dictionary loaded (dict_not_found:
+        dies with __EXIT__); no query: Nsam_qrymiss; unmapped (cigar '*', RNAME '*' or flag
+        4): reference ''; len(SEQ) != M I S = X sum: reference '' and Nsam_cigarerr; returns
+        1 (row discarded silently, Nsamdisc) if a needed sequence is empty
+     8. sam_compute_suv (2597); may discard on a query length discrepancy (2647-2652)
+     9. sam_compute_aln if ALN (2857); return value ignored
+    10. ref_bounded_tally if --sam-rbt
+    11. do_compute (sam_rbt runs here)
+
+   sam_compute_suv: t5 = /^((\d+[SHDNXI])+)/, t3 = /((\d+[SHDNXI])+)$/, aln_matched_cgr is
+   the middle. ref_trail5p_N = POS-1 + refsum(t5); ref_matched_N = M D N = X sum of matched;
+   ref_trail3p_N = reflen - t5N - matchedN; ref_trail5p_V / ref_trail3p_V = refsum(t5) /
+   refsum(t3) (the displayed parts); ref_posx = trail5p_N + 1. qry_trail*_N = I S M = X sum
+   of the trails, qry_matched_N = M I S H = X sum, qry_len = the sum of the three without H
+   (cgr_sum_qry 2585). Only via suv: qry_soft5p_N qry_soft3p_N ref_soft5p_N (POS-1)
+   ref_soft3p_N.
+
+
+3. Options
+
+   Coordinates use commas: sam-aln-xy=(\d+),(\d+) etc. (1505, 1510, 1518); the -H text (851-856)
+   says X/Y, which is wrong. X > Y dies.
+
+   --sam-aln-context=N (1495): CONTEXT, $::sam_max_context = N (default 10000).
+   --sam-aln-xy=X,Y (1505): CONTEXT and sam_context_x/y.
+   sam_adjust_view_extend (2507): refclipl = POS-1; refclipr = reflen - POS + 1 - sum(M D N
+     = X); qryclipl/r only a first/last S op (a leading/trailing H hides the S). Left budget
+     max_context, or POS - X if 0 < X <= POS; right budget max_context, or (bug) Y - ref_posy
+     if Y >= POS + reflen. Left: nxshared = min(refclipl, qryclipl, budget): the leading
+     \d+S becomes {nxshared}X (or is removed), POS -= nxshared; then reference left: prepend
+     {min(refclipl, budget - nxshared)}D, POS -= that; else query left: prepend {k}I and the
+     rest as {rest}S before it. Right side alike (X, then D or I + S). The trail values are
+     invariant under this rewrite (t5/t3 include X D I); test 3 checks this.
+   --sam-narrow-xy=X,Y (1510) -> sam_narrow_view (2422): clamp X >= POS, Y <= ref_posy. Left:
+     if X lies in the alignment, walk to the op containing X, replace what precedes by
+     {query bases consumed}S, keep the rest of that op, POS = X; else mark unmapped (FLAG=4,
+     POS=1, CIGAR '*'). Right: walk the new cigar to the op containing Y, keep up to Y,
+     replace the rest by {qrylen - consumed}S; only if Y narrows. A cut inside D or N leaves
+     nS kD (not normalised, ends up in t5). I before the cut is absorbed in S. H dropped
+     (verified: 2H3S10M with 83,86 gives 5S4M4S).
+   --sam-aln-prefix=STR: prefix for each line of aln_all aln_allq aln_all_pack rbt_alnall.
+   --sam-aln-mrk: aln_ref gets "  " + ('<' if ref_trail5p_N else '[') + ('>' if
+     ref_trail3p_N else ']') + "  t5, m, t3" (2948-2955); aln_qry likewise with the query
+     counts (verified: <>  80, 10, 261). Changes len(aln_ref), len(aln_qry).
+   --sam-qlt-sim: tr of the quality, !..~ to .....,,,,,aaaaaAAAAA..hhhhhHHHHHiiii (2679);
+     '*' becomes ','. In sam_compute_aln a quality shorter than 2 is replaced by '.' x qlen
+     ('!' x qlen without the option) (2881).
+   --sam-nonf: no normal form (section 4).
+   --sam-ND-adjust=DICTNAME (1527, 1583-1596; sam_introns_only 2377): the argument is a
+     dictionary name (help text says start,end). Values a-b,c-d per reference, validated.
+     An N op at 1-based p with length c stays if some interval has p+1 <= b && p+c+1 >= a,
+     else becomes D; NM:i increases by the converted length (MD, AS not updated). The test
+     window is shifted by one relative to the N span (inference: off-by-one).
+   --sam-rbt=X,Y: RBT_CLXY; ref_bounded_tally per row.
+   ref_bounded_tally (3000): 0-based, clipped to the aligned interval; no overlap: defaults
+     ('*' strings, refx 1, refy 0, rbt_nedit Y-X+1) and Nsam_rbtmiss. Walks the cigar with
+     %cigarchomp (2320: bit 1 ref, 2 query, 4 alignment columns), maps to alignment and
+     query coordinates (a boundary in a D snaps the query coordinate to the next/previous
+     base). rbt_aln* are substrings of aln_*. nmatchx = count x, ndel = -, nins = ~, nmatch =
+     | + x, nedit = del + ins + x (intron = not counted). Self-check: rbt_alnqry with all but
+     ACGTN deleted must equal rbt_qry, else Nsam_rbterr and exit 1 at the end unless -f
+     (3329).
+   --remind-me / --rmm (1453): matched with eq, so --remind-me sam (two words);
+     --remind-me=sam is rejected (verified) though -H documents =TOPIC. Prints SAM field and
+     flag tables.
+   Order: ND-adjust, narrow, normal form, extend. Narrow and extend combine (extend works
+   on the narrowed record); context and xy combine (xy can only lower the budget). All
+   rewrite columns 4 and 6 in place, visible in the output (e.g. -A).
+
+
+4. Normal form (sam_normalform 2364; default on, off with --sam-nonf)
+
+   s/^(\d+)D// with POS += length; s/\d+D$//; leading \d+I -> S; trailing \d+I -> S. Each
+   once and only on the first/last op: 2D3I10M2I1D -> 3S10M2S, POS+2 (verified); 3I2D10M ->
+   3S2D10M (the D stays, ends up in t5). Not applied behind S or H (5S3I.., 5H3I..); S+I not
+   merged. Runs for every SAM row, also without SAM operators: pick --sam -A rewrites
+   vsearch-style cigars.
+
+
+5. Query fill (2677-2696)
+
+   Cache (QNAME, RNAME, strand, SEQ, QUAL) of the previous row. SEQ '*' and the same QNAME:
+   SEQ = rc(prev) if the strands differ else prev; QUAL = reverse(prev) likewise; else both
+   ''. The stored entry is the filled one, so chains of '*' work. The record carrying SEQ
+   must come immediately before within the QNAME group (manual 812-819: primary first;
+   sort -k1,1 -k2,2n). Updated only when QSEQ or RSEQ is needed, and only for rows that
+   reach that point (@@ and -/PAT rejects do not). Hard clips not considered (a hard-clipped
+   secondary filled with the full SEQ fails the length check). pluk's design:
+   SAMSEQ.design.txt (containment rule, segments, modes).
+
+
+6. Alignment strings and ruler (sam_compute_aln 2857)
+
+   Per op: M = -> | (case-insensitive match) or x; X -> '.' for every base (the extend
+   marker; a real X from an =/X aligner is drawn the same); I -> ~ in aln, - in ref,
+   quality copied; D -> - in aln and qry, space in quality; N -> = in aln, otherwise as D;
+   S advances the query; H ignored; P error, loop stops; a bounds overflow stops the loop
+   (partial alignment). U -> T first. Then a leading run of ~ becomes _, else a leading run
+   of - becomes `; trailing runs likewise (2942-2946); one class per end.
+   Ruler (2928-2940): column i is reference position POS + i - (number of '-' in aln_ref so
+   far), POS the extended one; at positions divisible by 10 the number is written from
+   that column; truncated to len(aln_ref) before the markers are appended.
+   Symbols (manual): - deletion, = intron, ~ insertion, | match, x mismatch, ` dangling
+   reference, . dangling both, _ dangling query.
+
+
+7. Test material (pick/align)
+
+   qry.sam (minimap2, 42 records: flags 0 x7, 16 x8, 256 x2, 4 x25 unmapped; 2 SEQ '*');
+   qry2.sam (minimap2, 250, no @HD; 256 x7, 272 x3; 10 SEQ '*'); qry3mm.sam (minimap2, 329;
+   256 x5, 272 x4; 9 SEQ '*'; many S, I, D); qry3vs.sam (vsearch, 309; exterior D and I:
+   149 leading D, 80 leading I; POS 1; NM and MD tags). All QUAL '*'; no N or lower case
+   bases; no N H = X cigar ops; every secondary follows its primary with the opposite
+   strand. ref.fa ref2.fa ref3.fa (2 sequences each; ref3: GBW1 351 bp, GBW2rc 348 bp);
+   qry*.fa 40/240/320 reads; README, make2.sh, make3.sh (makedna.pl).
+   run-test3.sh: for tag in mm vs, i in 0..9: pick -qqq --sam/ref3.fa --sam-aln-mrk
+     --sam-aln-context=10i @@2/none/4, writing id, input cigar, rewritten cigar, QP/RP lines
+     (rowno i t5 m t3) and aln_all; md5 per output vs test3.md5.ref (verified for mm/3,
+     vs/3); then part counts must be identical across contexts (greps ^QP and ^QR, but the
+     label is RP: the QR check is vacuous); then rows with aln_nedit != aln_nedit_pia (0 for
+     both).
+   run-test4.sh: the same 20 configurations, lengths and values of 28 quantities (aln_*
+     lengths, *_cgr lengths, qry_*/ref_* values and lengths incl. _V); md5 vs test4.md5.ref.
+   samdisplaymatches.sh: display helper (nedit, patchiness, cgmax I, aln_all).
+
+
+8. Bugs, inconsistencies, hard-to-specify behaviour
+
+   1. --sam-aln-xy right side (2527): condition Y >= POS + reflen should be Y >= ref_posy;
+      as written the right context is always max_context (verified: 70,100 extends to the
+      end of the reference).
+   2. --sam-aln-xy left side with X > POS: the budget stays 10000 instead of 0 (verified);
+      the manual says xy only extends to include X..Y.
+   3. qry_qual has sambits 0: returns '' unless another QSEQ operator is present (verified).
+   4. suv triggers no computation: ^aln_aln,suv dies unless an ALN operator is present.
+   5. sam_narrow_view: spurious 0S prefix when X <= POS without a leading clip (10M ->
+      0S10M); H dropped; unmapped branch sets FLAG = 4 (loses 16, 256: changes isforward and
+      the strand in the fill cache, inference); a narrowed-away record is discarded
+      silently under RSEQ; $reflen unused.
+   6. narrow + context on a record unmapped by narrow gives cigar *5D (verified).
+   7. X overloaded: extend marker and real SAM mismatch op. Real leading/trailing X counts
+      as exterior; real X drawn as '.'; getalnposx stops at = / X ("Unexpected cigar state",
+      3161), so aln_posinfo with --sam-aln-context is truncated and reports context D as d=.
+   8. Edit counts asymmetric: pia/piu count ` and . (context) as edits but not _; piu counts
+      introns =; aln_nmatchx = NM - D - I does not subtract exterior indels kept with
+      --sam-nonf (inference).
+   9. rbt self-check tr/ACGTN//cd: lower case or IUPAC query bases give Nsam_rbterr and exit
+      1 (verified with R and cc).
+  10. If the whole cigar is [SHDNXI], t5 and t3 overlap: qry_len double counted, negative
+      substr length (inference).
+  11. extend ignores S hidden behind H (5H10S..); without header lengths and fasta reflen is
+      0, refclipr negative, a negative-count op possible (inference).
+  12. normal form only on first/last op, on every row, alters output columns 4 and 6.
+  13. ND-adjust: possible off-by-one; help text wrong.
+  14. --remind-me=sam rejected; help shows X/Y where commas are required.
+  15. unmapped and failing rows discarded silently under RSEQ (README acknowledges);
+      sam_compute_aln's return value ignored; ref_bounded_tally has a meaningless return.
+  16. minor: __sam_rbt__ leaks into row 1's line cache; sam_put on an empty column 12 gives
+      a leading tab; the SQ length regex is applied to every header line; the reference
+      dictionary is whichever fasta dictionary was loaded first.
