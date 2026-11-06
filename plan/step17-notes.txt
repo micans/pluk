@@ -1,0 +1,25 @@
+
+Notes for plan/step17.txt (SAM groundwork).
+
+
+Item 1: design files
+
+  SAMVIEW.design.txt written: the lazy per-row view (pick's bit mask replaced by stages
+  computed on first use), the place of the fill, the @@ filters and the input rewrites in
+  the row pipeline, the rewrite mechanism (splice the new POS and CIGAR into the line and
+  split again, so that whole-line output, filters and computes see one record; only rows
+  that change pay), the stages, CIGAR parsing, trails and X, the count definitions, the NA
+  reasons and their counts, availability of the operators.
+
+  Two points made precise while writing, beyond step17.txt:
+  - Unmapped also covers RNAME '*' (pick's test in sam_setup_sequences: CIGAR '*', RNAME '*'
+    or FLAG 0x4).
+  - The filled SEQ and QUAL are held by the view and not written to the output, which keeps
+    columns 10 and 11 as read (as pick).
+
+  SAMSEQ.design.txt: status updated; section 5 now has the modes skip (default) and exit;
+  the N mode and samseq::unknown_sequence go (removed in item 5, with the wiring).
+
+  SAM.notes.txt: the agreed order of the SAM steps and the step17 decisions appended;
+  sam_put described with the -i workaround (tested on test/sam-clean.txt) and two ideas for
+  a real implementation.

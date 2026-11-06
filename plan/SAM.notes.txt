@@ -34,3 +34,47 @@ then SAM). Kept as written.
   but is not a shining beacon of elegance.
 
 
+
+
+Agreed at the start of step17 (plan/step17.txt; pick's implementation surveyed in
+SAM.pick-survey.txt; design in SAMVIEW.design.txt)
+
+  Order of the SAM steps. The view options move after the alignment display: they rewrite
+  CIGAR and POS, are checked through aln_all (as pick's align/run-test3.sh does), and need
+  the reference length.
+    17  groundwork: the SAM view, normal form, the fill, operators without reference sequence
+    18  reference sequence and alignment display (aln_* strings, ref_/qry_ substrings,
+        aln_nedit_pia/piu, aln_posinfo, patchiness, --sam-aln-prefix/-mrk, --sam-qlt-sim)
+    19  view options (--sam-aln-context --sam-aln-xy --sam-narrow-xy --sam-ND-adjust)
+    20  rbt
+    later: bio operators, --remind-me
+
+  suv is dropped (a remnant of pick's early days); input_cigar is withheld. Normal form stays
+  as pick (every row, also without SAM operators). Values that cannot be computed give NA and
+  the row is kept, with counts. Missing sequence: --sam-seqmiss=skip|exit, skip by default
+  (the N mode is dropped).
+
+
+sam_put (separate from the SAM steps; used by the author)
+
+  pick: ^TAG^VALUE,sam_put appends TAB TAG:VALUE to column 12 (the optional fields, merged by
+  -O12), changing an input column from inside a compute; it pops two values and pushes
+  nothing. TAG may be written XX.T or XX-T for XX:T. On a record without optional fields the
+  result starts with a TAB (an empty field 12 followed by the new one).
+
+  Workaround available now (tested in step17): -i with a compute on column 12,
+    pluk --sam -A -i '12::__^%09XX%3Ai%3A:4'
+  appends XX:i:<POS>. Same leading-TAB quirk as pick on records without optional fields.
+
+  Ideas for a real sam_put:
+   a. As an operator with a row effect: the machine collects the TAG:VALUE pairs of a row;
+      after the computes the row's column 12 is rewritten with the same splice-and-resplit
+      used by the input rewrites (SAMVIEW.design.txt section 3), so @ filters, --demux and
+      the output see the new fields. No TAB is added before the first field when column 12
+      is empty. Questions: the compute that holds sam_put has an empty value (sam_put pushes
+      nothing) and would normally be written without '::'; interaction with an -i compute on
+      column 12 in the same run (order: sam_put after all computes); whether a tag already
+      present is replaced or a second one added (pick adds).
+   b. Sugar for the workaround: an operator that formats TAG:VALUE (handling XX.T), used in
+      an -i compute on column 12; leaves the in-place rules untouched but needs -i and the
+      column name.

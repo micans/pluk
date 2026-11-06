@@ -1,0 +1,166 @@
+
+SAMVIEW design: the per-row SAM view, the input rewrites, and the values the SAM operators read.
+
+Status: DECIDED in step17 (plan/step17.txt decisions 0-8). Written for the SAM steps 17-20;
+sections marked [step18] [step19] [step20] are the frame for later steps and are filled in
+there. pick's implementation: plan/SAM.pick-survey.txt ('survey'). The sequence fill:
+plan/SAMSEQ.design.txt.
+
+
+1. What pick does, and what pluk does instead
+
+   pick turns most SAM operators into lookups in a per-line hash (the 'LUSPUV' instructions)
+   and decides while parsing, through a bit mask collected from the operators used, which
+   per-row stages run (survey section 2). pluk keeps the stages but not the mask:
+
+   - A SAM view lives in the machine next to the registers (step15) and is reset for every
+     row. Each stage is computed the first time an operator needs it in a row, and kept
+     for the rest of that row. A stage computes the stages it depends on first.
+   - The SAM operators are ordinary operators (ops.rs, category sam) that ask the view for
+     a stage and read a field of it: no hash lookup, and only what is used is computed.
+   - What must happen to every record (the input rewrites, section 3) is not lazy.
+
+
+2. Where SAM processing sits in the row pipeline
+
+     read line (-/PAT and -//PAT apply first; SAM header lines are pass-through or skipped)
+     -> fill cache update and fill            SAMSEQ.design.txt; only when the fill is active
+                                              (an operator needs the query sequence); a row
+                                              that cannot be filled is skipped or ends the run
+                                              (--sam-seqmiss=skip|exit), before any filter
+     -> @@ assertions and filters             see the input record
+     -> input rewrites (section 3)            change columns 4 (POS) and 6 (CIGAR) of the row
+     -> view reset; computes                  view stages computed on demand
+     -> @ assertions and filters, output      see the rewritten record
+
+   As pick, rows rejected by @@ filters (and written to --other) are the input records;
+   computes, @ filters and the output see the rewritten record. Unlike pick, the fill cache
+   is updated before the @@ filters (SAMSEQ.design.txt section 2), so a filtered primary
+   still supplies its secondaries.
+
+   The filled SEQ and QUAL are held by the view, for the operators; the output keeps the
+   input columns 10 and 11 (as pick).
+
+
+3. Input rewrites
+
+   They change the row itself: the new POS and CIGAR are spliced into the line and the
+   fields are split again, so that every consumer (output of whole lines, filters, computes,
+   --demux) sees one consistent record. Only rows that change pay for this.
+
+   Order (pick's): ND-adjust [step19], narrow [step19], normal form, context extension
+   [step19].
+
+   Normal form (default; off with --sam-nonf), as pick, each rule once and only on the first
+   or last operation:
+     leading  nD   removed, POS += n
+     trailing nD   removed
+     leading  nI   becomes nS
+     trailing nI   becomes nS
+   2D3I10M2I1D becomes 3S10M2S with POS + 2; 3I2D10M becomes 3S2D10M (the D stays; it is
+   part of the 5' trail, section 5). Not applied behind S or H (5S3I.. is unchanged), and S
+   and I are not merged. Unmapped records (section 6) are not rewritten.
+
+
+4. Stages
+
+     record    FLAG, POS, RNAME, the parsed CIGAR (a list of (length, operation)); MAPQ etc.
+               are read from the row when needed
+     counts    the trails and all counts of section 5; needs record and, for ref_len and
+               ref_trail3p_N, the reference length
+     query     the query sequence and quality: SEQ and QUAL, or the fill (SAMSEQ); checked
+               against the CIGAR length
+     parts     [step18] reference and query substrings (ref_trail5p ref_matched ..)
+     aln       [step18] the alignment strings (aln_ref aln_aln aln_qry aln_rlr aln_qlt)
+     rbt       [step20] the region-bound tally
+
+   A stage that cannot be computed records why (section 6); every operator that needs it
+   gives NA.
+
+   CIGAR parsing: one or more (length, operation) pairs, length a positive decimal number,
+   operation one of M I D N S H P = X. '*' means no alignment. Anything else does not parse.
+   P (padding) consumes neither reference nor query.
+
+   What an operation consumes:
+     reference    M D N = X
+     query        M I S = X
+     (H consumes neither: the bases are not in SEQ.)
+
+
+5. Trails, matched part and counts
+
+   The 5' trail is the leading run of S H D N I operations, the 3' trail the trailing run;
+   the matched part is what lies between and starts and ends with an aligned operation (M =
+   X). A CIGAR without aligned operation is all 5' trail; the matched part and the 3' trail
+   are then empty (pick: the trails overlap, survey 8.10).
+
+   X: pick also counts X as exterior, because its context extension writes the added
+   context as X (survey 3, 8.7). In pluk an X from the input is aligned (a mismatch). The
+   context added by step19 is recorded in the view (the number of context operations at
+   each end) and belongs to the trails; the visible CIGAR is pick's.
+
+   With POS the 1-based position, reflen the reference length (section 7):
+     aln_trail5p_cgr aln_matched_cgr aln_trail3p_cgr   the three parts as CIGAR strings
+     ref_trail5p_N   POS - 1 + reference length of the 5' trail
+     ref_matched_N   reference length of the matched part
+     ref_trail3p_N   reflen - ref_trail5p_N - ref_matched_N
+     ref_trail5p_V   reference length of the 5' trail (shown in the alignment)
+     ref_trail3p_V   reference length of the 3' trail
+     ref_posx        ref_trail5p_N + 1
+     ref_posy        ref_posx + ref_matched_N - 1
+     ref_len         reflen
+     qry_trail5p_N   query length of the 5' trail (I S; H excluded)
+     qry_matched_N   query length of the matched part
+     qry_trail3p_N   query length of the 3' trail
+     qry_len         the sum of the three: the length of SEQ when stored
+     qry_posx        qry_trail5p_N + 1
+     qry_posy        qry_posx + qry_matched_N - 1
+     aln_nmatch      M = X length of the matched part
+     aln_nedit       the NM:i value, 0 without one (pick)
+     aln_nmatchx     NM minus the D and I lengths of the matched part
+   These are pick's definitions (survey section 2). Positions are 1-based and in the
+   reference orientation (SAM's), whatever the strand.
+
+
+6. Values that are not available (NA)
+
+   pick discards rows silently when a needed value is missing (survey 8.15). pluk gives NA
+   for the operators that need it and keeps the row. Reasons, each counted per row and
+   reported at the end (note!, silenced by -q):
+     unmapped            FLAG 0x4, CIGAR '*' or RNAME '*': all counts and parts
+     cigar               the CIGAR does not parse: all counts and parts
+     reference length    RNAME not in the seqlen dictionary: ref_len, ref_trail3p_N
+     sequence length     SEQ (stored or filled) differs from qry_len: qry_seq, qry_qual and
+                         the query parts
+     [step18] reference sequence not available
+   isforward and sam_get work for every record. With the fill active, a row whose SEQ '*'
+   cannot be filled never reaches the computes (--sam-seqmiss).
+
+
+7. The reference length and sequence
+
+   The reference length is the value of RNAME in the seqlen dictionary (step4: @SQ lines of
+   the header, or with --sam/FILE the fasta lengths, reported if they disagree). [step18]
+   The reference sequence comes from the dictionary SAMFA (--sam/FILE), or else the first
+   fasta dictionary given (as pick).
+
+
+8. Operators and availability
+
+   SAM operators need --sam or --sam-h: elsewhere a compile-time error naming the option.
+   cgsum cgmax cgcount take a CIGAR string from the stack and work everywhere. -l sam lists
+   the SAM operators. Not taken over: suv (the view's values are operators), input_cigar
+   (withheld), sam_put (separate, SAM.notes.txt).
+
+   sam_get TAG DEFAULT: TAG a constant XX:T, XX.T or XX-T (checked at compile time, as
+   pick); the value of the first optional field with that tag and type, else DEFAULT.
+
+
+9. Differences from pick (also in guidelines.txt as they are implemented)
+
+   - NA and the row kept, with counts, where pick discards silently (section 6).
+   - X from the input is aligned; the trails never overlap (section 5).
+   - The fill cache is updated before the @@ filters (section 2; SAMSEQ.design.txt).
+   - suv, input_cigar not available.
+   - The bugs listed in step17.txt decision 0 and survey section 8, fixed in the step that
+     implements the feature concerned.

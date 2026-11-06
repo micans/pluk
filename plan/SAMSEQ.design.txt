@@ -2,8 +2,9 @@
 SAMSEQ design: filling in a missing read sequence (SEQ '*') in SAM input.
 
 Status: DECIDED in step5. The fill logic is implemented in step5 (src/samseq.rs, unit tests only).
-It is called from the main loop, with the mode option, diagnostics and counters, in the first
-SAM operator step (deferred.txt).
+It is called from the main loop, with the mode option, diagnostics and counters, in step17 item 5.
+Section 5 amended in step17: the modes are skip (default) and exit; the N mode is dropped. Where
+the fill sits among the SAM stages: plan/SAMVIEW.design.txt.
 
 
 1. Background
@@ -72,19 +73,19 @@ SAM operator step (deferred.txt).
 
 5. Missing sequence: modes
 
-   When no source contains the target's piece, the mode decides:
-     N      (default) SEQ becomes Q times 'N', QUAL becomes Q times '!'
-     skip   the row is discarded
-     exit   pluk exits with an error
-   Each case gives a diagnostic (per row up to a limit) and a counter reported at the end.
-   N rather than A: N means an unknown base in SAM and FASTA, so mismatch operators do not count
-   false matches. '!' is Phred quality 0 (error probability 1), the quality that goes with an
-   unknown base; SEQ and QUAL keep the same length, so operators that cut both need no special
-   case. Quality statistics count such rows as Q0, which is correct for unknown bases; the
-   counter shows how many rows are affected, and skip excludes them.
-   This differs from a source found with QUAL '*' (section 3): the target QUAL then stays '*',
-   as the file holds no quality values for the read. The option name is decided in the step that adds it (suggestion:
-   --sam-seqmiss=N|skip|exit).
+   When no source contains the target's piece, --sam-seqmiss decides:
+     skip   (default) the row is discarded, before any filter; it is not written to --other
+            (no filter rejected it)
+     exit   pluk exits with an error naming the line
+   Each case gives a diagnostic (per row up to a limit) and a counter reported at the end
+   (silenced by -q).
+   [step17: the N mode of step5 (SEQ Q times 'N', QUAL Q times '!') is dropped: no clear use
+   was found. samseq::unknown_sequence goes with it.]
+   A source found with QUAL '*' (section 3) is not a missing sequence: the target QUAL is '*',
+   as the file holds no quality values for the read.
+
+   The filled SEQ and QUAL are for the operators (held by the SAM view); the output keeps the
+   input columns 10 and 11, as pick.
 
 
 6. Sort order and limitations
