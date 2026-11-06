@@ -1,11 +1,13 @@
 mod bam;
 mod colspec;
+mod compute;
 mod demux;
 mod dict;
 mod filter;
 mod io;
 mod names;
 mod num;
+mod ops;
 mod opt;
 mod output;
 mod row;
@@ -25,6 +27,19 @@ const OUT_BUFSIZE: usize = 128 * 1024;
 
 fn run() -> std::io::Result<()> {
     let config = opt::parse_args();
+
+    // Temporary (step10): the parsed computes; no input is read.
+    if config.test_compute {
+        for spec in &config.computes {
+            print!("{}", compute::describe(spec));
+        }
+        return Ok(());
+    }
+    // Computes are parsed (step10 item 2) but not yet executed.
+    if let Some(spec) = config.computes.first() {
+        return Err(std::io::Error::new(ErrorKind::Unsupported,
+                   format!("[{}]: computes are not yet executed", String::from_utf8_lossy(&spec.text))));
+    }
 
     // Temporary step1 output: line number and line (or one field with --test-i).
     let lineno_mode = config.test_lineno || config.test_i.is_some();

@@ -1,0 +1,5 @@
+compute r (output)
+  column [2-4]
+  op addall
+compute 5 (output)
+  const [x]

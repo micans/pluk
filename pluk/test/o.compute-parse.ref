@@ -1,0 +1,26 @@
+compute x (output)
+  column [fib]
+  const [1]
+  op add
+compute y (no output)
+  const [a]
+  column [fib]
+  op cat
+compute PLUKAAAAA (output)
+  column [name]
+  op dup
+  op xch
+  op pop
+compute PLUKAAAAB (output)
+  const []
+compute s (output)
+  column [+num\d]
+  op addall
+compute a/b (output)
+  const [x,y:z^]
+compute d (output)
+  column [fx]
+  const [o]
+  op del
+compute PLUKAAAAC (output)
+  const [2]

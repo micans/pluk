@@ -8,4 +8,4 @@ error: unclosed group
     (?<=a)b
     ^^^^
 error: look-around, including look-ahead and look-behind, is not supported
-[x::y]: computes ('::', ':=') not yet supported
+pluk: [x::y]: computes are not yet executed

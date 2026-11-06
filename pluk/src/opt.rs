@@ -13,6 +13,7 @@ use std::os::unix::ffi::OsStringExt;
 use std::process;
 
 use crate::colspec::{self, ColSpec};
+use crate::compute::{self, ComputeSpec, UnnamedNames};
 use crate::dict::{self, DictKind, DictSpec, NotFound};
 use crate::filter::{parse_filter, FilterSpec};
 
@@ -40,7 +41,9 @@ pub struct Config {
     pub test_select: bool,              // --test-select (temporary)
     pub test_dict: bool,                // --test-dict (temporary)
     pub test_samsort: bool,             // --test-samsort (temporary)
+    pub test_compute: bool,             // --test-compute (temporary, step10)
     pub columns: Vec<ColSpec>,          // column arguments (plan/COLSPEC.design.txt)
+    pub computes: Vec<ComputeSpec>,     // computes (plan/COMPUTE.design.txt), in command line order
     pub filters: Vec<FilterSpec>,       // @ and @@ filters, in command line order
     pub or_post: bool,                  // -o: OR the @ filters
     pub or_pre: bool,                   // -s: OR the @@ filters
@@ -200,10 +203,13 @@ pub fn parse(args: &[Vec<u8>]) -> Result<Parsed, String> {
             parse_bundle(&word[1..], &mut config)?;
         }
     }
-    // The trailing arguments: column names and filters, mixed as in pick.
+    // The trailing arguments: column names, filters and computes, mixed as in pick.
+    let mut unnamed = UnnamedNames::new();
     for arg in &args[i..] {
         if arg.starts_with(b"@") {
             config.filters.push(parse_filter(arg, config.k)?);
+        } else if compute::is_compute(arg) {
+            config.computes.push(compute::parse(arg, config.k, &mut unnamed)?);
         } else {
             config.columns.push(colspec::parse(arg, config.k)?);
         }
@@ -234,6 +240,7 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
         b"test-select"          => config.test_select = true,
         b"test-dict"            => config.test_dict = true,
         b"test-samsort"         => config.test_samsort = true,
+        b"test-compute"         => config.test_compute = true,
         _ if long.starts_with(b"other=") || long.starts_with(b"assert-other=") => {
             let (name, slot) = match long.strip_prefix(b"other=") {
                 Some(name) => (name, &mut config.other),

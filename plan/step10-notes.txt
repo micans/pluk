@@ -1,0 +1,48 @@
+step10 notes: decisions and rationale for implementation choices.
+
+  Design: COMPUTE.design.txt (decided before the step). Item 1 is the design file itself.
+
+
+Item 2: parsing computes
+
+  Files: src/ops.rs (new: Pops, Category, OpDef, OPERATORS, lookup), src/compute.rs (new:
+  Token, ComputeSpec, is_compute, UnnamedNames, parse, describe), opt.rs (computes among the
+  trailing arguments, --test-compute), main.rs (--test-compute output; computes otherwise
+  'not yet executed').
+
+  Recognition. In the trailing arguments a leading '@' still makes a filter; otherwise an
+  argument containing '::' or ':=' is a compute, before it could reach colspec::parse (which
+  keeps refusing them in filter handles). The first '::' or ':=' ends NAME, as pick.
+
+  NAME. Empty: the next unnamed name, PLUKAAAAA, PLUKAAAAB, ... (UnnamedNames increments five
+  letters from the right, as Perl's string increment does for pick's PICKAAAAA). Otherwise a
+  single plain name, %-decoded: a list, '+' regex or (-k) range is 'map', and '/' is pick's
+  prefix/suffix syntax; both are 'not yet supported' (COMPUTE.design.txt section 8). Whether
+  NAME already exists can only be checked once the header is known (item 3).
+
+  SPEC. Empty is an error ('compute is empty', pick: 'Compute cannot be empty'). Tokens are
+  split at ^ : , ; a SPEC that does not start with one of them starts with a column, as
+  pick. ^VALUE is %-decoded and may be empty; :COLSPEC goes through colspec::parse, so '+'
+  regexes and -k ranges work, and an empty column name is an error; ,OP is looked up in the
+  operator table, an empty or unknown operator is an error. Errors are option errors, before
+  input is read. A ':' token cannot hold a ':' list (':' starts the next token); a+b written
+  as :a:b is two column tokens anyway.
+
+  The operator table. OpDef holds the name, the stack effect (pops: N or All; pushes), a
+  category and pick's help texts (operands, result, description). Operand kinds, the prepare
+  hook and the implementation are added with items 3 and 4, when they are used. Seed
+  operators: dup pop xch (stack), cat (string), add, addall (arithmetic), del (regex), with
+  pick's stack effects (addall takes the whole stack, possibly empty).
+
+  Rust note: the table is a static slice of structs (pub static OPERATORS: &[OpDef]); a
+  token holds a &'static OpDef, a reference into that table, which lives for the whole
+  program, so no lifetime parameter is needed.
+
+  Until item 4 a compute that parses stops pluk with '[x::^1]: computes are not yet
+  executed'. --test-compute (temporary) prints the parsed form without reading input.
+
+  Tests: runtestopt: compute-parse (named, :=, unnamed and their numbering, empty constant,
+  splat regex, %-encoding of ^ : , and '/', a regex operator), compute-parse-k (range
+  operand, a number as NAME), compute-parse-errors. runpluk: compute-not-executed.
+  sel-unsupported and colspec-errors: 'x::y' and 'x:=y' are now computes (not yet
+  executed). Unit tests in ops.rs (table) and compute.rs (syntax, unnamed, errors).

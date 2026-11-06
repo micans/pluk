@@ -1,2 +1,2 @@
-[x::y]: computes ('::', ':=') not yet supported
-[x:=y]: computes ('::', ':=') not yet supported
+pluk: [x::y]: computes are not yet executed
+pluk: [x:=y]: computes are not yet executed
