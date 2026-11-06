@@ -46,6 +46,8 @@ pub struct Config {
     pub or_pre: bool,                   // -s: OR the @@ filters
     pub other: Option<Vec<u8>>,         // --other=FILE: rows rejected by filters
     pub assert_other: Option<Vec<u8>>,  // --assert-other=FILE: rows failing an assertion
+    pub demux: Option<Vec<u8>>,         // --demux=NAME (%-decoded column name)
+    pub demux_dir: Option<Vec<u8>>,     // --demux-dir=PATH
 }
 
 // Result of a successful parse: run, or print help or version and exit.
@@ -106,6 +108,11 @@ Options:
               columns as the output; .gz or .gzip: gzip-compressed)
   --assert-other=FILE  write rows that fail an @assert@ or @@assert@ to FILE
               instead of stopping; such rows go nowhere else
+  --demux=NAME  write each output row to the file named by its value in column
+              NAME (a relative path; .gz or .gzip: gzip-compressed); a tally of
+              files goes to stderr. Rows rejected by @ filters create their file.
+  --demux-dir=PATH  directory for the --demux files (must exist)
+  --demux-buffer=N  accepted for compatibility with pick; no effect
   --sam       SAM input: implies -k and -O12, skips lines starting with @.
               BAM input is recognised and read as SAM
   --sam-h     as --sam, but outputs lines starting with @ unchanged
@@ -236,6 +243,25 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
                 return Err(format!("--{}FILE: file name missing", String::from_utf8_lossy(&long[..long.len() - name.len()])));
             }
             *slot = Some(name.to_vec());
+        }
+        _ if long.starts_with(b"demux=") => {
+            let name = &long[6..];
+            if name.is_empty() || name.starts_with(b"+") || name.contains(&b':') {
+                return Err("--demux=NAME: NAME must be a single column name".to_string());
+            }
+            config.demux = Some(pct_decode(name));
+        }
+        _ if long.starts_with(b"demux-dir=") => {
+            if long.len() == 10 {
+                return Err("--demux-dir=PATH: path missing".to_string());
+            }
+            config.demux_dir = Some(long[10..].to_vec());
+        }
+        // pick buffers N rows per demux file; pluk's files are buffered anyway.
+        _ if long.starts_with(b"demux-buffer=") => {
+            if parse_number::<u64>(&long[13..]).is_none() {
+                return Err("--demux-buffer=<N> N must be a number".to_string());
+            }
         }
         _ if long.starts_with(b"threads=") => {
             match parse_number::<u32>(&long[8..]) {
@@ -475,6 +501,12 @@ fn check_combinations(config: &Config) -> Result<(), String> {
     }
     if config.add_row_column && config.k {
         return Err("-R cannot be combined with -k".to_string());
+    }
+    if config.demux.is_some() && config.c {
+        return Err("--demux cannot be combined with -c".to_string());
+    }
+    if config.demux_dir.is_some() && config.demux.is_none() {
+        return Err("--demux-dir requires --demux".to_string());
     }
     if let (Some(a), Some(b)) = (&config.other, &config.assert_other) {
         if a == b {

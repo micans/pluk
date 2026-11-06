@@ -1,5 +1,6 @@
 mod bam;
 mod colspec;
+mod demux;
 mod dict;
 mod filter;
 mod io;
@@ -15,6 +16,7 @@ mod select;
 mod sink;
 
 use std::io::{BufWriter, ErrorKind, Write};
+use std::os::unix::ffi::OsStrExt;
 use std::process;
 
 // Output buffer size. Rust's stdout flushes at every newline by default;
@@ -52,6 +54,12 @@ fn run() -> std::io::Result<()> {
     let mut other = config.other.as_deref().map(|n| sink::SideFile::create("--other", n)).transpose()?;
     let mut assert_other = config.assert_other.as_deref()
         .map(|n| sink::SideFile::create("--assert-other", n)).transpose()?;
+    if let Some(dir) = &config.demux_dir {
+        if !std::path::Path::new(std::ffi::OsStr::from_bytes(dir)).is_dir() {
+            return Err(std::io::Error::new(ErrorKind::NotFound,
+                       format!("--demux-dir: [{}] is not a directory", String::from_utf8_lossy(dir))));
+        }
+    }
 
     // As in pick: header output on by default, off with -k; -h and -c always switch it off.
     #[allow(non_snake_case)]
@@ -175,12 +183,34 @@ fn run() -> std::io::Result<()> {
         }
     }
 
+    // --demux: the output rows go to files, each starting with the preamble and
+    // the header (following -h and -k), instead of stdout.
+    let mut demux = match &config.demux {
+        Some(name) if !input.is_empty => {
+            let column = input.names.index_of(name).ok_or_else(|| std::io::Error::new(ErrorKind::InvalidInput,
+                format!("--demux: column [{}] not found among {}", String::from_utf8_lossy(name), input.names.joined())))?;
+            let writer = output::RowWriter::new(&selection.output_offset, input.n_columns, input.settings.omega.is_some());
+            let mut start = Vec::new();
+            for line in &input.passthrough_preamble {
+                output::write_line(&mut start, line)?;
+            }
+            if !config.k && !config.no_header {
+                writer.write_header(&mut start, &input.names)?;
+            }
+            let taken = [&config.other, &config.assert_other].into_iter().flatten().cloned().collect();
+            Some(demux::Demux::new(column, config.demux_dir.clone(), writer, start, taken))
+        }
+        _ => None,
+    };
+
     if config.c {
         // -c: output only the number of data rows that pass the filters.
         let mut n_kept: u64 = 0;
         while let Some(kind) = input.next_line()? {
             match kind {
-                io::LineKind::Data        => if route(&mut filters, &input, &mut other, &mut assert_other)? { n_kept += 1 },
+                io::LineKind::Data        => if route(&mut filters, &input, &mut other, &mut assert_other, &mut None)? {
+                    n_kept += 1
+                },
                 io::LineKind::PassThrough => output::write_line(&mut out, &input.row.line)?,
             }
         }
@@ -198,19 +228,25 @@ fn run() -> std::io::Result<()> {
     } else {
         let writer = output::RowWriter::new(&selection.output_offset, input.n_columns,
                                             input.settings.omega.is_some());
-        if B_print_header && !input.is_empty {
+        if B_print_header && !input.is_empty && demux.is_none() {
             writer.write_header(&mut out, &input.names)?;
         }
         while let Some(kind) = input.next_line()? {
             match kind {
-                io::LineKind::Data => if route(&mut filters, &input, &mut other, &mut assert_other)? {
-                    writer.write_row(&mut out, &input.row)?
+                io::LineKind::Data => if route(&mut filters, &input, &mut other, &mut assert_other, &mut demux)? {
+                    match &mut demux {
+                        Some(d) => d.write(&input.row, input.n_lines)?,
+                        None => writer.write_row(&mut out, &input.row)?,
+                    }
                 },
                 io::LineKind::PassThrough => output::write_line(&mut out, &input.row.line)?,
             }
         }
     }
     out.flush()?;
+    if let Some(d) = demux {
+        d.finish()?;
+    }
     if let Some(file) = other {
         file.finish()?;
     }
@@ -235,17 +271,22 @@ fn run() -> std::io::Result<()> {
 }
 
 // Whether the current data row is kept. A row rejected by a filter is written to
-// --other; a row that fails an assertion is written to --assert-other, or else
+// --other, and if rejected by an @ filter also counted by --demux (which opens
+// its file); a row that fails an assertion is written to --assert-other, or else
 // ends the run with an error giving the line number.
 fn route(filters: &mut filter::Filters, input: &io::LineReader,
-         other: &mut Option<sink::SideFile>, assert_other: &mut Option<sink::SideFile>)
+         other: &mut Option<sink::SideFile>, assert_other: &mut Option<sink::SideFile>,
+         demux: &mut Option<demux::Demux>)
     -> std::io::Result<bool>
 {
     match filters.keep(&input.row) {
-        Ok(true) => Ok(true),
-        Ok(false) => {
+        Ok(filter::Verdict::Keep) => Ok(true),
+        Ok(verdict) => {
             if let Some(file) = other {
                 file.write_row(&input.row)?;
+            }
+            if let (filter::Verdict::RejectPost, Some(d)) = (verdict, demux) {
+                d.filtered(&input.row, input.n_lines)?;
             }
             Ok(false)
         }

@@ -1,0 +1,25 @@
+File	Written	Filtered
+out/dm2/ant	1	0
+out/dm2/bug	1	0
+out/dm2/eagle	1	0
+out/dm2/fly	0	1
+out/dm2/pig	0	1
+out/dm2/rat	0	1
+out/dm2/swift	0	1
+-- ./ant
+name	fib
+Inky	34
+-- ./bug
+name	fib
+Gillian	13
+-- ./eagle
+name	fib
+Kelly	89
+-- ./fly
+name	fib
+-- ./pig
+name	fib
+-- ./rat
+name	fib
+-- ./swift
+name	fib

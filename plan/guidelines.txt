@@ -75,7 +75,9 @@
       also receives rows rejected by @@ filters; --assert-other covers @@assert@ too and
       combines with @ filters (pick refuses them); the pass-through preamble is written to every
       output file; with -c the files keep their header, and without column arguments get
-      whole rows; demux file names are restricted (step9.txt).
+      whole rows; demux file names are restricted (no empty, absolute, '.' or '..' parts),
+      --demux-dir sets their directory, too many open files is an error, the tally has no
+      LastFlush column, --demux-buffer has no effect, -c with --demux is refused (step9.txt).
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

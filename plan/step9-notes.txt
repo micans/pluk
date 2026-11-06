@@ -103,3 +103,48 @@ Item 2: --assert-other
   and --other: every row lands in exactly one place), assert-other-c (-c, gzip, a regex
   handle; a run without failures leaves the file with its header only and gives no
   message), assert-other-errors. Help refs updated.
+
+
+Item 3: --demux, --demux-dir, --demux-buffer
+
+  Files: src/demux.rs (new: Demux, check_name), filter.rs (Verdict), opt.rs (options,
+  combination checks, help), main.rs (creating the Demux, route(), stdout header).
+
+  Filters::keep() now returns Result<Verdict, String> with Verdict Keep, RejectPre (an @@
+  filter) and RejectPost (an @ filter), because --demux treats them differently: as pick, a
+  row rejected by an @ filter opens its file and is tallied as filtered, one rejected by an
+  @@ filter never reaches the demux step. route() writes rejected rows to --other (both
+  kinds) and calls Demux::filtered() for RejectPost; kept rows go to Demux::write() instead
+  of stdout. Rows failing an assertion go to --assert-other (or end the run) and never to a
+  demux file.
+
+  Demux keeps the files in a Vec with a HashMap from value to position (one hash lookup per
+  row). A file is opened on first use of its value: check_name() (not empty, not absolute, no
+  empty, '.' or '..' component), the path joined to --demux-dir, the clash check against the
+  --other and --assert-other names (compared as given), FileSink::create, then the start
+  bytes: preamble and header, rendered once into a Vec<u8> when the Demux is made. An open
+  that fails with EMFILE or ENFILE (raw OS errors 24, 23) gives the 'cannot open more files
+  ... split the run with @@ filters on the demux column' error; other failures (missing
+  subdirectory) name the path. finish() sorts the files by path, prints the tally
+  (File, Written, Filtered) and finishes each file.
+
+  The demux column is a single plain name (%-decoded), looked up after the header; '+' and ':'
+  are refused at option parsing. --demux-dir must be an existing directory (checked before
+  input is read) and requires --demux. --demux-buffer=N checks that N is a number and has no
+  effect. -c with --demux is an option error. With --demux the stdout header is not written;
+  stdout gets the preamble and mid-input pass-through lines only.
+
+  A test pitfall: SAM's unmapped reference '*' becomes a file named '*'. It is a valid name
+  under the policy (pick does the same), but a shell loop over $(ls) or $(find) expands it;
+  the tests list files with 'find | while read -r f'.
+
+  Checked against pick (each run in its own empty directory, since pick has no --demux-dir):
+  --demux=fx without filters, with an @ filter, with an @@ filter, and with -h -A give
+  identical files and stdout, and the same tally apart from pick's LastFlush column.
+
+  Tests: demux (@ filter: empty files with header), demux-pre (@@ and @ filter), demux-gz-h
+  (gzip by suffix, a subdirectory, '*', -h), demux-sam (preamble in every file, mid-input
+  @CO to stdout), demux-other (with --other, --assert-other and --demux-buffer),
+  demux-many (ulimit -n 20; only the fixed parts of the message, as the number of open files
+  can differ between systems), demux-errors (file-name policy, missing subdirectory, clash,
+  option errors). Help refs updated. Unit tests in demux.rs (names).

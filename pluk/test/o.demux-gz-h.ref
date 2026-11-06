@@ -1,0 +1,11 @@
+File	Written	Filtered
+out/dm3/*	1	0
+out/dm3/a.gz	2	0
+out/dm3/sub/b.txt	1	0
+-- ./*
+4
+-- ./a.gz
+1
+3
+-- ./sub/b.txt
+2

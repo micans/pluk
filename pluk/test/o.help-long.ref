@@ -27,6 +27,11 @@ Options:
               columns as the output; .gz or .gzip: gzip-compressed)
   --assert-other=FILE  write rows that fail an @assert@ or @@assert@ to FILE
               instead of stopping; such rows go nowhere else
+  --demux=NAME  write each output row to the file named by its value in column
+              NAME (a relative path; .gz or .gzip: gzip-compressed); a tally of
+              files goes to stderr. Rows rejected by @ filters create their file.
+  --demux-dir=PATH  directory for the --demux files (must exist)
+  --demux-buffer=N  accepted for compatibility with pick; no effect
   --sam       SAM input: implies -k and -O12, skips lines starting with @.
               BAM input is recognised and read as SAM
   --sam-h     as --sam, but outputs lines starting with @ unchanged

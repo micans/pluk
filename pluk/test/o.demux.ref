@@ -1,0 +1,45 @@
+File	Written	Filtered
+out/dm1/ant	1	0
+out/dm1/bat	0	1
+out/dm1/bug	1	0
+out/dm1/cat	0	1
+out/dm1/cow	0	1
+out/dm1/dog	0	1
+out/dm1/eagle	1	0
+out/dm1/fly	1	0
+out/dm1/owl	0	1
+out/dm1/pig	1	0
+out/dm1/rat	1	0
+out/dm1/swift	1	0
+exit 0
+-- ./ant
+name	fib
+Inky	34
+-- ./bat
+name	fib
+-- ./bug
+name	fib
+Gillian	13
+-- ./cat
+name	fib
+-- ./cow
+name	fib
+-- ./dog
+name	fib
+-- ./eagle
+name	fib
+Kelly	89
+-- ./fly
+name	fib
+John	55
+-- ./owl
+name	fib
+-- ./pig
+name	fib
+Fred	8
+-- ./rat
+name	fib
+Harriet	21
+-- ./swift
+name	fib
+Lucy	144

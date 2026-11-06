@@ -516,6 +516,16 @@ impl Filter<'_> {
     }
 }
 
+// What the filters decided for a row. --demux needs to know the stage: a row
+// rejected by an @@ filter never reaches the output, one rejected by an @ filter
+// still opens its demux file (as pick).
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum Verdict {
+    Keep,
+    RejectPre,      // by an @@ filter
+    RejectPost,     // by an @ filter
+}
+
 // All filters and assertions of a run, by stage. Within a stage filters are
 // ANDed, or ORed with -o (@) and -s (@@); evaluation stops at the first filter
 // that decides. Assertions are checked before the filters of their stage, and
@@ -601,13 +611,13 @@ impl<'d> Filters<'d> {
     // computes will go) the @ filters. Each stage first checks its assertions:
     // Err describes the first assertion that fails, which ends the run. So @@assert@
     // sees every row, and @assert@ every row that passes the @@ filters (as pick).
-    pub fn keep(&mut self, row: &Row) -> Result<bool, String> {
+    pub fn keep(&mut self, row: &Row) -> Result<Verdict, String> {
         check_all(&self.pre_assert, row)?;
         if !stage_accepts(&mut self.pre, self.pre_or, row) {
-            return Ok(false);
+            return Ok(Verdict::RejectPre);
         }
         check_all(&self.post_assert, row)?;
-        Ok(stage_accepts(&mut self.post, self.post_or, row))
+        Ok(if stage_accepts(&mut self.post, self.post_or, row) { Verdict::Keep } else { Verdict::RejectPost })
     }
 
     // Per filter, the number of rows not kept because a value was not a number,

@@ -1,0 +1,33 @@
+Line 7 does not look like SAM format [r003	notanumber	chr1	9	30	5M	*	0	0	GCCTA	IIIII]
+Line 9 does not look like SAM format [shortline	0	chr2]
+@HD	VN:1.6	SO:unsorted
+@SQ	SN:chr1	LN:1000
+@SQ	SN:chr2	LN:500
+@PG	ID:hand	PN:handwritten
+@CO	comment in the middle
+File	Written	Filtered
+out/dm4/*	1	0
+out/dm4/chr1	3	0
+out/dm4/chr2	3	0
+-- ./*
+@HD	VN:1.6	SO:unsorted
+@SQ	SN:chr1	LN:1000
+@SQ	SN:chr2	LN:500
+@PG	ID:hand	PN:handwritten
+r005	4	*
+-- ./chr1
+@HD	VN:1.6	SO:unsorted
+@SQ	SN:chr1	LN:1000
+@SQ	SN:chr2	LN:500
+@PG	ID:hand	PN:handwritten
+r001	0	chr1
+r002	16	chr1
+r008	0	chr1
+-- ./chr2
+@HD	VN:1.6	SO:unsorted
+@SQ	SN:chr1	LN:1000
+@SQ	SN:chr2	LN:500
+@PG	ID:hand	PN:handwritten
+r004	0	chr2
+r006	0	chr2
+r007	nonnumeric	chr2

@@ -1,0 +1,51 @@
+File	Written	Filtered
+out/dm5/ant	1	0
+out/dm5/bat	1	0
+out/dm5/bug	1	0
+out/dm5/cow	0	1
+out/dm5/dog	1	0
+out/dm5/eagle	1	0
+out/dm5/fly	0	1
+out/dm5/owl	1	0
+out/dm5/pig	0	1
+out/dm5/rat	0	1
+out/dm5/swift	0	1
+pluk: 1 row failed an assertion (written to out/dm5-assert.txt)
+-- ./ant
+name	ud
+Inky	9
+-- ./bat
+name	ud
+Charlie	3
+-- ./bug
+name	ud
+Gillian	7
+-- ./cow
+name	ud
+-- ./dog
+name	ud
+Ann	1
+-- ./eagle
+name	ud
+Kelly	11
+-- ./fly
+name	ud
+-- ./owl
+name	ud
+Esme	5
+-- ./pig
+name	ud
+-- ./rat
+name	ud
+-- ./swift
+name	ud
+-- out/dm5-other.txt
+name	ud
+Dan	-4
+Fred	-6
+Harriet	-8
+John	-10
+Lucy	-12
+-- out/dm5-assert.txt
+name	ud
+Bob	-2
