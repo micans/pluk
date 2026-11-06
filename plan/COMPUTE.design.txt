@@ -135,7 +135,9 @@ DATASTRUCTURE-cell.design.txt for values on the stack.
    NA is written as NA.
 
 
-8. Deferred: in-place computes and multi-column NAME (map)  [deferred, syntax open]
+8. Deferred: in-place computes and multi-column NAME (map)  [deferred, syntax open;
+   in-place, map, __ and -A<N> are decided in INPLACE.design.txt, the renaming forms remain
+   deferred there]
 
    pick allows a compute to replace a column (-i), to keep the original under a prefix or
    suffix name (p/spec/s, p/spec//s), and a multi-column NAME (+foo\d{2}::__^1,add) that
