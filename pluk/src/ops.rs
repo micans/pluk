@@ -8,7 +8,7 @@
 use regex::bytes::Regex;
 
 use crate::exec::{Machine, OpFn, Value};
-use crate::num;
+use crate::num::{self, Num};
 use crate::row::Row;
 
 // How many values an operator takes from the stack.
@@ -65,6 +65,9 @@ pub struct OpDef {
     pub fun:      OpFn,
 }
 
+// Most operators produce a number.
+const NUM: Shape = Shape::Result(Kind::Num);
+
 // The table; descriptions follow pick's.
 pub static OPERATORS: &[OpDef] = &[
     OpDef { name: "dup",    pops: Pops::N(1), pushes: 2, shape: Shape::Dup, prepare: Prepare::Nothing, category: Category::Stack,
@@ -77,6 +80,36 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x y", result: "xy", doc: "Concatenation of x and y", fun: op_cat },
     OpDef { name: "add",    pops: Pops::N(2), pushes: 1, shape: Shape::Result(Kind::Num), prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "x y", result: "x+y", doc: "Add x and y", fun: op_add },
+    OpDef { name: "sub",    pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "x y", result: "x-y", doc: "Subtract y from x", fun: op_sub },
+    OpDef { name: "mul",    pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "x y", result: "x*y", doc: "Multiply x and y", fun: op_mul },
+    OpDef { name: "div",    pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "x y", result: "x/y", doc: "Division (a float; by zero: inf or nan)", fun: op_div },
+    OpDef { name: "idiv",   pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "x y", result: "x // y", doc: "Integer division, floored (by zero: NA)", fun: op_idiv },
+    OpDef { name: "mod",    pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "x y", result: "x mod y", doc: "x modulo y, sign of y (by zero: NA)", fun: op_mod },
+    OpDef { name: "pow",    pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "x y", result: "x**y", doc: "x raised to power y", fun: op_pow },
+    OpDef { name: "ipow",   pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "x y", result: "x**y", doc: "x raised to power y in integers (negative y as pow; overflow: NA)", fun: op_ipow },
+    OpDef { name: "max",    pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "x y", result: "max(x,y)", doc: "Maximum of x and y", fun: op_max },
+    OpDef { name: "min",    pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "x y", result: "min(x,y)", doc: "Minimum of x and y", fun: op_min },
+    OpDef { name: "neg",    pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "x", result: "-x", doc: "The sign-reversed value of x", fun: op_neg },
+    OpDef { name: "abs",    pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "x", result: "abs(x)", doc: "Absolute value of x", fun: op_abs },
+    OpDef { name: "sign",   pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "x", result: "sign(x)", doc: "The sign of x (-1, 0 or 1)", fun: op_sign },
+    OpDef { name: "sq",     pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "x", result: "x^2", doc: "Square of x", fun: op_sq },
+    OpDef { name: "incr",   pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "x", result: "x++", doc: "x incremented by one", fun: op_incr },
+    OpDef { name: "decr",   pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "x", result: "x--", doc: "x decremented by one", fun: op_decr },
     OpDef { name: "addall", pops: Pops::All,  pushes: 1, shape: Shape::Result(Kind::Num), prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "*", result: "sum(Stack)", doc: "Sum of all entries in stack", fun: op_addall },
     OpDef { name: "del",    pops: Pops::N(2), pushes: 1, shape: Shape::Result(Kind::Str), prepare: Prepare::ConstRegex, category: Category::Regex,
@@ -113,20 +146,57 @@ fn op_cat(m: &mut Machine, row: &Row, _: Option<&Regex>) {
     m.push(Value::Bytes(s));
 }
 
-fn op_add(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+// Numeric operators: pop the operands (y first), push f's result; NA if an
+// operand is not a number or f has no result (NUMERIC.design.txt section 9).
+fn numeric2(m: &mut Machine, row: &Row, f: impl Fn(Num, Num) -> Option<Num>) {
     let y = m.pop();
     let x = m.pop();
     let result = match (m.num(&x, row), m.num(&y, row)) {
-        (Some(a), Some(b)) => Value::Num(num::add(a, b)),
+        (Some(a), Some(b)) => f(a, b).map_or(Value::Na, Value::Num),
         _ => Value::Na,
     };
     m.push(result);
 }
 
+fn numeric1(m: &mut Machine, row: &Row, f: impl Fn(Num) -> Num) {
+    let x = m.pop();
+    let result = m.num(&x, row).map_or(Value::Na, |a| Value::Num(f(a)));
+    m.push(result);
+}
+
+fn op_add(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric2(m, row, |a, b| Some(num::add(a, b))) }
+fn op_sub(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric2(m, row, |a, b| Some(num::sub(a, b))) }
+fn op_mul(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric2(m, row, |a, b| Some(num::mul(a, b))) }
+fn op_div(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric2(m, row, |a, b| Some(num::div(a, b))) }
+fn op_idiv(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric2(m, row, num::idiv) }
+fn op_mod(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric2(m, row, num::imod) }
+fn op_pow(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric2(m, row, |a, b| Some(num::pow(a, b))) }
+fn op_ipow(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric2(m, row, num::ipow) }
+fn op_max(m: &mut Machine, row: &Row, _: Option<&Regex>) { choose(m, row, true) }
+fn op_min(m: &mut Machine, row: &Row, _: Option<&Regex>) { choose(m, row, false) }
+
+// max and min push the winning operand itself, not its numeric value (as pick:
+// 1.000000 stays 1.000000); NA if an operand is not a number.
+fn choose(m: &mut Machine, row: &Row, max: bool) {
+    let y = m.pop();
+    let x = m.pop();
+    let result = match (m.num(&x, row), m.num(&y, row)) {
+        (Some(a), Some(b)) => if num::replaces(a, b, max) { y } else { x },
+        _ => Value::Na,
+    };
+    m.push(result);
+}
+fn op_neg(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num::neg) }
+fn op_abs(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num::abs) }
+fn op_sign(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num::sign) }
+fn op_sq(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num::sq) }
+fn op_incr(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num::incr) }
+fn op_decr(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num::decr) }
+
 // The sum of the whole stack; an empty stack sums to 0, as pick.
 fn op_addall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
     let mut values = std::mem::take(&mut m.stack);
-    let mut sum = Some(num::Num::I(0));
+    let mut sum = Some(Num::I(0));
     for v in values.drain(..) {
         sum = match (sum, m.num(&v, row)) {
             (Some(a), Some(b)) => Some(num::add(a, b)),

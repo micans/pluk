@@ -89,6 +89,9 @@
       map NAME is applied once; -A<N> cannot be combined with -x; renaming forms
       (P/SPEC/S), capture-group naming and --A=NAME are not implemented (yet).
     - -K cannot be combined with --sam or --sam-h (step11-notes.txt item 5).
+    - Arithmetic (step12.txt): division by zero gives inf or nan (div) or NA (idiv, mod)
+      where pick dies; a float given to idiv, mod or ipow is NA (pick truncates); ipow
+      overflow is NA; sign of nan is nan (pick: 0); /ISNUM fails on nan.
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

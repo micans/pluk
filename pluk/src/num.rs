@@ -140,6 +140,110 @@ pub fn add(a: Num, b: Num) -> Num {
     }
 }
 
+// The other arithmetic operators (plan/step12.txt, decisions 1-5 and 8). Generic
+// operators promote to F on integer overflow; the explicit integer operators
+// (idiv, imod, ipow) return None (NA) when there is no integer result: a float
+// operand, division by zero, overflow (NUMERIC.design.txt sections 4, 5 and 9).
+
+pub fn sub(a: Num, b: Num) -> Num {
+    match (a, b) {
+        (Num::I(x), Num::I(y)) => x.checked_sub(y).map_or(Num::F(x as f64 - y as f64), Num::I),
+        _ => Num::F(a.to_f64() - b.to_f64()),
+    }
+}
+
+pub fn mul(a: Num, b: Num) -> Num {
+    match (a, b) {
+        (Num::I(x), Num::I(y)) => x.checked_mul(y).map_or(Num::F(x as f64 * y as f64), Num::I),
+        _ => Num::F(a.to_f64() * b.to_f64()),
+    }
+}
+
+// Always a float, as Perl (6/3 is written 2); division by zero follows IEEE.
+pub fn div(a: Num, b: Num) -> Num {
+    Num::F(a.to_f64() / b.to_f64())
+}
+
+// Floored integer division, as pick's floor(x/y): idiv(-7, 2) is -4.
+pub fn idiv(a: Num, b: Num) -> Option<Num> {
+    let (Num::I(x), Num::I(y)) = (a, b) else { return None };
+    let q = x.checked_div(y)?;                      // None for y = 0 and Int::MIN / -1
+    Some(Num::I(if x % y != 0 && (x < 0) != (y < 0) { q - 1 } else { q }))
+}
+
+// Floored modulo, as Perl's %: the result has the sign of y (-7 mod 3 is 2,
+// 7 mod -3 is -2), so that x = y * idiv(x, y) + imod(x, y).
+pub fn imod(a: Num, b: Num) -> Option<Num> {
+    let (Num::I(x), Num::I(y)) = (a, b) else { return None };
+    if y == 0 {
+        return None;
+    }
+    let r = x.checked_rem(y).unwrap_or(0);          // Int::MIN % -1 overflows; it is 0
+    Some(Num::I(if r != 0 && (r < 0) != (y < 0) { r + y } else { r }))
+}
+
+// Always a float.
+pub fn pow(a: Num, b: Num) -> Num {
+    Num::F(a.to_f64().powf(b.to_f64()))
+}
+
+// Integer power; a negative exponent behaves as pow (pick); overflow is NA.
+pub fn ipow(a: Num, b: Num) -> Option<Num> {
+    let (Num::I(x), Num::I(e)) = (a, b) else { return None };
+    if e < 0 {
+        return Some(pow(a, b));
+    }
+    match u32::try_from(e) {
+        Ok(e) => x.checked_pow(e).map(Num::I),
+        Err(_) => match x {                         // a huge exponent: only 0, 1, -1 survive
+            0 | 1 => Some(Num::I(x)),
+            -1 => Some(Num::I(if e % 2 == 0 { 1 } else { -1 })),
+            _ => None,
+        },
+    }
+}
+
+// max and min choose an operand: whether y replaces x, as pick: if y > x (max)
+// or y < x (min). With a NaN the result is x (max(nan, 3) is nan, max(3, nan) is 3).
+pub fn replaces(x: Num, y: Num, max: bool) -> bool {
+    compare(y, x) == Some(if max { Ordering::Greater } else { Ordering::Less })
+}
+
+pub fn neg(a: Num) -> Num {
+    match a {
+        Num::I(x) => x.checked_neg().map_or(Num::F(-(x as f64)), Num::I),
+        Num::F(x) => Num::F(-x),
+    }
+}
+
+pub fn abs(a: Num) -> Num {
+    match a {
+        Num::I(x) => x.checked_abs().map_or(Num::F((x as f64).abs()), Num::I),
+        Num::F(x) => Num::F(x.abs()),
+    }
+}
+
+// -1, 0 or 1 as an integer; NaN stays NaN (pick gives 0).
+pub fn sign(a: Num) -> Num {
+    match a {
+        Num::I(x) => Num::I(x.signum()),
+        Num::F(x) if x.is_nan() => a,
+        Num::F(x) => Num::I(if x > 0.0 { 1 } else if x < 0.0 { -1 } else { 0 }),
+    }
+}
+
+pub fn sq(a: Num) -> Num {
+    mul(a, a)
+}
+
+pub fn incr(a: Num) -> Num {
+    add(a, Num::I(1))
+}
+
+pub fn decr(a: Num) -> Num {
+    sub(a, Num::I(1))
+}
+
 
 // Writing numbers as text (COMPUTE.design.txt section 7). Integers are written as
 // integers. Floats, by default, with the shortest digits that read back as the
@@ -308,6 +412,37 @@ mod tests {
         assert_eq!(add(I(2), I(3)), I(5));
         assert_eq!(add(I(2), F(0.5)), F(2.5));
         assert_eq!(add(I(Int::MAX), I(1)), F(Int::MAX as f64 + 1.0));
+    }
+
+    #[test]
+    fn arithmetic() {
+        assert_eq!(sub(I(2), I(5)), I(-3));
+        assert_eq!(sub(I(Int::MIN), I(1)), F(Int::MIN as f64 - 1.0));
+        assert_eq!(mul(I(3), F(0.5)), F(1.5));
+        assert_eq!(mul(I(Int::MAX), I(2)), F(Int::MAX as f64 * 2.0));
+        assert_eq!(div(I(6), I(3)), F(2.0));
+        assert_eq!(div(I(1), I(0)), F(f64::INFINITY));
+        assert!(matches!(div(I(0), I(0)), F(x) if x.is_nan()));
+        for (x, y, q, r) in [(7, 2, 3, 1), (-7, 2, -4, 1), (7, -2, -4, -1), (-7, -2, 3, -1), (6, 3, 2, 0), (-6, 3, -2, 0)] {
+            assert_eq!(idiv(I(x), I(y)), Some(I(q)), "{} {}", x, y);
+            assert_eq!(imod(I(x), I(y)), Some(I(r)), "{} {}", x, y);
+            assert_eq!(x, y * q + r);
+        }
+        assert_eq!((idiv(I(1), I(0)), imod(I(1), I(0))), (None, None));
+        assert_eq!((idiv(F(7.0), I(2)), imod(I(7), F(2.0))), (None, None));
+        assert_eq!(idiv(I(Int::MIN), I(-1)), None);
+        assert_eq!(imod(I(Int::MIN), I(-1)), Some(I(0)));
+        assert_eq!(pow(I(2), I(10)), F(1024.0));
+        assert_eq!(ipow(I(2), I(10)), Some(I(1024)));
+        assert_eq!(ipow(I(2), I(-1)), Some(F(0.5)));
+        assert_eq!(ipow(I(2), I(200)), None);
+        assert_eq!(ipow(I(-1), I(Int::MAX)), Some(I(-1)));
+        assert_eq!(ipow(F(2.0), I(2)), None);
+        assert!(replaces(I(2), F(2.5), true) && !replaces(I(2), F(2.5), false));
+        assert!(!replaces(I(3), F(f64::NAN), true) && !replaces(F(f64::NAN), I(3), true));
+        assert_eq!((neg(I(Int::MIN)), abs(I(Int::MIN))), (F(-(Int::MIN as f64)), F(-(Int::MIN as f64))));
+        assert_eq!((sign(F(-0.5)), sign(I(0)), sign(F(2.0))), (I(-1), I(0), I(1)));
+        assert_eq!((sq(I(-4)), incr(I(Int::MAX)), decr(F(0.5))), (I(16), F(Int::MAX as f64 + 1.0), F(-0.5)));
     }
 
     #[test]

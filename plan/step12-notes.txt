@@ -15,3 +15,43 @@ Item 1: NA and NaN; /ISNUM on nan
 
   Tests: filter-pred and filter-pred-multi (the nan row moves from /ISNUM to /NOTNUM),
   help refs; the unit test in filter.rs adds NaN and -inf.
+
+
+Item 2: binary and unary arithmetic
+
+  Files: num.rs (sub mul div idiv imod pow ipow replaces neg abs sign sq incr decr), ops.rs
+  (table entries; numeric1, numeric2 and choose as shared implementations), opt.rs (help).
+
+  The typed functions live in num.rs next to add: each matches on (I, I) and otherwise
+  works in f64 (mixed operands promote, NUMERIC.design.txt section 3). Generic operators
+  use checked_* and fall back to a float on overflow (sub, mul, neg, abs, sq, incr, decr).
+  The explicit integer operators return Option<Num>, None meaning NA: idiv and imod for a
+  float operand, a zero divisor and Int::MIN / -1 (Int::MIN mod -1 is 0); ipow for a float
+  operand and overflow (u32 exponent; a larger one only for bases 0, 1, -1); a negative
+  exponent behaves as pow. idiv and imod are floored: the quotient is rounded towards minus
+  infinity and the remainder has the sign of the divisor (Perl's %; pick's idiv is
+  floor(x/y)), so x = y * idiv(x, y) + mod(x, y). div and pow always give a float; division
+  by zero follows IEEE. sign gives -1, 0, 1 as integers; NaN stays NaN (pick: 0).
+
+  In ops.rs most operators are one line: numeric2 pops y and x, gets their numbers
+  (Machine::num, cached per field), and pushes the function's result or NA; numeric1 the
+  same for one operand. Rust note: the helpers take the function as 'impl Fn(Num, Num) ->
+  Option<Num>', so both plain functions (num::idiv) and closures (|a, b| Some(num::sub(a,
+  b))) can be passed; each op_ function stays a plain fn, as the table needs.
+
+  max and min choose an operand rather than computing a value: the winner is pushed as it
+  was (a field stays a field), so 1.000000 stays 1.000000 and -65.4560 keeps its zero, as
+  in pick (found by the comparison: a first version pushed the number and wrote 1 and
+  -65.456). The choice follows pick: y replaces x if y > x (max) or y < x (min), so with a
+  NaN the result is x.
+
+  Checked against pick (--num-perl): math-arith (four invocations on data.txt: all
+  operators on integer, negative and float columns) and math-arith-big (big.txt; without
+  idiv and mod by zero, where pick dies with 'Illegal division by zero') are identical.
+  math-arith-edge (pluk only): division by zero, 0/0, floats to integer operators, a
+  non-number, negative divisors, nan, ipow overflow; values chosen so that the i64 and
+  int128 builds agree (the integer boundaries are in the unit tests, which use Int::MIN and
+  Int::MAX).
+
+  Tests: math-arith, math-arith-big, math-arith-edge. Help refs. Unit tests in num.rs
+  (arithmetic).
