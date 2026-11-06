@@ -1,0 +1,87 @@
+@fib/all/5
+Esme	5	3	25	5
+Gillian	13	8	49	7
+Harriet	21	13	64	-8
+John	55	34	100	-10
+@fib/any/5
+Ann	1	0	1	1
+Bob	1	1	4	-2
+Dan	3	2	16	-4
+Esme	5	3	25	5
+Gillian	13	8	49	7
+Harriet	21	13	64	-8
+John	55	34	100	-10
+Kelly	89	55	121	11
+@fib/none/5
+Charlie	2	1	9	3
+Fred	8	5	36	-6
+Inky	34	21	81	9
+Lucy	144	89	144	-12
+@fib/notall/5
+Ann	1	0	1	1
+Bob	1	1	4	-2
+Charlie	2	1	9	3
+Dan	3	2	16	-4
+Fred	8	5	36	-6
+Inky	34	21	81	9
+Kelly	89	55	121	11
+Lucy	144	89	144	-12
+@ud/all/1
+Ann	1	0	1	1
+Charlie	2	1	9	3
+Esme	5	3	25	5
+Gillian	13	8	49	7
+Inky	34	21	81	9
+Kelly	89	55	121	11
+@ud/any/12
+Dan	3	2	16	-4
+Esme	5	3	25	5
+Fred	8	5	36	-6
+Gillian	13	8	49	7
+Harriet	21	13	64	-8
+Inky	34	21	81	9
+John	55	34	100	-10
+Kelly	89	55	121	11
+Lucy	144	89	144	-12
+@fib/all/0
+Ann	1	0	1	1
+Bob	1	1	4	-2
+Charlie	2	1	9	3
+Dan	3	2	16	-4
+Esme	5	3	25	5
+Fred	8	5	36	-6
+Gillian	13	8	49	7
+Harriet	21	13	64	-8
+Inky	34	21	81	9
+John	55	34	100	-10
+Kelly	89	55	121	11
+Lucy	144	89	144	-12
+@fib/any/0
+@sq/all/:fib
+Ann	1	0	1	1
+Kelly	89	55	121	11
+Lucy	144	89	144	-12
+@@sq/any/:fib2
+Charlie	2	1	9	3
+Esme	5	3	25	5
+Fred	8	5	36	-6
+Inky	34	21	81	9
+John	55	34	100	-10
+Kelly	89	55	121	11
+Lucy	144	89	144	-12
+@sq/none/:fib2
+Ann	1	0	1	1
+Bob	1	1	4	-2
+Dan	3	2	16	-4
+Gillian	13	8	49	7
+Harriet	21	13	64	-8
+@sq/notall/:fib
+Bob	1	1	4	-2
+Charlie	2	1	9	3
+Dan	3	2	16	-4
+Esme	5	3	25	5
+Fred	8	5	36	-6
+Gillian	13	8	49	7
+Harriet	21	13	64	-8
+Inky	34	21	81	9
+John	55	34	100	-10

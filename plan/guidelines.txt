@@ -60,6 +60,9 @@
       or empty means the default; k < 1 selects nothing); eps = 0 is exact equality. A
       non-number fails /epx/ and /omx/ too. Integer operands are compared exactly
       (step7.txt item 4).
+    - Bit filters: a negative constant mask is refused; a mask from a column is used as |m| by
+      all four operators (pick: /all/ /notall/ use the raw mask); a non-integer value is not
+      truncated but fails and is counted separately (step7.txt item 5).
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

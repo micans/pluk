@@ -108,6 +108,18 @@ fn oom_ff(x: f64, y: f64, k: f64) -> bool {
     x.abs() <= y.abs() * k && x.abs() >= y.abs() / k
 }
 
+// Bit tests on absolute values (as pick), on the unsigned type of the same width,
+// so that Int::MIN has an absolute value. /all/: every bit of the mask is set in
+// x; /any/: at least one is.
+pub fn bits_all(x: Int, mask: Int) -> bool {
+    let m = mask.unsigned_abs();
+    x.unsigned_abs() & m == m
+}
+
+pub fn bits_any(x: Int, mask: Int) -> bool {
+    x.unsigned_abs() & mask.unsigned_abs() != 0
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -173,5 +185,19 @@ mod tests {
         assert!(within_oom(I(Int::MIN), I(Int::MAX), I(2)));
         assert!(!within_oom(I(Int::MAX), I(1), I(2)));
         assert!(!within_oom(F(f64::NAN), I(1), I(2)));
+    }
+
+    #[test]
+    fn bits() {
+        assert!(bits_all(7, 5));
+        assert!(!bits_all(6, 5));
+        assert!(bits_all(-7, 5));
+        assert!(bits_all(7, -5));
+        assert!(bits_all(0, 0));
+        assert!(bits_any(6, 5));
+        assert!(!bits_any(2, 5));
+        assert!(!bits_any(7, 0));
+        assert!(bits_all(Int::MIN, Int::MIN));
+        assert!(!bits_any(Int::MIN, Int::MAX));
     }
 }

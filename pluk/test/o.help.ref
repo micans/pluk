@@ -39,6 +39,9 @@ Filters (given among the columns; VALUE is %-decoded, e.g. %2F for '/'):
   @NAME/ep/VALUE/E  value within E of VALUE (default 0.0001, E >= 0)
   @NAME/om/VALUE/K  |value| within a factor K of |VALUE| (default 2, K >= 1)
                   /E and /K are optional; /epx/ and /omx/ negate.
+  @NAME/all/MASK  all bits of MASK set in |value|; /any/: at least one;
+                  /notall/ and /none/ negate. MASK a non-negative integer;
+                  a value that is not an integer fails.
   @NAME/op/:NAME2 compare with column NAME2; ^VALUE is VALUE taken literally
   @@NAME...       as @, applied before computes (computes are not yet supported)
 

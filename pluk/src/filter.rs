@@ -66,6 +66,13 @@ pub enum Op {
     HasVal(bool),   // ~hasval~, ~hasnotval~ (negated)
     Ep(bool),       // /ep/, /epx/ (negated): within an additive band
     Om(bool),       // /om/, /omx/ (negated): within a multiplicative band
+    Bit(BitTest, bool), // /all/ /any/, /notall/ /none/ (negated)
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum BitTest {
+    All,            // every bit of the mask is set
+    Any,            // at least one bit of the mask is set
 }
 
 impl Op {
@@ -76,7 +83,7 @@ impl Op {
 
     // Whether the operands are numbers.
     fn is_num(self) -> bool {
-        matches!(self, Op::Num(_) | Op::Ep(_) | Op::Om(_))
+        matches!(self, Op::Num(_) | Op::Ep(_) | Op::Om(_) | Op::Bit(..))
     }
 }
 
@@ -111,7 +118,8 @@ const OPERATORS: [(&[u8], Option<Op>); 28] = [
     (b"/om/", Some(Op::Om(false))), (b"/omx/", Some(Op::Om(true))),
     (b"~isin~", Some(Op::IsIn(false))), (b"~isnotin~", Some(Op::IsIn(true))),
     (b"~hasval~", Some(Op::HasVal(false))), (b"~hasnotval~", Some(Op::HasVal(true))),
-    (b"/all/", None), (b"/any/", None), (b"/none/", None), (b"/notall/", None),
+    (b"/all/", Some(Op::Bit(BitTest::All, false))), (b"/any/", Some(Op::Bit(BitTest::Any, false))),
+    (b"/none/", Some(Op::Bit(BitTest::Any, true))), (b"/notall/", Some(Op::Bit(BitTest::All, true))),
     (b"=", Some(Op::Str(Cmp::Eq))), (b"/=", Some(Op::Str(Cmp::Ne))),
     (b"~", Some(Op::Match(false))), (b"/~", Some(Op::Match(true))),
 ];
@@ -239,6 +247,14 @@ pub fn parse_filter(arg: &[u8]) -> Result<FilterSpec, String> {
         },
         _ => None,
     };
+    // A constant mask of a bit filter is a non-negative integer.
+    if let (Op::Bit(..), Some(n)) = (op, const_num) {
+        match n {
+            Num::I(m) if m >= 0 => (),
+            Num::I(_) => return Err(format!("[{}]: the mask of {} cannot be negative", shown, op_shown)),
+            Num::F(_) => return Err(format!("[{}]: the mask of {} must be an integer", shown, op_shown)),
+        }
+    }
     // The band of /ep/ (eps >= 0) and /om/ (k >= 1); nan is refused.
     let band = match op {
         Op::Ep(_) | Op::Om(_) => {
@@ -309,13 +325,14 @@ struct Filter<'d> {
     extra:   Vec<u8>,   // ~hasval~: the value to compare with
     band:    Num,       // /ep/ /om/: eps or k
     n_na:    u64,       // numeric comparisons that failed on a value that is not a number
+    n_nonint: u64,      // bit tests that failed on a number that is not an integer
 }
 
 impl Filter<'_> {
     fn accept(&mut self, row: &Row) -> bool {
         let field = row.field(self.column);
         match self.op {
-            Op::Num(_) | Op::Ep(_) | Op::Om(_) => {
+            Op::Num(_) | Op::Ep(_) | Op::Om(_) | Op::Bit(..) => {
                 let lhs = num::parse_num(field);
                 let rhs = match &self.operand {
                     Operand::Num(n) => Some(*n),
@@ -327,6 +344,16 @@ impl Filter<'_> {
                         Op::Num(cmp) => cmp.holds(num::compare(a, b)),
                         Op::Ep(negated) => num::within_eps(a, b, self.band) != negated,
                         Op::Om(negated) => num::within_oom(a, b, self.band) != negated,
+                        Op::Bit(test, negated) => match (a, b) {
+                            (Num::I(x), Num::I(m)) => match test {
+                                BitTest::All => num::bits_all(x, m) != negated,
+                                BitTest::Any => num::bits_any(x, m) != negated,
+                            },
+                            _ => {
+                                self.n_nonint += 1;
+                                false
+                            }
+                        },
                         _ => false,                 // not a numeric operator
                     },
                     _ => {
@@ -429,7 +456,7 @@ impl<'d> Filters<'d> {
             };
             let extra = spec.extra.clone().unwrap_or_default();
             let band = spec.band.unwrap_or(Num::I(0));
-            let filter = Filter { text: spec.text.clone(), column, op: spec.op, operand, extra, band, n_na: 0 };
+            let filter = Filter { text: spec.text.clone(), column, op: spec.op, operand, extra, band, n_na: 0, n_nonint: 0 };
             match spec.stage {
                 Stage::Pre  => filters.pre.push(filter),
                 Stage::Post => filters.post.push(filter),
@@ -444,13 +471,16 @@ impl<'d> Filters<'d> {
         stage_accepts(&mut self.pre, self.pre_or, row) && stage_accepts(&mut self.post, self.post_or, row)
     }
 
-    // Per filter, the number of values that were not numbers, for the end-of-run report.
+    // Per filter, the number of values that were not numbers, and (bit filters) not
+    // integers, for the end-of-run report.
     pub fn report_na(&self) {
         for f in self.pre.iter().chain(&self.post) {
-            if f.n_na > 0 {
-                eprintln!("pluk: {}: {} value{} not a number (row{} not kept)",
-                          String::from_utf8_lossy(&f.text), f.n_na,
-                          if f.n_na == 1 { "" } else { "s" }, if f.n_na == 1 { "" } else { "s" });
+            for (n, what) in [(f.n_na, "a number"), (f.n_nonint, "an integer")] {
+                if n > 0 {
+                    let s = if n == 1 { "" } else { "s" };
+                    eprintln!("pluk: {}: {} value{} not {} (row{} not kept)",
+                              String::from_utf8_lossy(&f.text), n, s, what, s);
+                }
             }
         }
     }
@@ -495,7 +525,8 @@ mod tests {
                     "@x~^", "@x~a(", "@x~a/b", "@x=a~b", "@x~isin~", "@x~isin~:y", "@x~isin~^D",
                     "@x~isin~D~v", "@x~hasval~D", "@x~hasval~D/v", "@x~hasval~D~:y", "@x~hasval~D~a~b",
                     "@x/ep/1/", "@x/ep/1/-1", "@x/ep/1/nan", "@x/ep/1/abc", "@x/ep/1~2", "@x/ep/1/:y",
-                    "@x/om/1/0.5", "@x/om/1/0", "@x/omx/1/2/3", "@x/ep/abc"] {
+                    "@x/om/1/0.5", "@x/om/1/0", "@x/omx/1/2/3", "@x/ep/abc",
+                    "@x/all/5.0", "@x/any/-1", "@x/none/abc", "@x/notall/1e3", "@x/all/", "@x/all/5/1"] {
             assert!(spec(bad).is_err(), "{}", bad);
         }
     }
@@ -538,6 +569,14 @@ mod tests {
         assert_eq!(spec("@x/ep/:y/0").unwrap().band, Some(Num::I(0)));
         assert_eq!(spec("@x/om/1/1.5").unwrap().band, Some(Num::F(1.5)));
         assert_eq!(spec("@x/om/1/inf").unwrap().band, Some(Num::F(f64::INFINITY)));
+    }
+
+    #[test]
+    fn parsing_bits() {
+        let f = spec("@flag/notall/12").unwrap();
+        assert_eq!((f.op, f.const_num), (Op::Bit(BitTest::All, true), Some(Num::I(12))));
+        assert_eq!(spec("@flag/none/0").unwrap().op, Op::Bit(BitTest::Any, true));
+        assert_eq!(spec("@flag/any/:m").unwrap().value, Value::Column(b"m".to_vec()));
     }
 
     #[test]

@@ -117,3 +117,18 @@
           eptest1-3 need computes.
 
   5   Bit filters /all/ /any/ /none/ /notall/. Commit.
+        - Semantics: /all/ (|x| & |m|) == |m|; /any/ (|x| & |m|) != 0; /notall/ and /none/
+          negate. Computed with unsigned_abs() and & on the unsigned type (Int::MIN has an
+          absolute value; i64 and int128 builds agree). Mask 0: /all/ always, /any/ never.
+        - A constant mask must be a non-negative integer (a float, a non-number or a negative
+          constant is an option error). pick compares /all/ and /notall/ with the raw mask, so
+          /all/-5 never holds there; a mask from a column (:NAME) is taken as |m| for all four
+          operators, a difference from pick for negative column masks.
+        - A value or column mask that is a number but not an integer (5.0, 1e3, an integer
+          beyond Int) fails the test and is counted separately from NA, reported as
+              pluk: @flag/all/5: 2 values not an integer (rows not kept)
+          (pick truncates with int()). Non-numbers keep the NA count. Both also for /none/
+          and /notall/.
+        - Tests: big-strbit (from pick, with pick's ref), filter-bit (labelled: all four, mask
+          0, negative values, column mask), SAM FLAG on sam.txt and sam.bam (@2/any/16,
+          @2/none/4), filter-bit-nonint (counts and messages), filter-bit-errors.

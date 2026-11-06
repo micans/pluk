@@ -2,7 +2,6 @@
 [@x/foo/3]: unrecognised operator /foo/
 [@x/gt/3/1]: extra argument [/1] not allowed with /gt/ (write '/' or '~' in VALUE as %2F or %7E)
 [@/gt/3]: column name missing
-[@x/all/3]: operator /all/ not yet supported
 [@+x/gt/3]: regex column names (leading '+') not yet supported
 [@assert@x/gt/3]: assertions (@assert@) not yet supported
 Filter invalid [@x]: expected @NAME<op>VALUE or @NAME<op>:NAME

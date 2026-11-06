@@ -1,0 +1,6 @@
+[@x/all/5.0]: the mask of /all/ must be an integer
+[@x/any/-1]: the mask of /any/ cannot be negative
+[@x/none/abc]: [abc] is not a number
+[@x/notall/1e3]: the mask of /notall/ must be an integer
+[@x/all/]: [] is not a number
+[@x/all/5/1]: extra argument [/1] not allowed with /all/ (write '/' or '~' in VALUE as %2F or %7E)

@@ -208,3 +208,36 @@ Item 4: /ep/ /epx/ /om/ /omx/
   (/epx/ with '', 'fox' and nan), filter-ep-errors. filter-errors: the 'not yet supported'
   case is now /all/. Help refs updated. Unit tests: num.rs eps and oom, filter.rs
   parsing_band and extended error cases.
+
+
+Item 5: /all/ /any/ /none/ /notall/
+
+  Files: src/num.rs (bits_all, bits_any), src/filter.rs (Op::Bit(BitTest, negated), the mask
+  check, the not-an-integer count), opt.rs (help).
+
+  Op::Bit(BitTest::All | Any, negated): /notall/ is All negated, /none/ is Any negated. Bit
+  filters are numeric operators (Op::is_num), so a constant mask is parsed with parse_num and
+  then checked: an F constant (5.0, 1e3) or a negative I is an option error.
+
+  Evaluation shares the numeric branch: NA as before; then both sides must be I, otherwise the
+  filter's second counter n_nonint is incremented and the row is not kept. report_na() prints
+  one line per non-zero counter ('not a number', 'not an integer'). bits_all and bits_any use
+  unsigned_abs() as in item 4, then & on the unsigned type; mask 0 makes /all/ always and
+  /any/ never hold.
+
+  Checked against pick: big-strbit equals pick's ref; the twelve invocations of filter-bit
+  give identical output. Differences shown by tests: filter-bit-neg (negative column mask:
+  pick's /all/ compares with the raw mask, so 7 /all/ -5 fails there and passes in pluk),
+  filter-bit-sam (FLAG 'nonnumeric': pick takes it as 0, so /none/4 keeps it; pluk counts
+  it), and the nonint tests (pick truncates 5.0, 1e3).
+
+  A test pitfall: an integer beyond i64 but within i128 is I in the int128 build, so the
+  nonint test uses a 42-digit integer, beyond both. Also, make test-int128 leaves an int128
+  binary in target/release; refs must be regenerated after a plain build (make test).
+
+  Tests: big-strbit (from pick, with pick's ref), filter-bit (labelled: all four operators,
+  masks 0, 1, 5, 12, negative values, column masks, @@), filter-bit-neg, filter-bit-sam (+
+  -msg), filter-bit-bam, filter-bit-nonint and -nonint-neg (both counters and messages),
+  filter-bit-errors. filter-errors: no operator remains 'not yet supported'; that case was
+  removed. Help refs updated. Unit tests: num.rs bits, filter.rs parsing_bits and extended
+  error cases.

@@ -136,7 +136,7 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	printf 'a\tb\n9223372036854775807\t9223372036854775806\n99999999999999999999\t9223372036854775807\n1e3\t1000\n-0\t0\n' | $(p) -h a b @a/gt/:b > o.filter-int.test
 	printf 'a\tb\n9223372036854775807\t9223372036854775806\n99999999999999999999\t9223372036854775807\n1e3\t1000\n-0\t0\n' | $(p) -h a b @a/eq/:b > o.filter-int-eq.test
 	$(p) name ud @ud~eq~fx @@ud~eq~^fx  < data.txt   > o.filter-hint.test 2>&1
-	for a in @x/gt/abc @x/foo/3 @x/gt/3/1 @/gt/3 @x/all/3 @+x/gt/3 @assert@x/gt/3 @x @x/gt/:; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-errors.test
+	for a in @x/gt/abc @x/foo/3 @x/gt/3/1 @/gt/3 @+x/gt/3 @assert@x/gt/3 @x @x/gt/:; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-errors.test
 	{ for a in @fx=dog @fx/=dog @fx= @fx/= @@foo11~_o_ @foo11/~_o_ '@fx~^[a-c]' '@fx~x|y' @name~^%5EB '@dna~(?i)^acg' '@foo11~^\w+$$' @foo11~%2F; do echo "$$a"; $(p) -h name fx foo11 dna "$$a" < data.txt; done; } > o.filter-regex.test
 	printf 'x\ty\nab.cd\t.\naxbcd\t.\nab|cd\tb|c\nabcd\tb|c\nabcd\t\n\t\n' | $(p) -h x y @x~:y   > o.filter-regex-column.test
 	printf 'x\ty\nab.cd\t.\naxbcd\t.\nab|cd\tb|c\nabcd\tb|c\nabcd\t\n\t\n' | $(p) -h x y @x/~:y  > o.filter-regex-column-neg.test
@@ -155,6 +155,14 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	{ for a in @a/ep/:b/0 @a/ep/:b/1 @a/ep/:b/inf @a/om/:b @a/omx/:b; do echo "$$a"; printf 'a\tb\n9007199254740993\t9007199254740992\n9223372036854775807\t-9223372036854775808\n9223372036854775807\t4611686018427387904\n-9223372036854775808\t9223372036854775807\n1\t9223372036854775807\n' | $(p) -h a b "$$a"; done; } > o.filter-ep-int.test
 	printf 'x\ty\n\t1\nfox\t1\n1\t\n5\t1\nnan\t1\n' | $(p) -h x y @x/epx/:y > o.filter-ep-na.test 2>&1
 	for a in @x/ep/1/ @x/ep/1/-1 @x/ep/1/nan @x/ep/1/abc @x/ep/1~2 @x/ep/1/:y @x/om/1/0.5 @x/om/1/0 @x/omx/1/2/3 @x/ep/abc; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-ep-errors.test
+	$(p) id s1 flag @s1~lt~m @flag/all/5   < big.txt  > o.big-strbit.test
+	{ for a in @fib/all/5 @fib/any/5 @fib/none/5 @fib/notall/5 @ud/all/1 @ud/any/12 @fib/all/0 @fib/any/0 @sq/all/:fib @@sq/any/:fib2 @sq/none/:fib2 @sq/notall/:fib; do echo "$$a"; $(p) -h name fib fib2 sq ud "$$a" < data.txt; done; } > o.filter-bit.test
+	{ for a in @x/all/:m @x/notall/:m @x/any/:m; do echo "$$a"; printf 'x\tm\n-7\t5\n7\t-5\n-9223372036854775808\t-9223372036854775808\n2\t-5\n' | $(p) -h x m "$$a"; done; } > o.filter-bit-neg.test
+	{ $(p) --sam 1 2 @2/any/16 < sam.txt; $(p) --sam 1 2 @2/none/4 < sam.txt; } > o.filter-bit-sam.test 2> o.filter-bit-sam-msg.test
+	$(p) --sam 1 2 @2/any/16 @2/none/4  < sam.bam   > o.filter-bit-bam.test
+	printf 'x\tm\n5\t1\n5.0\t1\n1e3\t8\n400000000000000000000000000000000000000000\t1\nfox\t1\n\t1\n7\t1.0\n7\t1\n' | { $(p) -h x m @x/all/:m; } > o.filter-bit-nonint.test 2>&1
+	printf 'x\n5\n5.0\nfox\n4\n' | $(p) -h x @x/notall/1 > o.filter-bit-nonint-neg.test 2>&1
+	for a in @x/all/5.0 @x/any/-1 @x/none/abc @x/notall/1e3 @x/all/ @x/all/5/1; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-bit-errors.test
 	for a in @z/gt/3 @@name/gt/:z @fib~eq~:z; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-unknown.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.txt   2> /dev/null > o.filter-sam.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.bam   > o.filter-bam.test
