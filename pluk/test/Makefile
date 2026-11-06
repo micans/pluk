@@ -136,7 +136,12 @@ runpluk: data.txt big.txt sam.txt sam-clean.txt sam.bam sam-clean.bgz bam-tags.b
 	printf 'a\tb\n9223372036854775807\t9223372036854775806\n99999999999999999999\t9223372036854775807\n1e3\t1000\n-0\t0\n' | $(p) -h a b @a/gt/:b > o.filter-int.test
 	printf 'a\tb\n9223372036854775807\t9223372036854775806\n99999999999999999999\t9223372036854775807\n1e3\t1000\n-0\t0\n' | $(p) -h a b @a/eq/:b > o.filter-int-eq.test
 	$(p) name ud @ud~eq~fx @@ud~eq~^fx  < data.txt   > o.filter-hint.test 2>&1
-	for a in @x/gt/abc @x/foo/3 @x/gt/3/1 @/gt/3 @x=3 @x~a @x/ep/3 @+x/gt/3 @assert@x/gt/3 @x @x/gt/:; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-errors.test
+	for a in @x/gt/abc @x/foo/3 @x/gt/3/1 @/gt/3 @x/ep/3 @+x/gt/3 @assert@x/gt/3 @x @x/gt/:; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-errors.test
+	{ for a in @fx=dog @fx/=dog @fx= @fx/= @@foo11~_o_ @foo11/~_o_ '@fx~^[a-c]' '@fx~x|y' @name~^%5EB '@dna~(?i)^acg' '@foo11~^\w+$$' @foo11~%2F; do echo "$$a"; $(p) -h name fx foo11 dna "$$a" < data.txt; done; } > o.filter-regex.test
+	printf 'x\ty\nab.cd\t.\naxbcd\t.\nab|cd\tb|c\nabcd\tb|c\nabcd\t\n\t\n' | $(p) -h x y @x~:y   > o.filter-regex-column.test
+	printf 'x\ty\nab.cd\t.\naxbcd\t.\nab|cd\tb|c\nabcd\tb|c\nabcd\t\n\t\n' | $(p) -h x y @x/~:y  > o.filter-regex-column-neg.test
+	$(p) -c @grp/=B @@tag~^k         < big.txt    > o.filter-regex-count.test
+	for a in @x~ @x/~ @x~^ '@x~a(' '@x~(.)\1' '@x~a(?=b)' @x~a/b @x=a~b @x=3/4; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-regex-errors.test
 	for a in @z/gt/3 @@name/gt/:z @fib~eq~:z; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-unknown.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.txt   2> /dev/null > o.filter-sam.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.bam   > o.filter-bam.test

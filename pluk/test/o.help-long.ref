@@ -29,6 +29,10 @@ Filters (given among the columns; VALUE is %-decoded, e.g. %2F for '/'):
   @NAME/op/VALUE  numeric comparison of column NAME with VALUE, op one of
                   lt le eq ge gt ne. A value that is not a number fails.
   @NAME~op~VALUE  string (byte) comparison, op as above
+  @NAME=VALUE     string equal; @NAME/=VALUE not equal
+  @NAME~REGEX     REGEX matches (anywhere); @NAME/~REGEX does not match.
+                  Rust regex syntax, as -/PAT. With :NAME2 the value of
+                  column NAME2 is matched as a fixed string, not a regex.
   @NAME/op/:NAME2 compare with column NAME2; ^VALUE is VALUE taken literally
   @@NAME...       as @, applied before computes (computes are not yet supported)
 

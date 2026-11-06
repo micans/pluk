@@ -1,0 +1,70 @@
+@fx=dog
+Ann	dog	a_n_n	ACGTTGCA
+@fx/=dog
+Bob	cat	b_o_b	CCGGTTAA
+Charlie	bat	ch_ar_lie	GGGGTAC
+Dan	cow	d_a_n	TTAA
+Esme	owl	e_s_m_e	CGCGC
+Fred	pig	f_r_e_d	CTTCACT
+Gillian	bug	gi_ll_ian	C
+Harriet	rat	ha_rr_iet	G
+Inky	ant	i_n_k_y	T
+John	fly	j_o_h_n	A
+Kelly	eagle	k_e_l_l_y	AAAAAAAA
+Lucy	swift	l_u_c_y	TCGACACGACTC
+@fx=
+@fx/=
+Ann	dog	a_n_n	ACGTTGCA
+Bob	cat	b_o_b	CCGGTTAA
+Charlie	bat	ch_ar_lie	GGGGTAC
+Dan	cow	d_a_n	TTAA
+Esme	owl	e_s_m_e	CGCGC
+Fred	pig	f_r_e_d	CTTCACT
+Gillian	bug	gi_ll_ian	C
+Harriet	rat	ha_rr_iet	G
+Inky	ant	i_n_k_y	T
+John	fly	j_o_h_n	A
+Kelly	eagle	k_e_l_l_y	AAAAAAAA
+Lucy	swift	l_u_c_y	TCGACACGACTC
+@@foo11~_o_
+Bob	cat	b_o_b	CCGGTTAA
+John	fly	j_o_h_n	A
+@foo11/~_o_
+Ann	dog	a_n_n	ACGTTGCA
+Charlie	bat	ch_ar_lie	GGGGTAC
+Dan	cow	d_a_n	TTAA
+Esme	owl	e_s_m_e	CGCGC
+Fred	pig	f_r_e_d	CTTCACT
+Gillian	bug	gi_ll_ian	C
+Harriet	rat	ha_rr_iet	G
+Inky	ant	i_n_k_y	T
+Kelly	eagle	k_e_l_l_y	AAAAAAAA
+Lucy	swift	l_u_c_y	TCGACACGACTC
+@fx~^[a-c]
+Bob	cat	b_o_b	CCGGTTAA
+Charlie	bat	ch_ar_lie	GGGGTAC
+Dan	cow	d_a_n	TTAA
+Gillian	bug	gi_ll_ian	C
+Harriet	rat	ha_rr_iet	G
+Inky	ant	i_n_k_y	T
+Kelly	eagle	k_e_l_l_y	AAAAAAAA
+@fx~x|y
+John	fly	j_o_h_n	A
+@name~^%5EB
+Bob	cat	b_o_b	CCGGTTAA
+@dna~(?i)^acg
+Ann	dog	a_n_n	ACGTTGCA
+@foo11~^\w+$
+Ann	dog	a_n_n	ACGTTGCA
+Bob	cat	b_o_b	CCGGTTAA
+Charlie	bat	ch_ar_lie	GGGGTAC
+Dan	cow	d_a_n	TTAA
+Esme	owl	e_s_m_e	CGCGC
+Fred	pig	f_r_e_d	CTTCACT
+Gillian	bug	gi_ll_ian	C
+Harriet	rat	ha_rr_iet	G
+Inky	ant	i_n_k_y	T
+John	fly	j_o_h_n	A
+Kelly	eagle	k_e_l_l_y	AAAAAAAA
+Lucy	swift	l_u_c_y	TCGACACGACTC
+@foo11~%2F

@@ -1,0 +1,18 @@
+[@x~]: empty pattern
+[@x/~]: empty pattern
+[@x~^]: empty pattern
+[@x~a(]: regex parse error:
+    a(
+     ^
+error: unclosed group
+[@x~(.)\1]: regex parse error:
+    (.)\1
+       ^^
+error: backreferences are not supported
+[@x~a(?=b)]: regex parse error:
+    a(?=b)
+     ^^^
+error: look-around, including look-ahead and look-behind, is not supported
+[@x~a/b]: extra argument [/b] not allowed with ~ (write '/' or '~' in VALUE as %2F or %7E)
+[@x=a~b]: extra argument [~b] not allowed with = (write '/' or '~' in VALUE as %2F or %7E)
+[@x=3/4]: extra argument [/4] not allowed with = (write '/' or '~' in VALUE as %2F or %7E)

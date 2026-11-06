@@ -90,3 +90,40 @@ Item 1: @ and @@ filters, numeric and string comparisons
   filter-errors, filter-unknown, filter-sam, filter-bam. sel-unsupported: '@x/gt/0' is now a
   filter, replaced by '@assert@x/gt/0'. Help references updated. Unit tests in num.rs (parse,
   comparisons) and filter.rs (parsing, comparisons). make test-int128 passes.
+
+
+Item 2: = /= ~ /~
+
+  Files: src/filter.rs (Op::Match, regex in FilterSpec, Operand::Regex), opt.rs (help),
+  Cargo.toml (memchr as a direct dependency; it was already compiled as a dependency of regex,
+  so nothing new is downloaded).
+
+  = and /= map onto Op::Str(Cmp::Eq) and Op::Str(Cmp::Ne): they are the same byte equality as
+  ~eq~ ~ne~, with the same column-name hint. An empty VALUE is allowed (@x= selects empty
+  fields). ~ and /~ are Op::Match(negated). find_operator() was already in place: a /xx/ or
+  ~xx~ token takes precedence, else the first '=' or '~' (with a preceding '/') ends NAME.
+
+  A constant pattern is compiled in parse_filter() with io::compile_pattern (regex::bytes,
+  Unicode mode off, as -/PAT), so a syntax error, a backreference or look-around is an option
+  error with the regex crate's message. An empty pattern (also ^ with nothing after it) is
+  refused. The compiled Regex is kept in FilterSpec, which therefore no longer derives
+  PartialEq (Regex has no equality); compile() clones it into the Filter (a clone of a Regex
+  is cheap, it shares the compiled program).
+
+  With :NAME the other column's value is searched as a fixed string with memchr::memmem::find
+  (step7.txt item 2 has the rationale). pick prints "-- column x entries will be used as
+  regular expression --" and matches per row as a regex; the test filter-regex-column shows
+  the difference (axbcd ~ '.' and abcd ~ 'b|c' are kept by pick, not by pluk).
+
+  Checked against pick: filter-regex (all twelve invocations) and filter-regex-count give
+  identical output; big-count (@n1/gt/0 @grp=B) agrees with pick's ref.
+
+  Speed: 1,000,000 rows, pluk -c 0.03 s without filter, 0.05 s with @a~_1.*_x, 0.04 s with
+  @a~:b, 0.03 s with @a=read_5_x.
+
+  Tests: filter-regex (labelled: = /= with and without VALUE, ~ /~ in both stages, anchors,
+  alternation, %5E for a literal-start '^' after ^, (?i), \w, %2F), filter-regex-column and
+  -neg (metacharacters and empty values in the pattern column), filter-regex-count (-c with
+  /= and ~ across stages), filter-regex-errors (empty patterns, regex syntax, backreference,
+  look-ahead, extra arguments). filter-errors: @x=3 and @x~a removed (now valid). Help refs
+  updated. Unit tests in filter.rs (parsing_eq_match; error cases extended).

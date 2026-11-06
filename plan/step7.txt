@@ -56,6 +56,22 @@
 
   2   = /= ~ /~ . ~ matches anywhere (as pick); the regex dialect is that of the regex crate
       (differences documented, as for -/PAT). Commit.
+        - = and /= are byte equality (as ~eq~ ~ne~); an empty VALUE is allowed (@x= selects
+          empty fields).
+        - ~ and /~ with a constant: regex::bytes with Unicode mode off, as -/PAT (io.rs
+          compile_pattern). Compiled during option parsing, so a syntax error is an option
+          error. An empty pattern is refused (in Perl an empty pattern silently reuses the
+          last successful pattern; -/PAT also refuses it). ^VALUE is still a regex; ^ only
+          means 'not a column reference'.
+        - ~ and /~ with :NAME: a fixed-string (substring) match of the other column's value,
+          not a regex (pick compiles the value as a regex per row). Matching can never fail,
+          needs no cache, and column values often contain regex metacharacters (. | + ( in
+          identifiers). An empty value is the empty substring: ~ always matches, /~ never.
+          This is a difference from pick (guidelines.txt). Regex-from-column, if ever wanted,
+          would get its own spelling.
+        - '/' and '~' in a pattern are written %2F and %7E (item 1's parser).
+        - Tests: pick's @x=... invocations, filter-regex (labelled invocations, a dialect
+          difference), filter-regex-column, errors (empty pattern, regex syntax).
 
   3   ~isin~ ~isnotin~ ~hasval~ ~hasnotval~ (dictionary lookups). Commit.
 

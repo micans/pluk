@@ -49,6 +49,9 @@
       error; bit filters do not truncate floats (step7.txt, NUMERIC.design.txt). In a filter
       VALUE, ':' and '^' are recognised before %-decoding (%3Ax is the literal ':x')
       (step7-notes.txt item 1).
+    - Regex filters (~ /~) use the regex crate's dialect as -/PAT and refuse an empty pattern;
+      with :NAME the other column's value is matched as a fixed string, not as a regex
+      (step7.txt item 2).
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

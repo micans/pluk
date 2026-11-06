@@ -5,10 +5,15 @@
 // constants), and compiled once the column names are known (Filters::compile:
 // column indexes). Each data row is then tested on its field bytes (keep).
 // Numeric operators follow plan/NUMERIC.design.txt: a value that is not a number
-// makes the comparison fail and is counted.
+// makes the comparison fail and is counted. Regex operators (~ /~) use the
+// dialect of -/PAT; with :NAME they match the other column as a fixed string.
 
 use std::cmp::Ordering;
 
+use memchr::memmem;
+use regex::bytes::Regex;
+
+use crate::io::compile_pattern;
 use crate::names::ColumnNames;
 use crate::num::{self, Num};
 use crate::opt::pct_decode;
@@ -52,7 +57,8 @@ impl Cmp {
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Op {
     Num(Cmp),       // /lt/ /le/ /eq/ /ge/ /gt/ /ne/
-    Str(Cmp),       // ~lt~ ~le~ ~eq~ ~ge~ ~gt~ ~ne~ (byte comparison)
+    Str(Cmp),       // ~lt~ ~le~ ~eq~ ~ge~ ~gt~ ~ne~ (byte comparison), = /=
+    Match(bool),    // ~ (false) and /~ (true: negated)
 }
 
 // The operators of the form /xx/ and ~xx~, with the ones not yet implemented.
@@ -66,7 +72,8 @@ const OPERATORS: [(&[u8], Option<Op>); 28] = [
     (b"/ep/", None), (b"/epx/", None), (b"/om/", None), (b"/omx/", None),
     (b"~isin~", None), (b"~isnotin~", None), (b"~hasval~", None), (b"~hasnotval~", None),
     (b"/all/", None), (b"/any/", None), (b"/none/", None), (b"/notall/", None),
-    (b"=", None), (b"/=", None), (b"~", None), (b"/~", None),
+    (b"=", Some(Op::Str(Cmp::Eq))), (b"/=", Some(Op::Str(Cmp::Ne))),
+    (b"~", Some(Op::Match(false))), (b"/~", Some(Op::Match(true))),
 ];
 
 // The value to compare with: a constant, or another column (:NAME).
@@ -77,7 +84,8 @@ pub enum Value {
 }
 
 // A filter as given on the command line, before column names are known.
-#[derive(Clone, PartialEq, Debug)]
+// (No PartialEq: a Regex cannot be compared.)
+#[derive(Clone, Debug)]
 pub struct FilterSpec {
     pub text:   Vec<u8>,            // the argument, for messages
     pub stage:  Stage,
@@ -85,13 +93,14 @@ pub struct FilterSpec {
     pub op:     Op,
     pub value:  Value,              // %-decoded
     const_num:  Option<Num>,        // a numeric operator's constant
+    regex:      Option<Regex>,      // a regex operator's constant, compiled
     literal:    bool,               // VALUE was given as ^VALUE
 }
 
 // Parse a filter argument (starting with @ or @@). Syntax as pick:
 //   @NAME/op/VALUE, @NAME~op~VALUE   op: 2 to 19 lowercase letters; the first
 //                                    such token ends NAME
-//   @NAME=VALUE, /=, ~, /~           (not yet implemented)
+//   @NAME=VALUE, /=, ~, /~           the first '=' or '~' ends NAME
 // VALUE ':NAME' refers to a column, '^...' is a literal; both tested before
 // %-decoding, so %3A is a literal ':' (pick decodes first).
 pub fn parse_filter(arg: &[u8]) -> Result<FilterSpec, String> {
@@ -147,7 +156,18 @@ pub fn parse_filter(arg: &[u8]) -> Result<FilterSpec, String> {
         },
         _ => None,
     };
-    Ok(FilterSpec { text: arg.to_vec(), stage, column: pct_decode(name), op, value, const_num, literal })
+    // A constant pattern is compiled now, so that a syntax error is an option error.
+    // An empty pattern is refused, as for -/PAT.
+    let regex = match (&op, &value) {
+        (Op::Match(_), Value::Const(c)) => {
+            if c.is_empty() {
+                return Err(format!("[{}]: empty pattern", shown));
+            }
+            Some(compile_pattern(c, &format!("[{}]", shown))?)
+        }
+        _ => None,
+    };
+    Ok(FilterSpec { text: arg.to_vec(), stage, column: pct_decode(name), op, value, const_num, regex, literal })
 }
 
 // Split at the first operator: a token [/~][a-z]{2,19}[/~] (as pick), else the
@@ -174,6 +194,7 @@ fn find_operator(spec: &[u8]) -> Option<(&[u8], &[u8], &[u8])> {
 enum Operand {
     Num(Num),           // numeric constant
     Bytes(Vec<u8>),     // string constant
+    Regex(Regex),       // pattern constant
     Column(usize),      // another column
 }
 
@@ -194,7 +215,7 @@ impl Filter {
                 let rhs = match &self.operand {
                     Operand::Num(n) => Some(*n),
                     Operand::Column(j) => num::parse_num(row.field(*j)),
-                    Operand::Bytes(_) => None,      // not produced for numeric operators
+                    _ => None,                      // not produced for numeric operators
                 };
                 match (lhs, rhs) {
                     (Some(a), Some(b)) => cmp.holds(num::compare(a, b)),
@@ -208,9 +229,17 @@ impl Filter {
                 let rhs: &[u8] = match &self.operand {
                     Operand::Bytes(b) => b,
                     Operand::Column(j) => row.field(*j),
-                    Operand::Num(_) => &[],         // not produced for string operators
+                    _ => &[],                       // not produced for string operators
                 };
                 cmp.holds(Some(field.cmp(rhs)))
+            }
+            Op::Match(negated) => {
+                let found = match &self.operand {
+                    Operand::Regex(re) => re.is_match(field),
+                    Operand::Column(j) => memmem::find(field, row.field(*j)).is_some(),
+                    _ => false,                     // not produced for regex operators
+                };
+                found != negated
             }
         }
     }
@@ -260,9 +289,10 @@ impl Filters {
                                   String::from_utf8_lossy(c), String::from_utf8_lossy(&spec.text),
                                   String::from_utf8_lossy(c));
                     }
-                    match spec.const_num {
-                        Some(n) => Operand::Num(n),
-                        None => Operand::Bytes(c.clone()),
+                    match (spec.const_num, &spec.regex) {
+                        (Some(n), _) => Operand::Num(n),
+                        (None, Some(re)) => Operand::Regex(re.clone()),
+                        (None, None) => Operand::Bytes(c.clone()),
                     }
                 }
             };
@@ -328,9 +358,29 @@ mod tests {
         // The first operator token ends the name.
         assert_eq!(spec("@x/lt/5").unwrap().column, b"x");
         for bad in ["@x/gt/abc", "@x/gt/", "@/gt/3", "@x/foo/3", "@x/gt/3/4", "@x~eq~a/b",
-                    "@x", "@+x/gt/3", "@x/gt/:", "@assert@x/gt/3", "@x/ep/3", "@x=3", "@x/~a"] {
+                    "@x", "@+x/gt/3", "@x/gt/:", "@assert@x/gt/3", "@x/ep/3", "@x~", "@x/~",
+                    "@x~^", "@x~a(", "@x~a/b", "@x=a~b"] {
             assert!(spec(bad).is_err(), "{}", bad);
         }
+    }
+
+    #[test]
+    fn parsing_eq_match() {
+        assert_eq!(spec("@x=3").unwrap().op, Op::Str(Cmp::Eq));
+        assert_eq!(spec("@x/=3").unwrap().op, Op::Str(Cmp::Ne));
+        assert_eq!(spec("@x=").unwrap().value, Value::Const(Vec::new()));
+        let f = spec("@x~a.b").unwrap();
+        assert_eq!((f.column.as_slice(), f.op), (&b"x"[..], Op::Match(false)));
+        assert!(f.regex.unwrap().is_match(b"xaxbx"));
+        let f = spec("@x/~^a%2Fb%7Ec").unwrap();
+        assert_eq!(f.op, Op::Match(true));
+        assert!(f.regex.unwrap().is_match(b"a/b~c"));
+        // ':' makes a column reference: no regex.
+        let f = spec("@x~:y").unwrap();
+        assert_eq!(f.value, Value::Column(b"y".to_vec()));
+        assert!(f.regex.is_none());
+        // A /xx/ token takes precedence over = and ~.
+        assert_eq!(spec("@a=b/gt/3").unwrap().column, b"a=b");
     }
 
     #[test]
