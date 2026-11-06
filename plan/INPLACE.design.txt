@@ -49,7 +49,9 @@ Renaming forms are deferred (section 6).
    column, in COLSPEC order; each application is a compute named after its column. Without
    renaming (section 6) every application redefines an existing column, so map requires -i,
    and the rules of section 1 apply per column. Every element must select a column
-   (COLSPEC.design.txt section 3).
+   (COLSPEC.design.txt section 3); so, unlike pick, a list NAME cannot create new columns
+   (pick: a:b::^1 defines a and b), and a repeated column is applied once (pick applies
+   fib:fib::__^1,add twice).
 
 
 4. __

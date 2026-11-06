@@ -1,2 +1,2 @@
 pluk: (Compute) handle [y] in compute x does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
-[+x.*::^1]: a list, regex or range as compute NAME (map) not yet supported
+pluk: (Compute) regex [+x.*] in compute +x.* matches no column among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna

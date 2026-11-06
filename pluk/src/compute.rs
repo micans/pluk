@@ -28,7 +28,9 @@ pub enum Token {
 #[derive(Debug)]
 pub struct ComputeSpec {
     pub text:   Vec<u8>,        // the argument, for messages
-    pub name:   Vec<u8>,        // %-decoded; PLUKAAAAA, ... for an unnamed compute
+    pub name:   Vec<u8>,        // %-decoded; PLUKAAAAA, ... for an unnamed compute; for a map
+                                // the NAME as given
+    pub map:    Option<ColSpec>,// a list, '+' regex or -k range as NAME (INPLACE.design.txt 3)
     pub output: bool,           // '::' (true) or ':=' (false)
     pub tokens: Vec<Token>,
     pub position: usize,        // the number of column arguments before it (output order)
@@ -73,11 +75,13 @@ pub fn parse(arg: &[u8], headless: bool, unnamed: &mut UnnamedNames) -> Result<C
         .ok_or_else(|| format!("[{}]: not a compute", shown))?;
     let (raw_name, output, spec) = (&arg[..k], arg[k + 1] == b':', &arg[k + 2..]);
 
-    let name = if raw_name.is_empty() {
-        unnamed.next()
+    let (name, map) = if raw_name.is_empty() {
+        (unnamed.next(), None)
     } else {
-        check_name(raw_name, headless).map_err(|e| format!("[{}]: {}", shown, e))?;
-        pct_decode(raw_name)
+        match parse_name(raw_name, headless).map_err(|e| format!("[{}]: {}", shown, e))? {
+            Some(cs) => (raw_name.to_vec(), Some(cs)),
+            None => (pct_decode(raw_name), None),
+        }
     };
     if spec.is_empty() {
         return Err(format!("[{}]: compute is empty", shown));
@@ -103,7 +107,7 @@ pub fn parse(arg: &[u8], headless: bool, unnamed: &mut UnnamedNames) -> Result<C
         }
         kind = None;
     }
-    Ok(ComputeSpec { text: arg.to_vec(), name, output, tokens, position: 0 })
+    Ok(ComputeSpec { text: arg.to_vec(), name, map, output, tokens, position: 0 })
 }
 
 fn token(kind: u8, body: &[u8], headless: bool) -> Result<Token, String> {
@@ -127,16 +131,17 @@ fn token(kind: u8, body: &[u8], headless: bool) -> Result<Token, String> {
     }
 }
 
-// NAME is a single plain name. A list, '+' regex or range (map) and '/' (pick's
-// prefix/suffix names) are deferred (COMPUTE.design.txt section 8).
-fn check_name(raw: &[u8], headless: bool) -> Result<(), String> {
+// NAME: a single plain name (None), or a list, '+' regex or -k range (a map,
+// INPLACE.design.txt section 3). '/' (pick's prefix/suffix names) is deferred.
+fn parse_name(raw: &[u8], headless: bool) -> Result<Option<ColSpec>, String> {
     if raw.contains(&b'/') {
         return Err("prefix/suffix names ('/' in NAME) not yet supported".to_string());
     }
-    match colspec::parse(raw, headless)?.elements.as_slice() {
-        [Element::Name(_)] => Ok(()),
-        _ => Err("a list, regex or range as compute NAME (map) not yet supported".to_string()),
-    }
+    let cs = colspec::parse(raw, headless)?;
+    Ok(match cs.elements.as_slice() {
+        [Element::Name(_)] => None,
+        _ => Some(cs),
+    })
 }
 
 // A compiled instruction.
@@ -181,77 +186,94 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool)
     let mut redefined = vec![false; input.len()];  // input columns redefined so far
     for spec in specs {
         let shown = String::from_utf8_lossy(&spec.text);
-        let name = String::from_utf8_lossy(&spec.name);
-        if names.index_of(&spec.name).is_some() {
-            if !inplace {
-                return Err(format!("[{}]: name [{}] already exists (use -i for in-place change)", shown, name));
-            }
-            if let Some(i) = input.index_of(&spec.name) {
-                if redefined[i] {
-                    return Err(format!("[{}]: input column [{}] is redefined a second time \
-                                        (with -i an input column can be redefined once)", shown, name));
+        // A map is one compute per selected column (current bindings), in COLSPEC
+        // order, duplicates merged; each is compiled as a single-name compute named
+        // after its column, so it sees the applications before it.
+        let targets: Vec<Vec<u8>> = match &spec.map {
+            None => vec![spec.name.clone()],
+            Some(cs) => {
+                let mut columns: Vec<usize> = Vec::new();
+                for i in cs.expand(&names, "Compute", &format!("compute {}", String::from_utf8_lossy(&spec.name)))? {
+                    if !columns.contains(&i) {
+                        columns.push(i);
+                    }
                 }
-                redefined[i] = true;
+                columns.iter().map(|&i| names.name(i).to_vec()).collect()
             }
+        };
+        for target in targets {
+            let name = String::from_utf8_lossy(&target);
+            if names.index_of(&target).is_some() {
+                if !inplace {
+                    return Err(format!("[{}]: name [{}] already exists (use -i for in-place change)", shown, name));
+                }
+                if let Some(i) = input.index_of(&target) {
+                    if redefined[i] {
+                        return Err(format!("[{}]: input column [{}] is redefined a second time \
+                                            (with -i an input column can be redefined once)", shown, name));
+                    }
+                    redefined[i] = true;
+                }
+            }
+            let mut instrs: Vec<Instr> = Vec::new();
+            let mut stack: Vec<Slot> = Vec::new();
+            for token in &spec.tokens {
+                match token {
+                    Token::Const(c) => {
+                        instrs.push(Instr::Const(c.clone()));
+                        stack.push(Slot::Const(instrs.len() - 1));
+                    }
+                    // __ is the compute's own name, before this compute binds it: the
+                    // value being replaced (INPLACE.design.txt section 4). Tested on the
+                    // raw text, so %5F%5F is a column called __.
+                    Token::Column(cs) if cs.text == b"__" => match names.index_of(&target) {
+                        Some(i) => {
+                            instrs.push(Instr::Field(i));
+                            stack.push(Slot::Column);
+                        }
+                        None => return Err(format!("(Compute) handle [{}] in compute {} does not reference a known \
+                                                    entity among {}", name, name, names.joined())),
+                    },
+                    Token::Column(cs) => {
+                        // A multi-column specification pushes every selected column (splat).
+                        for i in cs.expand(&names, "Compute", &format!("compute {}", name))? {
+                            instrs.push(Instr::Field(i));
+                            stack.push(Slot::Column);
+                        }
+                    }
+                    Token::Op(op) => {
+                        let needed = match op.pops { Pops::N(n) => n, Pops::All => 0 };
+                        if stack.len() < needed {
+                            return Err(format!("[{}]: stack underflow at operator {} (needs {}, has {})",
+                                               shown, op.name, needed, stack.len()));
+                        }
+                        let instr = match op.prepare {
+                            Prepare::Nothing => Instr::Op(op),
+                            Prepare::ConstRegex => Instr::OpRegex(op, const_regex(&instrs, &stack, op, &shown)?),
+                        };
+                        instrs.push(instr);
+                        match op.shape {
+                            Shape::Result(kind) => {
+                                let keep = match op.pops { Pops::N(n) => stack.len() - n, Pops::All => 0 };
+                                stack.truncate(keep);
+                                stack.push(Slot::Result(kind));
+                            }
+                            Shape::Dup => stack.push(*stack.last().unwrap()),
+                            Shape::Xch => {
+                                let n = stack.len();
+                                stack.swap(n - 1, n - 2);
+                            }
+                            Shape::Pop => {
+                                stack.pop();
+                            }
+                        }
+                    }
+                }
+            }
+            let index = names.push(&target);
+            computes.push(Compute { name: target.clone(), index, output: spec.output, position: spec.position,
+                                    instrs, stack });
         }
-        let mut instrs: Vec<Instr> = Vec::new();
-        let mut stack: Vec<Slot> = Vec::new();
-        for token in &spec.tokens {
-            match token {
-                Token::Const(c) => {
-                    instrs.push(Instr::Const(c.clone()));
-                    stack.push(Slot::Const(instrs.len() - 1));
-                }
-                // __ is the compute's own name, before this compute binds it: the
-                // value being replaced (INPLACE.design.txt section 4). Tested on the
-                // raw text, so %5F%5F is a column called __.
-                Token::Column(cs) if cs.text == b"__" => match names.index_of(&spec.name) {
-                    Some(i) => {
-                        instrs.push(Instr::Field(i));
-                        stack.push(Slot::Column);
-                    }
-                    None => return Err(format!("(Compute) handle [{}] in compute {} does not reference a known \
-                                                entity among {}", name, name, names.joined())),
-                },
-                Token::Column(cs) => {
-                    // A multi-column specification pushes every selected column (splat).
-                    for i in cs.expand(&names, "Compute", &format!("compute {}", name))? {
-                        instrs.push(Instr::Field(i));
-                        stack.push(Slot::Column);
-                    }
-                }
-                Token::Op(op) => {
-                    let needed = match op.pops { Pops::N(n) => n, Pops::All => 0 };
-                    if stack.len() < needed {
-                        return Err(format!("[{}]: stack underflow at operator {} (needs {}, has {})",
-                                           shown, op.name, needed, stack.len()));
-                    }
-                    let instr = match op.prepare {
-                        Prepare::Nothing => Instr::Op(op),
-                        Prepare::ConstRegex => Instr::OpRegex(op, const_regex(&instrs, &stack, op, &shown)?),
-                    };
-                    instrs.push(instr);
-                    match op.shape {
-                        Shape::Result(kind) => {
-                            let keep = match op.pops { Pops::N(n) => stack.len() - n, Pops::All => 0 };
-                            stack.truncate(keep);
-                            stack.push(Slot::Result(kind));
-                        }
-                        Shape::Dup => stack.push(*stack.last().unwrap()),
-                        Shape::Xch => {
-                            let n = stack.len();
-                            stack.swap(n - 1, n - 2);
-                        }
-                        Shape::Pop => {
-                            stack.pop();
-                        }
-                    }
-                }
-            }
-        }
-        let index = names.push(&spec.name);
-        computes.push(Compute { name: spec.name.clone(), index, output: spec.output, position: spec.position,
-                                instrs, stack });
     }
     Ok((computes, names))
 }
@@ -303,7 +325,8 @@ pub fn describe_compiled(c: &Compute, names: &ColumnNames) -> String {
 
 // The parsed form, for --test-compute.
 pub fn describe(spec: &ComputeSpec) -> String {
-    let mut out = format!("compute {} ({})\n", String::from_utf8_lossy(&spec.name),
+    let what = if spec.map.is_some() { "map " } else { "" };
+    let mut out = format!("compute {}{} ({})\n", what, String::from_utf8_lossy(&spec.name),
                           if spec.output { "output" } else { "no output" });
     for token in &spec.tokens {
         let line = match token {
@@ -409,11 +432,29 @@ mod tests {
     }
 
     #[test]
+    fn map() {
+        // One compute per column, duplicates merged; the second sees the first.
+        let (c, names) = compile_inplace(&["b:a:b::__:a,cat"]).unwrap();
+        assert_eq!(c.len(), 2);
+        assert_eq!((c[0].name.as_slice(), c[1].name.as_slice()), (&b"b"[..], &b"a"[..]));
+        assert!(matches!(c[0].instrs[..], [Instr::Field(1), Instr::Field(0), Instr::Op(_)]));
+        assert!(matches!(c[1].instrs[..], [Instr::Field(0), Instr::Field(0), Instr::Op(_)]));
+        assert_eq!((names.index_of(b"b"), names.index_of(b"a")), (Some(2), Some(3)));
+        // A list element must exist; the input-once rule holds per column.
+        assert!(compile_inplace(&["a:zz::^1"]).is_err());
+        assert!(compile_inplace(&["+.::^1", "a::^2"]).is_err());
+    }
+
+    #[test]
     fn errors() {
-        for bad in ["x::", "x::,", "x::^a:", "x::^a,nosuch", "+x.*::^1", "a:b::^1", "p/x/s::^1", "x::+(a"] {
+        for bad in ["x::", "x::,", "x::^a:", "x::^a,nosuch", "p/x/s::^1", "x::+(a", "+(::^1"] {
             assert!(parse1(bad).is_err(), "{}", bad);
         }
-        assert!(parse(b"2-3::^1", true, &mut UnnamedNames::new()).is_err());
-        assert!(parse(b"2-3::^1", false, &mut UnnamedNames::new()).is_ok());
+        // Map NAMEs; a range only with -k.
+        assert!(parse1("+x.*::^1").unwrap().map.is_some());
+        assert!(parse1("a:b::^1").unwrap().map.is_some());
+        assert!(parse1("a::^1").unwrap().map.is_none());
+        assert!(parse(b"2-3::^1", true, &mut UnnamedNames::new()).unwrap().map.is_some());
+        assert!(parse(b"2-3::^1", false, &mut UnnamedNames::new()).unwrap().map.is_none());
     }
 }

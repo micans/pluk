@@ -139,7 +139,9 @@ Computes (given among the columns; a stack language, as pick):
   -i          computes may redefine a name (in place): an input column once,
               a computed name any number of times. Earlier references see the
               old value, later ones and the output the new value. __ in SPEC is
-              the compute's own name (the value being replaced).
+              the compute's own name (the value being replaced). With -i, NAME
+              can be a list, +REGEX or (-k) range of existing columns: the
+              compute is applied to each, e.g. -i +num\\d::__^1,add.
 
 Filters (given among the columns; VALUE is %-decoded, e.g. %2F for '/'):
   @NAME/op/VALUE  numeric comparison of column NAME with VALUE, op one of

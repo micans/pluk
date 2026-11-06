@@ -35,3 +35,6 @@
 
   4   -A<N>: insertion of the new computes, clamping, negative N; -A<N> with -x refused.
       Tests against pick. Commit.
+
+  5   Implement -K (add header names to unnamed input). Discuss, commit.
+

@@ -218,6 +218,8 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	{ for a in '-i name fib::fib^1,add' '-i name fib fib::fib^1,add' '-i fib::fib^1,add name fib' '-i name fib fib::fib^1,add x::fib^100,add' '-i name x::fib^100,add fib::fib^1,add' '-i name fib::fib^1,add @@fib/gt/55' '-i name fib::fib^1,add @fib/gt/55' '-i fib:=fib^1,add name fib' '-i -A fib::fib^1,add' '-i -x fib::fib^1,add name' '-i -A fib:=fib^1,add x::^1' '-i name fib::__^1,add' '-i name x:=^1 x::x^1,add' '-i name x::^1 y::x x::x^1,add' '-i -x fib fib:=fib^1,add'; do echo "$$a"; $(p) --num-perl $$a < data.txt 2>&1 | head -n 4; done; } > o.inplace.test
 	{ printf '1\t2\t3\n4\t5\t6\n' | $(p) -k -i 2::2^10,add s::1-3,addall; printf '__\ta\n1\t2\n' | $(p) x::%5F%5F^5,add y::a^1,add; printf '__\ta\n1\t2\n' | $(p) -i a::__^7,add __; } > o.inplace-other.test
 	for a in 'fib::fib^1,add' '-i fib::fib^1,add fib::fib^10,add' '-i fib::^1 fib:=^2' 'x::__^1,add' 'x::^1 x::^2'; do $(p) $$a name < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.inplace-errors.test
+	{ for a in '-i name fib:sq::__^1,add' '-i name +fib.*::__^1,add' '-i +fib.*::__^1,add name' '-i name fib:sq::__:fib,add' '-i -A +num\d::__^10,add' '-i name +num\d:=__^10,add num1 num4' '-i -x fib:sq::__^1,add name' '-i name +num\d::__^10,add s::+num\d,addall'; do echo "$$a"; $(p) --num-perl $$a < data.txt 2>&1 | head -n 4; done; printf '1\t2\t3\t4\n5\t6\t7\t8\n' | $(p) -k -i 1 2-3::__^10,add 4; $(p) -i name fib:fib::__^1,add < data.txt 2>&1 | head -n 3; } > o.map.test
+	for a in 'name fib:sq::__^1,add' '-i name a:b::^1' '-i name +fib.*::^1 fib::^2' '-i name +zz.*::^1'; do $(p) $$a < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.map-errors.test
 	for a in @z/gt/3 @@name/gt/:z @fib~eq~:z; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-unknown.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.txt   2> /dev/null > o.filter-sam.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.bam   > o.filter-bam.test
@@ -255,8 +257,8 @@ runtestopt: data.txt
 	{ for a in 'name x::^1 fib' 'x::^1 name y:=^2 fib z::^3' '-A x::^1 y:=^2 z::^3' '-x fib x::^1 name' 'name x:=^1 x' 'name ::^1 ::^2' '-k 1 x::2^1'; do echo "$$a"; $(p) --test-select $$a < data.txt; done; } > o.compute-select.test
 	$(p) --test-compute 'x::fib^1,add' 'y:=^a:fib,cat' '::name,dup,xch,pop' '::^' 's::+num\d,addall' 'a%2Fb::^x%2Cy%3Az%5E' 'd::fx^o,del' name '::^2' < /dev/null > o.compute-parse.test
 	$(p) --test-compute -k 'r::2-4,addall' '5::^x' < /dev/null > o.compute-parse-k.test
-	for a in 'x::' 'x::,' 'x::^a:' 'x::^a,nosuch' '+x.*::^1' 'a:b::^1' 'p/x/s::^1' 'x::+(a' 'x::^1,addall,nosuch'; do $(p) --test-compute name "$$a" < /dev/null; [ $$? -eq 1 ] || exit 1; done 2> o.compute-parse-errors.test
-	$(p) -k --test-compute '2-3::^1' < /dev/null 2>> o.compute-parse-errors.test; [ $$? -eq 1 ]
+	for a in 'x::' 'x::,' 'x::^a:' 'x::^a,nosuch' 'p/x/s::^1' 'x::+(a' 'x::^1,addall,nosuch' '+(::^1'; do $(p) --test-compute name "$$a" < /dev/null; [ $$? -eq 1 ] || exit 1; done 2> o.compute-parse-errors.test
+	$(p) --test-compute -k '2-3::__^1,add' '+x.*:=^1' 'a:b::^1' < /dev/null > o.compute-parse-map.test
 	{ printf '# c1\n#c2\n';  cat data.txt; } | $(p) --test-lineno '-/^#'          > o.tc-skip.test
 	{ printf '# c1\n#c2\n';  cat data.txt; } | $(p) --test-lineno '-/^%23'                    > o.tc-alias.test
 	{ printf '# c1\n#c2\n';  cat data.txt; } | $(p) --test-lineno -kO13                   > o.tc-noskip.test

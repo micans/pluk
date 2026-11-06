@@ -1,0 +1,8 @@
+compute map 2-3 (output)
+  column [__]
+  const [1]
+  op add
+compute map +x.* (no output)
+  const [1]
+compute map a:b (output)
+  const [1]

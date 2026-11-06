@@ -2,12 +2,13 @@
 [x::,]: operator missing after ','
 [x::^a:]: column name missing after ':'
 [x::^a,nosuch]: unknown operator [nosuch]
-[+x.*::^1]: a list, regex or range as compute NAME (map) not yet supported
-[a:b::^1]: a list, regex or range as compute NAME (map) not yet supported
 [p/x/s::^1]: prefix/suffix names ('/' in NAME) not yet supported
 [x::+(a]: [+(a]: regex parse error:
     (a
     ^
 error: unclosed group
 [x::^1,addall,nosuch]: unknown operator [nosuch]
-[2-3::^1]: a list, regex or range as compute NAME (map) not yet supported
+[+(::^1]: [+(]: regex parse error:
+    (
+    ^
+error: unclosed group

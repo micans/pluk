@@ -48,3 +48,40 @@ Item 2: -i for single-name computes, __, output positions
   Tests: inplace, inplace-other (range operand, %5F%5F, __ with -i), inplace-errors.
   compute-compile-errors: the 'already exists' message now gives pick's hint. Help refs.
   Unit test in compute.rs (inplace).
+
+
+Item 3: map (a list, '+' regex or -k range as NAME)
+
+  Files: compute.rs (ComputeSpec.map, parse_name, the per-column loop in compile), opt.rs
+  (help).
+
+  Parsing. NAME is parsed as a column specification (parse_name, replacing check_name): a
+  single plain name is an ordinary compute; a list, '+' regex or (-k) range is a map, kept
+  as ComputeSpec.map with the NAME text in ComputeSpec.name for messages. '/' in NAME
+  remains 'not yet supported' (renaming forms). --test-compute shows 'compute map NAME'.
+
+  Compilation. A map is expanded against the current bindings when it is reached (so a
+  regex sees earlier computes and never a replaced column), duplicates merged, and becomes
+  one compute per column, named after it, compiled in order by the same code as a single
+  name (the body of compile() now loops over the targets). Hence the redefinition rules, __
+  and output positions need no extra code: without -i each application meets 'name [x]
+  already exists (use -i ...)'; an input column is redefined at most once, also across a map
+  and another compute; a later application sees the earlier ones (fib:sq::__:fib,add adds
+  the new fib to sq, as pick); every '::' application is output, in order, at the map's
+  position.
+
+  Differences from pick (INPLACE.design.txt section 3): a list NAME cannot create new
+  columns (pick: a:b::^1 defines a and b; pluk: unknown column a); a repeated column is
+  applied once (pick applies fib:fib::__^1,add twice, giving 3; pluk 2).
+
+  Checked against pick (pick's unanchored regexes for pluk's '+' ones, --num-perl): eight
+  invocations (lists, regexes, map before name, a later application using an earlier one,
+  -A, := with listed columns, -x, a regex operand after a map) and a -k range map are
+  identical.
+
+  Tests: map (labelled, plus the -k range map and the merged duplicate), map-errors (map
+  without -i, a list with a new name, map then the same input column, no match).
+  runtestopt: compute-parse-map (map NAMEs in the parsed form); compute-parse-errors (the
+  map forms are no longer errors; a regex error in NAME is). sel-unsupported: '+x.*::^1' is
+  now a map whose regex matches nothing. Help refs. Unit tests in compute.rs (map; the
+  parse test now accepts map NAMEs).

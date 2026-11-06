@@ -1,0 +1,4 @@
+pluk: [fib:sq::__^1,add]: name [fib] already exists (use -i for in-place change)
+pluk: (Compute) handle [a] in compute a:b does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+pluk: [fib::^2]: input column [fib] is redefined a second time (with -i an input column can be redefined once)
+pluk: (Compute) regex [+zz.*] in compute +zz.* matches no column among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
