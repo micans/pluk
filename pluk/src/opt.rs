@@ -45,6 +45,7 @@ pub struct Config {
     pub test_compute: bool,             // --test-compute (temporary, step10)
     pub num_perl: bool,                 // --num-perl: write floats as Perl (%.15g)
     pub inplace: bool,                  // -i: computes may redefine names (plan/INPLACE.design.txt)
+    pub seed: Option<u64>,              // --seed=N: seed for rand
     pub columns: Vec<ColSpec>,          // column arguments (plan/COLSPEC.design.txt)
     pub computes: Vec<ComputeSpec>,     // computes (plan/COMPUTE.design.txt), in command line order
     pub filters: Vec<FilterSpec>,       // @ and @@ filters, in command line order
@@ -140,9 +141,10 @@ Computes (given among the columns; a stack language, as pick):
   stack, concatenated. Operators so far: dup pop xch (stack), cat (string),
   add sub mul div idiv mod pow ipow max min neg abs sign sq incr decr addall
   mulall maxall minall meanall hmeanall gmeanall (arithmetic), int floor ceil round sqrt exp exp2 exp10 log log2 log10 sin
-  cos tan (math), dd sn frac pct pml (precision), del (regex).
+  cos tan (math), dd sn frac pct pml (precision), rand, del (regex).
   Numbers are written exactly (round-trip); NA where a number was needed.
   --num-perl  write numbers as Perl and pick do (%.15g, Inf, NaN)
+  --seed=N    seed for rand (default: from the clock), for reproducible output
   -i          computes may redefine a name (in place): an input column once,
               a computed name any number of times. Earlier references see the
               old value, later ones and the output the new value. __ in SPEC is
@@ -278,6 +280,12 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
                 return Err(format!("--{}FILE: file name missing", String::from_utf8_lossy(&long[..long.len() - name.len()])));
             }
             *slot = Some(name.to_vec());
+        }
+        _ if long.starts_with(b"seed=") => {
+            match parse_number::<u64>(&long[5..]) {
+                Some(n) => config.seed = Some(n),
+                None => return Err("--seed=<N> N must be a non-negative integer".to_string()),
+            }
         }
         _ if long.starts_with(b"demux=") => {
             let name = &long[6..];

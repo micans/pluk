@@ -176,7 +176,7 @@ fn run() -> std::io::Result<()> {
         }
         return Ok(());
     }
-    let mut stages = Stages { filters, computes, machine: exec::Machine::new(config.num_perl) };
+    let mut stages = Stages { filters, computes, machine: exec::Machine::new(config.num_perl, config.seed.unwrap_or_else(exec::clock_seed)) };
 
     if config.test_select {
         for (name, i) in selection.output_colnames.iter().zip(&selection.output_offset) {

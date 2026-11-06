@@ -236,6 +236,7 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	{ $(p) name f::fib:ud:sq,gmeanall g::ms:ud,gmeanall < data.txt; $(p) id d::f1:f2:n4,gmeanall < big.txt | head -n 5; printf 'x\n1e200\n' | $(p) x g::x:x:x:x:x,gmeanall; } > o.math-gmean.test
 	{ $(p) --num-perl name ms ud a::ms^2,dd b::ms^0,dd c::ud^3,dd d::ms^3,sn e::ud^1,sn f::fib:sq^2,frac g::fib:sq^1,pct h::fib:sq^0,pml < data.txt; $(p) --num-perl id f1 f3 a::f1^3,dd b::f3^1,dd c::f3^4,sn d::f1:f2^4,frac e::n1:n4^2,pct f::f3:f4^1,pml g::f3^0,dd < big.txt; $(p) --num-perl name x::ms^20,dd y::ms^15,sn < data.txt; } > o.math-precision.test
 	{ printf 'x\ty\tn\n1\t0\t2\n0\t0\t2\n-1\t0\t2\n2\t3\t-1\n2\t3\t1.5\n2\t3\tfox\nfox\t3\t2\n0.125\t1\t2\n2\t3\t1001\n' | $(p) x y n d::x:n,dd s::x:n,sn f::x:y:n,frac p::x:y:n,pct m::x:y:n,pml; printf 'x\ty\n1\t0\n0\t0\n' | $(p) --num-perl x y f::x:y^2,frac; } > o.math-precision-edge.test
+	{ $(p) --seed=42 name r::^1,rand s::^10,rand z::^0,rand n::^-5,rand f::fx,rand < data.txt; $(p) --seed=7 -c 'r1:=^10,rand' 'r2:=^-3,rand' @assert@r1/ge/0 @assert@r1/lt/10 @assert@r2/gt/-3 @assert@r2/le/0 < big.txt; $(p) --seed=x name < data.txt; echo "exit $$?"; } > o.math-rand.test 2>&1
 	for a in @z/gt/3 @@name/gt/:z @fib~eq~:z; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-unknown.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.txt   2> /dev/null > o.filter-sam.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.bam   > o.filter-bam.test

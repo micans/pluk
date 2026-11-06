@@ -97,7 +97,8 @@
       meanall, hmeanall, gmeanall, maxall and minall of an empty stack are NA (pick: 0, 0,
       1, -DBL_MAX, DBL_MAX); maxall(-inf) is -inf; gmeanall is computed from logarithms
       (pick multiplies; last digits can differ, pluk cannot overflow); frac, pct, pml
-      divide by zero to inf or nan (pick dies); their N must be an integer 0..1000.
+      divide by zero to inf or nan (pick dies); their N must be an integer 0..1000; rand
+      uses its own generator, seeded from the clock or with --seed=N (pick has no seed).
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

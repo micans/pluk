@@ -141,6 +141,8 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x", result: "cos(x)", doc: "Cosine of x", fun: op_cos },
     OpDef { name: "tan",    pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Math,
             operands: "x", result: "tan(x)", doc: "Tangent of x", fun: op_tan },
+    OpDef { name: "rand",   pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
+            operands: "x", result: "rand(x)", doc: "Random real in range [0, x) (x 0: [0, 1); see --seed)", fun: op_rand },
     OpDef { name: "addall", pops: Pops::All,  pushes: 1, shape: Shape::Result(Kind::Num), prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "*", result: "sum(Stack)", doc: "Sum of all entries in stack", fun: op_addall },
     OpDef { name: "mulall", pops: Pops::All,  pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
@@ -245,6 +247,20 @@ fn op_sign(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num
 fn op_sq(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num::sq) }
 fn op_incr(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num::incr) }
 fn op_decr(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num::decr) }
+
+// A random float in [0, x), as Perl's rand: x = 0 counts as 1, a negative x gives
+// (x, 0]. Seeded from the clock, or with --seed=N.
+fn op_rand(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    let x = m.pop();
+    let result = match m.num(&x, row) {
+        Some(a) => {
+            let limit = match a.to_f64() { 0.0 => 1.0, v => v };
+            Value::Num(Num::F(limit * m.random()))
+        }
+        None => Value::Na,
+    };
+    m.push(result);
+}
 
 fn op_int(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, |a| num::round_with(a, f64::trunc)) }
 fn op_floor(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, |a| num::round_with(a, f64::floor)) }

@@ -32,11 +32,51 @@ pub struct Machine {
     generation: u64,                        // increases per row; older cache entries are stale
     perl:       bool,                       // --num-perl
     text:       Vec<u8>,                    // the result of a compute, as text
+    rng:        SplitMix64,                 // for rand
+}
+
+// A small random number generator, splitmix64 (Steele, Lea and Flood, 2014): a
+// 64-bit state advanced by a constant, then mixed. Good enough for rand; it avoids
+// a dependency (Rust's standard library has no generator).
+pub struct SplitMix64 {
+    state: u64,
+}
+
+impl SplitMix64 {
+    pub fn new(seed: u64) -> SplitMix64 {
+        SplitMix64 { state: seed }
+    }
+
+    pub fn next_u64(&mut self) -> u64 {
+        self.state = self.state.wrapping_add(0x9e3779b97f4a7c15);
+        let mut z = self.state;
+        z = (z ^ (z >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94d049bb133111eb);
+        z ^ (z >> 31)
+    }
+
+    // A float in [0, 1): the top 53 bits, scaled.
+    pub fn next_f64(&mut self) -> f64 {
+        (self.next_u64() >> 11) as f64 * (1.0 / (1u64 << 53) as f64)
+    }
+}
+
+// The seed when --seed is not given: the clock and the process id.
+pub fn clock_seed() -> u64 {
+    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_nanos() as u64);
+    nanos ^ ((std::process::id() as u64) << 32)
 }
 
 impl Machine {
-    pub fn new(perl: bool) -> Machine {
-        Machine { stack: Vec::with_capacity(16), cache: Vec::new(), generation: 0, perl, text: Vec::new() }
+    pub fn new(perl: bool, seed: u64) -> Machine {
+        Machine { stack: Vec::with_capacity(16), cache: Vec::new(), generation: 0, perl, text: Vec::new(),
+                  rng: SplitMix64::new(seed) }
+    }
+
+    // A random float in [0, 1).
+    pub fn random(&mut self) -> f64 {
+        self.rng.next_f64()
     }
 
     // Run all computes on a row; each appends its result to the row.
@@ -117,6 +157,25 @@ impl Machine {
             Value::Bytes(b) => b,
             other => self.bytes(&other, row).into_owned(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn splitmix() {
+        // Reference values of splitmix64 for seed 0.
+        let mut r = SplitMix64::new(0);
+        assert_eq!(r.next_u64(), 0xe220a8397b1dcdaf);
+        assert_eq!(r.next_u64(), 0x6e789e6aa1b965f4);
+        // Floats in [0, 1) with a plausible mean.
+        let mut r = SplitMix64::new(42);
+        let xs: Vec<f64> = (0..100000).map(|_| r.next_f64()).collect();
+        assert!(xs.iter().all(|&x| (0.0..1.0).contains(&x)));
+        let mean = xs.iter().sum::<f64>() / xs.len() as f64;
+        assert!((mean - 0.5).abs() < 0.01, "{}", mean);
     }
 }
 

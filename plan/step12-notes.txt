@@ -149,3 +149,24 @@ Item 5: precision operators; gmeanall from logarithms
 
   Tests: math-precision, math-precision-edge, math-gmean; math-whole changed (gmeanall
   removed). Help refs. Unit test in num.rs (fixed).
+
+
+Item 6: rand and --seed
+
+  Files: exec.rs (SplitMix64, clock_seed, Machine::random; Machine::new takes the seed),
+  ops.rs (rand), opt.rs (--seed=N, help), main.rs.
+
+  The generator is splitmix64 (Steele, Lea and Flood, 2014): a 64-bit state advanced by a
+  constant and mixed by shifts and multiplications; a float in [0, 1) takes the top 53
+  bits. About ten lines, no dependency (Rust's standard library has no generator). It is
+  not cryptographic and needs not be. The state lives in the Machine; each rand call
+  advances it, in row order and compute order, so --seed=N gives the same output for the
+  same command line and input. Without --seed the seed is the clock (nanoseconds) mixed
+  with the process id. pick has no seed (Perl's rand, seeded by Perl).
+
+  rand follows Perl's rand(x): a float in [0, x); x = 0 counts as 1 (perldoc -f rand); a
+  negative x gives (x, 0]; not a number gives NA.
+
+  Tests: math-rand (fixed seed: values for 1, 10, 0, -5 and a non-number; range assertions
+  on 100 rows for 10 and -3; a bad seed). Unit test in exec.rs (splitmix: reference values
+  for seed 0, floats in [0, 1) with mean near 0.5). Help refs.
