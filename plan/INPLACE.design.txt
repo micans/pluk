@@ -1,0 +1,83 @@
+INPLACE design: in-place computes, multi-column NAME (map), __, and -A<N>.
+
+Status: DECIDED (discussion after step10), seeded by INPLACE.notes.txt (pick's behaviour,
+observed). Extends COMPUTE.design.txt; replaces its section 8 for the parts decided here.
+Renaming forms are deferred (section 6).
+
+
+1. Redefinition and -i
+
+   -i allows a compute to redefine a name; without -i, a compute whose NAME exists is an
+   error, as now (pick: 'Name fib already defined (use -i for in-place change)').
+
+   With -i:
+   - An input column may be redefined at most once, by a single-name compute or by a map
+     (section 3). A second redefinition is an error: the first one would be invisible in
+     the output and the original value gone as well, so it is most likely a mistake.
+   - A computed name (one that does not exist in the input) may be redefined any number of
+     times; it is the user's own variable (x:=fib^1,add x:=x^2,mul x::x^a,cat).
+   - Within one compute's expansion, duplicates are merged (fib:+fi.* touches fib once).
+
+   -i is global, as pick. (For later: a per-compute marker, so that a NAME that matches an
+   input column by accident is still an error elsewhere on the command line; section 6.)
+
+   Semantics of a redefinition (as pick): the name is rebound to the new compute. Computes
+   and @@ filters that refer to the name before the redefinition see the earlier binding
+   (for an input column: the input value); later computes, @ filters, output and --demux see
+   the final binding. Data is not moved: the compute gets a new column index and the name
+   is rebound (COMPUTE.design.txt section 6).
+
+
+2. Output position
+
+   One rule, as pick: output positions come from where names are listed; the value shown
+   is the name's final binding.
+   - Without -A and -x: the column arguments and '::' computes in command line order. A
+     name listed more than once is output once, at its first position, with pick's message
+     ('Identical output column names exist (will make unique)').
+       pluk -i name fib::fib^1,add          name fib (new value)
+       pluk -i fib::fib^1,add name fib      fib (new value) name
+   - With -A or -x: the input columns in input order, so a redefined input column keeps its
+     place and shows the new value; new computes (not redefinitions) follow (or are inserted,
+     section 4). With -x, a column that is excised but also recomputed with '::' is kept
+     (pick; '::' asks for output).
+
+
+3. Map: a list, '+' regex or -k range as NAME
+
+   'fib:sq::SPEC', '+num\d::SPEC', '3-5::SPEC' (-k): the compute is applied per selected
+   column, in COLSPEC order; each application is a compute named after its column. Without
+   renaming (section 6) every application redefines an existing column, so map requires -i,
+   and the rules of section 1 apply per column. Every element must select a column
+   (COLSPEC.design.txt section 3).
+
+
+4. __
+
+   __ is the current compute's own name: in a map, the column of this application; for a
+   single-name compute, its NAME (useful with -i: fib::__^1,add is fib::fib^1,add). It
+   refers to the binding before the compute, i.e. the value being replaced. If that name
+   does not exist yet, it is an unknown column, as pick ('(Compute) handle [x] in compute
+   x does not reference a known entity ...').
+
+
+5. -A<N>
+
+   With -A, the new computes (not redefinitions) are inserted as one block after the first
+   N input columns; N negative counts from the right; an N beyond either end is clamped to
+   that end (as pick). Redefined input columns stay at their own position (section 2), so
+   in-place computes need no special case. The position counts input columns, which exist
+   with or without a header line (-k, -h). -A<N> with -x is an option error (-x takes
+   precedence over -A, so N would have no effect).
+
+
+6. Deferred
+
+   - Renaming forms: pick's P/SPEC/S, SPEC/S, P/SPEC/ (new columns with prefix/suffix) and
+     P/SPEC//S (also output the original); the syntax is to be revisited ('/' is also the
+     filter delimiter, and names containing '/' would need %2F in every NAME).
+   - Capture group 1 naming the new columns of a map ('num(\d)'::__^10,add -> 1 2 4).
+   - A per-compute in-place marker instead of (or next to) the global -i (section 1).
+   - --A=NAME (pick: -A with the new columns after column NAME).
+   - Chaining redefinitions of an input column (pick allows fib::fib^1,add fib::fib^10,add;
+     pluk refuses the second; it can be written as one compute).

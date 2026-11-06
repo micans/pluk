@@ -1,0 +1,37 @@
+
+- In-place computes (-i), multi-column NAME (map), __, and -A<N>
+
+  Design: INPLACE.design.txt (decided), seeded by INPLACE.notes.txt; builds on
+  COMPUTE.design.txt and COLSPEC.design.txt. Renaming forms (prefix/suffix, capture group 1),
+  a per-compute in-place marker and --A=NAME are deferred (INPLACE.design.txt section 6).
+
+
+  Outcome of the discussion
+
+  - -i allows redefinition; without it an existing NAME stays an error.
+  - With -i: an input column may be redefined at most once (single name or map); a computed
+    name may be redefined any number of times; duplicates within one expansion are merged.
+  - Rebinding as pick: earlier references and @@ filters see the earlier binding; later
+    computes, @ filters, output and --demux the final one.
+  - Output positions from where names are listed, values from the final binding; with -A
+    and -x a redefined input column keeps its place.
+  - Map (list, '+' regex, -k range as NAME) applies the compute per column; requires -i.
+  - __ is the current compute's own name, referring to the binding being replaced.
+  - -A<N>: new computes inserted after N input columns (negative from the right, clamped);
+    -A<N> with -x is an option error.
+
+
+  Items
+
+  1   INPLACE.design.txt (and the pointer in COMPUTE.design.txt section 8). Commit.
+
+  2   -i for single-name computes: rebinding, the at-most-once rule for input columns,
+      repeated redefinition of computed names, __, output positions (with -A and -x).
+      Tests against pick where pick agrees (pick allows chaining on input columns; pluk
+      refuses it). Commit.
+
+  3   Map: a list, '+' regex or -k range as NAME, under -i: one compute per selected column,
+      duplicates merged, __ as the column, the rules of item 2 per column. Commit.
+
+  4   -A<N>: insertion of the new computes, clamping, negative N; -A<N> with -x refused.
+      Tests against pick. Commit.
