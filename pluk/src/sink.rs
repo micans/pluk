@@ -13,6 +13,10 @@ use std::path::Path;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 
+use crate::names::ColumnNames;
+use crate::output::{self, RowWriter};
+use crate::row::Row;
+
 const FILE_BUFSIZE: usize = 64 * 1024;
 
 pub enum FileSink {
@@ -57,6 +61,54 @@ impl Write for FileSink {
             FileSink::Plain(w) => w.flush(),
             FileSink::Gzip(g) => g.flush(),
         }
+    }
+}
+
+// A side output (--other, --assert-other): a file that receives some of the data
+// rows, in the same columns as stdout, after the preamble and the header.
+pub struct SideFile {
+    option: &'static str,           // for messages
+    pub name: Vec<u8>,
+    file:   FileSink,
+    writer: Option<RowWriter>,      // None until start(), and with empty input
+    pub n_rows: u64,                // data rows written
+}
+
+impl SideFile {
+    // Created before input is read, so that a bad path is reported early.
+    pub fn create(option: &'static str, name: &[u8]) -> io::Result<SideFile> {
+        let file = FileSink::create(name).map_err(|e| {
+            io::Error::new(e.kind(), format!("{}: cannot create {}: {}", option, String::from_utf8_lossy(name), e))
+        })?;
+        Ok(SideFile { option, name: name.to_vec(), file, writer: None, n_rows: 0 })
+    }
+
+    // Once the header has been read: the preamble, the header if given, and the
+    // RowWriter for the data rows.
+    pub fn start(&mut self, writer: RowWriter, preamble: &[Vec<u8>], header: Option<&ColumnNames>)
+        -> io::Result<()>
+    {
+        for line in preamble {
+            output::write_line(&mut self.file, line)?;
+        }
+        if let Some(names) = header {
+            writer.write_header(&mut self.file, names)?;
+        }
+        self.writer = Some(writer);
+        Ok(())
+    }
+
+    pub fn write_row(&mut self, row: &Row) -> io::Result<()> {
+        if let Some(writer) = &self.writer {
+            writer.write_row(&mut self.file, row)?;
+        }
+        self.n_rows += 1;
+        Ok(())
+    }
+
+    pub fn finish(self) -> io::Result<()> {
+        let option = self.option;
+        self.file.finish().map_err(|e| io::Error::new(e.kind(), format!("{}: {}", option, e)))
     }
 }
 

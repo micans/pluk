@@ -71,3 +71,35 @@ Item 1: output files and --other
   Tests: other, other-c-gz (gzip, -c, @@ and @ rejects), other-h-k, other-sam (preamble,
   mid-input @CO to stdout only), other-errors (missing directory, empty name). Help refs
   updated. Unit tests in sink.rs (gzip names, plain and gzip round trip).
+
+
+Item 2: --assert-other
+
+  Files: src/sink.rs (SideFile), opt.rs (--assert-other=FILE, the same-file check, help),
+  main.rs (route()).
+
+  SideFile gathers what --other needed in item 1 and --assert-other needs too: the FileSink,
+  created before input is read (errors name the option), start() with the preamble and
+  header once the header is known, write_row(), a row count, finish(). main.rs creates both
+  as Option<SideFile> and starts them in one loop over [&mut other, &mut assert_other]
+  (an array of &mut Option<SideFile>; flatten() skips the None ones).
+
+  Filters::keep() already has three outcomes: Ok(true) kept, Ok(false) rejected by a filter,
+  Err(message) an assertion failed. route() in main.rs maps them: kept rows go to stdout (or
+  are counted with -c), rejected rows to --other, rows failing an assertion to
+  --assert-other, or, without it, the run ends with the message and line number as in step8.
+  Since keep() returns at the first failing assertion, a diverted row is neither tested
+  against the filters of its stage nor written anywhere else, and is written once. At the end
+  'pluk: N rows failed an assertion (written to FILE)' if N > 0; exit status 0.
+
+  The same name for --other and --assert-other is an option error (check_combinations); the
+  names are compared as given.
+
+  Checked against pick: --assert-other with @assert@ only (pick allows no @ filters with it)
+  gives the same stdout and file; pick's message is '== 4 rows failed one or more
+  assertions'.
+
+  Tests: assert-other (as pick), assert-other-mix (@@assert@, @@ filter, @assert@, @ filter
+  and --other: every row lands in exactly one place), assert-other-c (-c, gzip, a regex
+  handle; a run without failures leaves the file with its header only and gives no
+  message), assert-other-errors. Help refs updated.

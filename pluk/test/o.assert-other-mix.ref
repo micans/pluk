@@ -1,0 +1,18 @@
+name	ud	fib
+Charlie	3	2
+Esme	5	5
+Gillian	7	13
+Inky	9	34
+Kelly	11	89
+pluk: 3 rows failed an assertion (written to out/ao-mix.txt)
+-- out/ao-mix.txt
+name	ud	fib
+Bob	-2	1
+John	-10	55
+Lucy	-12	144
+-- out/ao-mix-other.txt
+name	ud	fib
+Ann	1	1
+Dan	-4	3
+Fred	-6	8
+Harriet	-8	21

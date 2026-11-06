@@ -195,6 +195,10 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	{ $(p) -h --other=out/other-h.txt name @fib/gt/5 < data.txt > /dev/null; $(p) -k --other=out/other-k.txt 1 @2/gt/5 < data.txt > /dev/null; cat out/other-h.txt out/other-k.txt; } > o.other-h-k.test
 	{ $(p) --sam-h --other=out/other-sam.txt 1 2 @2/eq/0 < sam.txt 2> /dev/null; echo "-- out/other-sam.txt"; cat out/other-sam.txt; } > o.other-sam.test
 	{ $(p) --other=out/nodir/x.txt name < data.txt; echo "exit $$?"; $(p) --other= name < data.txt; echo "exit $$?"; } > o.other-errors.test 2>&1
+	{ $(p) --assert-other=out/ao.txt name ud @assert@ud/gt/-5 < data.txt; echo "exit $$?"; echo "-- out/ao.txt"; cat out/ao.txt; } > o.assert-other.test 2>&1
+	{ $(p) --assert-other=out/ao-mix.txt --other=out/ao-mix-other.txt name ud fib @@assert@ud/ne/-2 @@fib/gt/1 @assert@ud/gt/-10 @ud/gt/0 < data.txt; echo "-- out/ao-mix.txt"; cat out/ao-mix.txt; echo "-- out/ao-mix-other.txt"; cat out/ao-mix-other.txt; } > o.assert-other-mix.test 2>&1
+	{ $(p) -c --assert-other=out/ao-c.txt.gz '@@assert@+num\d/le/100' < data.txt; echo "-- out/ao-c.txt.gz"; gzip -dc out/ao-c.txt.gz; $(p) --assert-other=out/ao-none.txt name @assert@fib/gt/0 < data.txt > /dev/null; echo "-- out/ao-none.txt"; cat out/ao-none.txt; } > o.assert-other-c.test 2>&1
+	{ $(p) --other=out/x --assert-other=out/x name < data.txt; echo "exit $$?"; $(p) --assert-other= name < data.txt; echo "exit $$?"; $(p) --assert-other=out/nodir/x name < data.txt; echo "exit $$?"; } > o.assert-other-errors.test 2>&1
 	for a in @z/gt/3 @@name/gt/:z @fib~eq~:z; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-unknown.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.txt   2> /dev/null > o.filter-sam.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.bam   > o.filter-bam.test

@@ -47,13 +47,11 @@ fn run() -> std::io::Result<()> {
         }
     };
 
-    // --other is created before input is read, so that a bad path is reported early.
-    let mut other = match &config.other {
-        None => None,
-        Some(name) => Some(sink::FileSink::create(name).map_err(|e| {
-            std::io::Error::new(e.kind(), format!("--other: cannot create {}: {}", String::from_utf8_lossy(name), e))
-        })?),
-    };
+    // --other and --assert-other are created before input is read, so that a bad
+    // path is reported early.
+    let mut other = config.other.as_deref().map(|n| sink::SideFile::create("--other", n)).transpose()?;
+    let mut assert_other = config.assert_other.as_deref()
+        .map(|n| sink::SideFile::create("--assert-other", n)).transpose()?;
 
     // As in pick: header output on by default, off with -k; -h and -c always switch it off.
     #[allow(non_snake_case)]
@@ -164,38 +162,25 @@ fn run() -> std::io::Result<()> {
         output::write_line(&mut out, line)?;
     }
 
-    // --other: the preamble, then the header following -h and -k (not -c, which
-    // concerns stdout), then the rejected rows. With -c and no column arguments the
-    // rows are written whole (pick writes empty lines).
-    let other_writer = match &mut other {
-        Some(file) if !input.is_empty => {
-            let all = config.c && column_args.is_empty() && !config.all && !config.excise;
-            let offsets: Vec<usize> = if all { (0..input.n_columns).collect() } else { selection.output_offset.clone() };
+    // --other and --assert-other: the preamble, then the header following -h and
+    // -k (not -c, which concerns stdout), then their rows. With -c and no column
+    // arguments the rows are written whole (pick writes empty lines).
+    if !input.is_empty {
+        let all = config.c && column_args.is_empty() && !config.all && !config.excise;
+        let offsets: Vec<usize> = if all { (0..input.n_columns).collect() } else { selection.output_offset.clone() };
+        let header = if !config.k && !config.no_header { Some(&input.names) } else { None };
+        for side in [&mut other, &mut assert_other].into_iter().flatten() {
             let writer = output::RowWriter::new(&offsets, input.n_columns, input.settings.omega.is_some());
-            for line in &input.passthrough_preamble {
-                output::write_line(file, line)?;
-            }
-            if !config.k && !config.no_header {
-                writer.write_header(file, &input.names)?;
-            }
-            Some(writer)
+            side.start(writer, &input.passthrough_preamble, header)?;
         }
-        _ => None,
-    };
-    // Write a rejected row to --other, if given.
-    let mut reject = |row: &row::Row| -> std::io::Result<()> {
-        match (&mut other, &other_writer) {
-            (Some(file), Some(writer)) => writer.write_row(file, row),
-            _ => Ok(()),
-        }
-    };
+    }
 
     if config.c {
         // -c: output only the number of data rows that pass the filters.
         let mut n_kept: u64 = 0;
         while let Some(kind) = input.next_line()? {
             match kind {
-                io::LineKind::Data        => if keep(&mut filters, &input)? { n_kept += 1 } else { reject(&input.row)? },
+                io::LineKind::Data        => if route(&mut filters, &input, &mut other, &mut assert_other)? { n_kept += 1 },
                 io::LineKind::PassThrough => output::write_line(&mut out, &input.row.line)?,
             }
         }
@@ -218,10 +203,8 @@ fn run() -> std::io::Result<()> {
         }
         while let Some(kind) = input.next_line()? {
             match kind {
-                io::LineKind::Data => if keep(&mut filters, &input)? {
+                io::LineKind::Data => if route(&mut filters, &input, &mut other, &mut assert_other)? {
                     writer.write_row(&mut out, &input.row)?
-                } else {
-                    reject(&input.row)?
                 },
                 io::LineKind::PassThrough => output::write_line(&mut out, &input.row.line)?,
             }
@@ -229,6 +212,13 @@ fn run() -> std::io::Result<()> {
     }
     out.flush()?;
     if let Some(file) = other {
+        file.finish()?;
+    }
+    if let Some(file) = assert_other {
+        if file.n_rows > 0 {
+            eprintln!("pluk: {} row{} failed an assertion (written to {})", file.n_rows,
+                      if file.n_rows == 1 { "" } else { "s" }, String::from_utf8_lossy(&file.name));
+        }
         file.finish()?;
     }
     filters.report_na();
@@ -244,12 +234,29 @@ fn run() -> std::io::Result<()> {
     Ok(())
 }
 
-// Whether the current data row passes the filters; a failed assertion is an
-// error that ends the run, with the line number.
-fn keep(filters: &mut filter::Filters, input: &io::LineReader) -> std::io::Result<bool> {
-    filters.keep(&input.row).map_err(|msg| {
-        std::io::Error::new(ErrorKind::InvalidData, format!("{} at line {}", msg, input.n_lines))
-    })
+// Whether the current data row is kept. A row rejected by a filter is written to
+// --other; a row that fails an assertion is written to --assert-other, or else
+// ends the run with an error giving the line number.
+fn route(filters: &mut filter::Filters, input: &io::LineReader,
+         other: &mut Option<sink::SideFile>, assert_other: &mut Option<sink::SideFile>)
+    -> std::io::Result<bool>
+{
+    match filters.keep(&input.row) {
+        Ok(true) => Ok(true),
+        Ok(false) => {
+            if let Some(file) = other {
+                file.write_row(&input.row)?;
+            }
+            Ok(false)
+        }
+        Err(msg) => match assert_other {
+            Some(file) => {
+                file.write_row(&input.row)?;
+                Ok(false)
+            }
+            None => Err(std::io::Error::new(ErrorKind::InvalidData, format!("{} at line {}", msg, input.n_lines))),
+        },
+    }
 }
 
 fn main() {

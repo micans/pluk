@@ -1,0 +1,11 @@
+7
+pluk: 5 rows failed an assertion (written to out/ao-c.txt.gz)
+-- out/ao-c.txt.gz
+name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
+Harriet	21	13	64	rat	-8	1.142857	128	19	2	ha_rr_iet	yxwv	G
+Inky	34	21	81	ant	9	1.285714	256	23	1	i_n_k_y	uts	T
+John	55	34	100	fly	-10	1.428571	512	29	2	j_o_h_n	rq	A
+Kelly	89	55	121	eagle	11	1.571428	1024	31	3	k_e_l_l_y	p	AAAAAAAA
+Lucy	144	89	144	swift	-12	1.714285	2048	37	4	l_u_c_y	grace	TCGACACGACTC
+-- out/ao-none.txt
+name

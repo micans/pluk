@@ -70,9 +70,10 @@
       /NOTNUM (step8.txt items 3 and 4).
     - Assertions: @@assert@ (before computes) is new; a failed assertion ends pluk with exit
       status 1 (pick: 255, Perl die) and the message 'assertion A failed: column C value [V]
-      at line N'; --assert-other is not implemented yet (step8.txt item 5).
+      at line N'. --assert-other diverts failing rows instead (step9.txt item 2).
     - Output files (--other, --assert-other, --demux): never opened through a shell; --other
-      also receives rows rejected by @@ filters; the pass-through preamble is written to every
+      also receives rows rejected by @@ filters; --assert-other covers @@assert@ too and
+      combines with @ filters (pick refuses them); the pass-through preamble is written to every
       output file; with -c the files keep their header, and without column arguments get
       whole rows; demux file names are restricted (step9.txt).
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam

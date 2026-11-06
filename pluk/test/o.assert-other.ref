@@ -1,0 +1,17 @@
+name	ud
+Ann	1
+Bob	-2
+Charlie	3
+Dan	-4
+Esme	5
+Gillian	7
+Inky	9
+Kelly	11
+pluk: 4 rows failed an assertion (written to out/ao.txt)
+exit 0
+-- out/ao.txt
+name	ud
+Fred	-6
+Harriet	-8
+John	-10
+Lucy	-12

@@ -25,6 +25,8 @@ Options:
   -s          keep rows that pass any @@ filter (default: all)
   --other=FILE  write the rows rejected by @ and @@ filters to FILE (header and
               columns as the output; .gz or .gzip: gzip-compressed)
+  --assert-other=FILE  write rows that fail an @assert@ or @@assert@ to FILE
+              instead of stopping; such rows go nowhere else
   --sam       SAM input: implies -k and -O12, skips lines starting with @.
               BAM input is recognised and read as SAM
   --sam-h     as --sam, but outputs lines starting with @ unchanged
