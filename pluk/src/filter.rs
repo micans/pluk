@@ -506,10 +506,13 @@ impl Filter<'_> {
     }
 
     // Predicates never count: a value that is not a number is what they test.
+    // ISNUM holds for numbers other than NaN, which is not a usable number
+    // (NUMERIC.design.txt section 9); inf is a number.
     fn predicate(field: &[u8], pred: Pred, negated: bool) -> bool {
         let holds = match (pred, num::parse_num(field)) {
             (Pred::Int, Some(Num::I(_))) => true,
             (Pred::Int, _) => false,
+            (Pred::Num, Some(Num::F(x))) => !x.is_nan(),
             (Pred::Num, n) => n.is_some(),
         };
         holds != negated
@@ -784,7 +787,8 @@ mod tests {
     fn predicates() {
         for (v, int, numeric) in [("5", true, true), ("-3", true, true), ("+7", true, true), ("007", true, true),
                                   ("5.0", false, true), ("1e3", false, true), ("inf", false, true),
-                                  ("nan", false, true), ("", false, false), ("fox", false, false),
+                                  ("nan", false, false), ("NaN", false, false), ("-inf", false, true),
+                                  ("", false, false), ("fox", false, false),
                                   (" 4", false, false), ("0x10", false, false)] {
             assert_eq!(Filter::predicate(v.as_bytes(), Pred::Int, false), int, "{}", v);
             assert_eq!(Filter::predicate(v.as_bytes(), Pred::Int, true), !int, "{}", v);

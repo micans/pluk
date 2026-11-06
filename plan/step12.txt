@@ -1,0 +1,66 @@
+
+- Math operators
+
+  The first operator family after the compute groundwork (step10): arithmetic, rounding,
+  mathematical functions, whole-stack operators, precision formatting and rand. Bit
+  operations (bitand bitor bitxor bitoff bitlsh bitrsh) and radix conversions (tobin tohex
+  tooct binto hexto octto) form a later step; qnl and qnu need pick's --quant data and come
+  later as well. Design: NUMERIC.design.txt (sections 3-5, and 9: NA and NaN),
+  COMPUTE.design.txt.
+
+
+  Outcome of the discussion
+
+  Operators (pick's names, semantics and descriptions unless stated):
+    binary      sub mul div idiv mod pow ipow max min        (add exists)
+    unary       neg abs sign sq incr decr
+    rounding    int floor ceil round                          (float -> integer)
+    functions   sqrt exp exp2 exp10 log log2 log10 sin cos tan
+    whole stack mulall maxall minall meanall hmeanall gmeanall   (addall exists)
+    precision   dd sn frac pct pml                            (text with N decimals)
+    random      rand, with --seed=N
+
+  Decisions:
+   1. Division by zero: div follows IEEE (x/0 inf or -inf, 0/0 nan); idiv and mod by zero
+      give NA. pick dies unless -P; -P, -Z and PICK_*_INF are not taken over.
+   2. div always gives a float (as Perl: 6/3 is written 2, 7/2 is 3.5).
+   3. mod and idiv are floored (Perl's %: -7 mod 3 is 2, 7 mod -3 is -2), so that
+      x = y*idiv(x,y) + mod(x,y).
+   4. A float given to an integer operator (idiv mod ipow) is NA (pick truncates);
+      int floor ceil round are the explicit conversions (NUMERIC.design.txt section 5).
+   5. Overflow: sub mul neg abs sq incr decr overflow to a float (as add; generic
+      operators, NUMERIC.design.txt section 4); ipow overflow is NA (an explicit integer
+      operator); rounding a float beyond the integer range keeps the whole float.
+   6. Domain errors follow IEEE (log(0) -inf, log(-1) and sqrt(-1) nan); pick dies.
+   7. round: halves to even (2.5 -> 2, 3.5 -> 4), as pick documents.
+   8. max min abs neg sign sq incr decr keep integers as integers; pow always gives a
+      float; ipow is integer-only, a negative exponent behaves as pow (pick).
+   9. Whole stack: mulall of an empty stack is 1 (addall: 0); meanall hmeanall gmeanall
+      maxall minall of an empty stack are NA; NA among the values gives NA.
+  10. rand: a small built-in generator (splitmix64, no new dependency), seeded from the
+      clock, or with --seed=N for reproducible output and tests.
+  11. --num-perl: whole floats from float-only functions (2**60, exp, ...) are written as
+      integers where Perl writes %.15g; accepted (the step10 approximation).
+  12. /ISNUM fails on nan, /NOTNUM holds on it (NUMERIC.design.txt section 9; step8
+      accepted nan).
+
+  Tests compare with pick (--num-perl) wherever pick neither dies nor truncates.
+
+
+  Items
+
+  1   NUMERIC.design.txt section 9; /ISNUM and /NOTNUM on nan (the filter-pred test
+      changes). Commit.
+
+  2   Binary and unary arithmetic: sub mul div idiv mod pow ipow max min neg abs sign sq
+      incr decr (decisions 1-5, 8). Commit.
+
+  3   Rounding and functions: int floor ceil round sqrt exp exp2 exp10 log log2 log10 sin
+      cos tan (decisions 6, 7). Commit.
+
+  4   Whole-stack operators: mulall maxall minall meanall hmeanall gmeanall (decision 9).
+      Commit.
+
+  5   Precision operators: dd sn frac pct pml (text with N decimal digits). Commit.
+
+  6   rand and --seed=N (decision 10). Commit.

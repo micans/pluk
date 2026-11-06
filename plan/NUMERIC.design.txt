@@ -139,3 +139,28 @@ type questions are settled by the compiler and the interpreter.
    - Int -> f64 is exact only up to 2^53. A mixed comparison or promotion of a very large integer
      can lose precision; Perl has the same limit. Accepted and documented. (An exact mixed
      comparison is possible but not planned.)
+
+
+9. NA and NaN  [DECIDED, before step12]
+
+   Two different things:
+   - NA: there is no number. The value is not a number ('fox', empty, ' 4'), or an integer
+     operation has no integer result (idiv or mod by zero, ipow overflow, a float given to
+     an integer operator; integers cannot represent NaN). NA propagates through every
+     operator and is written as NA; in a filter it fails the test and is counted.
+   - NaN: the IEEE floating-point value, the result of an undefined float operation (0/0,
+     sqrt(-1), log(-1), inf-inf), or an input that reads as nan. It propagates by IEEE
+     arithmetic, is written as nan (NaN with --num-perl), and in comparisons satisfies only
+     /ne/.
+   This is R's model: NA for missing, NaN as the IEEE value; R's integer operations without
+   a result (5L %/% 0L, integer overflow) give NA because R integers have no NaN either.
+   Differences from R: a float given to an integer operator is NA (no implicit f -> i;
+   R converts), and is.na(NaN) has no direct counterpart.
+
+   NaN is not a usable number: /ISNUM fails on nan (and /NOTNUM holds), although the parser
+   reads nan as a number for arithmetic. A guard such as @@assert@+x.*/ISNUM is meant to
+   catch unusable values, and tables written by pandas, numpy and R often use NaN for
+   missing values. inf counts as a number. (Changed in step12; step8 accepted nan.) A
+   /ISNAN predicate can be added if needed. Reading the text nan as NA everywhere was
+   considered and not adopted (it would change filters and the round trip of computed NaN
+   values through pluk | pluk).

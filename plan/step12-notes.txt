@@ -1,0 +1,17 @@
+step12 notes: decisions and rationale for implementation choices.
+
+  Decisions: step12.txt (decisions 1-12) and NUMERIC.design.txt section 9 (NA and NaN).
+
+
+Item 1: NA and NaN; /ISNUM on nan
+
+  Files: NUMERIC.design.txt (section 9), filter.rs (Filter::predicate), opt.rs (help).
+
+  /ISNUM now holds for numbers other than NaN (and /NOTNUM for NaN): a NaN from parsing
+  (nan, NaN) is not a usable number. inf and -inf remain numbers. The parser is unchanged:
+  nan still reads as a float for arithmetic and comparisons. Rationale in
+  NUMERIC.design.txt section 9 (guards against missing values; pandas, numpy and R write
+  NaN for missing).
+
+  Tests: filter-pred and filter-pred-multi (the nan row moves from /ISNUM to /NOTNUM),
+  help refs; the unit test in filter.rs adds NaN and -inf.
