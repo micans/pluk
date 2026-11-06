@@ -55,3 +55,34 @@ Item 2: binary and unary arithmetic
 
   Tests: math-arith, math-arith-big, math-arith-edge. Help refs. Unit tests in num.rs
   (arithmetic).
+
+
+Item 3: rounding and functions
+
+  Files: num.rs (round_with, to_int; to_f64 now public), ops.rs (Category::Math, table
+  entries, float1), opt.rs (help).
+
+  int floor ceil round: num::round_with(a, f) applies f64::trunc, floor, ceil or
+  round_ties_even to a float and converts the result to an integer if it is finite and in
+  the integer range (to_int); otherwise the whole float stays (1e300, inf, nan; decision 5).
+  An integer operand is returned unchanged. round halves to even on the exact binary value,
+  as pick's sprintf('%.0f') (2.5 -> 2, -2.5 -> -2); pick writes -0 for round(-0.4) and
+  round(-0.5), pluk the integer 0.
+
+  The functions (sqrt exp exp2 exp10 log log2 log10 sin cos tan) go through float1: the
+  operand as f64, the result a float, domain errors as IEEE (log(0) -inf, log(-1) and
+  sqrt(-1) nan; pick dies: 'Can't take log of 0'). log2, log10 and tan use Rust's direct
+  functions (f64::log2, log10, tan); pick computes log(x)/log(2), log(x)/log(10) and
+  sin(x)/cos(x), which differ in the last bit for some values (log10(8): pick
+  0.9030899869919434, pluk 0.9030899869919435, the correctly rounded value; log10(1000) is
+  exactly 3 in pluk, 2.9999999999999996 in Perl, shown as 3 by %.15g). With --num-perl such
+  differences show when the 15th digit flips. exp10 is 10f64.powf(x), as Perl's 10**x.
+
+  Checked against pick (--num-perl): math-func (rounding on floats and negative integers,
+  sqrt log exp exp2 exp10, sin cos tan on data.txt) and math-func-big (rounding, sin, cos
+  on big.txt floats; sqrt and log on n4) are identical. Not compared: log2, log10 and tan
+  on big.txt (last digit, above), exp of large values (whole floats written as integers by
+  --num-perl, decision 11), log of 0 (pick dies). math-func-edge (pluk only) shows these.
+
+  Tests: math-func, math-func-big, math-func-edge. Help refs. Unit test in num.rs
+  (rounding).

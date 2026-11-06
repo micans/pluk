@@ -63,7 +63,7 @@ pub fn compare(a: Num, b: Num) -> Option<Ordering> {
 }
 
 impl Num {
-    fn to_f64(self) -> f64 {
+    pub fn to_f64(self) -> f64 {
         match self {
             Num::I(i) => i as f64,
             Num::F(f) => f,
@@ -242,6 +242,25 @@ pub fn incr(a: Num) -> Num {
 
 pub fn decr(a: Num) -> Num {
     sub(a, Num::I(1))
+}
+
+// Rounding: the explicit float -> integer conversions (NUMERIC.design.txt section
+// 5). An integer stays as it is; a float that is not finite or beyond the integer
+// range stays a (whole) float (plan/step12.txt decision 5).
+pub fn round_with(a: Num, f: fn(f64) -> f64) -> Num {
+    match a {
+        Num::I(_) => a,
+        Num::F(x) => to_int(f(x)),
+    }
+}
+
+fn to_int(x: f64) -> Num {
+    // -(Int::MIN as f64) is 2^63 (2^127 with int128), exactly representable.
+    if x.is_finite() && x >= Int::MIN as f64 && x < -(Int::MIN as f64) {
+        Num::I(x as Int)
+    } else {
+        Num::F(x)
+    }
 }
 
 
@@ -443,6 +462,21 @@ mod tests {
         assert_eq!((neg(I(Int::MIN)), abs(I(Int::MIN))), (F(-(Int::MIN as f64)), F(-(Int::MIN as f64))));
         assert_eq!((sign(F(-0.5)), sign(I(0)), sign(F(2.0))), (I(-1), I(0), I(1)));
         assert_eq!((sq(I(-4)), incr(I(Int::MAX)), decr(F(0.5))), (I(16), F(Int::MAX as f64 + 1.0), F(-0.5)));
+    }
+
+    #[test]
+    fn rounding() {
+        assert_eq!(round_with(F(2.5), f64::round_ties_even), I(2));
+        assert_eq!(round_with(F(3.5), f64::round_ties_even), I(4));
+        assert_eq!(round_with(F(-2.5), f64::round_ties_even), I(-2));
+        assert_eq!(round_with(F(-2.7), f64::trunc), I(-2));
+        assert_eq!(round_with(F(-2.2), f64::floor), I(-3));
+        assert_eq!(round_with(F(-2.7), f64::ceil), I(-2));
+        assert_eq!(round_with(I(7), f64::floor), I(7));
+        assert_eq!(round_with(F(1e300), f64::floor), F(1e300));
+        assert!(matches!(round_with(F(f64::NAN), f64::floor), F(x) if x.is_nan()));
+        assert_eq!(round_with(F(-(Int::MIN as f64)), f64::floor), F(-(Int::MIN as f64)));
+        assert_eq!(round_with(F(Int::MIN as f64), f64::floor), I(Int::MIN));
     }
 
     #[test]

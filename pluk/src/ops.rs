@@ -48,6 +48,7 @@ pub enum Category {
     Stack,
     String,
     Arithmetic,
+    Math,
     Regex,
 }
 
@@ -110,6 +111,34 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x", result: "x++", doc: "x incremented by one", fun: op_incr },
     OpDef { name: "decr",   pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "x", result: "x--", doc: "x decremented by one", fun: op_decr },
+    OpDef { name: "int",    pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Math,
+            operands: "x", result: "int(x)", doc: "x truncated towards zero (do not use for rounding)", fun: op_int },
+    OpDef { name: "floor",  pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Math,
+            operands: "x", result: "floor(x)", doc: "The floor of x", fun: op_floor },
+    OpDef { name: "ceil",   pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Math,
+            operands: "x", result: "ceil(x)", doc: "The ceil of x", fun: op_ceil },
+    OpDef { name: "round",  pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Math,
+            operands: "x", result: "round(x)", doc: "The integer nearest to x, halves to even (2.5 -> 2, 3.5 -> 4)", fun: op_round },
+    OpDef { name: "sqrt",   pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Math,
+            operands: "x", result: "sqrt(x)", doc: "Square root of x", fun: op_sqrt },
+    OpDef { name: "exp",    pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Math,
+            operands: "x", result: "e**x", doc: "Exponential function applied to x", fun: op_exp },
+    OpDef { name: "exp2",   pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Math,
+            operands: "x", result: "2^x", doc: "2 to the power of x", fun: op_exp2 },
+    OpDef { name: "exp10",  pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Math,
+            operands: "x", result: "10^x", doc: "10 to the power of x", fun: op_exp10 },
+    OpDef { name: "log",    pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Math,
+            operands: "x", result: "log(x)", doc: "Natural logarithm of x", fun: op_log },
+    OpDef { name: "log2",   pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Math,
+            operands: "x", result: "log2(x)", doc: "Logarithm of x in base 2", fun: op_log2 },
+    OpDef { name: "log10",  pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Math,
+            operands: "x", result: "log10(x)", doc: "Logarithm of x in base 10", fun: op_log10 },
+    OpDef { name: "sin",    pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Math,
+            operands: "x", result: "sin(x)", doc: "Sine of x", fun: op_sin },
+    OpDef { name: "cos",    pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Math,
+            operands: "x", result: "cos(x)", doc: "Cosine of x", fun: op_cos },
+    OpDef { name: "tan",    pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Math,
+            operands: "x", result: "tan(x)", doc: "Tangent of x", fun: op_tan },
     OpDef { name: "addall", pops: Pops::All,  pushes: 1, shape: Shape::Result(Kind::Num), prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "*", result: "sum(Stack)", doc: "Sum of all entries in stack", fun: op_addall },
     OpDef { name: "del",    pops: Pops::N(2), pushes: 1, shape: Shape::Result(Kind::Str), prepare: Prepare::ConstRegex, category: Category::Regex,
@@ -192,6 +221,29 @@ fn op_sign(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num
 fn op_sq(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num::sq) }
 fn op_incr(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num::incr) }
 fn op_decr(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num::decr) }
+
+fn op_int(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, |a| num::round_with(a, f64::trunc)) }
+fn op_floor(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, |a| num::round_with(a, f64::floor)) }
+fn op_ceil(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, |a| num::round_with(a, f64::ceil)) }
+fn op_round(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, |a| num::round_with(a, f64::round_ties_even)) }
+
+// Functions on floats: the operand as f64 (an integer is promoted), the result a
+// float; domain errors follow IEEE (log(0) is -inf, sqrt(-1) nan; step12.txt
+// decision 6).
+fn float1(m: &mut Machine, row: &Row, f: fn(f64) -> f64) {
+    numeric1(m, row, |a| Num::F(f(a.to_f64())))
+}
+
+fn op_sqrt(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::sqrt) }
+fn op_exp(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::exp) }
+fn op_exp2(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::exp2) }
+fn op_exp10(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, |x| 10f64.powf(x)) }
+fn op_log(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::ln) }
+fn op_log2(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::log2) }
+fn op_log10(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::log10) }
+fn op_sin(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::sin) }
+fn op_cos(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::cos) }
+fn op_tan(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::tan) }
 
 // The sum of the whole stack; an empty stack sums to 0, as pick.
 fn op_addall(m: &mut Machine, row: &Row, _: Option<&Regex>) {

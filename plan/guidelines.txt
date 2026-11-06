@@ -91,7 +91,9 @@
     - -K cannot be combined with --sam or --sam-h (step11-notes.txt item 5).
     - Arithmetic (step12.txt): division by zero gives inf or nan (div) or NA (idiv, mod)
       where pick dies; a float given to idiv, mod or ipow is NA (pick truncates); ipow
-      overflow is NA; sign of nan is nan (pick: 0); /ISNUM fails on nan.
+      overflow is NA; sign of nan is nan (pick: 0); /ISNUM fails on nan; log, sqrt of 0 or
+      negative values give -inf or nan (pick dies); log10, log2 and tan are computed
+      directly (pick: log(x)/log(10), sin/cos), which can differ in the last digit.
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).
