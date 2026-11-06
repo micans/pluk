@@ -13,6 +13,7 @@
 use regex::bytes::Regex;
 
 use crate::colspec::{self, ColSpec, Element};
+use crate::dict::Dicts;
 use crate::io::compile_pattern;
 use crate::names::ColumnNames;
 use crate::ops::{self, Kind, OpDef, Pops, Prepare, Shape};
@@ -150,7 +151,16 @@ pub enum Instr {
     Field(usize),                   // push a column of the row (input or computed)
     Const(Vec<u8>),                 // push a constant
     Op(&'static OpDef),             // apply an operator
-    OpRegex(&'static OpDef, Regex), // an operator whose pattern operand (a constant) is compiled
+    OpWith(&'static OpDef, Attached), // an operator with what was prepared at compile time
+}
+
+// What the prepare step attaches to an operator instruction: a compiled constant
+// regex (del, ed, ...), or the position of a dictionary in Dicts (map, dord).
+#[derive(Debug)]
+pub enum Attached {
+    None,
+    Regex(Regex),
+    Dict(usize),
 }
 
 // What is known at compile time about a value on the stack.
@@ -178,7 +188,7 @@ pub struct Compute {
 //
 // inplace (-i): a compute may redefine a name; an input column at most once, a
 // computed name any number of times.
-pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool)
+pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, dicts: &Dicts)
     -> Result<(Vec<Compute>, ColumnNames), String>
 {
     let mut names = input.clone();
@@ -249,7 +259,10 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool)
                         }
                         let instr = match op.prepare {
                             Prepare::Nothing => Instr::Op(op),
-                            Prepare::ConstRegex(pos) => Instr::OpRegex(op, const_regex(&instrs, &stack, pos, op, &shown)?),
+                            Prepare::ConstRegex(pos) =>
+                                Instr::OpWith(op, Attached::Regex(const_regex(&instrs, &stack, pos, op, &shown)?)),
+                            Prepare::ConstDict(pos) =>
+                                Instr::OpWith(op, Attached::Dict(const_dict(&instrs, &stack, pos, op, dicts, &shown)?)),
                             Prepare::FormatCount => {
                                 check_format(&instrs, &stack, &shown)?;
                                 Instr::Op(op)
@@ -300,6 +313,38 @@ fn const_regex(instrs: &[Instr], stack: &[Slot], pos: usize, op: &OpDef, shown: 
     compile_pattern(pattern, &format!("[{}]", shown))
 }
 
+// The dictionary operand of map and dord (pos places below the top) must be a
+// constant naming a dictionary; it is resolved now to its position in Dicts.
+fn const_dict(instrs: &[Instr], stack: &[Slot], pos: usize, op: &OpDef, dicts: &Dicts, shown: &str)
+    -> Result<usize, String>
+{
+    let name = match stack.len().checked_sub(pos + 1).map(|k| &stack[k]) {
+        Some(Slot::Const(k)) => match &instrs[*k] {
+            Instr::Const(c) => c,
+            _ => unreachable!("Slot::Const refers to a constant"),
+        },
+        _ => return Err(format!("[{}]: the dictionary operand of {} must be a constant (^NAME)", shown, op.name)),
+    };
+    dicts.index_of(name).ok_or_else(|| format!("[{}]: Dictionary [{}] not found", shown, String::from_utf8_lossy(name)))
+}
+
+// The dictionaries that a dord names with a constant (a constant token directly
+// before the operator, as pick's check for ^D,dord): they record the order of
+// their keys while they are read, which happens before computes are compiled.
+pub fn dord_dictionaries(specs: &[ComputeSpec]) -> Vec<Vec<u8>> {
+    let mut names = Vec::new();
+    for spec in specs {
+        for pair in spec.tokens.windows(2) {
+            if let [Token::Const(name), Token::Op(op)] = pair {
+                if op.name == "dord" && !names.contains(name) {
+                    names.push(name.clone());
+                }
+            }
+        }
+    }
+    names
+}
+
 // fmtall with a constant format (the bottom of the stack): the stack depth is
 // known, so a # count that does not match the values would fail on every row; it
 // is an error before input is read. A format from a column is checked per row.
@@ -318,19 +363,16 @@ fn check_format(instrs: &[Instr], stack: &[Slot], shown: &str) -> Result<(), Str
 
 // The compiled form, for --test-compute.
 pub fn describe_compiled(c: &Compute, names: &ColumnNames) -> String {
-    let mut out = format!("compiled {} -> column {} ({})
-", String::from_utf8_lossy(&c.name), c.index + 1,
+    let mut out = format!("compiled {} -> column {} ({})\n", String::from_utf8_lossy(&c.name), c.index + 1,
                           if c.output { "output" } else { "no output" });
     for instr in &c.instrs {
         let line = match instr {
-            Instr::Field(i) => format!("  field {} ({})
-", i + 1, String::from_utf8_lossy(names.name(*i))),
-            Instr::Const(b) => format!("  const [{}]
-", String::from_utf8_lossy(b)),
-            Instr::Op(op) => format!("  op {}
-", op.name),
-            Instr::OpRegex(op, re) => format!("  op {} (regex {})
-", op.name, re.as_str()),
+            Instr::Field(i) => format!("  field {} ({})\n", i + 1, String::from_utf8_lossy(names.name(*i))),
+            Instr::Const(b) => format!("  const [{}]\n", String::from_utf8_lossy(b)),
+            Instr::Op(op) => format!("  op {}\n", op.name),
+            Instr::OpWith(op, Attached::Regex(re)) => format!("  op {} (regex {})\n", op.name, re.as_str()),
+            Instr::OpWith(op, Attached::Dict(d)) => format!("  op {} (dictionary {})\n", op.name, d),
+            Instr::OpWith(op, Attached::None) => format!("  op {}\n", op.name),
         };
         out.push_str(&line);
     }
@@ -409,7 +451,7 @@ mod tests {
         let mut row = crate::row::Row::new();
         row.line.extend_from_slice(b"a\tn1\tn2\tb");
         row.split_fields();
-        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), false)
+        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), false, &Dicts::new())
     }
 
     #[test]
@@ -420,7 +462,7 @@ mod tests {
         assert!(matches!(c[1].instrs[0], Instr::Field(4)));      // the earlier compute
         assert_eq!(c[1].stack, vec![Slot::Result(Kind::Str)]);
         let (c, _) = compile_args(&["d::a^x,del"]).unwrap();
-        assert!(matches!(c[0].instrs[2], Instr::OpRegex(..)));
+        assert!(matches!(c[0].instrs[2], Instr::OpWith(_, Attached::Regex(_))));
         let (c, _) = compile_args(&["e::^1^2,xch,pop"]).unwrap();
         assert_eq!(c[0].stack, vec![Slot::Const(1)]);
         for bad in [&["a::^1"][..], &["x::^1", "x::^2"], &["x::^1,add"], &["x::a:b,del"], &["x::zz"], &["x::y", "y::^1"]] {
@@ -434,7 +476,7 @@ mod tests {
         let mut row = crate::row::Row::new();
         row.line.extend_from_slice(b"a\tb");
         row.split_fields();
-        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), true)
+        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), true, &Dicts::new())
     }
 
     #[test]

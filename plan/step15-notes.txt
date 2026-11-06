@@ -1,0 +1,51 @@
+step15 notes: decisions and rationale for implementation choices.
+
+  Decisions: step15.txt (decisions 0-7). map and dord were added after the first plan:
+  the survey of missing operators (from pick's operator table) stopped too early and
+  missed map, dord and tmap.
+
+
+Item 1: map and dord; dictionaries in computes
+
+  Files: dict.rs (Dict::insert, Dict.order, Dicts::index_of/at, load with the ordered
+  names), compute.rs (Attached, Instr::OpWith, Prepare::ConstDict, const_dict,
+  dord_dictionaries; compile takes the dictionaries), exec.rs (Machine<'d> with the
+  dictionaries, fail/fatal, run returns Result), ops.rs (OpFn takes &Attached; map, dord;
+  Category::Dictionary), main.rs (Failure: Assertion or Fatal), opt.rs (help).
+
+  Attached. The prepare step used to attach a compiled regex to an operator instruction
+  (Instr::OpRegex). Now Instr::OpWith(op, Attached) carries Attached::Regex or
+  Attached::Dict (the dictionary's position in Dicts), and every operator function takes
+  &Attached (Attached::None for plain operators); a mechanical change of the OpFn
+  signature. Prepare::ConstDict(pos) checks that the operand is a constant naming a
+  dictionary ('Dictionary [Q] not found' otherwise, as the ~isin~ filters) and resolves it
+  once. Rust note: the machine now refers to the dictionaries (Machine<'d> holds
+  &'d Dicts), as the filters did since step7; Stages<'d> already had the lifetime.
+
+  map applies the dictionary's not-found rule of step4: the key itself (the operand is
+  passed on as it is), the default, or __EXIT__. __EXIT__ ends the run: the operator calls
+  Machine::fail, run() stops after the compute and returns the message, and Stages::judge
+  reports it as Failure::Fatal, which route() turns into an error with the line number
+  even with --assert-other (Failure::Assertion is diverted there). The rows before it have
+  been written (as pick, which dies).
+
+  dord. Dict::insert records each key's first position (1-based, across everything merged
+  into the dictionary) when the dictionary has an order table. Which dictionaries need one
+  is decided before they are read, from the computes: a constant directly before dord
+  (compute::dord_dictionaries; pick looks for ^D,dord in the arguments for the same
+  reason). All readers (--kd --fd --cd --fasta-dict --td) now insert through
+  Dict::insert. seqlen is built from the SAM header as a whole and has no order (dord
+  gives NA). Absent keys give NA (pick: ~0, 18446744073709551615).
+
+  Also: the format strings in compute.rs's describe functions contained raw newlines
+  (valid Rust, written that way in step10); they are now \n escapes. The help text lists
+  the operators by family.
+
+  Checked against pick: dict-map (pick's test 123dict2, --cdict with and without a
+  default, a name not in the dictionary, --kdict, --fdict) is identical. dord agrees with
+  pick on every present key (3, 12 and 58 rows in the three comparisons) once pick's ~0
+  for absent keys is read as NA.
+
+  Tests: dict-map, dict-dord (order of single and merged sources, NA keys), dict-ops-edge
+  (__EXIT__, a dictionary from a column, an unknown dictionary, seqlen with map and dord).
+  Help refs.

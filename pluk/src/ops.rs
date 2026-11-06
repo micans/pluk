@@ -9,6 +9,8 @@ use md5::{Digest, Md5};
 use memchr::memmem;
 use regex::bytes::{Captures, NoExpand, Regex};
 
+use crate::compute::Attached;
+use crate::dict::{Dict, NotFound};
 use crate::exec::{Machine, OpFn, Value};
 use crate::num::{self, Num};
 use crate::opt::pct_decode;
@@ -46,6 +48,8 @@ pub enum Prepare {
     Nothing,
     ConstRegex(usize), // the operand this many places below the top must be a constant;
                        // it is compiled as a regex (del: 0, ed: 1)
+    ConstDict(usize),  // the operand this many places below the top must be a constant
+                       // naming a dictionary (map, dord: 0)
     FormatCount,    // a constant bottom operand is a fmtall format: its # count must
                     // match the number of values above it
 }
@@ -57,6 +61,7 @@ pub enum Category {
     Arithmetic,
     Math,
     Precision,
+    Dictionary,
     Regex,
 }
 
@@ -134,6 +139,10 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x", result: "md5(x)", doc: "MD5 sum of x (hexadecimal)", fun: op_md5 },
     OpDef { name: "fmtall", pops: Pops::All(1), pushes: 1, shape: STR, prepare: Prepare::FormatCount, category: Category::String,
             operands: "f *", result: "Map-*-into-f", doc: "In f replace # instances by stack (\\# is a literal #)", fun: op_fmtall },
+    OpDef { name: "map",    pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
+            operands: "x D", result: "map-of-x", doc: "Value of x in dictionary D (not found: as D's default)", fun: op_map },
+    OpDef { name: "dord",   pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
+            operands: "x D", result: "ord-of-x", doc: "Order of x in dictionary D (first appearance, 1-based; NA if absent)", fun: op_dord },
     OpDef { name: "add",    pops: Pops::N(2), pushes: 1, shape: Shape::Result(Kind::Num), prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "x y", result: "x+y", doc: "Add x and y", fun: op_add },
     OpDef { name: "sub",    pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
@@ -246,21 +255,21 @@ pub fn lookup(name: &[u8]) -> Option<&'static OpDef> {
 // Implementations. Operands are popped top first: for 'x y op', y comes first.
 // A value that is not a number makes a numeric result NA (NUMERIC.design.txt).
 
-fn op_dup(m: &mut Machine, _: &Row, _: Option<&Regex>) {
+fn op_dup(m: &mut Machine, _: &Row, _: &Attached) {
     let top = m.stack.last().expect("stack checked at compile time").clone();
     m.push(top);
 }
 
-fn op_pop(m: &mut Machine, _: &Row, _: Option<&Regex>) {
+fn op_pop(m: &mut Machine, _: &Row, _: &Attached) {
     m.pop();
 }
 
-fn op_xch(m: &mut Machine, _: &Row, _: Option<&Regex>) {
+fn op_xch(m: &mut Machine, _: &Row, _: &Attached) {
     let n = m.stack.len();
     m.stack.swap(n - 1, n - 2);
 }
 
-fn op_cat(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_cat(m: &mut Machine, row: &Row, _: &Attached) {
     let y = m.pop();
     let x = m.pop();
     let mut s = m.into_bytes(x, row);
@@ -333,13 +342,13 @@ fn pad(m: &mut Machine, row: &Row, fill: u8, front: bool) {
     m.push(result);
 }
 
-fn op_ppl(m: &mut Machine, row: &Row, _: Option<&Regex>) { pad(m, row, b' ', false) }
-fn op_ppr(m: &mut Machine, row: &Row, _: Option<&Regex>) { pad(m, row, b' ', true) }
-fn op_zp(m: &mut Machine, row: &Row, _: Option<&Regex>) { pad(m, row, b'0', true) }
+fn op_ppl(m: &mut Machine, row: &Row, _: &Attached) { pad(m, row, b' ', false) }
+fn op_ppr(m: &mut Machine, row: &Row, _: &Attached) { pad(m, row, b' ', true) }
+fn op_zp(m: &mut Machine, row: &Row, _: &Attached) { pad(m, row, b'0', true) }
 
 // nchar x c: non-overlapping occurrences of c in x (decision 5); an empty c
 // counts 0.
-fn op_nchar(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_nchar(m: &mut Machine, row: &Row, _: &Attached) {
     let c = m.pop();
     let x = m.pop();
     let result = match (&x, &c) {
@@ -369,7 +378,7 @@ fn join_values(m: &mut Machine, row: &Row, values: &[Value], sep: &[u8]) -> Valu
     Value::Bytes(out)
 }
 
-fn op_catall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_catall(m: &mut Machine, row: &Row, _: &Attached) {
     let mut values = std::mem::take(&mut m.stack);
     let result = join_values(m, row, &values, b"");
     values.clear();
@@ -378,7 +387,7 @@ fn op_catall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
 }
 
 // The separator is the top of the stack (Pops::All(1) guarantees it is there).
-fn op_joinall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_joinall(m: &mut Machine, row: &Row, _: &Attached) {
     let sep = m.pop();
     let mut values = std::mem::take(&mut m.stack);
     let result = match sep {
@@ -394,7 +403,7 @@ fn op_joinall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
 }
 
 // join x y j gives x j y (pick).
-fn op_join(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_join(m: &mut Machine, row: &Row, _: &Attached) {
     let j = m.pop();
     let y = m.pop();
     let x = m.pop();
@@ -410,7 +419,7 @@ fn op_join(m: &mut Machine, row: &Row, _: Option<&Regex>) {
 
 // uie x y: x if it is not empty and not NA, otherwise y (decision 6; pick: empty
 // only). The chosen operand is pushed as it is.
-fn op_uie(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_uie(m: &mut Machine, row: &Row, _: &Attached) {
     let y = m.pop();
     let x = m.pop();
     let use_x = !matches!(x, Value::Na) && !m.bytes(&x, row).is_empty();
@@ -421,7 +430,7 @@ fn op_uie(m: &mut Machine, row: &Row, _: Option<&Regex>) {
 // _ as %XX (uppercase hexadecimal); urldc decodes %XX (either case), the same
 // decoding pluk applies to its arguments (opt::pct_decode); md5 gives the
 // lowercase hexadecimal digest (md-5 crate).
-fn op_urlec(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_urlec(m: &mut Machine, row: &Row, _: &Attached) {
     string1(m, row, |s| {
         let mut out = Vec::with_capacity(s.len());
         for &b in s.iter() {
@@ -435,11 +444,11 @@ fn op_urlec(m: &mut Machine, row: &Row, _: Option<&Regex>) {
     })
 }
 
-fn op_urldc(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_urldc(m: &mut Machine, row: &Row, _: &Attached) {
     string1(m, row, |s| *s = pct_decode(s))
 }
 
-fn op_md5(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_md5(m: &mut Machine, row: &Row, _: &Attached) {
     string1(m, row, |s| {
         let digest = Md5::digest(&s[..]);
         *s = digest.iter().map(|b| format!("{:02x}", b)).collect::<String>().into_bytes();
@@ -465,7 +474,7 @@ pub fn format_slots(f: &[u8]) -> usize {
 
 // A format whose # count differs from the number of values gives NA for the row
 // (pick reports an error per row and continues); so does an NA value or format.
-fn op_fmtall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_fmtall(m: &mut Machine, row: &Row, _: &Attached) {
     let mut values = std::mem::take(&mut m.stack);
     let result = if values.iter().any(|v| matches!(v, Value::Na)) {
         Value::Na
@@ -502,7 +511,7 @@ fn clamp(k: num::Int, len: usize) -> usize {
     k.clamp(0, len as num::Int) as usize
 }
 
-fn op_len(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_len(m: &mut Machine, row: &Row, _: &Attached) {
     let x = m.pop();
     let result = match x {
         Value::Na => Value::Na,
@@ -511,11 +520,11 @@ fn op_len(m: &mut Machine, row: &Row, _: Option<&Regex>) {
     m.push(result);
 }
 
-fn op_lc(m: &mut Machine, row: &Row, _: Option<&Regex>) { string1(m, row, |s| s.make_ascii_lowercase()) }
-fn op_uc(m: &mut Machine, row: &Row, _: Option<&Regex>) { string1(m, row, |s| s.make_ascii_uppercase()) }
-fn op_rev(m: &mut Machine, row: &Row, _: Option<&Regex>) { string1(m, row, |s| s.reverse()) }
+fn op_lc(m: &mut Machine, row: &Row, _: &Attached) { string1(m, row, |s| s.make_ascii_lowercase()) }
+fn op_uc(m: &mut Machine, row: &Row, _: &Attached) { string1(m, row, |s| s.make_ascii_uppercase()) }
+fn op_rev(m: &mut Machine, row: &Row, _: &Attached) { string1(m, row, |s| s.reverse()) }
 
-fn op_rot13(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_rot13(m: &mut Machine, row: &Row, _: &Attached) {
     string1(m, row, |s| for b in s.iter_mut() {
         *b = match *b {
             b'a'..=b'z' => (*b - b'a' + 13) % 26 + b'a',
@@ -525,10 +534,10 @@ fn op_rot13(m: &mut Machine, row: &Row, _: Option<&Regex>) {
     })
 }
 
-fn op_head(m: &mut Machine, row: &Row, _: Option<&Regex>) { slice2(m, row, |len, k| (0, clamp(k, len))) }
-fn op_tail(m: &mut Machine, row: &Row, _: Option<&Regex>) { slice2(m, row, |len, k| (len - clamp(k, len), len)) }
-fn op_skip(m: &mut Machine, row: &Row, _: Option<&Regex>) { slice2(m, row, |len, k| (clamp(k, len), len)) }
-fn op_shed(m: &mut Machine, row: &Row, _: Option<&Regex>) { slice2(m, row, |len, k| (0, len - clamp(k, len))) }
+fn op_head(m: &mut Machine, row: &Row, _: &Attached) { slice2(m, row, |len, k| (0, clamp(k, len))) }
+fn op_tail(m: &mut Machine, row: &Row, _: &Attached) { slice2(m, row, |len, k| (len - clamp(k, len), len)) }
+fn op_skip(m: &mut Machine, row: &Row, _: &Attached) { slice2(m, row, |len, k| (clamp(k, len), len)) }
+fn op_shed(m: &mut Machine, row: &Row, _: &Attached) { slice2(m, row, |len, k| (0, len - clamp(k, len))) }
 
 // The byte range of Perl's substr($x, $i, $k) in a string of length len, None
 // where Perl returns undef (the substring lies beyond either end): a negative i
@@ -545,7 +554,7 @@ pub fn substr_range(len: usize, i: num::Int, k: num::Int) -> Option<(usize, usiz
     Some((start as usize, end.max(start) as usize))
 }
 
-fn op_substr(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_substr(m: &mut Machine, row: &Row, _: &Attached) {
     let k = m.pop();
     let i = m.pop();
     let x = m.pop();
@@ -565,7 +574,7 @@ fn op_substr(m: &mut Machine, row: &Row, _: Option<&Regex>) {
 
 // strim s nx ny: nx bytes off the start and ny off the end (negative counts are 0);
 // empty if nothing remains (pick).
-fn op_strim(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_strim(m: &mut Machine, row: &Row, _: &Attached) {
     let ny = m.pop();
     let nx = m.pop();
     let s = m.pop();
@@ -603,16 +612,16 @@ fn numeric1(m: &mut Machine, row: &Row, f: impl Fn(Num) -> Num) {
     m.push(result);
 }
 
-fn op_add(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric2(m, row, |a, b| Some(num::add(a, b))) }
-fn op_sub(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric2(m, row, |a, b| Some(num::sub(a, b))) }
-fn op_mul(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric2(m, row, |a, b| Some(num::mul(a, b))) }
-fn op_div(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric2(m, row, |a, b| Some(num::div(a, b))) }
-fn op_idiv(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric2(m, row, num::idiv) }
-fn op_mod(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric2(m, row, num::imod) }
-fn op_pow(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric2(m, row, |a, b| Some(num::pow(a, b))) }
-fn op_ipow(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric2(m, row, num::ipow) }
-fn op_max(m: &mut Machine, row: &Row, _: Option<&Regex>) { choose(m, row, true) }
-fn op_min(m: &mut Machine, row: &Row, _: Option<&Regex>) { choose(m, row, false) }
+fn op_add(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, |a, b| Some(num::add(a, b))) }
+fn op_sub(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, |a, b| Some(num::sub(a, b))) }
+fn op_mul(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, |a, b| Some(num::mul(a, b))) }
+fn op_div(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, |a, b| Some(num::div(a, b))) }
+fn op_idiv(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, num::idiv) }
+fn op_mod(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, num::imod) }
+fn op_pow(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, |a, b| Some(num::pow(a, b))) }
+fn op_ipow(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, num::ipow) }
+fn op_max(m: &mut Machine, row: &Row, _: &Attached) { choose(m, row, true) }
+fn op_min(m: &mut Machine, row: &Row, _: &Attached) { choose(m, row, false) }
 
 // max and min push the winning operand itself, not its numeric value (as pick:
 // 1.000000 stays 1.000000); NA if an operand is not a number.
@@ -625,16 +634,16 @@ fn choose(m: &mut Machine, row: &Row, max: bool) {
     };
     m.push(result);
 }
-fn op_neg(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num::neg) }
-fn op_abs(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num::abs) }
-fn op_sign(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num::sign) }
-fn op_sq(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num::sq) }
-fn op_incr(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num::incr) }
-fn op_decr(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, num::decr) }
+fn op_neg(m: &mut Machine, row: &Row, _: &Attached) { numeric1(m, row, num::neg) }
+fn op_abs(m: &mut Machine, row: &Row, _: &Attached) { numeric1(m, row, num::abs) }
+fn op_sign(m: &mut Machine, row: &Row, _: &Attached) { numeric1(m, row, num::sign) }
+fn op_sq(m: &mut Machine, row: &Row, _: &Attached) { numeric1(m, row, num::sq) }
+fn op_incr(m: &mut Machine, row: &Row, _: &Attached) { numeric1(m, row, num::incr) }
+fn op_decr(m: &mut Machine, row: &Row, _: &Attached) { numeric1(m, row, num::decr) }
 
 // A random float in [0, x), as Perl's rand: x = 0 counts as 1, a negative x gives
 // (x, 0]. Seeded from the clock, or with --seed=N.
-fn op_rand(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_rand(m: &mut Machine, row: &Row, _: &Attached) {
     let x = m.pop();
     let result = match m.num(&x, row) {
         Some(a) => {
@@ -646,10 +655,10 @@ fn op_rand(m: &mut Machine, row: &Row, _: Option<&Regex>) {
     m.push(result);
 }
 
-fn op_int(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, |a| num::round_with(a, f64::trunc)) }
-fn op_floor(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, |a| num::round_with(a, f64::floor)) }
-fn op_ceil(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, |a| num::round_with(a, f64::ceil)) }
-fn op_round(m: &mut Machine, row: &Row, _: Option<&Regex>) { numeric1(m, row, |a| num::round_with(a, f64::round_ties_even)) }
+fn op_int(m: &mut Machine, row: &Row, _: &Attached) { numeric1(m, row, |a| num::round_with(a, f64::trunc)) }
+fn op_floor(m: &mut Machine, row: &Row, _: &Attached) { numeric1(m, row, |a| num::round_with(a, f64::floor)) }
+fn op_ceil(m: &mut Machine, row: &Row, _: &Attached) { numeric1(m, row, |a| num::round_with(a, f64::ceil)) }
+fn op_round(m: &mut Machine, row: &Row, _: &Attached) { numeric1(m, row, |a| num::round_with(a, f64::round_ties_even)) }
 
 // Functions on floats: the operand as f64 (an integer is promoted), the result a
 // float; domain errors follow IEEE (log(0) is -inf, sqrt(-1) nan; step12.txt
@@ -658,16 +667,16 @@ fn float1(m: &mut Machine, row: &Row, f: fn(f64) -> f64) {
     numeric1(m, row, |a| Num::F(f(a.to_f64())))
 }
 
-fn op_sqrt(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::sqrt) }
-fn op_exp(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::exp) }
-fn op_exp2(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::exp2) }
-fn op_exp10(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, |x| 10f64.powf(x)) }
-fn op_log(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::ln) }
-fn op_log2(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::log2) }
-fn op_log10(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::log10) }
-fn op_sin(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::sin) }
-fn op_cos(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::cos) }
-fn op_tan(m: &mut Machine, row: &Row, _: Option<&Regex>) { float1(m, row, f64::tan) }
+fn op_sqrt(m: &mut Machine, row: &Row, _: &Attached) { float1(m, row, f64::sqrt) }
+fn op_exp(m: &mut Machine, row: &Row, _: &Attached) { float1(m, row, f64::exp) }
+fn op_exp2(m: &mut Machine, row: &Row, _: &Attached) { float1(m, row, f64::exp2) }
+fn op_exp10(m: &mut Machine, row: &Row, _: &Attached) { float1(m, row, |x| 10f64.powf(x)) }
+fn op_log(m: &mut Machine, row: &Row, _: &Attached) { float1(m, row, f64::ln) }
+fn op_log2(m: &mut Machine, row: &Row, _: &Attached) { float1(m, row, f64::log2) }
+fn op_log10(m: &mut Machine, row: &Row, _: &Attached) { float1(m, row, f64::log10) }
+fn op_sin(m: &mut Machine, row: &Row, _: &Attached) { float1(m, row, f64::sin) }
+fn op_cos(m: &mut Machine, row: &Row, _: &Attached) { float1(m, row, f64::cos) }
+fn op_tan(m: &mut Machine, row: &Row, _: &Attached) { float1(m, row, f64::tan) }
 
 // Whole-stack operators (plan/step12.txt decision 9). whole() takes the stack,
 // gets the numbers, empties the stack (keeping its capacity) and pushes f's
@@ -689,15 +698,15 @@ fn whole(m: &mut Machine, row: &Row, f: impl Fn(&[Num]) -> Option<Num>) {
 }
 
 // The sum and product of the whole stack: 0 and 1 for an empty stack (pick).
-fn op_addall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_addall(m: &mut Machine, row: &Row, _: &Attached) {
     whole(m, row, |xs| Some(xs.iter().fold(Num::I(0), |a, &b| num::add(a, b))))
 }
 
-fn op_mulall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_mulall(m: &mut Machine, row: &Row, _: &Attached) {
     whole(m, row, |xs| Some(xs.iter().fold(Num::I(1), |a, &b| num::mul(a, b))))
 }
 
-fn op_meanall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_meanall(m: &mut Machine, row: &Row, _: &Attached) {
     whole(m, row, |xs| {
         let sum = xs.iter().fold(Num::I(0), |a, &b| num::add(a, b));
         (!xs.is_empty()).then(|| num::div(sum, Num::I(xs.len() as num::Int)))
@@ -706,7 +715,7 @@ fn op_meanall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
 
 // As pick: n / sum(1/|x|), and (product |x|)^(1/n). A zero makes the harmonic
 // mean 0 (IEEE: n / inf; pick dies).
-fn op_hmeanall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_hmeanall(m: &mut Machine, row: &Row, _: &Attached) {
     whole(m, row, |xs| {
         let inv: f64 = xs.iter().map(|x| 1.0 / x.to_f64().abs()).sum();
         (!xs.is_empty()).then(|| Num::F(xs.len() as f64 / inv))
@@ -716,7 +725,7 @@ fn op_hmeanall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
 // The geometric mean as the exponent of the mean logarithm, which cannot overflow
 // on long stacks (pick multiplies first; the last digits can differ). A zero gives
 // ln 0 = -inf, so the mean is 0.
-fn op_gmeanall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+fn op_gmeanall(m: &mut Machine, row: &Row, _: &Attached) {
     whole(m, row, |xs| {
         let logs: f64 = xs.iter().map(|x| x.to_f64().abs().ln()).sum();
         (!xs.is_empty()).then(|| Num::F((logs / xs.len() as f64).exp()))
@@ -748,19 +757,19 @@ fn precision(m: &mut Machine, row: &Row, operands: usize, sci: bool, value: impl
     m.push(result);
 }
 
-fn op_dd(m: &mut Machine, row: &Row, _: Option<&Regex>) { precision(m, row, 1, false, |v| v[0]) }
-fn op_sn(m: &mut Machine, row: &Row, _: Option<&Regex>) { precision(m, row, 1, true, |v| v[0]) }
+fn op_dd(m: &mut Machine, row: &Row, _: &Attached) { precision(m, row, 1, false, |v| v[0]) }
+fn op_sn(m: &mut Machine, row: &Row, _: &Attached) { precision(m, row, 1, true, |v| v[0]) }
 // Computed as pick: x*100/y and x*1000/y (division by zero follows IEEE).
-fn op_frac(m: &mut Machine, row: &Row, _: Option<&Regex>) { precision(m, row, 2, false, |v| v[0] / v[1]) }
-fn op_pct(m: &mut Machine, row: &Row, _: Option<&Regex>) { precision(m, row, 2, false, |v| v[0] * 100.0 / v[1]) }
-fn op_pml(m: &mut Machine, row: &Row, _: Option<&Regex>) { precision(m, row, 2, false, |v| v[0] * 1000.0 / v[1]) }
+fn op_frac(m: &mut Machine, row: &Row, _: &Attached) { precision(m, row, 2, false, |v| v[0] / v[1]) }
+fn op_pct(m: &mut Machine, row: &Row, _: &Attached) { precision(m, row, 2, false, |v| v[0] * 100.0 / v[1]) }
+fn op_pml(m: &mut Machine, row: &Row, _: &Attached) { precision(m, row, 2, false, |v| v[0] * 1000.0 / v[1]) }
 
 // maxall and minall push the winning operand itself, as max and min: the first
 // value, replaced by a later one that is greater (smaller); NaN never wins (as
 // pick, which starts from -DBL_MAX); all NaN gives NaN. NA if a value is not a
 // number; an empty stack is NA.
-fn op_maxall(m: &mut Machine, row: &Row, _: Option<&Regex>) { choose_all(m, row, true) }
-fn op_minall(m: &mut Machine, row: &Row, _: Option<&Regex>) { choose_all(m, row, false) }
+fn op_maxall(m: &mut Machine, row: &Row, _: &Attached) { choose_all(m, row, true) }
+fn op_minall(m: &mut Machine, row: &Row, _: &Attached) { choose_all(m, row, false) }
 
 fn choose_all(m: &mut Machine, row: &Row, max: bool) {
     let mut values = std::mem::take(&mut m.stack);
@@ -786,13 +795,64 @@ fn choose_all(m: &mut Machine, row: &Row, max: bool) {
     m.push(result);
 }
 
+// Dictionary operators (plan/step15.txt decision 0). The dictionary was resolved
+// at compile time (Prepare::ConstDict); its name is still on the stack and popped
+// unused. An NA key gives NA.
+fn dict_key<'a>(m: &mut Machine<'a>, a: &Attached) -> (Value, &'a Dict) {
+    let Attached::Dict(d) = a else { unreachable!("a dictionary operator has a dictionary") };
+    m.pop();
+    (m.pop(), m.dicts.at(*d))
+}
+
+// map: the value of the key, or the dictionary's not-found rule (step4): the key
+// itself (passed on as it is), the default, or __EXIT__, which ends the run.
+fn op_map(m: &mut Machine, row: &Row, a: &Attached) {
+    let (x, dict) = dict_key(m, a);
+    if matches!(x, Value::Na) {
+        return m.push(Value::Na);
+    }
+    let found = dict.map.get(&*m.bytes(&x, row)).cloned();
+    let result = match (found, &dict.not_found) {
+        (Some(v), _) => Value::Bytes(v),
+        (None, NotFound::Key) => x,
+        (None, NotFound::Value(d)) => Value::Bytes(d.clone()),
+        (None, NotFound::Exit) => {
+            let msg = format!("map: key [{}] not found in dictionary [{}] (__EXIT__)",
+                              String::from_utf8_lossy(&m.bytes(&x, row)), String::from_utf8_lossy(&dict.name));
+            m.fail(msg);
+            Value::Na
+        }
+    };
+    m.push(result);
+}
+
+// dord: the 1-based position of the key's first appearance; NA if absent (or if the
+// dictionary has no order, as seqlen).
+fn op_dord(m: &mut Machine, row: &Row, a: &Attached) {
+    let (x, dict) = dict_key(m, a);
+    let result = match x {
+        Value::Na => Value::Na,
+        x => dict.order.as_ref().and_then(|o| o.get(&*m.bytes(&x, row)))
+            .map_or(Value::Na, |&n| Value::Num(Num::I(n as num::Int))),
+    };
+    m.push(result);
+}
+
+// The compiled regex of a regex operator (Prepare::ConstRegex).
+fn regex_of(a: &Attached) -> &Regex {
+    match a {
+        Attached::Regex(re) => re,
+        _ => unreachable!("a regex operator has a compiled pattern"),
+    }
+}
+
 // Regex operators (plan/step14.txt). The pattern was compiled at compile time
 // (Prepare::ConstRegex); its constant is still on the stack, so that the run-time
 // stack matches the static one, and is popped unused. An NA x or replacement gives
 // NA; numbers are used as their text.
-fn substitute(m: &mut Machine, row: &Row, re: Option<&Regex>, with_replacement: bool,
+fn substitute(m: &mut Machine, row: &Row, re: &Attached, with_replacement: bool,
               edit: impl Fn(&Regex, &[u8], &[u8]) -> Vec<u8>) {
-    let re = re.expect("a regex operator has a compiled pattern");
+    let re = regex_of(re);
     let s = if with_replacement { m.pop() } else { Value::Bytes(Vec::new()) };
     m.pop();
     let x = m.pop();
@@ -845,19 +905,19 @@ fn replace_matches(x: &[u8], matches: &[(usize, usize)], mut f: impl FnMut(usize
 
 // The replacement is literal (NoExpand): in Perl's s/$p/$s/ the replacement is a
 // variable, so a $1 in it stays as it is (decision 3).
-fn op_del(m: &mut Machine, row: &Row, re: Option<&Regex>) {
+fn op_del(m: &mut Machine, row: &Row, re: &Attached) {
     substitute(m, row, re, false, |re, x, _| re.replacen(x, 1, NoExpand(b"")).into_owned())
 }
 
-fn op_delg(m: &mut Machine, row: &Row, re: Option<&Regex>) {
+fn op_delg(m: &mut Machine, row: &Row, re: &Attached) {
     substitute(m, row, re, false, |re, x, _| replace_matches(x, &perl_matches(re, x), |_, _| Vec::new()))
 }
 
-fn op_ed(m: &mut Machine, row: &Row, re: Option<&Regex>) {
+fn op_ed(m: &mut Machine, row: &Row, re: &Attached) {
     substitute(m, row, re, true, |re, x, s| re.replacen(x, 1, NoExpand(s)).into_owned())
 }
 
-fn op_edg(m: &mut Machine, row: &Row, re: Option<&Regex>) {
+fn op_edg(m: &mut Machine, row: &Row, re: &Attached) {
     substitute(m, row, re, true, |re, x, s| replace_matches(x, &perl_matches(re, x), |_, _| s.to_vec()))
 }
 
@@ -885,7 +945,7 @@ pub fn expand_groups(template: &[u8], caps: &Captures) -> Vec<u8> {
     out
 }
 
-fn op_edbr(m: &mut Machine, row: &Row, re: Option<&Regex>) {
+fn op_edbr(m: &mut Machine, row: &Row, re: &Attached) {
     substitute(m, row, re, true, |re, x, s| match re.captures(x) {
         Some(caps) => {
             let whole = caps.get(0).unwrap();
@@ -896,8 +956,8 @@ fn op_edbr(m: &mut Machine, row: &Row, re: Option<&Regex>) {
 }
 
 // get and npat: pop the pattern constant and x; NA for an NA x.
-fn match_op(m: &mut Machine, row: &Row, re: Option<&Regex>, f: impl Fn(&Regex, &[u8]) -> Value) {
-    let re = re.expect("a regex operator has a compiled pattern");
+fn match_op(m: &mut Machine, row: &Row, re: &Attached, f: impl Fn(&Regex, &[u8]) -> Value) {
+    let re = regex_of(re);
     m.pop();
     let x = m.pop();
     let result = match x {
@@ -908,7 +968,7 @@ fn match_op(m: &mut Machine, row: &Row, re: Option<&Regex>, f: impl Fn(&Regex, &
 }
 
 // As pick: $1 if it is defined (group 1 took part), else $&; empty if no match.
-fn op_get(m: &mut Machine, row: &Row, re: Option<&Regex>) {
+fn op_get(m: &mut Machine, row: &Row, re: &Attached) {
     match_op(m, row, re, |re, x| match re.captures(x) {
         Some(caps) => Value::Bytes(caps.get(1).or(caps.get(0)).unwrap().as_bytes().to_vec()),
         None => Value::Bytes(Vec::new()),
@@ -916,13 +976,13 @@ fn op_get(m: &mut Machine, row: &Row, re: Option<&Regex>) {
 }
 
 // As pick's '$n++ while /p/g': the matches as Perl finds them (perl_matches).
-fn op_npat(m: &mut Machine, row: &Row, re: Option<&Regex>) {
+fn op_npat(m: &mut Machine, row: &Row, re: &Attached) {
     match_op(m, row, re, |re, x| Value::Num(Num::I(perl_matches(re, x).len() as num::Int)))
 }
 
 // The groups of each match: the match positions as Perl finds them (perl_matches),
 // the groups from a search at the match's start, which finds that same match.
-fn op_edgbr(m: &mut Machine, row: &Row, re: Option<&Regex>) {
+fn op_edgbr(m: &mut Machine, row: &Row, re: &Attached) {
     substitute(m, row, re, true, |re, x, s| {
         replace_matches(x, &perl_matches(re, x), |start, _| match re.captures_at(x, start) {
             Some(caps) => expand_groups(s, &caps),

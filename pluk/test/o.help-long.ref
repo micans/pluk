@@ -51,14 +51,18 @@ Computes (given among the columns; a stack language, as pick):
   SPEC is a sequence of ^VALUE (constant), :COLUMN (pushes the column; a
   +REGEX or -k range pushes several) and ,OP (operator). A SPEC that does not
   start with ^ : , starts with a column. The result is what is left on the
-  stack, concatenated. Operators so far: dup pop xch (stack), cat len lc uc rev
-  rot13 substr head tail skip shed strim ppl ppr zp nchar catall joinall join
-  uie urlec urldc md5 fmtall (string, on bytes),
-  add sub mul div idiv mod pow ipow max min neg abs sign sq incr decr addall
-  mulall maxall minall meanall hmeanall gmeanall (arithmetic), int floor ceil round sqrt exp exp2 exp10 log log2 log10 sin
-  cos tan (math), dd sn frac pct pml (precision), rand, del delg ed edg edbr edgbr
-  get npat (regex;
-  the pattern is a constant).
+  stack, concatenated. Operators so far:
+    stack       dup pop xch
+    string      cat len lc uc rev rot13 substr head tail skip shed strim ppl
+                ppr zp nchar catall joinall join uie urlec urldc md5 fmtall
+                (on bytes)
+    arithmetic  add sub mul div idiv mod pow ipow max min neg abs sign sq incr
+                decr rand addall mulall maxall minall meanall hmeanall gmeanall
+    math        int floor ceil round sqrt exp exp2 exp10 log log2 log10 sin cos
+                tan
+    precision   dd sn frac pct pml
+    dictionary  map dord
+    regex       del delg ed edg edbr edgbr get npat (the pattern is a constant)
   Numbers are written exactly (round-trip); NA where a number was needed.
   --num-perl  write numbers as Perl and pick do (%.15g, Inf, NaN)
   --seed=N    seed for rand (default: from the clock), for reproducible output
@@ -96,7 +100,7 @@ Filters (given among the columns; VALUE is %-decoded, e.g. %2F for '/'):
   NAME can be a list, +REGEX or (-k) range, as for columns: the test must
   hold for every column, e.g. @+num\d/gt/0. A single name follows ':'.
 
-Dictionaries (NAME: letters, digits, _; used by ~isin~ ~hasval~):
+Dictionaries (NAME: letters, digits, _; used by ~isin~ ~hasval~ map dord):
   --kd-NAME=FILE          keys from the first column of FILE, all values 1
   --fd-NAME=FILE          keys and values from the first two columns of FILE
   --cd-NAME=k1:v1,k2:v2   keys and values from the list; k without :v has value 1

@@ -1,0 +1,15 @@
+name	x
+Ann	1
+pluk: map: key [cat] not found in dictionary [E] (__EXIT__) at line 3
+exit 1
+pluk: [x::fx:name,map]: the dictionary operand of map must be a constant (^NAME)
+exit 1
+pluk: [x::fx^Q,map]: Dictionary [Q] not found
+exit 1
+r001	chr1	1000	NA
+r002	chr1	1000	NA
+r004	chr2	500	NA
+r005	*	0	NA
+r006	chr2	500	NA
+r007	chr2	500	NA
+r008	chr1	1000	NA

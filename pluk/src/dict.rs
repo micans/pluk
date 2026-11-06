@@ -70,35 +70,52 @@ pub struct Dict {
     pub name: Vec<u8>,
     pub map: HashMap<Vec<u8>, Vec<u8>>,
     pub not_found: NotFound,
+    // For dord (plan/step15.txt decision 0): the 1-based position of each key's first
+    // appearance; only for dictionaries named by a dord with a constant.
+    pub order: Option<HashMap<Vec<u8>, usize>>,
+}
+
+impl Dict {
+    // Every reader stores keys through insert, so that the order is recorded.
+    fn insert(&mut self, key: Vec<u8>, value: Vec<u8>) {
+        if let Some(order) = &mut self.order {
+            let next = order.len() + 1;
+            order.entry(key.clone()).or_insert(next);
+        }
+        self.map.insert(key, value);
+    }
 }
 
 pub struct Dicts {
     list: Vec<Dict>,
     index: HashMap<Vec<u8>, usize>,
+    ordered: HashSet<Vec<u8>>,     // names of the dictionaries that record their order
 }
 
 impl Dicts {
 
     pub fn new() -> Dicts {
-        Dicts { list: Vec::new(), index: HashMap::new() }
+        Dicts { list: Vec::new(), index: HashMap::new(), ordered: HashSet::new() }
     }
 
-    // Read all dictionaries, in the order given.
-    pub fn load(specs: &[DictSpec]) -> Result<Dicts, String> {
+    // Read all dictionaries, in the order given. The dictionaries named in ordered
+    // record the order of their keys (dord).
+    pub fn load(specs: &[DictSpec], ordered: &[Vec<u8>]) -> Result<Dicts, String> {
         let mut dicts = Dicts::new();
+        dicts.ordered = ordered.iter().cloned().collect();
         for spec in specs {
             match spec.kind {
                 DictKind::Keys | DictKind::Pairs => {
                     let dict = dicts.get_or_create(&spec.name, spec);
-                    read_file(spec, &mut dict.map)?;
+                    read_file(spec, dict)?;
                 }
                 DictKind::Inline => {
                     let dict = dicts.get_or_create(&spec.name, spec);
-                    parse_inline(spec, &mut dict.map)?;
+                    parse_inline(spec, dict)?;
                 }
                 DictKind::Fasta => {
                     let dict = dicts.get_or_create(&spec.name, spec);
-                    read_fasta(spec, &mut dict.map)?;
+                    read_fasta(spec, dict)?;
                 }
                 DictKind::Table => dicts.read_table(spec)?,
             }
@@ -113,6 +130,16 @@ impl Dicts {
     // The dictionary called name, if there is one.
     pub fn get(&self, name: &[u8]) -> Option<&Dict> {
         self.index.get(name).map(|&i| &self.list[i])
+    }
+
+    // The position of the dictionary called name, for compiled operators (map, dord),
+    // which then use at().
+    pub fn index_of(&self, name: &[u8]) -> Option<usize> {
+        self.index.get(name).copied()
+    }
+
+    pub fn at(&self, i: usize) -> &Dict {
+        &self.list[i]
     }
 
     // The dictionary called name, for spec. A new one is created if the name is
@@ -133,10 +160,12 @@ impl Dicts {
             }
             None => {
                 self.index.insert(name.to_vec(), self.list.len());
+                let order = self.ordered.contains(name).then(HashMap::new);
                 self.list.push(Dict {
                     name: name.to_vec(),
                     map: HashMap::new(),
                     not_found: spec.not_found.clone().unwrap_or(NotFound::Key),
+                    order,
                 });
                 self.list.last_mut().unwrap()
             }
@@ -179,7 +208,8 @@ impl Dicts {
         }
         let map = lengths.into_iter().map(|(k, v)| (k, v.to_string().into_bytes())).collect();
         self.index.insert(SEQ_LENGTHS.to_vec(), self.list.len());
-        self.list.push(Dict { name: SEQ_LENGTHS.to_vec(), map, not_found: NotFound::Value(b"0".to_vec()) });
+        // The lengths come from the header as a set: seqlen has no order (dord gives NA).
+        self.list.push(Dict { name: SEQ_LENGTHS.to_vec(), map, not_found: NotFound::Value(b"0".to_vec()), order: None });
     }
 
     // --td: the first line holds the column names. Every column other than the key
@@ -244,7 +274,7 @@ impl Dicts {
             }
             for (field, target) in fields.iter().zip(&targets) {
                 if let Some(d) = *target {
-                    self.list[d].map.insert(key.to_vec(), field.to_vec());
+                    self.list[d].insert(key.to_vec(), field.to_vec());
                 }
             }
         }
@@ -284,7 +314,7 @@ impl Dicts {
 // value is the second field; a line with a single field gets value 1, further
 // fields are ignored. With --kd every value is 1. A repeated key takes the last value.
 // The file may be gzip-compressed.
-fn read_file(spec: &DictSpec, map: &mut HashMap<Vec<u8>, Vec<u8>>) -> Result<(), String> {
+fn read_file(spec: &DictSpec, dict: &mut Dict) -> Result<(), String> {
     let path = Path::new(OsStr::from_bytes(&spec.source));
     let error = |e: io::Error| format!("{}: cannot read {}: {}",
                                        String::from_utf8_lossy(&spec.option), path.display(), e);
@@ -298,7 +328,7 @@ fn read_file(spec: &DictSpec, map: &mut HashMap<Vec<u8>, Vec<u8>>) -> Result<(),
             (DictKind::Pairs, Some(v)) => v,
             _                          => b"1",
         };
-        map.insert(key.to_vec(), value.to_vec());
+        dict.insert(key.to_vec(), value.to_vec());
     }
     Ok(())
 }
@@ -310,7 +340,7 @@ fn read_file(spec: &DictSpec, map: &mut HashMap<Vec<u8>, Vec<u8>>) -> Result<(),
 // added with the empty sequence (the reference name of unmapped SAM reads).
 // Unlike pick, a '>' line without identifier, a repeated identifier, and
 // sequence data before the first '>' are errors.
-fn read_fasta(spec: &DictSpec, map: &mut HashMap<Vec<u8>, Vec<u8>>) -> Result<(), String> {
+fn read_fasta(spec: &DictSpec, dict: &mut Dict) -> Result<(), String> {
     let option = String::from_utf8_lossy(&spec.option);
     let path = Path::new(OsStr::from_bytes(&spec.source));
     let error = |e: io::Error| format!("{}: cannot read {}: {}", option, path.display(), e);
@@ -334,7 +364,7 @@ fn read_fasta(spec: &DictSpec, map: &mut HashMap<Vec<u8>, Vec<u8>>) -> Result<()
                                    String::from_utf8_lossy(&new_id), lineno, path.display()));
             }
             if let Some(prev) = id.replace(new_id) {
-                store_sequence(map, prev, &mut seq);
+                store_sequence(dict, prev, &mut seq);
             }
         } else if id.is_some() {
             seq.extend_from_slice(&line);
@@ -344,19 +374,19 @@ fn read_fasta(spec: &DictSpec, map: &mut HashMap<Vec<u8>, Vec<u8>>) -> Result<()
         }
     }
     if let Some(prev) = id {
-        store_sequence(map, prev, &mut seq);
+        store_sequence(dict, prev, &mut seq);
     }
-    map.insert(b"*".to_vec(), Vec::new());
+    dict.insert(b"*".to_vec(), Vec::new());
     Ok(())
 }
 
 // Move the sequence into the dictionary, leaving seq empty. The stored value is
 // trimmed to its length; a Vec grows by doubling, so it may have up to twice the
 // capacity needed.
-fn store_sequence(map: &mut HashMap<Vec<u8>, Vec<u8>>, id: Vec<u8>, seq: &mut Vec<u8>) {
+fn store_sequence(dict: &mut Dict, id: Vec<u8>, seq: &mut Vec<u8>) {
     let mut value = std::mem::take(seq);
     value.shrink_to_fit();
-    map.insert(id, value);
+    dict.insert(id, value);
 }
 
 // Read the next line into line, without its newline. Returns Ok(false) at end of input.
@@ -374,7 +404,7 @@ fn read_line(reader: &mut Box<dyn BufRead>, line: &mut Vec<u8>) -> io::Result<bo
 // --cd: comma-separated key:value pairs, keys and values %-decoded as in pick.
 // A pair without ':' gets value 1. Empty pairs (e.g. from a trailing comma) are
 // ignored; a pair with more than one ':' is an error (pick ignores the rest).
-fn parse_inline(spec: &DictSpec, map: &mut HashMap<Vec<u8>, Vec<u8>>) -> Result<(), String> {
+fn parse_inline(spec: &DictSpec, dict: &mut Dict) -> Result<(), String> {
     for pair in spec.source.split(|&b| b == b',') {
         if pair.is_empty() {
             continue;
@@ -386,7 +416,7 @@ fn parse_inline(spec: &DictSpec, map: &mut HashMap<Vec<u8>, Vec<u8>>) -> Result<
             return Err(format!("{}: more than one ':' in [{}] (write ':' as %3A)",
                                String::from_utf8_lossy(&spec.option), String::from_utf8_lossy(pair)));
         }
-        map.insert(pct_decode(key), value.map_or(b"1".to_vec(), pct_decode));
+        dict.insert(pct_decode(key), value.map_or(b"1".to_vec(), pct_decode));
     }
     Ok(())
 }
@@ -408,12 +438,12 @@ mod tests {
 
     #[test]
     fn inline() {
-        let d = Dicts::load(&[spec(DictKind::Inline, "x", None, "a:A,b,,c%3A:%2C,")]).unwrap();
+        let d = Dicts::load(&[spec(DictKind::Inline, "x", None, "a:A,b,,c%3A:%2C,")], &[]).unwrap();
         assert_eq!(value(&d, "x", "a"), Some(&b"A"[..]));
         assert_eq!(value(&d, "x", "b"), Some(&b"1"[..]));
         assert_eq!(value(&d, "x", "c:"), Some(&b","[..]));
         assert_eq!(d.list[0].map.len(), 3);
-        assert!(Dicts::load(&[spec(DictKind::Inline, "x", None, "a:b:c")]).is_err());
+        assert!(Dicts::load(&[spec(DictKind::Inline, "x", None, "a:b:c")], &[]).is_err());
     }
 
     #[test]
@@ -424,7 +454,7 @@ mod tests {
             spec(DictKind::Inline, "x", None, "b:3"),
             spec(DictKind::Inline, "y", Some(NotFound::Exit), "a"),
             spec(DictKind::Inline, "y", v("q"), "b"),
-        ]).unwrap();
+        ], &[]).unwrap();
         assert_eq!(d.len(), 2);
         assert_eq!(value(&d, "x", "b"), Some(&b"3"[..]));
         assert_eq!(d.list[0].not_found, NotFound::Value(b"p".to_vec()));
@@ -434,6 +464,6 @@ mod tests {
 
     #[test]
     fn missing_file() {
-        assert!(Dicts::load(&[spec(DictKind::Pairs, "x", None, "/nonexistent/file")]).is_err());
+        assert!(Dicts::load(&[spec(DictKind::Pairs, "x", None, "/nonexistent/file")], &[]).is_err());
     }
 }

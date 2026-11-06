@@ -1,0 +1,43 @@
+SAM notes: seed for the SAM steps (written as the first sketch of step15; moved here when
+step15 became the general operators, after discussion: general and bio operators first,
+then SAM). Kept as written.
+
+
+- Sam functionality
+
+  General remarks. There is quite a bit of functionality to cover. We will move from relatively straightforward
+  (hopefully) to more complicated.
+
+  This is perhaps the one area in pick where I cannot completely exclude the possibility of outright bugs,
+  I have currently no evidence that such bugs exist, the functionality has been extensively used (counting
+  this as a form of testing), so I am agnostic.
+
+  Some data that can be used for testing is found in pick/align .
+
+
+  1   Implement the pick options that manipulate SAM cigar sequence and offset field to change the alignment view.
+      These are
+        --sam-aln-context=<N>
+        --sam-aln-xy=<X>,<Y>
+        --sam-narrow-xy=<X>,<Y>
+
+  The following will have to be elucidated into well-defined items:
+
+  -   Implement pick operators that do not require LUSPUV lookups and are not rbt (region-bound-tally) operators.
+  -   Implement the LUSPUV operators that are not rbt operators (this may be a spurious clause).
+  -   Implement the rbt operators
+
+  It could be the case that I have missed another logical grouping: for example the slew of aln operators.
+
+  A note regarding LUSPUV. Pick translates a slew of operators to hash lookups. It should be possible
+  to improve this to indexed array access. Additionally pick has a system where only LUSPUV data is computed
+  that is needed, as inferred by operator usage. I would like the same in pluk. Pick's system seems to work
+  but is not a shining beacon of elegance.
+
+  Another note. In pick this uses the line cache lookup (%::LC dictionary). This is also used by the
+  fetch and save operators. Could you please summarise which operators have not yet been implemented
+  if we ignore SAM functionality.
+
+  We'll discuss this and see whether it makes sense to address SAM functionality now or whether it could
+  be useful to prioritise other operators first.
+

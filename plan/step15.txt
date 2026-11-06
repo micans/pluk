@@ -1,0 +1,89 @@
+
+- General operators: dictionaries, branch/test, registers, positions, time, bits, radix
+
+  The pick operators that are neither SAM operators nor yet implemented, apart from: the
+  bio and cigar-string operators (rc todna dnatl dnagc forward fasta fastq fastQ cgcount
+  cgmax cgsum; step16), tmap (named table dictionaries, not taken over in step4), pload and groupno groupi (with --pstore/--group), qnl qnu (with
+  --quant), sprintf and reqm (deferred.txt), debug and _strpair. The SAM steps follow
+  (seed: plan/SAM.notes.txt, the first sketch of this step). Design: COMPUTE.design.txt,
+  NUMERIC.design.txt.
+
+
+  Outcome of the discussion
+
+  Operators (pick's names, semantics and descriptions unless stated):
+    dictionary   map dord              (added after the first plan: missed in the survey)
+    branch/test  ifelse test
+    registers    save fetch
+    position     rowno r0wno lineno
+    time         now ttu rttu todate
+    bit          bitand bitor bitxor bitoff bitlsh bitrsh
+    radix        tobin tohex tooct binto hexto octto
+
+  Decisions:
+   0. Dictionary operators. map x D gives the value of key x in dictionary D, or D's
+      not-found result (step4: the key itself, a default, or __EXIT__, which ends the run
+      with an error giving the line number, independent of --assert-other; pick dies).
+      dord x D gives the order of x in D: the 1-based position of the key's first
+      appearance across everything merged into D (files, inline lists and the other kinds,
+      in command-line order); NA if absent (pick: ~0). pick numbers by line within each
+      file (restarting per file, the last occurrence of a key winning) and by position for
+      --cd; the two agree for a single source without repeated keys. As pick, the order is
+      recorded only for dictionaries named by a dord with a constant (known at option
+      parsing, before the dictionaries are read). D must be a constant naming an existing
+      dictionary (compile-time error otherwise, as the ~isin~ filters); an NA x gives NA.
+   1. test x y T applies filter operator T (any of step7's: /gt/ ~eq~ = ~ ~isin~ /ep/
+      /all/ ...) to x and y and gives 1 or 0, reusing the filter code. T must be a constant
+      naming a known filter operator (compile-time error otherwise, as pick); a constant
+      regex for ~ and /~ is compiled at compile time; /ep/ and /om/ use their default bands
+      (pick's test has no extra argument). Where a filter would reject a row for a
+      non-number (counted), test gives NA.
+   2. ifelse B x y: x if B is true, else y; a number is true if it is not zero, anything
+      else if it is not empty (pick's do_ifelse). An NA condition gives NA. The chosen
+      operand is passed on as it is (as uie, max).
+   3. save x n stores x in register n and leaves x on the stack; fetch n gives the value of
+      register n. Registers are per row (cleared for every row, as pick's line cache). A
+      constant register name is resolved at compile time to a slot (an indexed array, no
+      hash per row); a fetch of a constant name that no earlier save (in compute order)
+      stores is a compile-time error (pick: an error per row and NA). A name from a column
+      is looked up per row; a missing register gives NA. These registers start the
+      per-row context that the SAM view will extend (SAM.notes.txt).
+   4. rowno (1-based) and r0wno (0-based) number the data rows; the header line does not
+      count, with -k the first line is row 1; rows later rejected by filters count (the
+      number is that of the input row). lineno is the physical line number.
+   5. Time: now gives the epoch in seconds. ttu translates a time unit (3h, 1.5d; units s m
+      h d w y, y = 31556952 s) to seconds; a constant is folded at compile time (as pick);
+      an unparsable unit is NA (pick: 0 with a warning). rttu writes integer seconds as
+      1d,2h,3m,4s (negative: minus-...; 0: 0s); a non-integer is NA. todate writes an epoch
+      as %Y-%m-%d-%H-%M-%S in local time, using the jiff crate (time zone from the system,
+      TZ honoured; tests set TZ).
+   6. Bit operations as step7's bit filters: both operands as absolute values; a float is
+      NA. bitoff is x & !|y|. bitlsh overflow is NA (an explicit integer operator); bitrsh
+      by 64 or more (Int's width) gives 0. pick takes the absolute value of y only, and Perl
+      treats a negative x as an unsigned 64-bit number (-1 bitor 0 is 18446744073709551615
+      in pick), which would also differ between the i64 and int128 builds.
+   7. Radix: tobin tohex tooct write a negative number as sign and magnitude (-ff; Perl:
+      64-bit two's complement); a float is NA. binto hexto octto parse strictly: an optional
+      prefix (0b, 0x, 0o or a leading 0, matching the operator), digits with Perl's _
+      separators allowed between them; anything else, or a value too large for Int, is NA
+      (Perl stops silently at the first invalid character, and its oct also reads 0x and
+      0b).
+
+  Tests compare with pick wherever the behaviour is the same.
+
+
+  Items
+
+  1   map dord: dictionaries in computes (decision 0). Commit.
+
+  2   ifelse test, test including the dictionary filter operators (decisions 1, 2).
+      Commit.
+
+  3   save fetch rowno r0wno lineno: the per-row context in the machine (decisions 3, 4).
+      Commit.
+
+  4   now ttu rttu todate, with the jiff crate (decision 5). Commit.
+
+  5   bitand bitor bitxor bitoff bitlsh bitrsh (decision 6). Commit.
+
+  6   tobin tohex tooct binto hexto octto (decision 7). Commit.

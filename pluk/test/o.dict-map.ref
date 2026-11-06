@@ -1,0 +1,233 @@
+name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
+Ann	1	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA
+Esme	5	3	25	owl	5	0.714285	16	11	1	e_s_m_e	klmno	CGCGC
+Inky	34	21	81	ant	9	1.285714	256	23	1	i_n_k_y	uts	T
+Lucy	144	89	144	swift	-12	1.714285	2048	37	4	l_u_c_y	grace	TCGACACGACTC
+name	fx	a
+Ann	dog	hund
+Bob	cat	katze
+Charlie	bat	bat
+Dan	cow	cow
+Esme	owl	owl
+Fred	pig	pig
+Gillian	bug	bug
+Harriet	rat	rat
+Inky	ant	ant
+John	fly	fly
+Kelly	eagle	eagle
+Lucy	swift	swift
+name	fx	a	b
+Ann	dog	hund	none
+Bob	cat	katze	none
+Charlie	bat	none	none
+Dan	cow	none	none
+Esme	owl	none	none
+Fred	pig	none	none
+Gillian	bug	none	none
+Harriet	rat	none	none
+Inky	ant	none	none
+John	fly	none	none
+Kelly	eagle	none	none
+Lucy	swift	none	none
+id	a
+r001	r001
+r002	r002
+r003	r003
+r004	r004
+r005	r005
+r006	r006
+r007	r007
+r008	1
+r009	r009
+r010	r010
+r011	r011
+r012	r012
+r013	r013
+r014	r014
+r015	r015
+r016	r016
+r017	1
+r018	r018
+r019	r019
+r020	r020
+r021	r021
+r022	r022
+r023	r023
+r024	r024
+r025	r025
+r026	1
+r027	r027
+r028	r028
+r029	r029
+r030	r030
+r031	r031
+r032	r032
+r033	r033
+r034	r034
+r035	1
+r036	r036
+r037	r037
+r038	r038
+r039	r039
+r040	r040
+r041	r041
+r042	r042
+r043	r043
+r044	1
+r045	r045
+r046	r046
+r047	r047
+r048	r048
+r049	r049
+r050	r050
+r051	r051
+r052	r052
+r053	1
+r054	r054
+r055	r055
+r056	r056
+r057	r057
+r058	r058
+r059	r059
+r060	r060
+r061	r061
+r062	1
+r063	r063
+r064	r064
+r065	r065
+r066	r066
+r067	r067
+r068	r068
+r069	r069
+r070	r070
+r071	1
+r072	r072
+r073	r073
+r074	r074
+r075	r075
+r076	r076
+r077	r077
+r078	r078
+r079	r079
+r080	1
+r081	r081
+r082	r082
+r083	r083
+r084	r084
+r085	r085
+r086	r086
+r087	r087
+r088	r088
+r089	1
+r090	r090
+r091	r091
+r092	r092
+r093	r093
+r094	r094
+r095	r095
+r096	r096
+r097	r097
+r098	1
+r099	r099
+r100	r100
+id	grp	a
+r001	D	D
+r002	B	banana
+r003	C	cherry
+r004	A	apple
+r005	C	cherry
+r006	D	D
+r007	C	cherry
+r008	D	D
+r009	C	cherry
+r010	C	cherry
+r011	C	cherry
+r012	E	E
+r013	B	banana
+r014	C	cherry
+r015	D	D
+r016	D	D
+r017	E	E
+r018	E	E
+r019	C	cherry
+r020	D	D
+r021	D	D
+r022	E	E
+r023	D	D
+r024	E	E
+r025	A	apple
+r026	B	banana
+r027	D	D
+r028	B	banana
+r029	A	apple
+r030	C	cherry
+r031	A	apple
+r032	A	apple
+r033	B	banana
+r034	B	banana
+r035	B	banana
+r036	D	D
+r037	A	apple
+r038	E	E
+r039	E	E
+r040	E	E
+r041	C	cherry
+r042	C	cherry
+r043	E	E
+r044	B	banana
+r045	B	banana
+r046	C	cherry
+r047	A	apple
+r048	E	E
+r049	E	E
+r050	C	cherry
+r051	A	apple
+r052	B	banana
+r053	E	E
+r054	E	E
+r055	B	banana
+r056	C	cherry
+r057	C	cherry
+r058	A	apple
+r059	C	cherry
+r060	E	E
+r061	A	apple
+r062	E	E
+r063	D	D
+r064	A	apple
+r065	D	D
+r066	E	E
+r067	D	D
+r068	E	E
+r069	B	banana
+r070	C	cherry
+r071	E	E
+r072	B	banana
+r073	D	D
+r074	B	banana
+r075	E	E
+r076	E	E
+r077	E	E
+r078	A	apple
+r079	E	E
+r080	D	D
+r081	B	banana
+r082	B	banana
+r083	D	D
+r084	C	cherry
+r085	B	banana
+r086	B	banana
+r087	A	apple
+r088	C	cherry
+r089	B	banana
+r090	B	banana
+r091	A	apple
+r092	A	apple
+r093	D	D
+r094	E	E
+r095	B	banana
+r096	D	D
+r097	E	E
+r098	E	E
+r099	A	apple
+r100	B	banana

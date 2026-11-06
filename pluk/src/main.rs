@@ -53,7 +53,8 @@ fn run() -> std::io::Result<()> {
 
     // Dictionaries are read once all options are known, before any input is read
     // (plan/step4.txt, design considerations).
-    let mut dicts = match dict::Dicts::load(&config.dicts) {
+    // Dictionaries named by a dord record the order of their keys while read (step15).
+    let mut dicts = match dict::Dicts::load(&config.dicts, &compute::dord_dictionaries(&config.computes)) {
         Ok(dicts) => dicts,
         Err(msg)  => {
             eprintln!("pluk: {}", msg);
@@ -141,7 +142,7 @@ fn run() -> std::io::Result<()> {
     let (computes, names) = if input.is_empty {
         (Vec::new(), input.names.clone())
     } else {
-        compute::compile(&config.computes, &input.names, config.inplace)
+        compute::compile(&config.computes, &input.names, config.inplace, &dicts)
             .map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?
     };
     let computed: Vec<(usize, usize)> = computes.iter().filter(|c| c.output).map(|c| (c.position, c.index)).collect();
@@ -176,7 +177,7 @@ fn run() -> std::io::Result<()> {
         }
         return Ok(());
     }
-    let mut stages = Stages { filters, computes, machine: exec::Machine::new(config.num_perl, config.seed.unwrap_or_else(exec::clock_seed)) };
+    let mut stages = Stages { filters, computes, machine: exec::Machine::new(config.num_perl, config.seed.unwrap_or_else(exec::clock_seed), &dicts) };
 
     if config.test_select {
         for (name, i) in selection.output_colnames.iter().zip(&selection.output_offset) {
@@ -312,22 +313,30 @@ fn run() -> std::io::Result<()> {
 struct Stages<'d> {
     filters:  filter::Filters<'d>,
     computes: Vec<compute::Compute>,
-    machine:  exec::Machine,
+    machine:  exec::Machine<'d>,
 }
 
 impl Stages<'_> {
     // The computed fields of the previous row are removed first, so that a row
     // rejected by the @@ stage has none (they read as empty).
-    fn judge(&mut self, row: &mut row::Row) -> Result<filter::Verdict, String> {
+    fn judge(&mut self, row: &mut row::Row) -> Result<filter::Verdict, Failure> {
         row.clear_computed();
-        if !self.filters.pre(row)? {
+        if !self.filters.pre(row).map_err(Failure::Assertion)? {
             return Ok(filter::Verdict::RejectPre);
         }
         if !self.computes.is_empty() {
-            self.machine.run(&self.computes, row);
+            self.machine.run(&self.computes, row).map_err(Failure::Fatal)?;
         }
-        Ok(if self.filters.post(row)? { filter::Verdict::Keep } else { filter::Verdict::RejectPost })
+        let kept = self.filters.post(row).map_err(Failure::Assertion)?;
+        Ok(if kept { filter::Verdict::Keep } else { filter::Verdict::RejectPost })
     }
+}
+
+// Why a row could not be judged: an assertion failed (diverted with
+// --assert-other), or an operator failed (map with __EXIT__), which ends the run.
+enum Failure {
+    Assertion(String),
+    Fatal(String),
 }
 
 // Whether the current data row is kept. A row rejected by a filter is written to
@@ -350,13 +359,14 @@ fn route(stages: &mut Stages, row: &mut row::Row, lineno: u64,
             }
             Ok(false)
         }
-        Err(msg) => match assert_other {
+        Err(Failure::Assertion(msg)) => match assert_other {
             Some(file) => {
                 file.write_row(row)?;
                 Ok(false)
             }
             None => Err(std::io::Error::new(ErrorKind::InvalidData, format!("{} at line {}", msg, lineno))),
         },
+        Err(Failure::Fatal(msg)) => Err(std::io::Error::new(ErrorKind::InvalidData, format!("{} at line {}", msg, lineno))),
     }
 }
 

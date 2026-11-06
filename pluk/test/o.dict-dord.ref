@@ -1,0 +1,30 @@
+name	fx	b
+Ann	dog	1
+Bob	cat	2
+Charlie	bat	NA
+Dan	cow	NA
+Esme	owl	NA
+Fred	pig	NA
+Gillian	bug	NA
+Harriet	rat	NA
+Inky	ant	NA
+John	fly	NA
+Kelly	eagle	NA
+Lucy	swift	NA
+id	b
+r001	NA
+r002	NA
+r003	NA
+r004	NA
+r005	NA
+r006	NA
+r007	NA
+r008	1
+r009	NA
+r010	NA
+r011	NA
+pluk: --cd-D=c:3,a:9: merging into existing dictionary D
+k	o	m	n
+b	2	2	NA
+fox	NA	fox	NA
+c	3	3	NA

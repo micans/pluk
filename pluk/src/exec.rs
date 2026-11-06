@@ -8,7 +8,8 @@ use std::borrow::Cow;
 
 use regex::bytes::Regex;
 
-use crate::compute::{Compute, Instr};
+use crate::compute::{Attached, Compute, Instr};
+use crate::dict::Dicts;
 use crate::num::{self, Num};
 use crate::row::Row;
 
@@ -22,11 +23,14 @@ pub enum Value {
 }
 
 // The implementation of an operator: it pops its operands from the machine's
-// stack and pushes its results. The regex is the compiled constant pattern of a
-// regex operator (Instr::OpRegex), None otherwise.
-pub type OpFn = fn(&mut Machine, &Row, Option<&Regex>);
+// stack and pushes its results. Attached is what the prepare step compiled for it
+// (a regex, a dictionary position), Attached::None otherwise.
+pub type OpFn = fn(&mut Machine<'_>, &Row, &Attached);
 
-pub struct Machine {
+// 'd: the machine refers to the dictionaries, which outlive it (main.rs).
+pub struct Machine<'d> {
+    pub dicts:  &'d Dicts,
+    fatal:      Option<String>,             // an error that ends the run (map with __EXIT__)
     pub stack:  Vec<Value>,
     cache:      Vec<(u64, Option<Num>)>,    // per column: (row generation, parse result)
     generation: u64,                        // increases per row; older cache entries are stale
@@ -68,10 +72,16 @@ pub fn clock_seed() -> u64 {
     nanos ^ ((std::process::id() as u64) << 32)
 }
 
-impl Machine {
-    pub fn new(perl: bool, seed: u64) -> Machine {
-        Machine { stack: Vec::with_capacity(16), cache: Vec::new(), generation: 0, perl, text: Vec::new(),
-                  rng: SplitMix64::new(seed) }
+impl<'d> Machine<'d> {
+    pub fn new(perl: bool, seed: u64, dicts: &'d Dicts) -> Machine<'d> {
+        Machine { dicts, fatal: None, stack: Vec::with_capacity(16), cache: Vec::new(), generation: 0, perl,
+                  text: Vec::new(), rng: SplitMix64::new(seed) }
+    }
+
+    // An operator that cannot continue (map with __EXIT__) records an error; the
+    // run stops after the current compute.
+    pub fn fail(&mut self, msg: String) {
+        self.fatal.get_or_insert(msg);
     }
 
     // A random float in [0, 1).
@@ -79,8 +89,9 @@ impl Machine {
         self.rng.next_f64()
     }
 
-    // Run all computes on a row; each appends its result to the row.
-    pub fn run(&mut self, computes: &[Compute], row: &mut Row) {
+    // Run all computes on a row; each appends its result to the row. Err: an
+    // operator failed (Machine::fail).
+    pub fn run(&mut self, computes: &[Compute], row: &mut Row) -> Result<(), String> {
         self.generation += 1;
         row.clear_computed();
         for compute in computes {
@@ -89,8 +100,8 @@ impl Machine {
                 match instr {
                     Instr::Field(i) => self.stack.push(Value::Field(*i)),
                     Instr::Const(b) => self.stack.push(Value::Bytes(b.clone())),
-                    Instr::Op(op) => (op.fun)(self, row, None),
-                    Instr::OpRegex(op, re) => (op.fun)(self, row, Some(re)),
+                    Instr::Op(op) => (op.fun)(self, row, &Attached::None),
+                    Instr::OpWith(op, attached) => (op.fun)(self, row, attached),
                 }
             }
             // The stack, left to right, as text; an empty stack gives an empty field.
@@ -99,7 +110,11 @@ impl Machine {
                 write_value(&mut self.text, value, row, self.perl);
             }
             row.push_computed(&self.text);
+            if let Some(msg) = self.fatal.take() {
+                return Err(msg);
+            }
         }
+        Ok(())
     }
 
     pub fn pop(&mut self) -> Value {
