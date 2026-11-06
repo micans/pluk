@@ -65,8 +65,12 @@ pub fn parse(arg: &[u8], headless: bool) -> Result<ColSpec, String> {
                 // Compiled once as given (for a clear message), then anchored to
                 // match the whole name: \A(?:re)\z keeps group 1 as the user's group 1.
                 compile_pattern(&re, &what)?;
+                // \Q...\E is expanded before wrapping, so that an unterminated
+                // \Q does not quote the wrapper.
+                let quoted = std::str::from_utf8(&re).map(crate::io::expand_quotes)
+                    .map_or(re.clone(), String::into_bytes);
                 let mut anchored = b"\\A(?:".to_vec();
-                anchored.extend_from_slice(&re);
+                anchored.extend_from_slice(&quoted);
                 anchored.extend_from_slice(b")\\z");
                 Element::Regex { text: raw.to_vec(), re: compile_pattern(&anchored, &what)? }
             }

@@ -85,3 +85,31 @@ Item 3: get and npat
   not take part, no match, NA and the refused empty pattern.
 
   Tests: regex-get, regex-get-edge. Help refs.
+
+
+Item 4: \Q...\E
+
+  Files: io.rs (expand_quotes; compile_pattern applies it), colspec.rs (expands before
+  wrapping), opt.rs (help).
+
+  expand_quotes replaces the text between \Q and \E (or the end of the pattern) by its
+  regex-escaped form (regex::escape). It scans escape by escape, so \\Q (an escaped
+  backslash followed by Q) is not a quote; pick's own substitution (s/\\Q(.*?)\\E/
+  quotemeta($1)/eg in compile_re) would take it as one. A \E outside a quote is dropped,
+  as Perl ignores it. Without \Q or \E the pattern is returned unchanged, and expanding
+  twice gives the same result.
+
+  compile_pattern expands every pattern, so \Q...\E works in -/PAT and -//PAT, the ~ and
+  /~ filters, the regex operators, and '+' column regexes. pick supports it only where
+  its compile_re is used (filters and computes); in its -/PAT and column regexes the
+  pattern comes from a variable, where Perl does not process \Q. The '+' column regexes
+  are wrapped as \A(?:...)\z; colspec.rs expands the user's pattern before wrapping, so
+  that an unterminated \Q does not quote the wrapper (compile_pattern then expands again,
+  which changes nothing).
+
+  Checked against pick: regex-quote (\Q.\E in del, ed, get, npat, and in a ~ and a /~
+  filter) is identical. regex-quote-other (pluk only): -/PAT, a column regex with a
+  terminated and an unterminated \Q, an unterminated \Q in a compute, an escaped
+  backslash before Q.
+
+  Tests: regex-quote, regex-quote-other. Help refs. Unit test in io.rs (quotes).

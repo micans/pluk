@@ -3,7 +3,8 @@ Output the named columns of TAB-separated input (plain or gzip-compressed),
 optionally only the rows that pass the filters.
 
 Columns: a name, a list a:b:c, or +REGEX for all columns whose whole name
-matches REGEX (Rust regex syntax), e.g. +num\d or name:+.*_p. Each part is
+matches REGEX (Rust regex syntax; \Q...\E quotes literal text, in every pluk
+regex), e.g. +num\d or name:+.*_p. Each part is
 %-decoded after splitting on ':' (%3A for ':', %2B for a leading '+').
 
 Options:

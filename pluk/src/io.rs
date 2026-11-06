@@ -520,13 +520,52 @@ fn parse_hd(line: &[u8]) -> (SamOrder, Vec<&[u8]>) {
 // that matching is on bytes as in Perl without 'use utf8': '.' matches any byte
 // except newline, and \w, \d, \s and case-insensitive matching are ASCII-only.
 // The regex crate takes the pattern as a str, so the pattern must be valid UTF-8.
+// \Q...\E quotes the text between them, as in Perl (plan/step14.txt decision 6).
 pub fn compile_pattern(pat: &[u8], what: &str) -> Result<Regex, String> {
     let pat = std::str::from_utf8(pat)
         .map_err(|_| format!("{}: pattern is not valid UTF-8 (use \\xHH escapes for bytes)", what))?;
-    RegexBuilder::new(pat)
+    RegexBuilder::new(&expand_quotes(pat))
         .unicode(false)
         .build()
         .map_err(|e| format!("{}: {}", what, e))
+}
+
+// Perl's \Q...\E: the text between \Q and \E (or the end of the pattern) is matched
+// literally; it is replaced by its regex-escaped form. Escapes are respected while
+// scanning, so \\Q (an escaped backslash, then Q) is not a quote; a \E outside a
+// quote is dropped, as Perl ignores it. Text without \Q comes back unchanged, and
+// expanding twice gives the same result (the escaped text contains no \Q), so a
+// caller may expand before wrapping a pattern (colspec.rs) and compile_pattern again.
+pub fn expand_quotes(pat: &str) -> String {
+    if !pat.contains("\\Q") && !pat.contains("\\E") {
+        return pat.to_string();
+    }
+    let mut out = String::with_capacity(pat.len());
+    let mut chars = pat.chars();
+    while let Some(c) = chars.next() {
+        if c != '\\' {
+            out.push(c);
+            continue;
+        }
+        match chars.next() {
+            Some('Q') => {
+                let rest = chars.as_str();
+                let (quoted, after) = match rest.find("\\E") {
+                    Some(k) => (&rest[..k], &rest[k + 2..]),
+                    None => (rest, ""),
+                };
+                out.push_str(&regex::escape(quoted));
+                chars = after.chars();
+            }
+            Some('E') => (),
+            Some(other) => {
+                out.push('\\');
+                out.push(other);
+            }
+            None => out.push('\\'),
+        }
+    }
+    out
 }
 
 // Approximation of Perl's looks_like_number: the bytes, with surrounding white
@@ -542,6 +581,20 @@ fn looks_like_number(bytes: &[u8]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn quotes() {
+        assert_eq!(expand_quotes("a.b"), "a.b");
+        assert_eq!(expand_quotes(r"\Q.*\Ex"), r"\.\*x");
+        assert_eq!(expand_quotes(r"x\Q(a)"), r"x\(a\)");          // to the end
+        assert_eq!(expand_quotes(r"\\Q"), r"\\Q");                // escaped backslash, then Q
+        assert_eq!(expand_quotes(r"a\Eb"), "ab");                 // stray \E dropped
+        assert_eq!(expand_quotes(r"\Q\d\E\d"), r"\\d\d");
+        let twice = expand_quotes(&expand_quotes(r"\Q\Q\E"));
+        assert_eq!(twice, expand_quotes(r"\Q\Q\E"));
+        let re = compile_pattern(br"^\Q1.5\E$", "test").unwrap();
+        assert!(re.is_match(b"1.5") && !re.is_match(b"1x5"));
+    }
 
     #[test]
     fn sq_fields() {
