@@ -42,6 +42,10 @@
     - Repeated flag letters in an option bundle are accepted (step3-notes.txt item 3).
     - -/PAT and -//PAT use Rust regex syntax (no backreferences or lookaround), matching on bytes
       (step3-notes.txt item 4).
+      This holds for every pluk regex; Perl's \K and look-around (?= ?! ?<= ?<!), used
+      prominently in pick's manual, are not available; capture-group workarounds and their
+      one limitation (overlapping context in global substitutions) are recorded in
+      step14-notes.txt ('Regex: \K and look-around').
     - --sam and --sam-h keep skipping or passing '@' lines when -/PAT or -//PAT is also given
       (step3-notes.txt item 4).
     - Numeric filters: a value that is not a number (empty, 'fox', '0x10', ' 4') fails the

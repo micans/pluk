@@ -113,3 +113,41 @@ Item 4: \Q...\E
   backslash before Q.
 
   Tests: regex-quote, regex-quote-other. Help refs. Unit test in io.rs (quotes).
+
+
+Regex: \K and look-around (recorded after item 4, for the documentation)
+
+  The regex crate supports neither Perl's \K (keep: match the text before \K but leave
+  it out of the match) nor look-around (look-ahead (?=...) and (?!...), look-behind
+  (?<=...) and (?<!...)). Both are compile errors, reported before input is read:
+      foo\K\d+       regex parse error: unrecognized escape sequence
+      \d+(?=bar)     regex parse error: look-around, including look-ahead and
+                     look-behind, is not supported
+  This is by design: the crate guarantees matching in time linear in the input, and
+  look-around, \K and backreferences do not fit its engine. Supported zero-width
+  assertions: ^ $ \A \z \b \B. pick's manual uses \K prominently ('Use \K (keep) to
+  anchor a pattern but retain it with ed edg edbr edgbr del delg', and with get).
+
+  Workarounds with capture groups: match the context as well, capture it, and put it
+  back with $N (edbr, edgbr), or capture only the wanted part (get returns group 1).
+  Checked against Perl on foo123bar456:
+
+      Perl                       pluk                           result
+      s/foo\K\d+/N/              ^(foo)\d+^$1N,edbr             fooNbar456 (as Perl)
+      s/\d+(?=bar)/N/            ^\d+(bar)^N$1,edbr             fooNbar456 (as Perl)
+      /(\d+)(?=bar)/, $1         ^(\d+)bar,get                  123 (as Perl)
+      s/quick\Kbrown//g          ^(quick)brown^$1,edgbr         (pick's manual example)
+
+  Limitation: look-around does not consume its context, a capture group does. In a
+  global substitution the next match cannot start inside text the previous match
+  consumed, so overlapping context gives a different result:
+      Perl  echo aaa | perl -lpe 's/a(?=a)/X/g'      XXa
+      pluk  aaa with ^(a)(a)^X$2,edgbr               Xaa
+  The same holds for \K when the kept part of one match overlaps the next. For single
+  substitutions (ed, edbr), get, and global substitutions without overlapping context the
+  workarounds give Perl's results.
+
+  If ever needed: the fancy-regex crate adds look-around and backreferences on top of
+  the regex crate (\K support in recent versions to be verified); the pcre2 crate binds
+  the C library PCRE2, which has all of Perl's syntax. Either gives up the linear-time
+  guarantee and adds a dependency (a C library for pcre2).
