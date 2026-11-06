@@ -7,12 +7,15 @@
 // Numeric operators follow plan/NUMERIC.design.txt: a value that is not a number
 // makes the comparison fail and is counted. Regex operators (~ /~) use the
 // dialect of -/PAT; with :NAME they match the other column as a fixed string.
+// Dictionary operators (~isin~ ~hasval~ ...) look up the field in a dictionary.
 
 use std::cmp::Ordering;
+use std::collections::HashMap;
 
 use memchr::memmem;
 use regex::bytes::Regex;
 
+use crate::dict::Dicts;
 use crate::io::compile_pattern;
 use crate::names::ColumnNames;
 use crate::num::{self, Num};
@@ -59,6 +62,28 @@ pub enum Op {
     Num(Cmp),       // /lt/ /le/ /eq/ /ge/ /gt/ /ne/
     Str(Cmp),       // ~lt~ ~le~ ~eq~ ~ge~ ~gt~ ~ne~ (byte comparison), = /=
     Match(bool),    // ~ (false) and /~ (true: negated)
+    IsIn(bool),     // ~isin~, ~isnotin~ (negated)
+    HasVal(bool),   // ~hasval~, ~hasnotval~ (negated)
+}
+
+impl Op {
+    // Whether VALUE is a dictionary name.
+    fn is_dict(self) -> bool {
+        matches!(self, Op::IsIn(_) | Op::HasVal(_))
+    }
+}
+
+// Whether an operator takes an extra argument after VALUE, and its separator.
+enum Extra {
+    No,
+    Required(u8),
+}
+
+fn extra_rule(op: Op) -> Extra {
+    match op {
+        Op::HasVal(_) => Extra::Required(b'~'),
+        _ => Extra::No,
+    }
 }
 
 // The operators of the form /xx/ and ~xx~, with the ones not yet implemented.
@@ -70,7 +95,8 @@ const OPERATORS: [(&[u8], Option<Op>); 28] = [
     (b"~eq~", Some(Op::Str(Cmp::Eq))), (b"~ge~", Some(Op::Str(Cmp::Ge))),
     (b"~gt~", Some(Op::Str(Cmp::Gt))), (b"~ne~", Some(Op::Str(Cmp::Ne))),
     (b"/ep/", None), (b"/epx/", None), (b"/om/", None), (b"/omx/", None),
-    (b"~isin~", None), (b"~isnotin~", None), (b"~hasval~", None), (b"~hasnotval~", None),
+    (b"~isin~", Some(Op::IsIn(false))), (b"~isnotin~", Some(Op::IsIn(true))),
+    (b"~hasval~", Some(Op::HasVal(false))), (b"~hasnotval~", Some(Op::HasVal(true))),
     (b"/all/", None), (b"/any/", None), (b"/none/", None), (b"/notall/", None),
     (b"=", Some(Op::Str(Cmp::Eq))), (b"/=", Some(Op::Str(Cmp::Ne))),
     (b"~", Some(Op::Match(false))), (b"/~", Some(Op::Match(true))),
@@ -91,7 +117,8 @@ pub struct FilterSpec {
     pub stage:  Stage,
     pub column: Vec<u8>,            // %-decoded
     pub op:     Op,
-    pub value:  Value,              // %-decoded
+    pub value:  Value,              // %-decoded; a dictionary name for ~isin~ etc.
+    pub extra:  Option<Vec<u8>>,    // the extra argument (~hasval~D~v: v), %-decoded
     const_num:  Option<Num>,        // a numeric operator's constant
     regex:      Option<Regex>,      // a regex operator's constant, compiled
     literal:    bool,               // VALUE was given as ^VALUE
@@ -101,6 +128,7 @@ pub struct FilterSpec {
 //   @NAME/op/VALUE, @NAME~op~VALUE   op: 2 to 19 lowercase letters; the first
 //                                    such token ends NAME
 //   @NAME=VALUE, /=, ~, /~           the first '=' or '~' ends NAME
+//   @NAME~hasval~DICT~v              an extra argument after VALUE
 // VALUE ':NAME' refers to a column, '^...' is a literal; both tested before
 // %-decoding, so %3A is a literal ':' (pick decodes first).
 pub fn parse_filter(arg: &[u8]) -> Result<FilterSpec, String> {
@@ -127,16 +155,54 @@ pub fn parse_filter(arg: &[u8]) -> Result<FilterSpec, String> {
     };
 
     // VALUE extends to the first '/' or '~'; what follows is an extra argument,
-    // which only /ep/ /om/ ~hasval~ and their variants take (later items).
-    if let Some(k) = rest.iter().position(|&b| b == b'/' || b == b'~') {
-        return Err(format!("[{}]: extra argument [{}] not allowed with {} (write '/' or '~' in VALUE as %2F or %7E)",
-                           shown, String::from_utf8_lossy(&rest[k..]), String::from_utf8_lossy(op_token)));
-    }
+    // which only ~hasval~ ~hasnotval~ (and /ep/ /om/, item 4) take. The extra
+    // argument itself cannot contain a further '/' or '~'.
+    let op_shown = String::from_utf8_lossy(op_token);
+    let is_delim = |b: &u8| *b == b'/' || *b == b'~';
+    let (rest, extra) = match rest.iter().position(is_delim) {
+        Some(k) => (&rest[..k], Some(&rest[k..])),
+        None => (rest, None),
+    };
+    let extra = match (extra_rule(op), extra) {
+        (Extra::No, None) => None,
+        (Extra::No, Some(e)) => {
+            return Err(format!("[{}]: extra argument [{}] not allowed with {} (write '/' or '~' in VALUE as %2F or %7E)",
+                               shown, String::from_utf8_lossy(e), op_shown));
+        }
+        (Extra::Required(sep), None) => {
+            return Err(format!("[{}]: {} requires an extra argument: @NAME{}VALUE{}ARG",
+                               shown, op_shown, op_shown, sep as char));
+        }
+        (Extra::Required(sep), Some(e)) => {
+            let arg = &e[1..];
+            if e[0] != sep {
+                return Err(format!("[{}]: the extra argument of {} is separated by '{}', not '{}'",
+                                   shown, op_shown, sep as char, e[0] as char));
+            }
+            if arg.iter().any(is_delim) {
+                return Err(format!("[{}]: extra argument [{}] contains '/' or '~' (write them as %2F or %7E)",
+                                   shown, String::from_utf8_lossy(arg)));
+            }
+            if arg.starts_with(b":") {
+                return Err(format!("[{}]: a column (':') as extra argument not yet supported", shown));
+            }
+            Some(pct_decode(arg))
+        }
+    };
     if name.is_empty() {
         return Err(format!("[{}]: column name missing", shown));
     }
     if name.starts_with(b"+") {
         return Err(format!("[{}]: regex column names (leading '+') not yet supported", shown));
+    }
+    if op.is_dict() {
+        if rest.is_empty() {
+            return Err(format!("[{}]: dictionary name missing", shown));
+        }
+        if rest.starts_with(b":") || rest.starts_with(b"^") {
+            return Err(format!("[{}]: {} takes a dictionary name, not a column or literal (':' or '^')",
+                               shown, op_shown));
+        }
     }
     let literal = rest.starts_with(b"^");
     let value = if let Some(column) = rest.strip_prefix(b":") {
@@ -167,7 +233,7 @@ pub fn parse_filter(arg: &[u8]) -> Result<FilterSpec, String> {
         }
         _ => None,
     };
-    Ok(FilterSpec { text: arg.to_vec(), stage, column: pct_decode(name), op, value, const_num, regex, literal })
+    Ok(FilterSpec { text: arg.to_vec(), stage, column: pct_decode(name), op, value, extra, const_num, regex, literal })
 }
 
 // Split at the first operator: a token [/~][a-z]{2,19}[/~] (as pick), else the
@@ -190,23 +256,26 @@ fn find_operator(spec: &[u8]) -> Option<(&[u8], &[u8], &[u8])> {
 }
 
 
-// The operand a column is compared with, after compilation.
-enum Operand {
-    Num(Num),           // numeric constant
-    Bytes(Vec<u8>),     // string constant
-    Regex(Regex),       // pattern constant
-    Column(usize),      // another column
+// The operand a column is compared with, after compilation. A dictionary is
+// borrowed from Dicts, which outlives the filters: the lifetime 'd says so.
+enum Operand<'d> {
+    Num(Num),                                   // numeric constant
+    Bytes(Vec<u8>),                             // string constant
+    Regex(Regex),                               // pattern constant
+    Column(usize),                              // another column
+    Dict(&'d HashMap<Vec<u8>, Vec<u8>>),        // dictionary (~isin~ etc.)
 }
 
-struct Filter {
+struct Filter<'d> {
     text:    Vec<u8>,
     column:  usize,
     op:      Op,
-    operand: Operand,
+    operand: Operand<'d>,
+    extra:   Vec<u8>,   // ~hasval~: the value to compare with
     n_na:    u64,       // numeric comparisons that failed on a value that is not a number
 }
 
-impl Filter {
+impl Filter<'_> {
     fn accept(&mut self, row: &Row) -> bool {
         let field = row.field(self.column);
         match self.op {
@@ -241,21 +310,35 @@ impl Filter {
                 };
                 found != negated
             }
+            Op::IsIn(negated) => {
+                let found = match &self.operand {
+                    Operand::Dict(d) => d.contains_key(field),
+                    _ => false,                     // not produced for dictionary operators
+                };
+                found != negated
+            }
+            Op::HasVal(negated) => {
+                let found = match &self.operand {
+                    Operand::Dict(d) => d.get(field).is_some_and(|v| *v == self.extra),
+                    _ => false,                     // not produced for dictionary operators
+                };
+                found != negated
+            }
         }
     }
 }
 
 // All filters of a run, by stage. Within a stage filters are ANDed, or ORed with
 // -o (@) and -s (@@); evaluation stops at the first filter that decides.
-pub struct Filters {
-    pre:     Vec<Filter>,
-    post:    Vec<Filter>,
+pub struct Filters<'d> {
+    pre:     Vec<Filter<'d>>,
+    post:    Vec<Filter<'d>>,
     pre_or:  bool,
     post_or: bool,
 }
 
-impl Filters {
-    pub fn none() -> Filters {
+impl<'d> Filters<'d> {
+    pub fn none() -> Filters<'d> {
         Filters { pre: Vec::new(), post: Vec::new(), pre_or: false, post_or: false }
     }
 
@@ -267,8 +350,10 @@ impl Filters {
     // unlike pick, not for a constant given as ^VALUE (explicitly literal), nor for a
     // number with a numeric operator (with -k every column is named by a number, and
     // the hint would be given for every numeric constant).
-    pub fn compile(specs: &[FilterSpec], names: &ColumnNames, pre_or: bool, post_or: bool)
-        -> Result<Filters, String>
+    // Dictionary names are resolved here too: seqlen and the --td dictionaries
+    // exist only once the header has been read.
+    pub fn compile(specs: &[FilterSpec], names: &ColumnNames, dicts: &'d Dicts, pre_or: bool, post_or: bool)
+        -> Result<Filters<'d>, String>
     {
         let mut filters = Filters { pre: Vec::new(), post: Vec::new(), pre_or, post_or };
         for spec in specs {
@@ -282,6 +367,11 @@ impl Filters {
             });
             let column = lookup(&spec.column, what)?;
             let operand = match &spec.value {
+                Value::Const(d) if spec.op.is_dict() => match dicts.get(d) {
+                    Some(dict) => Operand::Dict(&dict.map),
+                    None => return Err(format!("Dictionary [{}] not found (in {})", String::from_utf8_lossy(d),
+                                               String::from_utf8_lossy(&spec.text))),
+                },
                 Value::Column(name) => Operand::Column(lookup(name, &format!("Indirection {}", kind))?),
                 Value::Const(c) => {
                     if names.index_of(c).is_some() && spec.const_num.is_none() && !spec.literal {
@@ -296,7 +386,8 @@ impl Filters {
                     }
                 }
             };
-            let filter = Filter { text: spec.text.clone(), column, op: spec.op, operand, n_na: 0 };
+            let extra = spec.extra.clone().unwrap_or_default();
+            let filter = Filter { text: spec.text.clone(), column, op: spec.op, operand, extra, n_na: 0 };
             match spec.stage {
                 Stage::Pre  => filters.pre.push(filter),
                 Stage::Post => filters.post.push(filter),
@@ -323,7 +414,7 @@ impl Filters {
     }
 }
 
-fn stage_accepts(filters: &mut [Filter], or: bool, row: &Row) -> bool {
+fn stage_accepts(filters: &mut [Filter<'_>], or: bool, row: &Row) -> bool {
     if filters.is_empty() {
         return true;
     }
@@ -359,7 +450,8 @@ mod tests {
         assert_eq!(spec("@x/lt/5").unwrap().column, b"x");
         for bad in ["@x/gt/abc", "@x/gt/", "@/gt/3", "@x/foo/3", "@x/gt/3/4", "@x~eq~a/b",
                     "@x", "@+x/gt/3", "@x/gt/:", "@assert@x/gt/3", "@x/ep/3", "@x~", "@x/~",
-                    "@x~^", "@x~a(", "@x~a/b", "@x=a~b"] {
+                    "@x~^", "@x~a(", "@x~a/b", "@x=a~b", "@x~isin~", "@x~isin~:y", "@x~isin~^D",
+                    "@x~isin~D~v", "@x~hasval~D", "@x~hasval~D/v", "@x~hasval~D~:y", "@x~hasval~D~a~b"] {
             assert!(spec(bad).is_err(), "{}", bad);
         }
     }
@@ -381,6 +473,16 @@ mod tests {
         assert!(f.regex.is_none());
         // A /xx/ token takes precedence over = and ~.
         assert_eq!(spec("@a=b/gt/3").unwrap().column, b"a=b");
+    }
+
+    #[test]
+    fn parsing_dict() {
+        let f = spec("@x~isin~D").unwrap();
+        assert_eq!((f.op, f.value, f.extra), (Op::IsIn(false), Value::Const(b"D".to_vec()), None));
+        let f = spec("@x~hasnotval~D~a%7Eb").unwrap();
+        assert_eq!((f.op, f.extra), (Op::HasVal(true), Some(b"a~b".to_vec())));
+        assert_eq!(spec("@x~hasval~D~").unwrap().extra, Some(Vec::new()));
+        assert_eq!(spec("@x~hasval~D~%3Ay").unwrap().extra, Some(b":y".to_vec()));
     }
 
     #[test]

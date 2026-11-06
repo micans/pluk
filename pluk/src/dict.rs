@@ -1,9 +1,9 @@
 // Dictionaries: reading and storage (plan/step4.txt).
 //
 // A dictionary maps keys to values; both are byte strings. Dictionaries are
-// kept in a list, and a second map gives the list index of each name. Lookup
-// is implemented in a later step, where a constant dictionary name in a compute
-// is to be replaced by its index at compile time.
+// kept in a list, and a second map gives the list index of each name. The
+// filters ~isin~ ~hasval~ (filter.rs) look a dictionary up by name once, when
+// they are compiled; lookup in computes comes in a later step.
 //
 // opt.rs records a DictSpec for each dictionary option; Dicts::load() reads
 // them in command line order once option parsing is complete.
@@ -108,6 +108,11 @@ impl Dicts {
 
     pub fn len(&self) -> usize {
         self.list.len()
+    }
+
+    // The dictionary called name, if there is one.
+    pub fn get(&self, name: &[u8]) -> Option<&Dict> {
+        self.index.get(name).map(|&i| &self.list[i])
     }
 
     // The dictionary called name, for spec. A new one is created if the name is

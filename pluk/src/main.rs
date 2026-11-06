@@ -123,7 +123,7 @@ fn run() -> std::io::Result<()> {
     let mut filters = if input.is_empty {
         filter::Filters::none()
     } else {
-        filter::Filters::compile(&config.filters, &input.names, config.or_pre, config.or_post)
+        filter::Filters::compile(&config.filters, &input.names, &dicts, config.or_pre, config.or_post)
             .map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?
     };
 

@@ -127,3 +127,45 @@ Item 2: = /= ~ /~
   /= and ~ across stages), filter-regex-errors (empty patterns, regex syntax, backreference,
   look-ahead, extra arguments). filter-errors: @x=3 and @x~a removed (now valid). Help refs
   updated. Unit tests in filter.rs (parsing_eq_match; error cases extended).
+
+
+Item 3: ~isin~ ~isnotin~ ~hasval~ ~hasnotval~
+
+  Files: src/filter.rs (Op::IsIn, Op::HasVal, the extra argument, Operand::Dict), dict.rs
+  (Dicts::get), main.rs (compile() gets &dicts), opt.rs (help).
+
+  Parsing. VALUE and the extra argument are now split generally: VALUE ends at the first '/'
+  or '~', and extra_rule(op) says whether the operator refuses the rest (Extra::No) or
+  requires it with a given separator (Extra::Required(b'~') for ~hasval~ ~hasnotval~). Item 4
+  adds Extra::Optional(b'/') for /ep/ /om/. The extra argument is %-decoded; a further '/' or
+  '~' in it is refused, a leading ':' is reserved. For dictionary operators VALUE must be a
+  plain name (no ':' or '^').
+
+  Compilation. Dictionary names are resolved in Filters::compile, after the header has been
+  read, because seqlen (SAM) and the --td column dictionaries only exist then. Rust note: the
+  filter keeps a reference to the dictionary's HashMap instead of a copy or an index. A
+  reference stored in a struct needs a lifetime parameter: Operand<'d>, Filter<'d> and
+  Filters<'d> say "this borrows something that lives at least as long as 'd", here the Dicts
+  in main(). The compiler then checks that dicts is neither dropped nor modified while the
+  filters exist (add_sam_lengths, which modifies dicts, runs before compile). The C analogue
+  is a const pointer into a table that must outlive its users, but checked at compile time.
+
+  Evaluation. HashMap<Vec<u8>, Vec<u8>> can be queried with a &[u8] (Vec<u8> implements
+  Borrow<[u8]>), so the field is looked up without allocating. ~hasval~ compares the stored
+  value with the extra argument as bytes. Defaults and __EXIT__ are not consulted, as pick
+  (pick keeps the default outside the hash and tests defined()).
+
+  Checked against pick: big-isin equals pick's ref; filter-dict (nine labelled invocations),
+  filter-dict-or, and ~isin~seqlen / ~isnotin~seqlen on sam.txt give identical output (pick's
+  '-- 1 times a reference sequence length lookup failed' comes from its SAM processing, also
+  without the filter). The unknown-dictionary message differs (pick: a Perl die).
+
+  Speed: 1,000,000 rows, 100,000 keys from --kd: pluk -c 0.055 s without filter (including
+  loading the keys), 0.095 s with @a~isin~K or ~isnotin~K, 0.067 s when no field is a key
+  (short keys hash faster). About 40 ns per lookup with SipHash; noted in deferred.txt.
+
+  Tests: big-isin (from pick, with pick's ref; big.keep.txt copied from pick/test),
+  filter-dict (~isnotin~, ~isin~ in the @@ stage, ~hasval~ with a value, an empty value and a
+  %-encoded ':', ~hasnotval~, a dictionary with a default and one with __EXIT__),
+  filter-dict-or, filter-dict-sam (seqlen), filter-dict-bam, filter-dict-errors. Help refs
+  updated. Unit tests in filter.rs (parsing_dict; error cases extended).

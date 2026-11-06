@@ -74,6 +74,25 @@
           difference), filter-regex-column, errors (empty pattern, regex syntax).
 
   3   ~isin~ ~isnotin~ ~hasval~ ~hasnotval~ (dictionary lookups). Commit.
+        - Semantics as pick: ~isin~ is true if the field is a key of the dictionary;
+          ~hasval~D~v if the key is present and its value equals v (bytes); ~isnotin~ and
+          ~hasnotval~ negate (a missing key passes ~hasnotval~). Dictionary defaults
+          (NAME/default, __EXIT__) play no part.
+        - VALUE is a dictionary name, resolved when filters are compiled (after the header,
+          so that seqlen and --td column dictionaries exist); an unknown name is an error
+          (pick: 'Dictionary [D] not found', at option parsing). A leading ':' or '^' in VALUE
+          is refused (pick looks for a dictionary named ':y').
+        - The ~v argument of ~hasval~ ~hasnotval~ is required, separated by '~' (pick also
+          accepts '/' but keeps it in the value), %-decoded, may be empty. A further '/' or
+          '~' in it is refused with the %2F / %7E hint (pick takes the rest literally). A
+          leading ':' is reserved (not yet supported) for a later comparison with a column.
+        - The parser splits VALUE and the extra argument generally; per operator the extra
+          argument is refused, required, or (item 4: /ep/ /om/) optional.
+        - Lookup on the field bytes without copying. Measure ~isin~ with the default hasher
+          (deferred.txt: faster hasher) and record the timing in the notes.
+        - Tests: big-isin (from pick, big.keep.txt), ~isnotin~, ~hasval~/~hasnotval~ with
+          --fd and --cd (empty value, a dictionary with a default), ~isin~seqlen on SAM
+          input, errors (unknown dictionary, missing ~v, ':' and '^' in VALUE, ':' in v).
 
   4   /ep/ /epx/ /om/ /omx/ with the optional extra argument; defaults 0.0001 and 2 as pick.
       Commit.

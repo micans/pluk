@@ -3,7 +3,9 @@
 - (done in step3 item 4: -/PAT and -//PAT with the regex crate, --tc retired)
 - the Scalar, numeric and conversion design ahead of computes (numeric part: NUMERIC.design.txt)
 - --fastq-dict-NAME (step4: rarely used)
-- faster hasher for dictionary lookups (default SipHash); measure once lookup exists (step4)
+- faster hasher for dictionary lookups (default SipHash); measure once lookup exists (step4).
+  Measured in step7 item 3: ~isin~ costs about 40 ns per row (1,000,000 rows, 100,000 keys);
+  revisit with computes, where a row may do several lookups.
 - option to protect the first (header) line from -/PAT and -//PAT
 - SAM sequence fill (step5, SAMSEQ.design.txt), for the first SAM operator step: call the fill
   on every SAM data row before filtering; the missing-sequence mode option (name to be decided,

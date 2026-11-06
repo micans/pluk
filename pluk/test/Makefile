@@ -16,7 +16,7 @@ RETIRED_REFS = o.tc-midfile.ref
 
 rundiff: $(filter-out $(RETIRED_REFS), $(wildcard *.ref))
 
-runpluk: data.txt big.txt sam.txt sam-clean.txt sam.bam sam-clean.bgz bam-tags.bam bam-nosq.bam bam-cg.bam bam-empty.bam bam-sqdiff.bam
+runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.bgz bam-tags.bam bam-nosq.bam bam-cg.bam bam-empty.bam bam-sqdiff.bam
 	$(p) --test-lineno                  < data.txt         > o.lineno.test
 	$(p) --test-lineno                  < big.txt          > o.big-lineno.test
 	gzip -c big.txt | $(p) --test-lineno                   > o.big-lineno-gz.test
@@ -142,6 +142,12 @@ runpluk: data.txt big.txt sam.txt sam-clean.txt sam.bam sam-clean.bgz bam-tags.b
 	printf 'x\ty\nab.cd\t.\naxbcd\t.\nab|cd\tb|c\nabcd\tb|c\nabcd\t\n\t\n' | $(p) -h x y @x/~:y  > o.filter-regex-column-neg.test
 	$(p) -c @grp/=B @@tag~^k         < big.txt    > o.filter-regex-count.test
 	for a in @x~ @x/~ @x~^ '@x~a(' '@x~(.)\1' '@x~a(?=b)' @x~a/b @x=a~b @x=3/4; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-regex-errors.test
+	$(p) -A --kdict-K=big.keep.txt @id~isin~K       < big.txt  > o.big-isin.test
+	{ for a in @id~isnotin~K @@id~isin~K @grp~hasval~G~2 @grp~hasval~G~ @grp~hasnotval~G~2 @grp~isin~G @grp~isnotin~G @grp~hasval~G~%3A2 @n1~isin~Z; do echo "$$a"; $(p) -c --kd-K=big.keep.txt --cd-G/zz=A:2,B:,C:3,D:%3A2 --cd-Z/__EXIT__=0:1 "$$a" < big.txt; done; } > o.filter-dict.test
+	$(p) -o --kd-G=big.keep.txt --cd-H=r001:x id grp @id~isin~G @id~hasval~H~x  < big.txt  > o.filter-dict-or.test
+	$(p) --sam 1 3 @3~isin~seqlen   < sam.txt   2> /dev/null > o.filter-dict-sam.test
+	$(p) --sam 1 3 @3~isnotin~seqlen < sam.bam   > o.filter-dict-bam.test
+	for a in @fx~isin~Q @fx~isin~ @fx~isin~:D @fx~isin~^D @fx~isin~D~v @fx~hasval~D @fx~hasval~D/v @fx~hasval~D~:y @fx~hasval~D~a~b; do $(p) --cd-D=a:b name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-dict-errors.test
 	for a in @z/gt/3 @@name/gt/:z @fib~eq~:z; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-unknown.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.txt   2> /dev/null > o.filter-sam.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.bam   > o.filter-bam.test
