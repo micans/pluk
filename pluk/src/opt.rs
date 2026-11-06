@@ -143,7 +143,8 @@ Computes (given among the columns; a stack language, as pick):
   uie urlec urldc md5 fmtall (string, on bytes),
   add sub mul div idiv mod pow ipow max min neg abs sign sq incr decr addall
   mulall maxall minall meanall hmeanall gmeanall (arithmetic), int floor ceil round sqrt exp exp2 exp10 log log2 log10 sin
-  cos tan (math), dd sn frac pct pml (precision), rand, del delg ed edg (regex;
+  cos tan (math), dd sn frac pct pml (precision), rand, del delg ed edg edbr edgbr
+  (regex;
   the pattern is a constant).
   Numbers are written exactly (round-trip); NA where a number was needed.
   --num-perl  write numbers as Perl and pick do (%.15g, Inf, NaN)

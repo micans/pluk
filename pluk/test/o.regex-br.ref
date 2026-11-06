@@ -1,0 +1,114 @@
+name	a	b	c	d	e	f	g	h
+Ann	nAn	nAn	[a][n]n	A<n><n>	Ann	CAxGTTGCAx	0$0142857	[]A[nn][]
+Bob	oBb	oBb	[b][o]b	Bob	B(o)b	CCGGTTAxAx	0$0285714	[]B[]o[]b[]
+Charlie	hCarlie	hCraile	c[h]a[r]lie	Charlie	Ch(a)rl(i)(e)	GGGGTCAx	0$0428571	[]C[]h[]a[]r[]l[]i[]e[]
+Dan	aDn	aDn	[d][a]n	Da<n>	D(a)n	TTAxAx	0$0571428	[]D[]a[n][]
+Esme	sEme	sEem	[e][s][m]e	Esme	Esm(e)	CGCGC	0$0714285	[]E[]s[]m[]e[]
+Fred	rFed	rFde	[f][r][e]d	Fred	Fr(e)d	CTTCCAxT	0$0857142	[]F[]r[]e[]d[]
+Gillian	iGllian	iGllain	g[i]l[l]ian	Gillia<n>	G(i)ll(i)(a)n	C	1$1000000	[]G[]i[]l[]l[]i[]a[n][]
+Harriet	aHrriet	aHrreit	h[a]r[r]iet	Harriet	H(a)rr(i)(e)t	G	1$1142857	[]H[]a[]r[]r[]i[]e[]t[]
+Inky	nIky	nIyk	[i][n][k]y	I<n>ky	Inky	T	1$1285714	[]I[n][]k[]y[]
+John	oJhn	oJnh	[j][o][h]n	Joh<n>	J(o)hn	Ax	1$1428571	[]J[]o[]h[n][]
+Kelly	eKlly	eKlly	[k][e][l][l]y	Kelly	K(e)lly	AxAxAxAxAxAxAxAx	1$1571428	[]K[]e[]l[]l[]y[]
+Lucy	uLcy	uLyc	[l][u][c]y	Lucy	L(u)cy	TCGCAxCAxGCAxTC	1$1714285	[]L[]u[]c[]y[]
+id	a	b	c
+r001	GGCGGACCTAGGATAGA	98-uniform	qquueebbeecc
+r002	ACAACGAATGTAC	83-kilo	xxrraayy
+r003	ATAGTAGAACTATC	18-victor	ssiieerrrraa
+r004	CCTGCACCATTC	13-foxtrot	wwhhiisskkeeyy
+r005	TGCCAAAGGGGGTT	93-xray	yyaannkkeeee
+r006	AC	11-victor	rroommeeoo
+r007	CGTTTACA	73-juliet	zzuulluu
+r008	AGTCATGTTGCGGCTGTT	1-romeo	iinnddiiaa
+r009	CCACATAGCGGGGA	13-charlie	cchhaarrlliiee
+r010	ATACAGATC	78-mike	uunniiffoorrmm
+r011	GACACCACGAG	25-foxtrot	mmiikkee
+r012	CCCTTGGTCGGGA	68-xray	mmiikkee
+r013	AACTGATGCGTTTG	26-foxtrot	kkiilloo
+r014	TTTAGG	70-golf	vviiccttoorr
+r015	TTAAGAGTGT	2-golf	xxrraayy
+r016	CATCTGAT	5-papa	ppaappaa
+r017	ACATCGCTACTCTAAATTC	14-india	eecchhoo
+r018	CTCCTTCGAGAC	95-tango	wwhhiisskkeeyy
+r019	CATACGTGGCAATC	55-uniform	lliimmaa
+r020	ACGTTTATACATCTTTTG	59-golf	zzuulluu
+r021	G	69-mike	jjuulliieett
+r022	ACAATGCGAGCT	58-kilo	ffooxxttrroott
+r023	ACGGACTGCT	11-romeo	wwhhiisskkeeyy
+r024	GAAACACTGCGC	12-lima	uunniiffoorrmm
+r025	ACTTTTGAAG	53-juliet	kkiilloo
+r026	A	92-uniform	ddeellttaa
+r027	TTGCGACACATCCCTCCA	83-mike	cchhaarrlliiee
+r028	ACC	18-juliet	qquueebbeecc
+r029	CGCCCCACATATAA	37-oscar	ssiieerrrraa
+r030	CCTTTTGT	62-charlie	nnoovveemmbbeerr
+r031	GCAATGGCGGAACTGA	28-oscar	jjuulliieett
+r032	C	23-yankee	kkiilloo
+r033	AGATTTAGG	65-juliet	aallpphhaa
+r034	ATCATTGACGCGATTAGGAT	90-charlie	uunniiffoorrmm
+r035	ACACTAACGGTTCAG	60-hotel	rroommeeoo
+r036	CCACCGTGCGGCGGAC	27-victor	ttaannggoo
+r037	TCTCTGCTGCTA	5-yankee	hhootteell
+r038	TTTCGCGGTCAGGAC	22-quebec	ttaannggoo
+r039	TCCGATGTAAGGTCCTCCG	18-bravo	eecchhoo
+r040	GACCTACGCGGTAATTG	50-xray	hhootteell
+r041	TTTATA	82-yankee	ffooxxttrroott
+r042	AGAGTT	86-xray	lliimmaa
+r043	AGGCTAT	74-lima	bbrraavvoo
+r044	CACGGCCACACTGCCG	45-uniform	xxrraayy
+r045	AAGAGCTATTAA	41-quebec	bbrraavvoo
+r046	CCTGCATACCTGG	58-quebec	bbrraavvoo
+r047	CCAGCGACCTGAATAGGGAC	36-charlie	qquueebbeecc
+r048	GATTCGTACGATTTTCCCT	56-quebec	ppaappaa
+r049	CCAGCTTCCCTAC	3-echo	jjuulliieett
+r050	TAGATATT	15-india	uunniiffoorrmm
+r051	A	31-golf	ttaannggoo
+r052	GTTAAGGGTTCCATGGGATC	32-kilo	iinnddiiaa
+r053	TCGGTCCGTAGAGGTTCA	95-sierra	xxrraayy
+r054	ATAG	42-juliet	cchhaarrlliiee
+r055	CGCGAGGGTTACCAAG	17-whiskey	ttaannggoo
+r056	ACTCG	87-charlie	ddeellttaa
+r057	CCGTGCGTCAGC	12-papa	iinnddiiaa
+r058	AGTTAGTAAATCCTTAGAC	57-xray	ffooxxttrroott
+r059	TCATCG	60-zulu	ppaappaa
+r060	GGAAACGTCGCGGTGCTCTC	1-november	rroommeeoo
+r061	GTAGCATAGAC	93-echo	hhootteell
+r062	CTTTCAA	83-tango	hhootteell
+r063	GCCCACGTAGAGGGG	37-lima	qquueebbeecc
+r064	GCTCG	10-india	mmiikkee
+r065	ACTGGAGCAGCTGACTG	87-bravo	qquueebbeecc
+r066	ATGACGAGGAAGACA	87-charlie	ggoollff
+r067	CGCTGATTCTCACCCC	28-romeo	ddeellttaa
+r068	CACTGCGAAGAGGCTAAG	66-lima	uunniiffoorrmm
+r069	CCAACCTGGCAACATTTCC	19-delta	ffooxxttrroott
+r070	GGCAACCGTC	37-oscar	ssiieerrrraa
+r071	A	45-papa	uunniiffoorrmm
+r072	ACCGGATT	90-yankee	rroommeeoo
+r073	TTA	75-echo	ffooxxttrroott
+r074	GGTGCAGTAGTGACTAGGAG	34-zulu	ddeellttaa
+r075	GC	14-zulu	bbrraavvoo
+r076	GCCTGAGGAGATCT	32-xray	zzuulluu
+r077	ACGAGCGGTCAC	84-juliet	iinnddiiaa
+r078	TGATGTGACTACAC	34-november	vviiccttoorr
+r079	GCTAAGCCCGTATAGTC	51-november	ggoollff
+r080	CTTGTCTACA	86-golf	ffooxxttrroott
+r081	ATTCCCGCGCCCCTC	38-kilo	aallpphhaa
+r082	ACGA	56-zulu	jjuulliieett
+r083	TAGC	26-foxtrot	cchhaarrlliiee
+r084	TTAGAGC	28-november	aallpphhaa
+r085	TC	12-india	ggoollff
+r086	TCT	50-delta	ffooxxttrroott
+r087	CTCTGTGATCACGAGTTT	69-papa	vviiccttoorr
+r088	GGA	31-november	aallpphhaa
+r089	TAGACTGACGTAT	99-india	yyaannkkeeee
+r090	CACTCACTGAATCCATAC	17-zulu	aallpphhaa
+r091	AATATACGCCCTGGCCGC	54-papa	lliimmaa
+r092	G	65-oscar	eecchhoo
+r093	TCGCGAGC	30-papa	rroommeeoo
+r094	AACGGTTCCTTA	47-sierra	iinnddiiaa
+r095	AGGCGGAAC	3-oscar	hhootteell
+r096	GGGTAGAGGGCTCCGGT	88-golf	rroommeeoo
+r097	GCGTCAACCTCAGGTATGA	52-foxtrot	kkiilloo
+r098	ATGGCGACTCTCGA	89-delta	lliimmaa
+r099	CAAATTTTTCGATCCTG	94-oscar	ppaappaa
+r100	GCTCCCTCGCGTAG	55-yankee	nnoovveemmbbeerr

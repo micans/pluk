@@ -7,7 +7,7 @@
 
 use md5::{Digest, Md5};
 use memchr::memmem;
-use regex::bytes::{NoExpand, Regex};
+use regex::bytes::{Captures, NoExpand, Regex};
 
 use crate::exec::{Machine, OpFn, Value};
 use crate::num::{self, Num};
@@ -228,6 +228,10 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x p s", result: "x =~ s/p/s/", doc: "Substitute pattern p by s in x (s literal)", fun: op_ed },
     OpDef { name: "edg",    pops: Pops::N(3), pushes: 1, shape: STR, prepare: Prepare::ConstRegex(1), category: Category::Regex,
             operands: "x p s", result: "x =~ s/p/s/g", doc: "Globally substitute pattern p by s in x (s literal)", fun: op_edg },
+    OpDef { name: "edbr",   pops: Pops::N(3), pushes: 1, shape: STR, prepare: Prepare::ConstRegex(1), category: Category::Regex,
+            operands: "x p s", result: "x =~ s/p/s/", doc: "As ed, $1 $2 .. (groups) and $0 (match) in s", fun: op_edbr },
+    OpDef { name: "edgbr",  pops: Pops::N(3), pushes: 1, shape: STR, prepare: Prepare::ConstRegex(1), category: Category::Regex,
+            operands: "x p s", result: "x =~ s/p/s/g", doc: "As edg, $1 $2 .. (groups) and $0 (match) in s", fun: op_edgbr },
 ];
 
 pub fn lookup(name: &[u8]) -> Option<&'static OpDef> {
@@ -853,6 +857,51 @@ fn op_edg(m: &mut Machine, row: &Row, re: Option<&Regex>) {
     substitute(m, row, re, true, |re, x, s| replace_matches(x, &perl_matches(re, x), |_, _| s.to_vec()))
 }
 
+// The replacement of edbr and edgbr for one match, as pick's do_ed_br_helper
+// (decision 4): $ followed by digits (all of them: $12 is group 12) is that group,
+// empty if it did not take part or does not exist; $0 is the whole match; all else
+// is literal. Written here rather than with the regex crate's expansion, which
+// reads $1a as a group named '1a'.
+pub fn expand_groups(template: &[u8], caps: &Captures) -> Vec<u8> {
+    let mut out = Vec::with_capacity(template.len());
+    let mut i = 0;
+    while i < template.len() {
+        let digits = template[i + 1..].iter().take_while(|b| b.is_ascii_digit()).count();
+        if template[i] == b'$' && digits > 0 {
+            let group = std::str::from_utf8(&template[i + 1..i + 1 + digits]).unwrap().parse::<usize>();
+            if let Some(g) = group.ok().and_then(|n| caps.get(n)) {
+                out.extend_from_slice(g.as_bytes());
+            }
+            i += 1 + digits;
+        } else {
+            out.push(template[i]);
+            i += 1;
+        }
+    }
+    out
+}
+
+fn op_edbr(m: &mut Machine, row: &Row, re: Option<&Regex>) {
+    substitute(m, row, re, true, |re, x, s| match re.captures(x) {
+        Some(caps) => {
+            let whole = caps.get(0).unwrap();
+            replace_matches(x, &[(whole.start(), whole.end())], |_, _| expand_groups(s, &caps))
+        }
+        None => x.to_vec(),
+    })
+}
+
+// The groups of each match: the match positions as Perl finds them (perl_matches),
+// the groups from a search at the match's start, which finds that same match.
+fn op_edgbr(m: &mut Machine, row: &Row, re: Option<&Regex>) {
+    substitute(m, row, re, true, |re, x, s| {
+        replace_matches(x, &perl_matches(re, x), |start, _| match re.captures_at(x, start) {
+            Some(caps) => expand_groups(s, &caps),
+            None => Vec::new(),
+        })
+    })
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -872,6 +921,8 @@ mod tests {
         assert_eq!(perl_matches(&re("a*"), b"aaa"), vec![(0, 3), (3, 3)]);
         assert_eq!(perl_matches(&re("x"), b"axbxc"), vec![(1, 2), (3, 4)]);
         assert_eq!(perl_matches(&re("x*"), b""), vec![(0, 0)]);
+        let caps = re("(a)(b)?(c)").captures(b"xacy").unwrap();
+        assert_eq!(expand_groups(b"[$1|$2|$3|$0|$12|$4|$|$x]", &caps), b"[a||c|ac|||$|$x]".to_vec());
         assert_eq!((format_slots(b"a#b#"), format_slots(b"\\#x#"), format_slots(b"\\x#"), format_slots(b"#\\")), (2, 1, 1, 1));
         // Names are unique.
         for (i, a) in OPERATORS.iter().enumerate() {

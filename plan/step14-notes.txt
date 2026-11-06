@@ -42,3 +42,26 @@ Item 1: operand position of the pattern; delg ed edg; deferred.txt
 
   Tests: regex-ed, regex-empty, regex-ed-edge (underflow, a column pattern, an empty and
   an invalid pattern, NA). Help refs. Unit test in ops.rs (perl_matches).
+
+
+Item 2: edbr and edgbr
+
+  Files: ops.rs (expand_groups, op_edbr, op_edgbr), opt.rs (help).
+
+  expand_groups writes the replacement for one match as pick's do_ed_br_helper: $ followed
+  by digits, all of them ($12 is group 12, not group 1 and a 2), is that group's text,
+  empty if the group did not take part or does not exist; $0 is the whole match; a $ not
+  followed by a digit, and all other bytes, are literal. The regex crate's own expansion
+  is not used: it reads $1a as a group named 1a, and ${1} syntax would be new to pick
+  users.
+
+  edbr takes the first match (Regex::captures); edgbr takes the match positions of
+  perl_matches (item 1, Perl's empty-match rule) and the groups of each from
+  Regex::captures_at at the match's start, which finds the same match (leftmost-first
+  search from that position).
+
+  Checked against pick (--num-perl): regex-br (swapped groups, a group that does not take
+  part, a group that does not exist, $0, $1x, $$1 (a literal $ and group 1), empty
+  matches with n*; big.txt) is identical.
+
+  Tests: regex-br. Help refs. Unit test in ops.rs (expand_groups).
