@@ -45,16 +45,25 @@ impl OutputSelection {
         Ok(OutputSelection::from_offsets(output_offset, names))
     }
 
-    // -A: output all input columns, in input order, then the '::' computes that do
-    // not redefine an input column. A redefined input column shows its final binding
-    // at its own position. Names given as well must exist, but add nothing (as in
-    // pick, where they are duplicates of columns already present).
-    pub fn all(args: &[ColSpec], computed: &[(usize, usize)], names: &ColumnNames)
+    // -A: output all input columns, in input order, and the '::' computes that do
+    // not redefine an input column: after the input columns, or with -A<N> inserted
+    // after the first N input columns (N < 0 counts from the right; clamped to the
+    // ends, as pick). A redefined input column shows its final binding at its own
+    // position. Names given as well must exist, but add nothing (as in pick, where
+    // they are duplicates of columns already present).
+    pub fn all(args: &[ColSpec], computed: &[(usize, usize)], insert: Option<i64>, names: &ColumnNames)
         -> Result<OutputSelection, String>
     {
         lookup(args, names)?;
-        let input: Vec<usize> = (0..names.n_input()).map(|i| names.current(i)).collect();
-        let output_offset = input.iter().copied().chain(new_columns(computed, &input, names)).collect();
+        let mut output_offset: Vec<usize> = (0..names.n_input()).map(|i| names.current(i)).collect();
+        let new = new_columns(computed, &output_offset, names);
+        let n = output_offset.len() as i64;
+        let at = match insert {
+            None => n,
+            Some(k) if k >= 0 => k.min(n),
+            Some(k) => (n + k).max(0),
+        } as usize;
+        output_offset.splice(at..at, new);
         Ok(OutputSelection::from_offsets(output_offset, names))
     }
 

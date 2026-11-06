@@ -1,0 +1,12 @@
+File	Written	Filtered
+out/dm9/a	1	0
+out/dm9/b	1	1
+-- out/kh-other.txt
+two
+3
+-- ./a
+two
+1
+-- ./b
+two
+2

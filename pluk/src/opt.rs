@@ -20,7 +20,8 @@ use crate::filter::{parse_filter, FilterSpec};
 #[derive(Debug, Default)]
 pub struct Config {
     pub no_header: bool,                // -h
-    pub k: bool,                        // -k
+    pub k: bool,                        // -k (also set by -K, --sam, --sam-h)
+    pub big_k: bool,                    // -K: as -k, and output a header line of the output names
     pub all: bool,                      // -A
     pub insert_offset: Option<i64>,     // -A<N>; not yet acted upon
     pub excise: bool,                   // -x
@@ -93,13 +94,16 @@ matches REGEX (Rust regex syntax), e.g. +num\\d or name:+.*_p. Each part is
 %-decoded after splitting on ':' (%3A for ':', %2B for a leading '+').
 
 Options:
+  -K          as -k, and output a header line with the output column names
+              (the numbers, or compute names: -K name::1 len::2)
   -k          input has no header line; columns are named 1 2 .. N, and can be
               given as ranges S-E, S- (to the last), O+S-E (offset), S-E*M
               (multiplier): columns O + i*M for i = S..E
   -h          do not output the header line
   -c          output only the number of data rows (that pass the filters)
   -A          output all columns
-  -A<N>       as -A; <N> is the insert position for computed columns (not yet used)
+  -A<N>       as -A, with the new computed columns inserted after the first N
+              input columns (N < 0: counted from the right)
   -x          output all columns except the named ones
   -/<pat>     skip lines matching regular expression <pat>, e.g. -/^#
   -//<pat>    output lines matching <pat> unchanged
@@ -445,6 +449,10 @@ fn parse_bundle(chars: &[u8], config: &mut Config) -> Result<(), String> {
         j += 1;
         match c {
             b'k' => config.k = true,
+            b'K' => {
+                config.k = true;
+                config.big_k = true;
+            }
             b'h' => config.no_header = true,
             b'c' => config.c = true,
             b'o' => config.or_post = true,
@@ -530,6 +538,13 @@ fn check_combinations(config: &Config) -> Result<(), String> {
     }
     if config.add_row_column && config.k {
         return Err("-R cannot be combined with -k".to_string());
+    }
+    if config.big_k && (config.sam || config.sam_h) {
+        return Err("-K cannot be combined with --sam or --sam-h".to_string());
+    }
+    // -x takes precedence over -A, so an insert position would have no effect.
+    if config.insert_offset.is_some() && config.excise {
+        return Err("-A<N> cannot be combined with -x".to_string());
     }
     if config.demux.is_some() && config.c {
         return Err("--demux cannot be combined with -c".to_string());

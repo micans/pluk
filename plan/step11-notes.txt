@@ -85,3 +85,50 @@ Item 3: map (a list, '+' regex or -k range as NAME)
   map forms are no longer errors; a regex error in NAME is). sel-unsupported: '+x.*::^1' is
   now a map whose regex matches nothing. Help refs. Unit tests in compute.rs (map; the
   parse test now accepts map NAMEs).
+
+
+Item 4: -A<N>
+
+  Files: select.rs (OutputSelection::all with the insert position), opt.rs (-A<N> with -x
+  refused, help), main.rs.
+
+  -A<N> was parsed since step3 and unused. OutputSelection::all now builds the input columns
+  (current bindings) and splices the new '::' computes in at position N: N >= 0 after the
+  first N input columns, N < 0 counted from the right, clamped to the ends (pick: Perl's
+  splice with the offset clamped beforehand). Redefined input columns stay where they are
+  (INPLACE.design.txt sections 2 and 5). The position counts input columns, also with -k.
+  -A<N> with -x is an option error: -x takes precedence over -A, so N would have no effect
+  (pick counts positions after excision).
+
+  Checked against pick: thirteen invocations (0, 1, 2, the number of columns, beyond it,
+  -1, minus the number of columns, beyond that, no computes, with an in-place compute, with
+  a map, with a named column, with -k) are identical.
+
+  Tests: insert, insert-errors. Help refs.
+
+
+Item 5: -K
+
+  Files: opt.rs (-K, big_k, the conflict with --sam/--sam-h, help), main.rs (the header
+  rules).
+
+  pick, observed: -K is -k (input without header; columns named 1 2 ...) plus an output
+  header line with the output column names (the numbers, compute names, unnamed computes);
+  -h suppresses that line, -c prints only the count; everything else is as -k. Typical use
+  names the columns of headerless input through computes:
+      pluk -K usefulname::1 anotherusefulname::2 usefullycomputed::3:4,add
+
+  pluk: the same. -K sets -k and big_k; the stdout header rule is now 'header unless -k
+  without -K, -h or -c', and the files of --other, --assert-other and --demux follow it
+  except for -c (which concerns stdout only), so they get the -K header too. Being -k, -K
+  satisfies -O<N> and is refused with -R. Decided in the discussion: -K with --sam or
+  --sam-h is an option error (a header line of numbers does not belong in SAM output).
+  pick's -U (unique output columns in input order with -k/-K) and the --inames family stay
+  out of scope (plan/sketch).
+
+  Checked against pick: ten invocations (columns, computes, -A, -KA with a compute, -h, -c,
+  -x, -i, named computes, a range with an unnamed compute) are identical apart from the
+  unnamed name (PLUK/PICK).
+
+  Tests: kheader, kheader-files (--other and --demux files with the -K header),
+  kheader-errors (--sam, --sam-h, -R). Help refs.

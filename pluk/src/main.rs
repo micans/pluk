@@ -73,9 +73,14 @@ fn run() -> std::io::Result<()> {
         }
     }
 
-    // As in pick: header output on by default, off with -k; -h and -c always switch it off.
+    // As in pick: header output on by default, off with -k (not with -K); -h and -c always
+    // switch it off.
     #[allow(non_snake_case)]
-    let B_print_header = !config.k && !config.no_header && !config.c;
+    // -K asks for the output header line that -k would leave out.
+    let B_print_header = (!config.k || config.big_k) && !config.no_header && !config.c;
+    // The header rule for the files of --other, --assert-other and --demux: as
+    // stdout, except that -c concerns stdout only.
+    let file_header = (!config.k || config.big_k) && !config.no_header;
 
     // -/PAT and -//PAT; an invalid pattern is reported like an option error.
     let compile = |pat: &Option<Vec<u8>>, what: &str| match pat {
@@ -150,7 +155,7 @@ fn run() -> std::io::Result<()> {
         let result = if config.excise {
             select::OutputSelection::complement(column_args, &computed, &names)
         } else if config.all {
-            select::OutputSelection::all(column_args, &computed, &names)
+            select::OutputSelection::all(column_args, &computed, config.insert_offset, &names)
         } else {
             select::OutputSelection::from_names(column_args, &computed, &names)
         };
@@ -206,7 +211,7 @@ fn run() -> std::io::Result<()> {
     if !input.is_empty {
         let all = config.c && column_args.is_empty() && !config.all && !config.excise;
         let offsets: Vec<usize> = if all { (0..input.n_columns).collect() } else { selection.output_offset.clone() };
-        let header = if !config.k && !config.no_header { Some(&names) } else { None };
+        let header = if file_header { Some(&names) } else { None };
         for side in [&mut other, &mut assert_other].into_iter().flatten() {
             let writer = output::RowWriter::new(&offsets, input.n_columns, input.settings.omega.is_some());
             side.start(writer, &input.passthrough_preamble, header)?;
@@ -224,7 +229,7 @@ fn run() -> std::io::Result<()> {
             for line in &input.passthrough_preamble {
                 output::write_line(&mut start, line)?;
             }
-            if !config.k && !config.no_header {
+            if file_header {
                 writer.write_header(&mut start, &names)?;
             }
             let taken = [&config.other, &config.assert_other].into_iter().flatten().cloned().collect();

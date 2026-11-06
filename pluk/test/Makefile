@@ -220,6 +220,11 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	for a in 'fib::fib^1,add' '-i fib::fib^1,add fib::fib^10,add' '-i fib::^1 fib:=^2' 'x::__^1,add' 'x::^1 x::^2'; do $(p) $$a name < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.inplace-errors.test
 	{ for a in '-i name fib:sq::__^1,add' '-i name +fib.*::__^1,add' '-i +fib.*::__^1,add name' '-i name fib:sq::__:fib,add' '-i -A +num\d::__^10,add' '-i name +num\d:=__^10,add num1 num4' '-i -x fib:sq::__^1,add name' '-i name +num\d::__^10,add s::+num\d,addall'; do echo "$$a"; $(p) --num-perl $$a < data.txt 2>&1 | head -n 4; done; printf '1\t2\t3\t4\n5\t6\t7\t8\n' | $(p) -k -i 1 2-3::__^10,add 4; $(p) -i name fib:fib::__^1,add < data.txt 2>&1 | head -n 3; } > o.map.test
 	for a in 'name fib:sq::__^1,add' '-i name a:b::^1' '-i name +fib.*::^1 fib::^2' '-i name +zz.*::^1'; do $(p) $$a < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.map-errors.test
+	{ for a in '-A0 x::^X y:=^Y z::^Z' '-A1 x::^X y:=^Y z::^Z' '-A2 x::^X y:=^Y z::^Z' '-A13 x::^X z::^Z' '-A20 x::^X z::^Z' '-A-1 x::^X z::^Z' '-A-13 x::^X z::^Z' '-A-20 x::^X z::^Z' '-A2' '-i -A2 fib::fib^1,add x::^X' '-i -A-1 +num\d::__^1,add x::^X' '-A3 fib x::^X' '-kA1 x::^X'; do echo "$$a"; $(p) $$a < data.txt | head -n 2; done; } > o.insert.test
+	{ $(p) -A2 -x fib x::^X < data.txt; echo "exit $$?"; } > o.insert-errors.test 2>&1
+	{ for a in '-K 3 1' '-K 3 1 x::2^10,add' '-K -A' '-KA x::1:2,add' '-K -h 3 1' '-K -c' '-K -x 2' '-K -i 2::2^1,add 1 2' '-K usefulname::1 anotherusefulname::2 usefullycomputed::3:2,add' '-K 2-3 ::1^a,cat'; do echo "$$a"; printf '1\t2\t3\n4\t5\t6\n' | $(p) $$a 2>&1; done; } > o.kheader.test
+	mkdir out/dm9 && { printf 'a\t1\nb\t2\nb\t3\n' | $(p) -K --other=out/kh-other.txt --demux=1 --demux-dir=out/dm9 two::2 @2/lt/3; echo "-- out/kh-other.txt"; cat out/kh-other.txt; (cd out/dm9 && find . -type f | sort | while read -r f; do echo "-- $$f"; cat "$$f"; done); } > o.kheader-files.test 2>&1
+	{ for a in '--sam -K 1' '-K --sam-h 1' '-KR 1'; do $(p) $$a < sam.txt; echo "exit $$?"; done; } > o.kheader-errors.test 2>&1
 	for a in @z/gt/3 @@name/gt/:z @fib~eq~:z; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-unknown.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.txt   2> /dev/null > o.filter-sam.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.bam   > o.filter-bam.test

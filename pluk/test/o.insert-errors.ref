@@ -1,0 +1,2 @@
+-A<N> cannot be combined with -x
+exit 1

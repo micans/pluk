@@ -1,0 +1,39 @@
+-A0 x::^X y:=^Y z::^Z
+x	z	name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
+X	Z	Ann	1	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA
+-A1 x::^X y:=^Y z::^Z
+name	x	z	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
+Ann	X	Z	1	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA
+-A2 x::^X y:=^Y z::^Z
+name	fib	x	z	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
+Ann	1	X	Z	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA
+-A13 x::^X z::^Z
+name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna	x	z
+Ann	1	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA	X	Z
+-A20 x::^X z::^Z
+name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna	x	z
+Ann	1	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA	X	Z
+-A-1 x::^X z::^Z
+name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	x	z	dna
+Ann	1	0	1	dog	1	0.142857	1	2	1	a_n_n	a	X	Z	ACGTTGCA
+-A-13 x::^X z::^Z
+x	z	name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
+X	Z	Ann	1	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA
+-A-20 x::^X z::^Z
+x	z	name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
+X	Z	Ann	1	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA
+-A2
+name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
+Ann	1	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA
+-i -A2 fib::fib^1,add x::^X
+name	fib	x	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
+Ann	2	X	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA
+-i -A-1 +num\d::__^1,add x::^X
+name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	x	dna
+Ann	1	0	1	dog	1	0.142857	2	3	2	a_n_n	a	X	ACGTTGCA
+-A3 fib x::^X
+name	fib	fib2	x	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
+Ann	1	0	X	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA
+-kA1 x::^X
+name	X	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
+Ann	X	1	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA

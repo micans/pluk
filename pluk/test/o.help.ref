@@ -7,13 +7,16 @@ matches REGEX (Rust regex syntax), e.g. +num\d or name:+.*_p. Each part is
 %-decoded after splitting on ':' (%3A for ':', %2B for a leading '+').
 
 Options:
+  -K          as -k, and output a header line with the output column names
+              (the numbers, or compute names: -K name::1 len::2)
   -k          input has no header line; columns are named 1 2 .. N, and can be
               given as ranges S-E, S- (to the last), O+S-E (offset), S-E*M
               (multiplier): columns O + i*M for i = S..E
   -h          do not output the header line
   -c          output only the number of data rows (that pass the filters)
   -A          output all columns
-  -A<N>       as -A; <N> is the insert position for computed columns (not yet used)
+  -A<N>       as -A, with the new computed columns inserted after the first N
+              input columns (N < 0: counted from the right)
   -x          output all columns except the named ones
   -/<pat>     skip lines matching regular expression <pat>, e.g. -/^#
   -//<pat>    output lines matching <pat> unchanged
