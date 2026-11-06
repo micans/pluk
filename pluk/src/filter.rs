@@ -4,6 +4,8 @@
 // A filter argument is parsed during option parsing (parse_filter: syntax and
 // constants), and compiled once the column names are known (Filters::compile:
 // column indexes). Each data row is then tested on its field bytes (keep).
+// The handle NAME is a column specification (plan/COLSPEC.design.txt): with a
+// list, regex or range the filter holds if the test holds for every column.
 // Numeric operators follow plan/NUMERIC.design.txt: a value that is not a number
 // makes the comparison fail and is counted. Regex operators (~ /~) use the
 // dialect of -/PAT; with :NAME they match the other column as a fixed string.
@@ -15,6 +17,7 @@ use std::collections::HashMap;
 use memchr::memmem;
 use regex::bytes::Regex;
 
+use crate::colspec::{self, ColSpec, Element};
 use crate::dict::Dicts;
 use crate::io::compile_pattern;
 use crate::names::ColumnNames;
@@ -137,7 +140,7 @@ pub enum Value {
 pub struct FilterSpec {
     pub text:   Vec<u8>,            // the argument, for messages
     pub stage:  Stage,
-    pub column: Vec<u8>,            // %-decoded
+    pub handle: ColSpec,            // the column(s) tested
     pub op:     Op,
     pub value:  Value,              // %-decoded; a dictionary name for ~isin~ etc.
     pub extra:  Option<Vec<u8>>,    // the extra argument (~hasval~D~v: v; /ep/y/eps: eps), %-decoded
@@ -155,7 +158,8 @@ pub struct FilterSpec {
 //   @NAME/ep/VALUE/eps, /om/VALUE/k   an extra argument after VALUE (optional)
 // VALUE ':NAME' refers to a column, '^...' is a literal; both tested before
 // %-decoding, so %3A is a literal ':' (pick decodes first).
-pub fn parse_filter(arg: &[u8]) -> Result<FilterSpec, String> {
+// headless (-k): ranges are allowed in the handle.
+pub fn parse_filter(arg: &[u8], headless: bool) -> Result<FilterSpec, String> {
     let shown = String::from_utf8_lossy(arg).into_owned();
     let (stage, spec) = if arg.starts_with(b"@assert@") {
         return Err(format!("[{}]: assertions (@assert@) not yet supported", shown));
@@ -217,9 +221,7 @@ pub fn parse_filter(arg: &[u8]) -> Result<FilterSpec, String> {
     if name.is_empty() {
         return Err(format!("[{}]: column name missing", shown));
     }
-    if name.starts_with(b"+") {
-        return Err(format!("[{}]: regex column names (leading '+') not yet supported", shown));
-    }
+    let handle = colspec::parse(name, headless).map_err(|e| format!("[{}]: {}", shown, e))?;
     if op.is_dict() {
         if rest.is_empty() {
             return Err(format!("[{}]: dictionary name missing", shown));
@@ -234,7 +236,11 @@ pub fn parse_filter(arg: &[u8]) -> Result<FilterSpec, String> {
         if column.is_empty() {
             return Err(format!("[{}]: column name missing after ':'", shown));
         }
-        Value::Column(pct_decode(column))
+        // A single plain column: lists, regexes and ranges are refused here.
+        match colspec::parse(column, headless).map_err(|e| format!("[{}]: {}", shown, e))?.elements.as_slice() {
+            [Element::Name(n)] => Value::Column(n.clone()),
+            _ => return Err(format!("[{}]: a single column name is required after ':' (no list, regex or range)", shown)),
+        }
     } else if let Some(literal) = rest.strip_prefix(b"^") {
         Value::Const(pct_decode(literal))
     } else {
@@ -284,7 +290,7 @@ pub fn parse_filter(arg: &[u8]) -> Result<FilterSpec, String> {
         }
         _ => None,
     };
-    Ok(FilterSpec { text: arg.to_vec(), stage, column: pct_decode(name), op, value, extra, const_num, band, regex, literal })
+    Ok(FilterSpec { text: arg.to_vec(), stage, handle, op, value, extra, const_num, band, regex, literal })
 }
 
 // Split at the first operator: a token [/~][a-z]{2,19}[/~] (as pick), else the
@@ -317,21 +323,48 @@ enum Operand<'d> {
     Dict(&'d HashMap<Vec<u8>, Vec<u8>>),        // dictionary (~isin~ etc.)
 }
 
+// The outcome of a test on one column.
+enum Outcome {
+    Pass,
+    Fail,
+    NotNumber,      // a numeric test met a value that is not a number
+    NotInteger,     // a bit test met a number that is not an integer
+}
+
 struct Filter<'d> {
     text:    Vec<u8>,
-    column:  usize,
+    columns: Vec<usize>,    // the columns tested, without duplicates
     op:      Op,
     operand: Operand<'d>,
     extra:   Vec<u8>,   // ~hasval~: the value to compare with
     band:    Num,       // /ep/ /om/: eps or k
-    n_na:    u64,       // numeric comparisons that failed on a value that is not a number
-    n_nonint: u64,      // bit tests that failed on a number that is not an integer
+    n_na:    u64,       // rows not kept because a value was not a number
+    n_nonint: u64,      // rows not kept because a value was not an integer (bit tests)
 }
 
 impl Filter<'_> {
+    // The test must hold for every column; the first column that fails decides,
+    // and its reason is counted (so counts are per row, not per value).
     fn accept(&mut self, row: &Row) -> bool {
-        let field = row.field(self.column);
-        match self.op {
+        for &c in &self.columns {
+            match self.test(row.field(c), row) {
+                Outcome::Pass => (),
+                Outcome::Fail => return false,
+                Outcome::NotNumber => {
+                    self.n_na += 1;
+                    return false;
+                }
+                Outcome::NotInteger => {
+                    self.n_nonint += 1;
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
+    fn test(&self, field: &[u8], row: &Row) -> Outcome {
+        let pass = match self.op {
             Op::Num(_) | Op::Ep(_) | Op::Om(_) | Op::Bit(..) => {
                 let lhs = num::parse_num(field);
                 let rhs = match &self.operand {
@@ -349,17 +382,11 @@ impl Filter<'_> {
                                 BitTest::All => num::bits_all(x, m) != negated,
                                 BitTest::Any => num::bits_any(x, m) != negated,
                             },
-                            _ => {
-                                self.n_nonint += 1;
-                                false
-                            }
+                            _ => return Outcome::NotInteger,
                         },
                         _ => false,                 // not a numeric operator
                     },
-                    _ => {
-                        self.n_na += 1;
-                        false
-                    }
+                    _ => return Outcome::NotNumber,
                 }
             }
             Op::Str(cmp) => {
@@ -392,7 +419,8 @@ impl Filter<'_> {
                 };
                 found != negated
             }
-        }
+        };
+        if pass { Outcome::Pass } else { Outcome::Fail }
     }
 }
 
@@ -433,7 +461,12 @@ impl<'d> Filters<'d> {
                 format!("({}) handle [{}] in {} does not reference a known entity among {}",
                         label, String::from_utf8_lossy(name), kind, names.joined())
             });
-            let column = lookup(&spec.column, what)?;
+            let mut columns: Vec<usize> = Vec::new();
+            for c in spec.handle.expand(names, what, kind)? {
+                if !columns.contains(&c) {
+                    columns.push(c);
+                }
+            }
             let operand = match &spec.value {
                 Value::Const(d) if spec.op.is_dict() => match dicts.get(d) {
                     Some(dict) => Operand::Dict(&dict.map),
@@ -456,7 +489,7 @@ impl<'d> Filters<'d> {
             };
             let extra = spec.extra.clone().unwrap_or_default();
             let band = spec.band.unwrap_or(Num::I(0));
-            let filter = Filter { text: spec.text.clone(), column, op: spec.op, operand, extra, band, n_na: 0, n_nonint: 0 };
+            let filter = Filter { text: spec.text.clone(), columns, op: spec.op, operand, extra, band, n_na: 0, n_nonint: 0 };
             match spec.stage {
                 Stage::Pre  => filters.pre.push(filter),
                 Stage::Post => filters.post.push(filter),
@@ -471,15 +504,20 @@ impl<'d> Filters<'d> {
         stage_accepts(&mut self.pre, self.pre_or, row) && stage_accepts(&mut self.post, self.post_or, row)
     }
 
-    // Per filter, the number of values that were not numbers, and (bit filters) not
-    // integers, for the end-of-run report.
+    // Per filter, the number of rows not kept because a value was not a number,
+    // or (bit filters) not an integer, for the end-of-run report. With one column
+    // a row has one value, and the message says so.
     pub fn report_na(&self) {
         for f in self.pre.iter().chain(&self.post) {
             for (n, what) in [(f.n_na, "a number"), (f.n_nonint, "an integer")] {
                 if n > 0 {
                     let s = if n == 1 { "" } else { "s" };
-                    eprintln!("pluk: {}: {} value{} not {} (row{} not kept)",
-                              String::from_utf8_lossy(&f.text), n, s, what, s);
+                    let text = String::from_utf8_lossy(&f.text);
+                    if f.columns.len() == 1 {
+                        eprintln!("pluk: {}: {} value{} not {} (row{} not kept)", text, n, s, what, s);
+                    } else {
+                        eprintln!("pluk: {}: {} row{} with a value not {} (not kept)", text, n, s, what);
+                    }
                 }
             }
         }
@@ -503,25 +541,33 @@ mod tests {
     use super::*;
 
     fn spec(arg: &str) -> Result<FilterSpec, String> {
-        parse_filter(arg.as_bytes())
+        parse_filter(arg.as_bytes(), false)
+    }
+
+    // The single plain name of a handle, for the tests below.
+    fn name(f: &FilterSpec) -> Vec<u8> {
+        match f.handle.elements.as_slice() {
+            [Element::Name(n)] => n.clone(),
+            _ => panic!("not a single name"),
+        }
     }
 
     #[test]
     fn parsing() {
         let f = spec("@x/gt/3").unwrap();
-        assert_eq!((f.stage, f.column.as_slice(), f.op), (Stage::Post, &b"x"[..], Op::Num(Cmp::Gt)));
+        assert_eq!((f.stage, name(&f).as_slice(), f.op), (Stage::Post, &b"x"[..], Op::Num(Cmp::Gt)));
         assert_eq!(f.const_num, Some(Num::I(3)));
         let f = spec("@@a%2Fb~le~:c%7Ed").unwrap();
-        assert_eq!((f.stage, f.column.as_slice(), f.op), (Stage::Pre, &b"a/b"[..], Op::Str(Cmp::Le)));
+        assert_eq!((f.stage, name(&f).as_slice(), f.op), (Stage::Pre, &b"a/b"[..], Op::Str(Cmp::Le)));
         assert_eq!(f.value, Value::Column(b"c~d".to_vec()));
         assert_eq!(spec("@x~eq~^:y").unwrap().value, Value::Const(b":y".to_vec()));
         assert_eq!(spec("@x~eq~%3Ay").unwrap().value, Value::Const(b":y".to_vec()));
         assert_eq!(spec("@x~eq~").unwrap().value, Value::Const(Vec::new()));
         assert_eq!(spec("@x/ne/-1.5e3").unwrap().const_num, Some(Num::F(-1500.0)));
         // The first operator token ends the name.
-        assert_eq!(spec("@x/lt/5").unwrap().column, b"x");
+        assert_eq!(name(&spec("@x/lt/5").unwrap()), b"x");
         for bad in ["@x/gt/abc", "@x/gt/", "@/gt/3", "@x/foo/3", "@x/gt/3/4", "@x~eq~a/b",
-                    "@x", "@+x/gt/3", "@x/gt/:", "@assert@x/gt/3", "@x~", "@x/~",
+                    "@x", "@+/gt/3", "@+a(/gt/3", "@x/gt/:", "@x/gt/:a:b", "@x/gt/:+a", "@x::y/gt/3", "@assert@x/gt/3", "@x~", "@x/~",
                     "@x~^", "@x~a(", "@x~a/b", "@x=a~b", "@x~isin~", "@x~isin~:y", "@x~isin~^D",
                     "@x~isin~D~v", "@x~hasval~D", "@x~hasval~D/v", "@x~hasval~D~:y", "@x~hasval~D~a~b",
                     "@x/ep/1/", "@x/ep/1/-1", "@x/ep/1/nan", "@x/ep/1/abc", "@x/ep/1~2", "@x/ep/1/:y",
@@ -537,7 +583,7 @@ mod tests {
         assert_eq!(spec("@x/=3").unwrap().op, Op::Str(Cmp::Ne));
         assert_eq!(spec("@x=").unwrap().value, Value::Const(Vec::new()));
         let f = spec("@x~a.b").unwrap();
-        assert_eq!((f.column.as_slice(), f.op), (&b"x"[..], Op::Match(false)));
+        assert_eq!((name(&f).as_slice(), f.op), (&b"x"[..], Op::Match(false)));
         assert!(f.regex.unwrap().is_match(b"xaxbx"));
         let f = spec("@x/~^a%2Fb%7Ec").unwrap();
         assert_eq!(f.op, Op::Match(true));
@@ -547,7 +593,7 @@ mod tests {
         assert_eq!(f.value, Value::Column(b"y".to_vec()));
         assert!(f.regex.is_none());
         // A /xx/ token takes precedence over = and ~.
-        assert_eq!(spec("@a=b/gt/3").unwrap().column, b"a=b");
+        assert_eq!(name(&spec("@a=b/gt/3").unwrap()), b"a=b");
     }
 
     #[test]
@@ -577,6 +623,16 @@ mod tests {
         assert_eq!((f.op, f.const_num), (Op::Bit(BitTest::All, true), Some(Num::I(12))));
         assert_eq!(spec("@flag/none/0").unwrap().op, Op::Bit(BitTest::Any, true));
         assert_eq!(spec("@flag/any/:m").unwrap().value, Value::Column(b"m".to_vec()));
+    }
+
+    #[test]
+    fn parsing_handles() {
+        assert_eq!(spec("@a:+b\\d/gt/0").unwrap().handle.elements.len(), 2);
+        assert!(matches!(spec("@2-4/gt/0").unwrap().handle.elements[0], Element::Name(_)));
+        let f = parse_filter(b"@2-4/gt/0", true).unwrap();
+        assert!(matches!(f.handle.elements[0], Element::Range(_)));
+        assert!(parse_filter(b"@2/gt/:3-4", true).is_err());
+        assert!(parse_filter(b"@2/gt/:3", true).is_ok());
     }
 
     #[test]

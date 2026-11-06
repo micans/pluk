@@ -1,0 +1,8 @@
+pluk: (Select) regex [+zz.*] in select matches no column among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+pluk: (Select) handle [zz] in select does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+[@fib/gt/:a:b]: a single column name is required after ':' (no list, regex or range)
+[@fib/gt/:+a]: a single column name is required after ':' (no list, regex or range)
+[@fib/gt/:fib2:fib]: a single column name is required after ':' (no list, regex or range)
+pluk: (Select) handle [] in select does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+[@fib::x/gt/0]: [fib::x]: computes ('::', ':=') not yet supported
+[@1/gt/:2-3]: a single column name is required after ':' (no list, regex or range)

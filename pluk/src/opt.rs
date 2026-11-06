@@ -128,6 +128,8 @@ Filters (given among the columns; VALUE is %-decoded, e.g. %2F for '/'):
                   a value that is not an integer fails.
   @NAME/op/:NAME2 compare with column NAME2; ^VALUE is VALUE taken literally
   @@NAME...       as @, applied before computes (computes are not yet supported)
+  NAME can be a list, +REGEX or (-k) range, as for columns: the test must
+  hold for every column, e.g. @+num\\d/gt/0. A single name follows ':'.
 
 Dictionaries (NAME: letters, digits, _; used by ~isin~ ~hasval~):
   --kd-NAME=FILE          keys from the first column of FILE, all values 1
@@ -183,7 +185,7 @@ pub fn parse(args: &[Vec<u8>]) -> Result<Parsed, String> {
     // The trailing arguments: column names and filters, mixed as in pick.
     for arg in &args[i..] {
         if arg.starts_with(b"@") {
-            config.filters.push(parse_filter(arg)?);
+            config.filters.push(parse_filter(arg, config.k)?);
         } else {
             config.columns.push(colspec::parse(arg, config.k)?);
         }

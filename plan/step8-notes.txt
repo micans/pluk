@@ -93,3 +93,43 @@ Item 2: -k ranges
   (dropped indexes), colspec-range-other (-x, --sam, a range without -k is a name),
   colspec-range-errors (empty range, unknown number, 007, multiplier 0, number too large,
   column 0). Help refs updated. Unit tests in colspec.rs (ranges).
+
+
+Item 3: multi-column filter handles
+
+  Files: src/filter.rs (FilterSpec.handle: ColSpec, Filter.columns, Outcome, accept/test,
+  report), opt.rs (parse_filter(arg, config.k), help).
+
+  Parsing. The NAME part of a filter is parsed with colspec::parse (so '+' regexes, ':' lists
+  and, with -k, ranges), after find_operator() has split the argument; '/', '~' and '=' in a
+  regex are written %2F %7E %3D as before, ':' as %3A. Errors in the handle are prefixed with
+  the whole filter argument ('[@+/gt/3]: [+]: empty regex after '+''). The :NAME operand is
+  also parsed with colspec::parse and must be a single plain name.
+
+  Compilation. The handle is expanded with ColSpec::expand using pick's labels
+  ((Select)/(Preselect) handle [x] in select/preselect ...); duplicates are removed, keeping
+  the first position.
+
+  Evaluation. Filter::test(field, row) evaluates one column and returns an Outcome (Pass,
+  Fail, NotNumber, NotInteger); Filter::accept loops over the columns and stops at the first
+  that does not pass, counting its reason. Counts are therefore per row: a row with two
+  non-numbers counts once, and a row whose first column fails normally is not counted even
+  if a later column is not a number. The end-of-run message keeps its per-value wording for
+  single-column filters and says '... N rows with a value not a number (not kept)' otherwise.
+  Rust note: test() takes &self and accept() takes &mut self; the counters are updated only
+  in accept(), so the per-operator code needs no mutable access.
+
+  -o and -s combine a multi-column filter as a unit: filter-multi-or shows -o with
+  @fib:fib2/gt/30 against the same test written as two filters (Inky, fib 34 and fib2 21,
+  passes the latter only).
+
+  Checked against pick, which has no multi-column handles, by writing the columns as
+  separate ANDed filters: lists, regexes, regex + list, @@ with a string operator, :NAME
+  operand, /ep/, and -k ranges (stdout) give identical output.
+
+  Tests: filter-multi (labelled), filter-multi-k (ranges, with the header line as data and
+  its NA count), filter-multi-or, filter-multi-na, filter-multi-nonint (both counts),
+  filter-multi-errors (no match, unknown name in a list, list/regex/range after ':', empty
+  element, compute). filter-errors: '@+x/gt/3' (formerly 'not yet supported') replaced by
+  '@+/gt/3' (empty regex). Help refs updated. Unit tests in filter.rs (parsing_handles,
+  extended error cases).
