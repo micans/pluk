@@ -101,7 +101,8 @@
       uses its own generator, seeded from the clock or with --seed=N (pick has no seed).
     - String operators (step13.txt): an NA operand gives NA, and a count that is not an
       integer is NA (pick: Perl converts); substr outside the string is empty (Perl:
-      undef and a warning).
+      undef and a warning); a negative padding width is NA (Perl left-aligns); nchar
+      counts substring occurrences (pick: single characters only).
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

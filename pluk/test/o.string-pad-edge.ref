@@ -1,0 +1,6 @@
+x	n	a	b	c	d	e	f
+abc	5	abc  	  abc	00abc	0	0	NA
+abc	-1	NA	NA	NA	0	0	NA
+abc	2.5	NA	NA	NA	0	0	NA
+abc	fox	NA	NA	NA	0	0	NA
+aaaa	3	aaaa	aaaa	aaaa	2	0	NA

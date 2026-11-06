@@ -5,6 +5,7 @@
 // the stack effect and description (parsing), the shape and prepare step
 // (compilation) and the implementation (execution, exec.rs).
 
+use memchr::memmem;
 use regex::bytes::Regex;
 
 use crate::exec::{Machine, OpFn, Value};
@@ -103,6 +104,14 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x k", result: "x[0:#x-k-1]", doc: "Leading part of string x, shedding last k [head,tail,skip,shed]", fun: op_shed },
     OpDef { name: "strim",  pops: Pops::N(3), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
             operands: "s nx ny", result: "s'", doc: "Trim nx bytes from the start and ny from the end of s", fun: op_strim },
+    OpDef { name: "ppl",    pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x N", result: "x'", doc: "x right-padded with blanks to width N (left-aligned)", fun: op_ppl },
+    OpDef { name: "ppr",    pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x N", result: "x'", doc: "x left-padded with blanks to width N (right-aligned)", fun: op_ppr },
+    OpDef { name: "zp",     pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x N", result: "x'", doc: "x left zero-padded to width N", fun: op_zp },
+    OpDef { name: "nchar",  pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::String,
+            operands: "x c", result: "nc", doc: "Number of occurrences of c in x (non-overlapping)", fun: op_nchar },
     OpDef { name: "add",    pops: Pops::N(2), pushes: 1, shape: Shape::Result(Kind::Num), prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "x y", result: "x+y", doc: "Add x and y", fun: op_add },
     OpDef { name: "sub",    pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
@@ -259,6 +268,50 @@ fn slice2(m: &mut Machine, row: &Row, range: impl Fn(usize, num::Int) -> (usize,
             s.truncate(end);
             s.drain(..start);
             Value::Bytes(s)
+        }
+    };
+    m.push(result);
+}
+
+// Padding (decision 4): pop the width N and x; pad x with fill bytes to N bytes,
+// at the front or the back; a longer x is unchanged. A negative or non-integer N is
+// NA (Perl's sprintf would left-align with a negative width).
+fn pad(m: &mut Machine, row: &Row, fill: u8, front: bool) {
+    let n = m.pop();
+    let x = m.pop();
+    let n = int_operand(m, &n, row);
+    let result = match (x, n) {
+        (Value::Na, _) | (_, None) => Value::Na,
+        (_, Some(n)) if n < 0 => Value::Na,
+        (x, Some(n)) => {
+            let mut s = m.into_bytes(x, row);
+            let missing = (n as u128).saturating_sub(s.len() as u128) as usize;
+            if front {
+                s.splice(0..0, std::iter::repeat_n(fill, missing));
+            } else {
+                s.resize(s.len() + missing, fill);
+            }
+            Value::Bytes(s)
+        }
+    };
+    m.push(result);
+}
+
+fn op_ppl(m: &mut Machine, row: &Row, _: Option<&Regex>) { pad(m, row, b' ', false) }
+fn op_ppr(m: &mut Machine, row: &Row, _: Option<&Regex>) { pad(m, row, b' ', true) }
+fn op_zp(m: &mut Machine, row: &Row, _: Option<&Regex>) { pad(m, row, b'0', true) }
+
+// nchar x c: non-overlapping occurrences of c in x (decision 5); an empty c
+// counts 0.
+fn op_nchar(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    let c = m.pop();
+    let x = m.pop();
+    let result = match (&x, &c) {
+        (Value::Na, _) | (_, Value::Na) => Value::Na,
+        _ => {
+            let (x, c) = (m.bytes(&x, row), m.bytes(&c, row));
+            let n = if c.is_empty() { 0 } else { memmem::find_iter(&x, &c).count() };
+            Value::Num(Num::I(n as num::Int))
         }
     };
     m.push(result);

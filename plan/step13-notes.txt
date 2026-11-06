@@ -37,3 +37,27 @@ Item 1: basic and slicing operators
 
   Tests: string-basic, string-substr, string-edge (non-integer counts, NA operands,
   negative counts). Help refs.
+
+
+Item 2: padding and counting
+
+  Files: ops.rs (ppl ppr zp nchar; the helper pad), opt.rs (help).
+
+  pad() pops the width N and x and pads x with blanks (ppl at the back, ppr at the front)
+  or zeros (zp, at the front) to N bytes; a longer x is unchanged. N must be a non-negative
+  integer, otherwise NA (Perl's sprintf('%*s') left-aligns for a negative width; pick's zp
+  computes a negative padding as none). zp pads the string, so -2 with width 4 is 00-2, as
+  pick. Rust note: inserting at the front uses Vec::splice(0..0, repeat_n(fill, k)), which
+  shifts the bytes once.
+
+  nchar x c counts the non-overlapping occurrences of c in x with memchr::memmem::find_iter
+  (memchr is already a dependency, since step7); for a single byte this is pick's count (a
+  chop loop comparing characters); for a longer c pick always counts 0, pluk the
+  occurrences (aaaa contains aa twice). An empty c counts 0.
+
+  Checked against pick (--num-perl): string-pad (data.txt names, negative numbers with zp,
+  floats with ppr, width 0 and smaller than the string, nchar of single characters;
+  big.txt) is identical.
+
+  Tests: string-pad, string-pad-edge (negative, float and non-number widths, overlapping
+  candidates, empty c, NA). Help refs.

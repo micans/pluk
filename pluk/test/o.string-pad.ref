@@ -1,0 +1,114 @@
+name	a	b	c	d	e	f	g	h	i
+Ann	Ann   	   Ann	0001	Ann	    0.142857	Ann	2	2	2
+Bob	Bob   	   Bob	00-2	Bob	    0.285714	Bob	0	2	2
+Charlie	Charlie	Charlie	0003	Charlie	    0.428571	Charlie	0	2	1
+Dan	Dan   	   Dan	00-4	Dan	    0.571428	Dan	1	2	2
+Esme	Esme  	  Esme	0005	Esme	    0.714285	Esme	0	3	0
+Fred	Fred  	  Fred	00-6	Fred	    0.857142	Fred	0	3	1
+Gillian	Gillian	Gillian	0007	Gillian	    1.000000	Gillian	1	2	0
+Harriet	Harriet	Harriet	00-8	Harriet	    1.142857	Harriet	0	2	0
+Inky	Inky  	  Inky	0009	Inky	    1.285714	Inky	1	3	0
+John	John  	  John	0-10	John	    1.428571	John	1	3	1
+Kelly	Kelly 	 Kelly	0011	Kelly	    1.571428	Kelly	0	4	8
+Lucy	Lucy  	  Lucy	0-12	Lucy	    1.714285	Lucy	0	3	3
+id	a	b	c	d
+r001	uniform98   	00-20	7	              quebec
+r002	kilo83      	00-32	2	                xray
+r003	victor18    	00-19	2	              sierra
+r004	foxtrot13   	00030	1	             whiskey
+r005	xray93      	00012	6	              yankee
+r006	victor11    	00043	0	               romeo
+r007	juliet73    	00041	1	                zulu
+r008	romeo1      	00-36	6	               india
+r009	charlie13   	00047	5	             charlie
+r010	mike78      	00033	1	             uniform
+r011	foxtrot25   	00-10	3	                mike
+r012	xray68      	00-21	5	                mike
+r013	foxtrot26   	00030	4	                kilo
+r014	golf70      	00040	2	              victor
+r015	golf2       	00-37	3	                xray
+r016	papa5       	00005	1	                papa
+r017	india14     	00025	1	                echo
+r018	tango95     	00-42	2	             whiskey
+r019	uniform55   	000-7	3	                lima
+r020	golf59      	00-13	2	                zulu
+r021	mike69      	00-24	1	              juliet
+r022	kilo58      	00022	3	             foxtrot
+r023	romeo11     	00024	3	             whiskey
+r024	lima12      	00005	3	             uniform
+r025	juliet53    	00041	2	                kilo
+r026	uniform92   	00002	0	               delta
+r027	mike83      	00037	2	             charlie
+r028	juliet18    	00041	0	              quebec
+r029	oscar37     	00043	1	              sierra
+r030	charlie62   	00040	1	            november
+r031	oscar28     	00-28	6	              juliet
+r032	yankee23    	00-37	0	                kilo
+r033	juliet65    	00008	3	               alpha
+r034	charlie90   	00047	5	             uniform
+r035	hotel60     	00-39	3	               romeo
+r036	victor27    	00-14	6	               tango
+r037	yankee5     	00042	2	               hotel
+r038	quebec22    	00-25	5	               tango
+r039	bravo18     	00-40	5	                echo
+r040	xray50      	00026	5	               hotel
+r041	yankee82    	00012	0	             foxtrot
+r042	xray86      	00-10	2	                lima
+r043	lima74      	00-25	2	               bravo
+r044	uniform45   	00007	4	                xray
+r045	quebec41    	00031	2	               bravo
+r046	quebec58    	00-17	3	               bravo
+r047	charlie36   	000-2	6	              quebec
+r048	quebec56    	00048	3	                papa
+r049	echo3       	00009	1	              juliet
+r050	india15     	00005	1	             uniform
+r051	golf31      	00042	0	               tango
+r052	kilo32      	00040	7	               india
+r053	sierra95    	000-3	6	                xray
+r054	juliet42    	00-20	1	             charlie
+r055	whiskey17   	00037	6	               tango
+r056	charlie87   	00042	1	               delta
+r057	papa12      	00-45	4	               india
+r058	xray57      	00-35	3	             foxtrot
+r059	zulu60      	00-39	1	                papa
+r060	november1   	00028	7	               romeo
+r061	echo93      	00027	3	               hotel
+r062	tango83     	00-12	0	               hotel
+r063	lima37      	00017	7	              quebec
+r064	india10     	00005	2	                mike
+r065	bravo87     	00043	6	              quebec
+r066	charlie87   	00029	5	                golf
+r067	romeo28     	00005	2	               delta
+r068	lima66      	00019	6	             uniform
+r069	delta19     	00-29	2	             foxtrot
+r070	oscar37     	00030	3	              sierra
+r071	papa45      	00032	0	             uniform
+r072	yankee90    	00-17	2	               romeo
+r073	echo75      	00039	0	             foxtrot
+r074	zulu34      	00-32	9	               delta
+r075	zulu14      	00-20	1	               bravo
+r076	xray32      	00-46	5	                zulu
+r077	juliet84    	00-23	4	               india
+r078	november34  	00-19	3	              victor
+r079	november51  	000-3	4	                golf
+r080	golf86      	00-46	1	             foxtrot
+r081	kilo38      	00-48	2	               alpha
+r082	zulu56      	00-16	1	              juliet
+r083	foxtrot26   	000-5	1	             charlie
+r084	november28  	00020	2	               alpha
+r085	india12     	00019	0	                golf
+r086	delta50     	00-30	0	             foxtrot
+r087	papa69      	00048	4	              victor
+r088	november31  	00-41	2	               alpha
+r089	india99     	00016	3	              yankee
+r090	zulu17      	00003	1	               alpha
+r091	papa54      	00-39	4	                lima
+r092	oscar65     	00-10	1	                echo
+r093	papa30      	000-4	3	               romeo
+r094	sierra47    	00045	2	               india
+r095	oscar3      	00033	4	               hotel
+r096	golf88      	00-14	9	               romeo
+r097	foxtrot52   	00029	5	                kilo
+r098	delta89     	000-5	4	                lima
+r099	oscar94     	00032	2	                papa
+r100	yankee55    	00017	4	            november
