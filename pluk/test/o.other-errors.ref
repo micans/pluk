@@ -1,0 +1,4 @@
+pluk: --other: cannot create out/nodir/x.txt: No such file or directory (os error 2)
+exit 1
+--other=FILE: file name missing
+exit 1

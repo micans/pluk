@@ -44,6 +44,7 @@ pub struct Config {
     pub filters: Vec<FilterSpec>,       // @ and @@ filters, in command line order
     pub or_post: bool,                  // -o: OR the @ filters
     pub or_pre: bool,                   // -s: OR the @@ filters
+    pub other: Option<Vec<u8>>,         // --other=FILE: rows rejected by filters
 }
 
 // Result of a successful parse: run, or print help or version and exit.
@@ -100,6 +101,8 @@ Options:
   -R          header has no name for the first (row name) column; it is named _
   -o          keep rows that pass any @ filter (default: all)
   -s          keep rows that pass any @@ filter (default: all)
+  --other=FILE  write the rows rejected by @ and @@ filters to FILE (header and
+              columns as the output; .gz or .gzip: gzip-compressed)
   --sam       SAM input: implies -k and -O12, skips lines starting with @.
               BAM input is recognised and read as SAM
   --sam-h     as --sam, but outputs lines starting with @ unchanged
@@ -221,6 +224,12 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
         b"test-select"          => config.test_select = true,
         b"test-dict"            => config.test_dict = true,
         b"test-samsort"         => config.test_samsort = true,
+        _ if long.starts_with(b"other=") => {
+            if long.len() == 6 {
+                return Err("--other=FILE: file name missing".to_string());
+            }
+            config.other = Some(long[6..].to_vec());
+        }
         _ if long.starts_with(b"threads=") => {
             match parse_number::<u32>(&long[8..]) {
                 Some(n) if n > 0 => config.threads = Some(n),

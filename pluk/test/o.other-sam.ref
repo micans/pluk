@@ -1,0 +1,17 @@
+@HD	VN:1.6	SO:unsorted
+@SQ	SN:chr1	LN:1000
+@SQ	SN:chr2	LN:500
+@PG	ID:hand	PN:handwritten
+r001	0
+r004	0
+@CO	comment in the middle
+r006	0
+r008	0
+-- out/other-sam.txt
+@HD	VN:1.6	SO:unsorted
+@SQ	SN:chr1	LN:1000
+@SQ	SN:chr2	LN:500
+@PG	ID:hand	PN:handwritten
+r002	16
+r005	4
+r007	nonnumeric

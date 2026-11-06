@@ -1,0 +1,78 @@
+
+- Output routing: --other, --assert-other and --demux
+
+  The three options decide where a row goes (stdout, a file for rejected rows, a file for
+  rows failing an assertion, a file per value) rather than whether it is kept. They share an
+  output layer (file or gzip file, header, preamble, tallies).
+
+
+  Outcome of the discussion (rationale in step9-notes.txt)
+
+  Output files. Files are created directly, never through a shell (pick opens
+  "|gzip >$name", so a data value can execute a command). A name ending in .gz or .gzip is
+  gzip-compressed with flate2 (default level). Existing files are overwritten (as pick).
+  Every output file gets the header line under the same rules as stdout (-h, -k); -c only
+  concerns stdout (pick: no header in the --other file with -c). With -c and no column
+  arguments, the --other and --assert-other files get whole rows (pick writes empty lines).
+
+  Preamble. Pass-through lines before the first data line (--sam-h header lines, -//PAT
+  lines) are written at the top of every output: stdout, the --other file, the
+  --assert-other file and each demux file when it is opened. Pass-through lines later in the
+  input go to stdout only. (pick sends all pass-through lines to stdout only; the preamble
+  rule makes --sam-h --demux produce valid SAM files.)
+
+  --other=FILE receives the rows rejected by filters: those rejected by @@ filters as well as
+  those rejected by @ filters (pick: @ rejects only). Same columns and header as stdout.
+
+  --assert-other=FILE replaces 'a failed assertion ends the run' by 'the row is written to
+  FILE'. It covers @assert@ and @@assert@, and combines with @ and @@ filters (pick refuses
+  @ filters with it). A row that fails an assertion goes to FILE only: it is not tested
+  against the filters of its stage, not written to --other, not demuxed. A row failing
+  several assertions is written once. Same columns and header as stdout. End of run:
+  'pluk: N rows failed an assertion (written to FILE)' on stderr, exit status 0.
+
+  --demux=NAME writes each output row to the file named by its value in column NAME instead
+  of stdout. NAME is a single column (a plain name, or a number with -k); an unknown NAME is
+  an error. Without computes the file name is the raw value (accepted limitation; computed
+  file names come with computes).
+    - --demux-dir=PATH: file names are relative to PATH (default the current directory); PATH
+      must exist.
+    - File-name policy: a value that is empty, absolute (leading '/'), or has a component
+      that is empty, '.' or '..' ('a//b', './a', 'a/', '../a') is an error. Distinct values
+      are therefore distinct files. Subdirectories in a value ('fastq/x.txt') are not
+      created; they must exist (as pick).
+    - As pick, a file is opened for every value on a row that reaches the demux step: rows
+      rejected by @ filters open their file (possibly left with a header only) and are
+      tallied as filtered; rows rejected by @@ filters never reach it.
+    - Tally on stderr at the end, files sorted by name: File, Written, Filtered (pick's
+      LastFlush column, about --demux-buffer, is dropped).
+    - Too many open files: an error ('cannot open more files ... split the run with @@
+      filters on NAME'). Splitting the run with @@ filters works because @@ rejects open no
+      file.
+    - --demux-buffer=N is accepted without effect (each file is buffered anyway).
+    - Mid-input pass-through lines still go to stdout, which otherwise stays empty.
+
+  Combinations.
+    - -c with --demux is refused (option error); -c with --other or --assert-other is
+      allowed: the count of kept rows goes to stdout, diverted rows to their files.
+    - --other, --assert-other and the demux files must be different files: the same path for
+      --other and --assert-other is an option error; a demux value naming either file is an
+      error when it would be opened. Paths are compared as given (demux names relative to
+      --demux-dir).
+
+  Tests write files into a scratch directory test/out/ (removed by make clean); the
+  Makefile lists the files and their contents into o.*.test.
+
+
+  Items
+
+  1   The output layer (src/sink.rs or similar): file or gzip file by suffix, no shell,
+      header, preamble. --other=FILE (@@ and @ rejects). The test scratch directory.
+      Commit.
+
+  2   --assert-other=FILE for @assert@ and @@assert@, combined with filters; end-of-run
+      message. Clash check with --other. Commit.
+
+  3   --demux=NAME, --demux-dir=PATH, --demux-buffer=N (no effect): file-name policy, file
+      per value with header and preamble, @-filtered rows tallied, tally, too-many-files
+      error, -c refused, clash checks. Commit.

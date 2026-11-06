@@ -17,6 +17,7 @@ RETIRED_REFS = o.tc-midfile.ref
 rundiff: $(filter-out $(RETIRED_REFS), $(wildcard *.ref))
 
 runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.bgz bam-tags.bam bam-nosq.bam bam-cg.bam bam-empty.bam bam-sqdiff.bam
+	rm -rf out && mkdir out
 	$(p) --test-lineno                  < data.txt         > o.lineno.test
 	$(p) --test-lineno                  < big.txt          > o.big-lineno.test
 	gzip -c big.txt | $(p) --test-lineno                   > o.big-lineno-gz.test
@@ -189,6 +190,11 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	{ $(p) -o name ud @fib/gt/50 @assert@ud/gt/-11 < data.txt; echo "exit $$?"; $(p) -c @assert@ud/gt/-5 < data.txt; echo "exit $$?"; } > o.assert-or-count.test 2>&1
 	{ $(p) name '@assert@+num\d/le/3' < data.txt; echo "exit $$?"; printf 'a\tb\n1\t2\n3\tfox\n' | $(p) a '@@assert@a:b/ISNUM'; echo "exit $$?"; printf 'a\tb\n1\t2\n3\tfox\n' | $(p) a '@assert@b/lt/5'; echo "exit $$?"; printf 'a\n1\n2.5\n' | $(p) a '@assert@a/all/1'; echo "exit $$?"; } > o.assert-multi.test 2>&1
 	{ $(p) --sam 1 2 @@assert@2/ISINT < sam.txt; echo "exit $$?"; } > o.assert-sam.test 2>&1
+	{ $(p) --other=out/other.txt name fib @fib/gt/5 < data.txt; echo "-- out/other.txt"; cat out/other.txt; } > o.other.test
+	{ $(p) --other=out/other-c.txt.gz -c @@fib/gt/5 @ud/gt/0 < data.txt; echo "-- out/other-c.txt.gz"; gzip -dc out/other-c.txt.gz; } > o.other-c-gz.test
+	{ $(p) -h --other=out/other-h.txt name @fib/gt/5 < data.txt > /dev/null; $(p) -k --other=out/other-k.txt 1 @2/gt/5 < data.txt > /dev/null; cat out/other-h.txt out/other-k.txt; } > o.other-h-k.test
+	{ $(p) --sam-h --other=out/other-sam.txt 1 2 @2/eq/0 < sam.txt 2> /dev/null; echo "-- out/other-sam.txt"; cat out/other-sam.txt; } > o.other-sam.test
+	{ $(p) --other=out/nodir/x.txt name < data.txt; echo "exit $$?"; $(p) --other= name < data.txt; echo "exit $$?"; } > o.other-errors.test 2>&1
 	for a in @z/gt/3 @@name/gt/:z @fib~eq~:z; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-unknown.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.txt   2> /dev/null > o.filter-sam.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.bam   > o.filter-bam.test
@@ -320,6 +326,7 @@ runtestopt: data.txt
 
 clean:
 	rm -f o.*.test
+	rm -rf out
 
 # Retired invocations, no longer run (see plan/step3-notes.txt item 4).
 # --test-comment/--tc was removed in step3 item 4; equivalent invocations using -/^#

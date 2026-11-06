@@ -1,0 +1,73 @@
+step9 notes: decisions and rationale for implementation choices.
+
+
+Decisions taken before implementation
+
+  pick, for reference (option parsing, demux_do_row, demux_tally, main loop):
+    - --other=FILE: rows rejected by @ filters (not @@), selected columns, header.
+    - --assert-other=FILE: the assertions are moved into the @ filter list, which is why pick
+      refuses @ filters together with it; '== N rows failed one or more assertions'.
+    - --demux=NAME: the row goes to the file named by its NAME value; a file is opened for
+      every value on a row reaching the output stage (also @-rejected rows, tallied as not
+      printed); header per file following -h/-k; tally 'File Written Filtered LastFlush'.
+    - --demux-buffer=N: Perl-level buffering of N rows per file.
+    - Files are opened with a two-argument open: ">$name" or "|gzip >$name". A value can
+      thus run a shell command; pluk never uses a shell.
+    - With -c, rows are counted and not demuxed; --other still receives rejected rows.
+
+  pluk, with rationale:
+    - Computed file names (NAME:=sampleid^.txt) need computes; the raw value as file name is
+      accepted for now. The output layer does not depend on computes.
+    - File names from data: no shell; refuse empty, absolute, and empty/'.'/'..' components.
+      Refusing '.' and empty components makes distinct values distinct paths, so the clash
+      checks can compare paths as given. --demux-dir=PATH replaces putting directories in
+      values. Overwriting existing files and not creating subdirectories follow pick; both
+      were not discussed further.
+    - Too many open files: an error for now. The workaround (split the run with @@ filters on
+      the demux column) is reliable because @@ rejects never reach the demux step, so they
+      open no file; @ rejects do, as pick, since the set of files is meant to be the set of
+      values over the rows that reach output.
+    - --demux-buffer=N accepted without effect: Rust's BufWriter already buffers each file.
+    - --other also receives @@ rejects: while computes do not exist, @ and @@ differ only in
+      timing, and a user would expect every rejected row in the 'other' file.
+    - --assert-other is 'divert instead of stop': nothing else changes, so a diverted row
+      goes nowhere else, and filters combine freely (they act at a different point). Exit 0,
+      as pick, since diversion was asked for.
+    - -c with --demux contradicts itself (a count versus per-file rows; the tally already
+      counts per file); -c with --other / --assert-other is useful (count kept rows, keep the
+      others).
+    - Preamble to every output: needed for --sam-h --demux to produce valid SAM per file;
+      mid-input pass-through lines keep going to stdout.
+
+
+Item 1: output files and --other
+
+  Files: src/sink.rs (new: FileSink), opt.rs (--other=FILE, help), main.rs (creating the
+  file, preamble and header, rejected rows, finish), test/Makefile (scratch directory out/,
+  removed by make clean; .gitignore).
+
+  FileSink is an enum of a BufWriter<File> and a GzEncoder<BufWriter<File>> (flate2, default
+  level), chosen by the .gz/.gzip suffix; it implements Write, so RowWriter and write_line
+  work on it as on stdout. finish() flushes and writes the gzip trailer, reporting errors;
+  dropping a FileSink does the same but ignores errors, which is what happens on an error
+  exit (e.g. a failed assertion), so the rows written so far are kept. File names are bytes
+  (std::os::unix::ffi::OsStrExt::from_bytes), not %-decoded, as pick.
+
+  The --other file is created right after option parsing, so a bad path is an error before
+  input is read. Once the header is known: the preamble, the header (unless -h or -k; -c
+  does not suppress it), then every data row for which keep() is false, i.e. rejected by an
+  @@ or an @ filter, in the same columns as stdout. With -c and no column arguments (no -A,
+  -x) the columns are all columns. Mid-input pass-through lines go to stdout only. With empty
+  input the file stays empty.
+
+  Rust note: the rejected rows are written by a closure, reject, that captures the --other
+  file mutably (&mut other) and the RowWriter. The borrow lasts until the closure's last use
+  (non-lexical lifetimes), so after the loops 'other' can be moved into finish().
+
+  Checked against pick: --other=FILE name fib @fib/gt/5 gives the same stdout and the same
+  file. Differences shown by the tests: other-c-gz (@@ rejects included, header and whole
+  rows with -c), other-sam (preamble in the file).
+
+  Tests: other, other-c-gz (gzip, -c, @@ and @ rejects), other-h-k, other-sam (preamble,
+  mid-input @CO to stdout only), other-errors (missing directory, empty name). Help refs
+  updated. Unit tests in sink.rs (gzip names, plain and gzip round trip).

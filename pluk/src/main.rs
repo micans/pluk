@@ -12,6 +12,7 @@ mod row;
 #[allow(dead_code)]
 mod samseq;
 mod select;
+mod sink;
 
 use std::io::{BufWriter, ErrorKind, Write};
 use std::process;
@@ -44,6 +45,14 @@ fn run() -> std::io::Result<()> {
             eprintln!("pluk: {}", msg);
             process::exit(1);
         }
+    };
+
+    // --other is created before input is read, so that a bad path is reported early.
+    let mut other = match &config.other {
+        None => None,
+        Some(name) => Some(sink::FileSink::create(name).map_err(|e| {
+            std::io::Error::new(e.kind(), format!("--other: cannot create {}: {}", String::from_utf8_lossy(name), e))
+        })?),
     };
 
     // As in pick: header output on by default, off with -k; -h and -c always switch it off.
@@ -155,12 +164,38 @@ fn run() -> std::io::Result<()> {
         output::write_line(&mut out, line)?;
     }
 
+    // --other: the preamble, then the header following -h and -k (not -c, which
+    // concerns stdout), then the rejected rows. With -c and no column arguments the
+    // rows are written whole (pick writes empty lines).
+    let other_writer = match &mut other {
+        Some(file) if !input.is_empty => {
+            let all = config.c && column_args.is_empty() && !config.all && !config.excise;
+            let offsets: Vec<usize> = if all { (0..input.n_columns).collect() } else { selection.output_offset.clone() };
+            let writer = output::RowWriter::new(&offsets, input.n_columns, input.settings.omega.is_some());
+            for line in &input.passthrough_preamble {
+                output::write_line(file, line)?;
+            }
+            if !config.k && !config.no_header {
+                writer.write_header(file, &input.names)?;
+            }
+            Some(writer)
+        }
+        _ => None,
+    };
+    // Write a rejected row to --other, if given.
+    let mut reject = |row: &row::Row| -> std::io::Result<()> {
+        match (&mut other, &other_writer) {
+            (Some(file), Some(writer)) => writer.write_row(file, row),
+            _ => Ok(()),
+        }
+    };
+
     if config.c {
         // -c: output only the number of data rows that pass the filters.
         let mut n_kept: u64 = 0;
         while let Some(kind) = input.next_line()? {
             match kind {
-                io::LineKind::Data        => if keep(&mut filters, &input)? { n_kept += 1 },
+                io::LineKind::Data        => if keep(&mut filters, &input)? { n_kept += 1 } else { reject(&input.row)? },
                 io::LineKind::PassThrough => output::write_line(&mut out, &input.row.line)?,
             }
         }
@@ -185,12 +220,17 @@ fn run() -> std::io::Result<()> {
             match kind {
                 io::LineKind::Data => if keep(&mut filters, &input)? {
                     writer.write_row(&mut out, &input.row)?
+                } else {
+                    reject(&input.row)?
                 },
                 io::LineKind::PassThrough => output::write_line(&mut out, &input.row.line)?,
             }
         }
     }
     out.flush()?;
+    if let Some(file) = other {
+        file.finish()?;
+    }
     filters.report_na();
 
     if config.test_counts {
