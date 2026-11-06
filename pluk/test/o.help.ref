@@ -52,7 +52,7 @@ Computes (given among the columns; a stack language, as pick):
   start with ^ : , starts with a column. The result is what is left on the
   stack, concatenated. Operators so far: dup pop xch (stack), cat len lc uc rev
   rot13 substr head tail skip shed strim ppl ppr zp nchar catall joinall join
-  uie urlec urldc md5 (string, on bytes),
+  uie urlec urldc md5 fmtall (string, on bytes),
   add sub mul div idiv mod pow ipow max min neg abs sign sq incr decr addall
   mulall maxall minall meanall hmeanall gmeanall (arithmetic), int floor ceil round sqrt exp exp2 exp10 log log2 log10 sin
   cos tan (math), dd sn frac pct pml (precision), rand, del (regex).

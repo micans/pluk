@@ -1,0 +1,11 @@
+name	x
+Ann	<1|2|1>
+Bob	<2|3|2>
+pluk: [x::^#-#:name,fmtall]: fmtall format [#-#] has 2 # for 1 value
+exit 1
+pluk: [x::^#:name:fib,fmtall]: fmtall format [#] has 1 # for 2 values
+exit 1
+f	v	x	y
+#+#	1	NA	NA
+<#>	2	<2>	<3>
+\#	3	NA	NA

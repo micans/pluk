@@ -45,6 +45,8 @@ pub enum Kind {
 pub enum Prepare {
     Nothing,
     ConstRegex,     // the top operand must be a constant; it is compiled as a regex
+    FormatCount,    // a constant bottom operand is a fmtall format: its # count must
+                    // match the number of values above it
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -129,6 +131,8 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x", result: "urldc(x)", doc: "URL decoding of x (%XX)", fun: op_urldc },
     OpDef { name: "md5",    pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
             operands: "x", result: "md5(x)", doc: "MD5 sum of x (hexadecimal)", fun: op_md5 },
+    OpDef { name: "fmtall", pops: Pops::All(1), pushes: 1, shape: STR, prepare: Prepare::FormatCount, category: Category::String,
+            operands: "f *", result: "Map-*-into-f", doc: "In f replace # instances by stack (\\# is a literal #)", fun: op_fmtall },
     OpDef { name: "add",    pops: Pops::N(2), pushes: 1, shape: Shape::Result(Kind::Num), prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "x y", result: "x+y", doc: "Add x and y", fun: op_add },
     OpDef { name: "sub",    pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
@@ -425,6 +429,57 @@ fn op_md5(m: &mut Machine, row: &Row, _: Option<&Regex>) {
         let digest = Md5::digest(&s[..]);
         *s = digest.iter().map(|b| format!("{:02x}", b)).collect::<String>().into_bytes();
     })
+}
+
+// fmtall f *: f is the bottom of the stack; each # in f is replaced by the next
+// value, \# is a literal # (decision 10). The number of # instances in a format,
+// for the compile-time check of a constant format and at run time.
+pub fn format_slots(f: &[u8]) -> usize {
+    let mut n = 0;
+    let mut i = 0;
+    while i < f.len() {
+        if f[i] == b'\\' && f.get(i + 1) == Some(&b'#') {
+            i += 2;
+        } else {
+            n += (f[i] == b'#') as usize;
+            i += 1;
+        }
+    }
+    n
+}
+
+// A format whose # count differs from the number of values gives NA for the row
+// (pick reports an error per row and continues); so does an NA value or format.
+fn op_fmtall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
+    let mut values = std::mem::take(&mut m.stack);
+    let result = if values.iter().any(|v| matches!(v, Value::Na)) {
+        Value::Na
+    } else {
+        let f = m.bytes(&values[0], row).into_owned();
+        if format_slots(&f) != values.len() - 1 {
+            Value::Na
+        } else {
+            let mut out = Vec::with_capacity(f.len());
+            let mut next = values[1..].iter();
+            let mut i = 0;
+            while i < f.len() {
+                if f[i] == b'\\' && f.get(i + 1) == Some(&b'#') {
+                    out.push(b'#');
+                    i += 2;
+                    continue;
+                }
+                match f[i] {
+                    b'#' => out.extend_from_slice(&m.bytes(next.next().unwrap(), row)),
+                    b => out.push(b),
+                }
+                i += 1;
+            }
+            Value::Bytes(out)
+        }
+    };
+    values.clear();
+    m.stack = values;
+    m.push(result);
 }
 
 // pick's boxit: k clamped to 0 .. len.
@@ -743,6 +798,7 @@ mod tests {
         let md5 = |x: &str| Md5::digest(x.as_bytes()).iter().map(|b| format!("{:02x}", b)).collect::<String>();
         assert_eq!(md5(""), "d41d8cd98f00b204e9800998ecf8427e");
         assert_eq!(md5("abc"), "900150983cd24fb0d6963f7d28e17f72");
+        assert_eq!((format_slots(b"a#b#"), format_slots(b"\\#x#"), format_slots(b"\\x#"), format_slots(b"#\\")), (2, 1, 1, 1));
         // Names are unique.
         for (i, a) in OPERATORS.iter().enumerate() {
             assert!(OPERATORS[i + 1..].iter().all(|b| b.name != a.name), "{}", a.name);

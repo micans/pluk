@@ -250,6 +250,10 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool)
                         let instr = match op.prepare {
                             Prepare::Nothing => Instr::Op(op),
                             Prepare::ConstRegex => Instr::OpRegex(op, const_regex(&instrs, &stack, op, &shown)?),
+                            Prepare::FormatCount => {
+                                check_format(&instrs, &stack, &shown)?;
+                                Instr::Op(op)
+                            }
                         };
                         instrs.push(instr);
                         match op.shape {
@@ -293,6 +297,22 @@ fn const_regex(instrs: &[Instr], stack: &[Slot], op: &OpDef, shown: &str) -> Res
         return Err(format!("[{}]: empty pattern for {}", shown, op.name));
     }
     compile_pattern(pattern, &format!("[{}]", shown))
+}
+
+// fmtall with a constant format (the bottom of the stack): the stack depth is
+// known, so a # count that does not match the values would fail on every row; it
+// is an error before input is read. A format from a column is checked per row.
+fn check_format(instrs: &[Instr], stack: &[Slot], shown: &str) -> Result<(), String> {
+    if let Some(Slot::Const(k)) = stack.first() {
+        if let Instr::Const(f) = &instrs[*k] {
+            let (slots, values) = (ops::format_slots(f), stack.len() - 1);
+            if slots != values {
+                return Err(format!("[{}]: fmtall format [{}] has {} # for {} value{}", shown,
+                                   String::from_utf8_lossy(f), slots, values, if values == 1 { "" } else { "s" }));
+            }
+        }
+    }
+    Ok(())
 }
 
 // The compiled form, for --test-compute.

@@ -112,3 +112,32 @@ Item 4: encoding
   identical, apart from its last lines (NA operands, pluk only).
 
   Tests: string-encode. Help refs. Unit test in ops.rs (md5 test vectors).
+
+
+Item 5: fmtall
+
+  Files: ops.rs (fmtall, format_slots, Prepare::FormatCount), compute.rs (check_format in
+  the prepare step), opt.rs (help).
+
+  fmtall f * takes the whole stack (Pops::All(1): at least the format); f is the bottom
+  value, as pick (it shifts the format off the front). Each # in f is replaced by the next
+  value as text, \# is a literal #, other backslashes stay. format_slots counts the #
+  instances the same way at compile time and at run time.
+
+  Decision 10 said that a format with more or fewer # than values gives NA for the row.
+  That holds for a format taken from a column. For a constant format the stack depth is
+  known at compile time (splat counts included), so a mismatch would fail on every row; it
+  is reported before input is read instead ('fmtall format [#-#] has 2 # for 1 value'),
+  through a new prepare step, Prepare::FormatCount, which checks the bottom slot if it is a
+  constant. An NA value or format gives NA.
+
+  Note: an operator before fmtall that takes the whole stack also takes the format (for
+  example ^<#>:+num\d,catall,fmtall gives fmtall a single value, the joined string); the
+  format must stay at the bottom of what fmtall consumes.
+
+  Checked against pick: string-fmtall (formats with =, \#, : as %3A, a format without #,
+  three values; big.txt) is identical.
+
+  Tests: string-fmtall, string-fmtall-edge (a splat filling the format, both compile-time
+  mismatches, formats from a column: matching, too many #, \#, NA). Help refs. Unit test
+  in ops.rs (format_slots).

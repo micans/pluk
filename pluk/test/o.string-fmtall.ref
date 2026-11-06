@@ -1,0 +1,114 @@
+name	a	b	c	d	e
+Ann	Ann=1	#[1]	x	dog:0.142857:1	<1|2|1>
+Bob	Bob=1	#[-2]	x	cat:0.285714:4	<2|3|2>
+Charlie	Charlie=2	#[3]	x	bat:0.428571:9	<4|5|3>
+Dan	Dan=3	#[-4]	x	cow:0.571428:16	<8|7|2>
+Esme	Esme=5	#[5]	x	owl:0.714285:25	<16|11|1>
+Fred	Fred=8	#[-6]	x	pig:0.857142:36	<32|13|2>
+Gillian	Gillian=13	#[7]	x	bug:1.000000:49	<64|17|3>
+Harriet	Harriet=21	#[-8]	x	rat:1.142857:64	<128|19|2>
+Inky	Inky=34	#[9]	x	ant:1.285714:81	<256|23|1>
+John	John=55	#[-10]	x	fly:1.428571:100	<512|29|2>
+Kelly	Kelly=89	#[11]	x	eagle:1.571428:121	<1024|31|3>
+Lucy	Lucy=144	#[-12]	x	swift:1.714285:144	<2048|37|4>
+id	a
+r001	D/-20/drop
+r002	B/-32/drop
+r003	C/-19/drop
+r004	A/30/drop
+r005	C/12/drop
+r006	D/43/drop
+r007	C/41/keep
+r008	D/-36/drop
+r009	C/47/drop
+r010	C/33/drop
+r011	C/-10/drop
+r012	E/-21/drop
+r013	B/30/drop
+r014	C/40/keep
+r015	D/-37/drop
+r016	D/5/drop
+r017	E/25/drop
+r018	E/-42/drop
+r019	C/-7/drop
+r020	D/-13/drop
+r021	D/-24/keep
+r022	E/22/drop
+r023	D/24/drop
+r024	E/5/drop
+r025	A/41/drop
+r026	B/2/drop
+r027	D/37/drop
+r028	B/41/keep
+r029	A/43/drop
+r030	C/40/drop
+r031	A/-28/drop
+r032	A/-37/drop
+r033	B/8/drop
+r034	B/47/drop
+r035	B/-39/keep
+r036	D/-14/drop
+r037	A/42/drop
+r038	E/-25/drop
+r039	E/-40/drop
+r040	E/26/drop
+r041	C/12/drop
+r042	C/-10/keep
+r043	E/-25/drop
+r044	B/7/drop
+r045	B/31/drop
+r046	C/-17/drop
+r047	A/-2/drop
+r048	E/48/drop
+r049	E/9/keep
+r050	C/5/drop
+r051	A/42/drop
+r052	B/40/drop
+r053	E/-3/drop
+r054	E/-20/drop
+r055	B/37/drop
+r056	C/42/keep
+r057	C/-45/drop
+r058	A/-35/drop
+r059	C/-39/drop
+r060	E/28/drop
+r061	A/27/drop
+r062	E/-12/drop
+r063	D/17/keep
+r064	A/5/drop
+r065	D/43/drop
+r066	E/29/drop
+r067	D/5/drop
+r068	E/19/drop
+r069	B/-29/drop
+r070	C/30/keep
+r071	E/32/drop
+r072	B/-17/drop
+r073	D/39/drop
+r074	B/-32/drop
+r075	E/-20/drop
+r076	E/-46/drop
+r077	E/-23/keep
+r078	A/-19/drop
+r079	E/-3/drop
+r080	D/-46/drop
+r081	B/-48/drop
+r082	B/-16/drop
+r083	D/-5/drop
+r084	C/20/keep
+r085	B/19/drop
+r086	B/-30/drop
+r087	A/48/drop
+r088	C/-41/drop
+r089	B/16/drop
+r090	B/3/drop
+r091	A/-39/keep
+r092	A/-10/drop
+r093	D/-4/drop
+r094	E/45/drop
+r095	B/33/drop
+r096	D/-14/drop
+r097	E/29/drop
+r098	E/-5/keep
+r099	A/32/drop
+r100	B/17/drop
