@@ -248,6 +248,44 @@ pub fn decr(a: Num) -> Num {
     sub(a, Num::I(1))
 }
 
+// Bit operations (plan/step15.txt decision 6), as the bit filters (step7): both
+// operands are taken as absolute values, on the unsigned type of Int's width; a
+// float operand is NA (None), as is a result that does not fit Int (bitlsh
+// overflow, or |Int::MIN|). bitoff clears the bits of y in x. A shift by Int's width
+// or more gives 0 for bitrsh, and for bitlsh 0 if x is 0, NA otherwise.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum BitOp {
+    And,
+    Or,
+    Xor,
+    Off,
+    Lsh,
+    Rsh,
+}
+
+pub fn bit_op(op: BitOp, a: Num, b: Num) -> Option<Num> {
+    let (Num::I(x), Num::I(y)) = (a, b) else { return None };
+    let (x, y) = (x.unsigned_abs(), y.unsigned_abs());
+    let width = Int::BITS as u128;
+    let r = match op {
+        BitOp::And => x & y,
+        BitOp::Or => x | y,
+        BitOp::Xor => x ^ y,
+        BitOp::Off => x & !y,
+        BitOp::Rsh => if (y as u128) < width { x >> y } else { 0 },
+        BitOp::Lsh => {
+            if (y as u128) >= width {
+                if x == 0 { 0 } else { return None }
+            } else {
+                let r = x << y;
+                if r >> y != x { return None }
+                r
+            }
+        }
+    };
+    Int::try_from(r).ok().map(Num::I)
+}
+
 // Rounding: the explicit float -> integer conversions (NUMERIC.design.txt section
 // 5). An integer stays as it is; a float that is not finite or beyond the integer
 // range stays a (whole) float (plan/step12.txt decision 5).
@@ -480,6 +518,22 @@ mod tests {
         assert_eq!((neg(I(Int::MIN)), abs(I(Int::MIN))), (F(-(Int::MIN as f64)), F(-(Int::MIN as f64))));
         assert_eq!((sign(F(-0.5)), sign(I(0)), sign(F(2.0))), (I(-1), I(0), I(1)));
         assert_eq!((sq(I(-4)), incr(I(Int::MAX)), decr(F(0.5))), (I(16), F(Int::MAX as f64 + 1.0), F(-0.5)));
+    }
+
+    #[test]
+    fn bit_ops() {
+        assert_eq!(bit_op(BitOp::And, I(12), I(10)), Some(I(8)));
+        assert_eq!(bit_op(BitOp::Or, I(12), I(-10)), Some(I(14)));
+        assert_eq!(bit_op(BitOp::Xor, I(-12), I(10)), Some(I(6)));
+        assert_eq!(bit_op(BitOp::Off, I(15), I(5)), Some(I(10)));
+        assert_eq!(bit_op(BitOp::Lsh, I(3), I(4)), Some(I(48)));
+        assert_eq!(bit_op(BitOp::Rsh, I(48), I(4)), Some(I(3)));
+        assert_eq!(bit_op(BitOp::Rsh, I(48), I(Int::BITS as Int)), Some(I(0)));
+        assert_eq!(bit_op(BitOp::Lsh, I(0), I(1000)), Some(I(0)));
+        assert_eq!(bit_op(BitOp::Lsh, I(1), I(Int::BITS as Int - 1)), None);   // 2^(BITS-1) does not fit
+        assert_eq!(bit_op(BitOp::Lsh, I(1), I(Int::BITS as Int - 2)), Some(I(1 << (Int::BITS - 2))));
+        assert_eq!(bit_op(BitOp::Or, I(Int::MIN), I(0)), None);
+        assert_eq!(bit_op(BitOp::And, F(3.0), I(1)), None);
     }
 
     #[test]

@@ -13,7 +13,7 @@ use std::cmp::Ordering;
 
 use crate::compute::{Attached, TestRhs};
 use crate::filter::{self, Outcome, Rhs};
-use crate::num::compare;
+use crate::num::{compare, BitOp};
 use crate::dict::{Dict, NotFound};
 use crate::exec::{Machine, OpFn, Value};
 use crate::num::{self, Num};
@@ -73,6 +73,7 @@ pub enum Category {
     Branch,
     State,
     Time,
+    Bit,
     Regex,
 }
 
@@ -172,6 +173,18 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "s", result: "tu", doc: "Integer seconds as days, hours, minutes, seconds (1d,2h,3m,4s)", fun: op_rttu },
     OpDef { name: "todate", pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Time,
             operands: "u", result: "date", doc: "Epoch as local date and time (%Y-%m-%d-%H-%M-%S)", fun: op_todate },
+    OpDef { name: "bitand", pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Bit,
+            operands: "x y", result: "x and y", doc: "Bitwise and of |x| and |y|", fun: op_bitand },
+    OpDef { name: "bitor",  pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Bit,
+            operands: "x y", result: "x or y", doc: "Bitwise or of |x| and |y|", fun: op_bitor },
+    OpDef { name: "bitxor", pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Bit,
+            operands: "x y", result: "x xor y", doc: "Bitwise exclusive or of |x| and |y|", fun: op_bitxor },
+    OpDef { name: "bitoff", pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Bit,
+            operands: "x y", result: "x rm y", doc: "Remove the bits of |y| from |x|", fun: op_bitoff },
+    OpDef { name: "bitlsh", pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Bit,
+            operands: "x y", result: "x << y", doc: "Shift |x| left by |y| (overflow: NA)", fun: op_bitlsh },
+    OpDef { name: "bitrsh", pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Bit,
+            operands: "x y", result: "x >> y", doc: "Shift |x| right by |y|", fun: op_bitrsh },
     OpDef { name: "map",    pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
             operands: "x D", result: "map-of-x", doc: "Value of x in dictionary D (not found: as D's default)", fun: op_map },
     OpDef { name: "dord",   pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
@@ -913,6 +926,14 @@ fn op_fetch(m: &mut Machine, row: &Row, a: &Attached) {
 fn op_rowno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.rowno; m.push(Value::Num(Num::I(n as num::Int))) }
 fn op_r0wno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.rowno; m.push(Value::Num(Num::I(n as num::Int - 1))) }
 fn op_lineno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.lineno; m.push(Value::Num(Num::I(n as num::Int))) }
+
+// Bit operations (plan/step15.txt decision 6; num::bit_op).
+fn op_bitand(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, |a, b| num::bit_op(BitOp::And, a, b)) }
+fn op_bitor(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, |a, b| num::bit_op(BitOp::Or, a, b)) }
+fn op_bitxor(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, |a, b| num::bit_op(BitOp::Xor, a, b)) }
+fn op_bitoff(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, |a, b| num::bit_op(BitOp::Off, a, b)) }
+fn op_bitlsh(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, |a, b| num::bit_op(BitOp::Lsh, a, b)) }
+fn op_bitrsh(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, |a, b| num::bit_op(BitOp::Rsh, a, b)) }
 
 // Time (plan/step15.txt decision 5).
 

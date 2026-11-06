@@ -127,6 +127,11 @@
       a longer value) and gives NA otherwise (pick: 0), a constant that is not a time unit
       is an error before input is read; rttu rounds a float to the nearest second (pick
       truncates); todate takes integers (a float is NA).
+    - Bit operators take the absolute value of both operands (pick: of y only; Perl treats
+      a negative x as unsigned 64-bit, -1 bitor 0 is 18446744073709551615), a float
+      (including 3.0) or a non-number is NA (pick: Perl's conversion, fox is 0); bitoff
+      is x & !|y|; bitlsh gives NA when the result does not fit Int (pick: bits lost, 0
+      for a shift of 64 or more); bitrsh by Int's width or more gives 0, as pick.
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

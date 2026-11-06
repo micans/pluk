@@ -168,3 +168,34 @@ Item 4: now ttu rttu todate
   Tests: time-ops, time-edge (values that are not time units, a float for rttu and
   todate, 0.5s, a constant error, now within two seconds of date +%s). Help refs. Unit
   test in ops.rs (time_unit).
+
+
+Item 5: bitand bitor bitxor bitoff bitlsh bitrsh
+
+  One function, num::bit_op(BitOp, Num, Num) -> Option<Num>, with an enum for the six
+  operations; the operators are thin numeric2 wrappers (Category::Bit, a "bit" line in
+  the help). Both operands must be Num::I (a float, including 3.0, is NA, as the step7
+  bit filters, which reject 3.0 as not an integer); both are taken as unsigned_abs, so
+  the work is done in the unsigned type of Int's width (u64, or u128 with int128) and
+  nothing depends on two's complement. A result that does not fit Int is NA: only
+  possible for bitor/bitxor/bitlsh with |Int::MIN| or a high bit, i.e. the one value
+  2^(BITS-1).
+
+  bitoff is x & !|y| (pick: x |= |y|; x ^= y, the same for y >= 0, garbage for y < 0).
+  bitlsh checks overflow by shifting back (r >> y == x); a shift by Int's width or more
+  is 0 for x = 0 and NA otherwise (Rust's << panics or wraps there, so it is handled
+  before shifting). bitrsh by Int's width or more is 0, as Perl.
+
+  The overflow NA differs between the builds: 121 bitlsh 89 is NA with i64 and
+  74895372376765506631397015552 with int128 (pick: 0). The Makefile tests use values
+  that give the same output in both builds; the boundary 1 bitlsh (BITS-1) is a unit test
+  written in terms of Int::BITS.
+
+  Checked against pick: bit-ops (fib and sq of data.txt, all six operators, constants;
+  rows up to fib 55, beyond which bitlsh overflows) is identical; big.txt flag and n4
+  with the four non-shift operators and shifts by constants is identical as well. The
+  differences (negative operands, floats, non-numbers, overflow) are in bit-edge.
+
+  Tests: bit-ops, bit-edge (negatives, 3.0, 1.5, 1e3, fox, empty, shifts by 0, 62, 126,
+  200, a zero shifted by 200, 2^62 shifted by 66; big.txt columns). Help refs. Unit test
+  in num.rs (bit_ops).
