@@ -63,6 +63,8 @@ pub enum Parsed {
     Run(Config),
     Help,
     Version,
+    Encode(Vec<Vec<u8>>),
+    Decode(Vec<Vec<u8>>),
 }
 
 pub fn parse_args() -> Config {
@@ -76,6 +78,14 @@ pub fn parse_args() -> Config {
         Ok(Parsed::Version) => {
             println!("pluk {}", env!("CARGO_PKG_VERSION"));
             process::exit(0);
+        }
+        Ok(Parsed::Encode(words)) => {
+            let encoded: Vec<Vec<u8>> = words.iter().map(|w| pct_encode(w)).collect();
+            write_list(&encoded, b" ");
+        }
+        Ok(Parsed::Decode(words)) => {
+            let decoded: Vec<Vec<u8>> = words.iter().map(|w| pct_decode(w)).collect();
+            write_list(&decoded, b"\n");
         }
         Err(msg) => {
             eprintln!("{}", msg);
@@ -212,11 +222,42 @@ Dictionaries (NAME: letters, digits, _; used by ~isin~ ~hasval~ map dord):
   In KEY write / and = as %2F and %3D, in DEFAULT = as %3D; in --cd , and : as
   %2C and %3A.
 
+  -z ARG..    write the %-encoding of each ARG (on one line); no ARG: a table
+  -zz ARG..   write the %-decoding of each ARG (one per line)
   -H, --help  print this help
   --version   print the version
 
 Short options combine, e.g. -kO12/^#. Options take effect from left to right.
 In <pat>, write / as %2F.
+";
+
+// -z and -zz (plan/step16.txt decisions 1, 2): the values separated by sep and a
+// newline, or without values the table of encodings; exit 0.
+fn write_list(values: &[Vec<u8>], sep: &[u8]) -> ! {
+    use std::io::Write;
+    let mut out = std::io::stdout().lock();
+    let result = if values.is_empty() {
+        out.write_all(ENCODINGS.as_bytes())
+    } else {
+        out.write_all(&values.join(sep)).and_then(|_| out.write_all(b"\n"))
+    };
+    if let Err(e) = result.and_then(|_| out.flush()) {
+        if e.kind() != std::io::ErrorKind::BrokenPipe {
+            eprintln!("pluk: {}", e);
+            process::exit(1);
+        }
+    }
+    process::exit(0);
+}
+
+const ENCODINGS: &str = "\
+pluk -z ARG.. writes the %-encoding of each ARG, -zz ARG.. the %-decoding. Encoded
+are the characters that mean something in a pluk argument, and white space:
+  %   %25     ^   %5E     /   %2F     =   %3D     <SPACE>    %20
+  :   %3A     ,   %2C     ~   %7E     @   %40     <TAB>      %09
+  +   %2B                                         <NEWLINE>  %0A
+Other control bytes are encoded as well. For shell meta-characters it is
+easiest to quote the argument.
 ";
 
 fn print_help() {
@@ -231,6 +272,16 @@ pub fn parse(args: &[Vec<u8>]) -> Result<Parsed, String> {
         i += 1;
         if word == b"--" {
             break;
+        }
+        // -z and -zz are words of their own and take all following words (step16
+        // decision 0); -zzz and more are not accepted (pick: odd encodes, even decodes).
+        if word.len() >= 2 && word[1..].iter().all(|&b| b == b'z') {
+            let rest = args[i..].to_vec();
+            return match word.len() {
+                2 => Ok(Parsed::Encode(rest)),
+                3 => Ok(Parsed::Decode(rest)),
+                _ => Err(format!("{}: use -z to encode, -zz to decode", String::from_utf8_lossy(word))),
+            };
         }
         // As in pick, -H must be a word of its own.
         if word == b"-H" {
@@ -512,6 +563,7 @@ fn parse_bundle(chars: &[u8], config: &mut Config) -> Result<(), String> {
             }
             // Patterns extend to the end of the word.
             b'/' => return parse_patterns(&chars[j - 1..], config),
+            b'z' => return Err("-z and -zz must be words of their own".to_string()),
             _ => {
                 return Err(format!("Option string not fully parsed: -{} remains",
                                    String::from_utf8_lossy(&chars[j - 1..])));
@@ -596,6 +648,21 @@ fn number_len(s: &[u8], allow_minus: bool) -> usize {
 // Parses s (ASCII digits, optional '-') as a number; None if malformed or out of range.
 fn parse_number<T: std::str::FromStr>(s: &[u8]) -> Option<T> {
     std::str::from_utf8(s).ok()?.parse::<T>().ok()
+}
+
+// -z: %-encoding of the bytes that mean something in a pluk argument (% : ^ , / ~
+// = @ +), white space and other control bytes (plan/step16.txt decision 1); upper
+// case hex, as pick. The urlec operator encodes everything but [A-Za-z0-9_].
+pub fn pct_encode(s: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(s.len());
+    for &b in s {
+        if b <= b' ' || b == 0x7f || b"%:^,/~=@+".contains(&b) {
+            out.extend_from_slice(format!("%{:02X}", b).as_bytes());
+        } else {
+            out.push(b);
+        }
+    }
+    out
 }
 
 // %-decoding as in pick: %XX (two hex digits) becomes the byte XX; anything
@@ -693,6 +760,26 @@ mod tests {
         assert_eq!(texts(&c), vec![b"1".to_vec(), b"-h".to_vec()]);
         let c = run(&["--", "-h"]).unwrap();
         assert_eq!(texts(&c), vec![b"-h".to_vec()]);
+    }
+
+    fn parsed(words: &[&str]) -> Result<Parsed, String> {
+        parse(&words.iter().map(|w| w.as_bytes().to_vec()).collect::<Vec<_>>())
+    }
+
+    #[test]
+    fn encode_options() {
+        let w = |v: &[&str]| v.iter().map(|s| s.as_bytes().to_vec()).collect::<Vec<_>>();
+        let run = parsed;
+        assert!(matches!(run(&["-z"]), Ok(Parsed::Encode(v)) if v.is_empty()));
+        assert!(matches!(run(&["-z", "-k", "a b"]), Ok(Parsed::Encode(v)) if v == w(&["-k", "a b"])));
+        assert!(matches!(run(&["-k", "-zz", "a%3A"]), Ok(Parsed::Decode(v)) if v == w(&["a%3A"])));
+        assert_eq!(run(&["-zzz", "a"]).err().unwrap(), "-zzz: use -z to encode, -zz to decode");
+        assert_eq!(run(&["-kz", "a"]).err().unwrap(), "-z and -zz must be words of their own");
+        assert_eq!(pct_encode(b"a.b:c d"), b"a.b%3Ac%20d");
+        assert_eq!(pct_encode(b"%^,/~=@+\t\n\x7f-\\\xe9"), b"%25%5E%2C%2F%7E%3D%40%2B%09%0A%7F-\\\xe9");
+        for s in [&b"x%y:z^1,2/3~4=5@6+7 \t"[..], b"\x00\x1f\x7f\xff"] {
+            assert_eq!(pct_decode(&pct_encode(s)), s);
+        }
     }
 
     #[test]

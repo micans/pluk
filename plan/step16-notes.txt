@@ -1,0 +1,29 @@
+
+Notes for plan/step16.txt (options: -z -zz -l and a selection of pick's other options).
+
+
+Item 1: -z -zz
+
+  opt::parse recognises a word consisting of - and only z's before anything else in the
+  word loop (as -H), and returns Parsed::Encode or Parsed::Decode with all remaining
+  words, including those starting with - (decision 0); parse_args writes them and exits.
+  -zzz and more are an error naming the alternatives; a z inside a bundle (-kz) is an
+  error saying that -z and -zz are words of their own. Arguments before -z are parsed
+  as usual (-k -zz x decodes x; an earlier invalid option is still an error), as pick.
+  After the first column argument -z is a column name, as any word starting with -
+  there (name -z: not a known column).
+
+  opt::pct_encode encodes % : ^ , / ~ = @ + and bytes up to and including space, and
+  0x7f, as %XX with upper-case hex (pick's case); other bytes, including non-ASCII, stay
+  as they are. pct_decode(pct_encode(s)) == s for every s (unit test). Where every
+  byte is alphanumeric, _ or one of the encoded characters the output is pick's; the
+  comparison covered a:b^c x%y p,q/r~s=t@u+v a%3Ab, and -zz on two values.
+
+  Output: -z one line, values separated by a space (an empty argument gives an empty
+  field); -zz one value per line. Without arguments both write the table of encodings
+  to stdout. A closed pipe (pluk -z | head -n 1) is not an error.
+
+  Tests: z-encode (pick-compatible values, ., spaces, -k and the empty string as
+  arguments, tab newline 0x7f and a non-ASCII byte, -zz with malformed sequences and
+  lower-case hex, a -z then -zz round trip, the table), z-errors (-zzz, -kz, -z after a
+  column). Help refs. Unit test in opt.rs (encode_options).

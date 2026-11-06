@@ -124,6 +124,8 @@ Dictionaries (NAME: letters, digits, _; used by ~isin~ ~hasval~ map dord):
   In KEY write / and = as %2F and %3D, in DEFAULT = as %3D; in --cd , and : as
   %2C and %3A.
 
+  -z ARG..    write the %-encoding of each ARG (on one line); no ARG: a table
+  -zz ARG..   write the %-decoding of each ARG (one per line)
   -H, --help  print this help
   --version   print the version
 

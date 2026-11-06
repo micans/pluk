@@ -141,6 +141,9 @@
       leading _ or one after the prefix); anything else, including a plus, whitespace, the
       empty string or a value beyond Int, is NA (Perl: stops at the first invalid
       character, 0 for nothing read).
+    - -z encodes only % : ^ , / ~ = @ + and white space or control bytes (pick: all but
+      [A-Za-z0-9_]); -zz writes one value per line (pick: one line); the table without
+      arguments goes to stdout (pick: stderr); -zzz is an error (pick: encodes).
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

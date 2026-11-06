@@ -1,0 +1,100 @@
+
+- Options: -z -zz -l, and a selection of the pick options not yet implemented
+
+  Inserted before the bio and cigar-string operators (now step17) and the SAM steps
+  (seed: plan/SAM.notes.txt). Taking stock of pick's options showed the following.
+
+  Not yet implemented, taken over in this step:
+    -z -zz -l, -E<N>, -e, -q, --A=NAME, --idx-list --name-list --idx-map, --progress
+  Not yet implemented, for later steps:
+    --inames --add-inames --onames                 (plan/sketch: late)
+    --quant-NAME (qnl qnu), --pstore (pload), --group --group-first-ref (groupno groupi)
+    --fastq-dict-NAME                              (deferred.txt, step4)
+    --sam-aln-context --sam-aln-mrk --sam-aln-xy --sam-narrow-xy --sam-aln-prefix
+    --sam-rbt --sam-nonf --sam-ND-adjust --sam-qlt-sim --remind-me  (the SAM steps)
+  Not taken over:
+    -P -Z --inf PICK_*_INF (step12 decision), -d (pluk has the --test-* options), -v
+    (nothing useful to print yet), -ll (pick's type signature; the Consumed and
+    Produced columns of -l cover it), -f (duplicate output names), -W (header present,
+    columns used by number), -U (-k output unique and in input order).
+
+
+  Outcome of the discussion
+
+  Decisions:
+   0. -z, -zz and -l are words of their own (as -H; never bundled) and end option
+      parsing: all following words are their arguments, also those starting with -
+      (as pick: pluk -z -k encodes the string -k).
+   1. -z ARG... writes the %-encoding of each ARG, on one line separated by spaces (as
+      pick; an encoding contains no space, so the line can be pasted into a command).
+      Encoded are only the bytes that mean something in a pluk argument: % and the
+      syntax characters : ^ , / ~ = @ +, white space and the other control bytes (below
+      0x21, and 0x7f). Everything else is left as it is: -z 'a.b:c d' gives a.b%3Ac%20d
+      (pick encodes everything but [A-Za-z0-9_]: 1.5 gives 1%2E5). The urlec operator
+      keeps pick's full set. Upper-case hex digits, as pick. Without arguments -z writes
+      a table of the useful encodings (pluk's set) to stdout (pick: stderr); exit 0.
+   2. -zz ARG... writes the %-decoding of each ARG, one per line (a decoded value may
+      contain spaces or tabs; pick: one line). The decoding is the one pluk applies to
+      its arguments (opt::pct_decode): %XX with hex digits in either case; a % not
+      followed by two hex digits is kept. Without arguments as -z. -zzz and more are an
+      error (pick: the parity of the number of z's selects encoding or decoding).
+   3. -l [TERM...] lists operators, one line each, in pick's layout:
+        Operator  Consumed  Produced  Description [category]
+      under a header line and a line of dashes, from the OpDef fields (name, operands,
+      result, doc, category). Ordered by category in the --help order, and within a
+      category in table order (tobin next to binto), not alphabetically (pick). TERMs
+      are words or comma-separated within a word; a term equal to a category name
+      selects that category, any other term selects the operators whose name contains
+      it as a fixed string (-l add: add addall). The union is listed. pick matches each
+      term as a regex against the section tags and the name (-l s lists almost
+      everything). No match: a message on stderr and exit 1 (as grep); otherwise exit 0.
+   4. -l includes a category filter: the filter operators and predicates (/lt/ .. /ne/,
+      ~lt~ .. ~ne~, = /= ~ /~, ~isin~ ~isnotin~ ~hasval~ ~hasnotval~, /ep/ /epx/ /om/
+      /omx/, /all/ /any/ /notall/ /none/, /ISINT /NOTINT /ISNUM /NOTNUM), one line each
+      with the operand form and a description; this also documents the operators that
+      test accepts (step15 decision 1). It is part of the full listing and selectable
+      with -l filter.
+   5. -E<N> (bundled, as -O<N>): the number of output rows must be N; checked at the end
+      (output is streamed, so the rows are written), a mismatch is an error naming both
+      numbers, exit 1 (as pick). Output rows are the rows that pass the filters: those
+      written to stdout or the --demux files; with -c the count written. Rows to --other
+      or --assert-other do not count.
+   6. -e removes all ASCII white space from the filter and compute arguments before
+      they are parsed (pick: arguments starting with @ or containing :: or :=), so that
+      computes can be written readably; a space wanted in a constant is written %20.
+      Column arguments are not changed.
+   7. -q suppresses pluk's messages that are not errors (the per-filter NA and
+      not-an-integer counts, the demux tally, the --idx-list note on computed columns,
+      the @HD SO warning; the list is completed in the implementation). Errors are
+      always written. pick's -qq -qqq levels are not taken over (-qq is -q).
+   8. --A=NAME is -A with the new computed columns inserted after input column NAME (as
+      -A<N> with N the position of NAME, INPLACE.design.txt). NAME is %-decoded and must
+      name a single input column (with -k a number); an unknown name is an error.
+   9. --idx-list, --name-list and --idx-map read the header (and with -k the first
+      line), resolve the output columns, write the list and stop without reading the
+      data. --idx-list writes the 1-based input indexes on one tab-separated line,
+      --name-list the output names, --idx-map one index TAB name line per column (as
+      pick). A computed column has the index it would have in the output after the input
+      columns (as pick: N+1, ..) and a note on stderr (pick's "List contains items from
+      newly computed columns"; silenced by -q). Combined with -c, --demux, --other or
+      each other: an error.
+  10. --progress writes a dot to stderr every 1000000 input data rows; --progress=K/N a
+      dot every K rows and, after every N dots, the row count (right-aligned in 9
+      columns) and a newline; at the end a newline (pick's layout). N = 0: no counts.
+      pluk counts input data rows, rejected or not (pick counts at the output, so a
+      rejected row on a multiple of K gives no dot).
+
+  Tests compare with pick wherever the behaviour is the same.
+
+
+  Items
+
+  1   -z -zz: option words that end parsing, the encoding set, the table (decisions 0-2).
+      Commit.
+
+  2   -l: the operator listing, term selection, the filter category (decisions 3, 4).
+      Commit.
+
+  3   -E<N> -e -q (decisions 5-7). Commit.
+
+  4   --A=NAME, --idx-list --name-list --idx-map, --progress (decisions 8-10). Commit.
