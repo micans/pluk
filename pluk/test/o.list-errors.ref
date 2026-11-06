@@ -1,0 +1,6 @@
+-l must be a word of its own
+exit 1
+-ll: not supported; -l lists operands and results
+exit 1
+pluk: (Output) handle [-l] in output does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+exit 1

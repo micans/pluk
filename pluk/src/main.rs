@@ -6,6 +6,7 @@ mod dict;
 mod exec;
 mod filter;
 mod io;
+mod list;
 mod names;
 mod num;
 mod ops;

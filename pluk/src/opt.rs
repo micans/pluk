@@ -65,6 +65,7 @@ pub enum Parsed {
     Version,
     Encode(Vec<Vec<u8>>),
     Decode(Vec<Vec<u8>>),
+    List(Vec<Vec<u8>>),
 }
 
 pub fn parse_args() -> Config {
@@ -83,6 +84,7 @@ pub fn parse_args() -> Config {
             let encoded: Vec<Vec<u8>> = words.iter().map(|w| pct_encode(w)).collect();
             write_list(&encoded, b" ");
         }
+        Ok(Parsed::List(words)) => process::exit(crate::list::run(&words)),
         Ok(Parsed::Decode(words)) => {
             let decoded: Vec<Vec<u8>> = words.iter().map(|w| pct_decode(w)).collect();
             write_list(&decoded, b"\n");
@@ -222,6 +224,8 @@ Dictionaries (NAME: letters, digits, _; used by ~isin~ ~hasval~ map dord):
   In KEY write / and = as %2F and %3D, in DEFAULT = as %3D; in --cd , and : as
   %2C and %3A.
 
+  -l TERM..   list the operators (compute and filter) in a category, or whose
+              name contains TERM; no TERM: all
   -z ARG..    write the %-encoding of each ARG (on one line); no ARG: a table
   -zz ARG..   write the %-decoding of each ARG (one per line)
   -H, --help  print this help
@@ -282,6 +286,13 @@ pub fn parse(args: &[Vec<u8>]) -> Result<Parsed, String> {
                 3 => Ok(Parsed::Decode(rest)),
                 _ => Err(format!("{}: use -z to encode, -zz to decode", String::from_utf8_lossy(word))),
             };
+        }
+        // -l lists operators; all following words are terms (step16 decision 3).
+        if word == b"-l" {
+            return Ok(Parsed::List(args[i..].to_vec()));
+        }
+        if word.len() > 2 && word[1..].iter().all(|&b| b == b'l') {
+            return Err(format!("{}: not supported; -l lists operands and results", String::from_utf8_lossy(word)));
         }
         // As in pick, -H must be a word of its own.
         if word == b"-H" {
@@ -564,6 +575,7 @@ fn parse_bundle(chars: &[u8], config: &mut Config) -> Result<(), String> {
             // Patterns extend to the end of the word.
             b'/' => return parse_patterns(&chars[j - 1..], config),
             b'z' => return Err("-z and -zz must be words of their own".to_string()),
+            b'l' => return Err("-l must be a word of its own".to_string()),
             _ => {
                 return Err(format!("Option string not fully parsed: -{} remains",
                                    String::from_utf8_lossy(&chars[j - 1..])));
@@ -775,6 +787,9 @@ mod tests {
         assert!(matches!(run(&["-k", "-zz", "a%3A"]), Ok(Parsed::Decode(v)) if v == w(&["a%3A"])));
         assert_eq!(run(&["-zzz", "a"]).err().unwrap(), "-zzz: use -z to encode, -zz to decode");
         assert_eq!(run(&["-kz", "a"]).err().unwrap(), "-z and -zz must be words of their own");
+        assert!(matches!(run(&["-k", "-l", "-h", "a,b"]), Ok(Parsed::List(v)) if v == w(&["-h", "a,b"])));
+        assert_eq!(run(&["-kl"]).err().unwrap(), "-l must be a word of its own");
+        assert_eq!(run(&["-ll"]).err().unwrap(), "-ll: not supported; -l lists operands and results");
         assert_eq!(pct_encode(b"a.b:c d"), b"a.b%3Ac%20d");
         assert_eq!(pct_encode(b"%^,/~=@+\t\n\x7f-\\\xe9"), b"%25%5E%2C%2F%7E%3D%40%2B%09%0A%7F-\\\xe9");
         for s in [&b"x%y:z^1,2/3~4=5@6+7 \t"[..], b"\x00\x1f\x7f\xff"] {

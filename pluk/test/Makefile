@@ -296,6 +296,8 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	$(p) --help                      < /dev/null  > o.help-long.test
 	$(p) -kH                         < data.txt  2> o.help-bundle.test > /dev/null; [ $$? -eq 1 ]
 	{ $(p) -z 'a:b^c' 'x%y' 'p,q/r~s=t@u+v' 'a.b c' 1.5 -k ''; $(p) -z "$$(printf 'tab\there\nnl\x7f\xe9')"; $(p) -zz 'a%3Ab' 'a%20b' '%zz%4' 'x%2c%2C' -k; $(p) -zz "$$($(p) -z 'p,q/r~s=t@u+v%')"; $(p) -z; $(p) -zz | head -n 1; } > o.z-encode.test
+	{ $(p) -l; $(p) -l bit,time md5; $(p) -k -l filter; $(p) -l eq isin; $(p) -l -h; echo "exit $$?"; $(p) -l nosuch,zz; echo "exit $$?"; $(p) -l | head -n 1; } > o.list-ops.test 2>&1
+	{ $(p) -kl; echo "exit $$?"; $(p) -ll; echo "exit $$?"; $(p) name -l < data.txt; echo "exit $$?"; } > o.list-errors.test 2>&1
 	{ $(p) -zzz a; echo "exit $$?"; $(p) -kz a; echo "exit $$?"; $(p) name -z < data.txt; echo "exit $$?"; } > o.z-errors.test 2>&1
 	seq 1 1000000 > seq.tmp; $(p) --test-lineno < seq.tmp | head -n 2 > o.brokenpipe.test; [ $${PIPESTATUS[0]} -eq 0 ]; rm seq.tmp
 

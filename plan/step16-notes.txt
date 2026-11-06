@@ -27,3 +27,36 @@ Item 1: -z -zz
   arguments, tab newline 0x7f and a non-ASCII byte, -zz with malformed sequences and
   lower-case hex, a -z then -zz round trip, the table), z-errors (-zzz, -kz, -z after a
   column). Help refs. Unit test in opt.rs (encode_options).
+
+
+Item 2: -l
+
+  A new module list.rs. opt::parse returns Parsed::List with all words after -l (a word
+  of its own, as -z); -l inside a bundle and -ll and longer are errors. list::run
+  builds the lines from ops::OPERATORS, ordered by the category table in list.rs (the
+  --help order; within a category in table order), followed by the filter table
+  FILTERS, and returns the exit status.
+
+  The category names live in list.rs (CATEGORIES); the Category enum stays without
+  names. A unit test checks that every operator in ops::OPERATORS appears exactly once
+  (an operator with a new category not added to CATEGORIES would be missing), and that
+  every FILTERS row is a known filter operator or predicate.
+
+  The filter rows describe x as the column value and y as VALUE, as test x y T uses
+  them. ~hasval~ ~hasnotval~ and the predicates are marked "not in test" (step15 item 2
+  refuses them there).
+
+  Terms: split on commas, empty terms ignored (-l '' lists all). Matching is case
+  sensitive (operators are lower case, the predicates upper case: -l INT gives /ISINT
+  /NOTINT). A listing ends with a line naming the categories; with no match only the
+  message and the categories go to stderr, exit 1.
+
+  Compared with pick's -l: the operators pick lists that pluk lacks are the bio and
+  cigar operators (step17), pload groupno groupi qnl qnu (with their options), sprintf
+  reqm (deferred.txt), tmap debug _strpair (not taken over). The descriptions are
+  pluk's (ops.rs, mostly pick's wording), so the output is not compared line by line.
+
+  Tests: list-ops (all, categories and names mixed, filter with -k before -l, a term
+  starting with -, no match, a closed pipe), list-errors (-kl, -ll, -l after a column).
+  Help refs. Unit tests in list.rs (every_operator_listed_once,
+  filter_rows_are_filter_operators, selection) and opt.rs (encode_options).
