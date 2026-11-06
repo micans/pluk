@@ -1,0 +1,44 @@
+step14 notes: decisions and rationale for implementation choices.
+
+  Decisions: step14.txt (decisions 1-8).
+
+
+Item 1: operand position of the pattern; delg ed edg; deferred.txt
+
+  Files: ops.rs (Prepare::ConstRegex(pos); delg ed edg; substitute, perl_matches,
+  replace_matches; del moved onto substitute), compute.rs (const_regex with the
+  position), opt.rs (help), deferred.txt (sprintf, reqm).
+
+  Prepare::ConstRegex now carries the pattern's position below the top of the stack: 0
+  for del and delg (x p), 1 for ed and edg (x p s), as pick's compile_compute special case
+  (it looks at the token before the operator for del, two before for ed). The constant
+  stays on the run-time stack and is popped unused; the operator uses the regex compiled
+  at compile time.
+
+  substitute() pops the replacement (if any), the pattern constant and x; an NA x or
+  replacement gives NA (del of an NA, which used to give the text NA, now gives NA).
+  ed and edg replace with the replacement as literal text (decision 3: in Perl's
+  s/$p/$s/ the replacement is a variable, so $1 in it stays).
+
+  Empty matches. Checking the global operators against Perl (perl -lpe 's/p/-/g') showed
+  that the regex crate's iteration (find_iter, replace_all) never allows an empty match
+  directly after a non-empty one, while Perl does: s/a*/-/g on aaa is -- in Perl and - with
+  the crate; on baab -b--b- and -b-b-. Python adopted Perl's rule in 3.7. pluk iterates
+  itself (perl_matches): find_at from the current position; an empty match is refused
+  only at the position of the previous empty match, and the search then moves on by one
+  byte. With this, x* a* \b b*$ a| (?:) ^ $ a? (a|b)* on abc, '', aaa, baab all give
+  Perl's results. Not reproduced: after an empty match Perl backtracks into a longer
+  match at the same position, which matters for lazy patterns that can match empty (a*?
+  on aaa: Perl -------, pluk -a-a-a-); the regex crate cannot express 'a non-empty match
+  starting here'. Recorded in step14.txt (decision 5) and guidelines.txt.
+
+  Test pitfalls met: perl -pe keeps the newline in $_ (extra empty matches at the end;
+  use -lpe); in a compute, ':' and '^' in a pattern must be written %3A and %5E.
+
+  Checked against pick (--num-perl): regex-ed (delg ed edg on data.txt and big.txt, with
+  character classes, groups and $1 in a literal replacement, an empty replacement, the
+  empty-matching patterns C* and n*, an anchor written %5E) is identical. regex-empty
+  keeps the empty-match cases checked against Perl.
+
+  Tests: regex-ed, regex-empty, regex-ed-edge (underflow, a column pattern, an empty and
+  an invalid pattern, NA). Help refs. Unit test in ops.rs (perl_matches).

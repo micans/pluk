@@ -106,6 +106,9 @@
       joining an NA gives NA; a constant fmtall format whose # count does not match the
       values is an error before input is read, a format from a column gives NA per row
       (pick reports an error per row).
+    - Regex operators (step14.txt): patterns must be constants (pick: also columns);
+      reqm and sprintf are not implemented (deferred.txt); lazy patterns that can match
+      empty (a*?) iterate differently from Perl in the global operators.
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

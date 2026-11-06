@@ -7,7 +7,7 @@
 
 use md5::{Digest, Md5};
 use memchr::memmem;
-use regex::bytes::Regex;
+use regex::bytes::{NoExpand, Regex};
 
 use crate::exec::{Machine, OpFn, Value};
 use crate::num::{self, Num};
@@ -44,7 +44,8 @@ pub enum Kind {
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Prepare {
     Nothing,
-    ConstRegex,     // the top operand must be a constant; it is compiled as a regex
+    ConstRegex(usize), // the operand this many places below the top must be a constant;
+                       // it is compiled as a regex (del: 0, ed: 1)
     FormatCount,    // a constant bottom operand is a fmtall format: its # count must
                     // match the number of values above it
 }
@@ -219,8 +220,14 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x y N", result: "pct(x/y)", doc: "Percentage of x relative to y with N decimal digits", fun: op_pct },
     OpDef { name: "pml",    pops: Pops::N(3), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Precision,
             operands: "x y N", result: "pml(x/y)", doc: "Per mille of x relative to y with N decimal digits", fun: op_pml },
-    OpDef { name: "del",    pops: Pops::N(2), pushes: 1, shape: Shape::Result(Kind::Str), prepare: Prepare::ConstRegex, category: Category::Regex,
+    OpDef { name: "del",    pops: Pops::N(2), pushes: 1, shape: Shape::Result(Kind::Str), prepare: Prepare::ConstRegex(0), category: Category::Regex,
             operands: "x p", result: "x =~ s/p//", doc: "Delete pattern p in x", fun: op_del },
+    OpDef { name: "delg",   pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::ConstRegex(0), category: Category::Regex,
+            operands: "x p", result: "x =~ s/p//g", doc: "Globally delete pattern p in x", fun: op_delg },
+    OpDef { name: "ed",     pops: Pops::N(3), pushes: 1, shape: STR, prepare: Prepare::ConstRegex(1), category: Category::Regex,
+            operands: "x p s", result: "x =~ s/p/s/", doc: "Substitute pattern p by s in x (s literal)", fun: op_ed },
+    OpDef { name: "edg",    pops: Pops::N(3), pushes: 1, shape: STR, prepare: Prepare::ConstRegex(1), category: Category::Regex,
+            operands: "x p s", result: "x =~ s/p/s/g", doc: "Globally substitute pattern p by s in x (s literal)", fun: op_edg },
 ];
 
 pub fn lookup(name: &[u8]) -> Option<&'static OpDef> {
@@ -771,17 +778,79 @@ fn choose_all(m: &mut Machine, row: &Row, max: bool) {
     m.push(result);
 }
 
-// Delete the first match of the pattern (compiled at compile time; the pattern
-// operand on the stack is the constant it came from).
-fn op_del(m: &mut Machine, row: &Row, re: Option<&Regex>) {
-    let re = re.expect("del has a compiled pattern");
+// Regex operators (plan/step14.txt). The pattern was compiled at compile time
+// (Prepare::ConstRegex); its constant is still on the stack, so that the run-time
+// stack matches the static one, and is popped unused. An NA x or replacement gives
+// NA; numbers are used as their text.
+fn substitute(m: &mut Machine, row: &Row, re: Option<&Regex>, with_replacement: bool,
+              edit: impl Fn(&Regex, &[u8], &[u8]) -> Vec<u8>) {
+    let re = re.expect("a regex operator has a compiled pattern");
+    let s = if with_replacement { m.pop() } else { Value::Bytes(Vec::new()) };
     m.pop();
     let x = m.pop();
-    let mut s = m.into_bytes(x, row);
-    if let Some(found) = re.find(&s) {
-        s.drain(found.range());
+    let result = match (&x, &s) {
+        (Value::Na, _) | (_, Value::Na) => Value::Na,
+        _ => {
+            let (x, s) = (m.bytes(&x, row), m.bytes(&s, row));
+            Value::Bytes(edit(re, &x, &s))
+        }
+    };
+    m.push(result);
+}
+
+// The matches of re in h as Perl's //g (and s///g) finds them (decision 5). The
+// regex crate's own iteration does not allow an empty match directly after a
+// non-empty one; Perl does, and refuses an empty match only where the previous
+// match was empty, then moving on by one byte (s/a*/-/g on aaa: Perl and pluk --,
+// the regex crate -). Python follows Perl since 3.7. Not reproduced: after an empty
+// match Perl backtracks into a longer match at the same position, which matters
+// for lazy patterns that can match empty (a*?).
+pub fn perl_matches(re: &Regex, h: &[u8]) -> Vec<(usize, usize)> {
+    let mut found = Vec::new();
+    let mut pos = 0;
+    let mut last_empty: Option<usize> = None;
+    while pos <= h.len() {
+        let Some(m) = re.find_at(h, pos) else { break };
+        if m.is_empty() && last_empty == Some(m.start()) {
+            pos = m.start() + 1;
+            continue;
+        }
+        found.push((m.start(), m.end()));
+        last_empty = if m.is_empty() { Some(m.end()) } else { None };
+        pos = m.end();
     }
-    m.push(Value::Bytes(s));
+    found
+}
+
+// x with each of the matches replaced by what f returns for it.
+fn replace_matches(x: &[u8], matches: &[(usize, usize)], mut f: impl FnMut(usize, usize) -> Vec<u8>) -> Vec<u8> {
+    let mut out = Vec::with_capacity(x.len());
+    let mut done = 0;
+    for &(start, end) in matches {
+        out.extend_from_slice(&x[done..start]);
+        out.extend_from_slice(&f(start, end));
+        done = end;
+    }
+    out.extend_from_slice(&x[done..]);
+    out
+}
+
+// The replacement is literal (NoExpand): in Perl's s/$p/$s/ the replacement is a
+// variable, so a $1 in it stays as it is (decision 3).
+fn op_del(m: &mut Machine, row: &Row, re: Option<&Regex>) {
+    substitute(m, row, re, false, |re, x, _| re.replacen(x, 1, NoExpand(b"")).into_owned())
+}
+
+fn op_delg(m: &mut Machine, row: &Row, re: Option<&Regex>) {
+    substitute(m, row, re, false, |re, x, _| replace_matches(x, &perl_matches(re, x), |_, _| Vec::new()))
+}
+
+fn op_ed(m: &mut Machine, row: &Row, re: Option<&Regex>) {
+    substitute(m, row, re, true, |re, x, s| re.replacen(x, 1, NoExpand(s)).into_owned())
+}
+
+fn op_edg(m: &mut Machine, row: &Row, re: Option<&Regex>) {
+    substitute(m, row, re, true, |re, x, s| replace_matches(x, &perl_matches(re, x), |_, _| s.to_vec()))
 }
 
 
@@ -798,6 +867,11 @@ mod tests {
         let md5 = |x: &str| Md5::digest(x.as_bytes()).iter().map(|b| format!("{:02x}", b)).collect::<String>();
         assert_eq!(md5(""), "d41d8cd98f00b204e9800998ecf8427e");
         assert_eq!(md5("abc"), "900150983cd24fb0d6963f7d28e17f72");
+        let re = |p: &str| crate::io::compile_pattern(p.as_bytes(), "test").unwrap();
+        assert_eq!(perl_matches(&re("a*"), b"baab"), vec![(0, 0), (1, 3), (3, 3), (4, 4)]);
+        assert_eq!(perl_matches(&re("a*"), b"aaa"), vec![(0, 3), (3, 3)]);
+        assert_eq!(perl_matches(&re("x"), b"axbxc"), vec![(1, 2), (3, 4)]);
+        assert_eq!(perl_matches(&re("x*"), b""), vec![(0, 0)]);
         assert_eq!((format_slots(b"a#b#"), format_slots(b"\\#x#"), format_slots(b"\\x#"), format_slots(b"#\\")), (2, 1, 1, 1));
         // Names are unique.
         for (i, a) in OPERATORS.iter().enumerate() {

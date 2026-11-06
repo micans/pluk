@@ -1,0 +1,15 @@
+pluk: [x::name:fib,ed]: stack underflow at operator ed (needs 3, has 2)
+exit 1
+pluk: [x::name:fx^-,ed]: the pattern operand of ed must be a constant (^PATTERN)
+exit 1
+pluk: [x::name^^-,edg]: empty pattern for edg
+exit 1
+pluk: [x::name^(^-,ed]: regex parse error:
+    (
+    ^
+error: unclosed group
+exit 1
+pluk: [x::name:fx,delg]: the pattern operand of delg must be a constant (^PATTERN)
+exit 1
+x	r	a	b	c	d
+fox	R	NA	fRx	NA	NA

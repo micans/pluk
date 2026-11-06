@@ -249,7 +249,7 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool)
                         }
                         let instr = match op.prepare {
                             Prepare::Nothing => Instr::Op(op),
-                            Prepare::ConstRegex => Instr::OpRegex(op, const_regex(&instrs, &stack, op, &shown)?),
+                            Prepare::ConstRegex(pos) => Instr::OpRegex(op, const_regex(&instrs, &stack, pos, op, &shown)?),
                             Prepare::FormatCount => {
                                 check_format(&instrs, &stack, &shown)?;
                                 Instr::Op(op)
@@ -282,11 +282,12 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool)
     Ok((computes, names))
 }
 
-// The pattern operand (top of stack) of a regex operator must be a constant: it is
-// compiled now, so that errors come before input is read. An empty pattern is
-// refused, as for filters (in Perl it silently reuses the last pattern).
-fn const_regex(instrs: &[Instr], stack: &[Slot], op: &OpDef, shown: &str) -> Result<Regex, String> {
-    let pattern = match stack.last() {
+// The pattern operand of a regex operator (pos places below the top of the stack:
+// 0 for del, 1 for ed) must be a constant: it is compiled now, so that errors come
+// before input is read. An empty pattern is refused, as for filters (in Perl it
+// silently reuses the last pattern).
+fn const_regex(instrs: &[Instr], stack: &[Slot], pos: usize, op: &OpDef, shown: &str) -> Result<Regex, String> {
+    let pattern = match stack.len().checked_sub(pos + 1).map(|k| &stack[k]) {
         Some(Slot::Const(k)) => match &instrs[*k] {
             Instr::Const(c) => c,
             _ => unreachable!("Slot::Const refers to a constant"),

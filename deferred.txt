@@ -20,3 +20,10 @@
   0.37 s (step6-notes.txt, item 3).
 - BAM output (--bam), seed in plan/BAMOUT.notes.txt: with the step that brings @ filters, or
   together with --demux.
+- sprintf (step14 decision 8): fmtall, dd, sn, zp, ppl, ppr and the planned tohex tooct
+  tobin cover its common uses; a printf engine with Perl's behaviour (%d of non-numbers or
+  1e30, %s of numbers, flags, widths, *) is much code for little gain. If a need appears,
+  a restricted subset (%s %d %f %e %x with width and precision) is the way in.
+- reqm (step14 decision 2): pick's quotemeta, which makes a column value usable as a
+  literal pattern. pluk's regex operators require constant patterns; if column patterns
+  are wanted, match them as fixed strings (as the ~:NAME filters), which needs no reqm.

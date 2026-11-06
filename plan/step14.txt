@@ -1,0 +1,64 @@
+
+- Regex operators
+
+  The third operator family after the math (step12) and string (step13) operators.
+  Design: COMPUTE.design.txt (section 5: the prepare step), step3-notes.txt (the regex
+  crate, compile_pattern). The SAM/bio operators follow in a separate step (likely step15).
+
+
+  Outcome of the discussion
+
+  Operators (pick's names, semantics and descriptions unless stated):
+    delg           delete all matches (s/p//g)                      (del exists)
+    ed, edg        substitute the first / all matches (s/p/s/, s/p/s/g); s is literal
+    edbr, edgbr    as ed, edg, with $1 $2 .. (groups) and $0 (the match) in s
+    get            group 1 if it took part in the match, else the whole match; empty if
+                   no match
+    npat           the number of non-overlapping matches
+
+  Decisions:
+   1. Patterns as for del, -/PAT and the ~ filters: a constant, compiled before input is
+      read (the prepare step), the regex crate's dialect (no backreferences or
+      look-around), matching on bytes with Unicode mode off; an empty pattern is refused.
+      For ed edg edbr edgbr the pattern is the second operand from the top (x p s): the
+      prepare step takes the operand position.
+   2. A pattern from a column remains an error. reqm (pick's quotemeta, which makes a
+      column value usable as a literal pattern) is therefore not taken over; if column
+      patterns are wanted later, the natural rule is that of the ~:NAME filters (a fixed
+      string), which needs no reqm either. Recorded in deferred.txt.
+   3. ed and edg: the replacement is literal text (in Perl it is a variable, so $1 in it
+      stays literal); the regex crate's NoExpand.
+   4. edbr and edgbr expand the replacement as pick's do_ed_br_helper: $ followed by
+      digits is that group (empty if it did not take part), $0 the whole match; all else
+      is literal. Implemented in pluk, not with the regex crate's expansion (which reads
+      $1a as a group named 1a).
+   5. get and npat as pick. For npat and the global operators (delg edg edgbr), empty
+      matches count as in Perl (s/x*/-/g on abc gives -a-b-c-); checked against Perl.
+      [Item 1: the regex crate's iteration refuses an empty match directly after a
+      non-empty one, Perl allows it (s/a*/-/g on aaa: Perl --, the crate -); pluk
+      iterates itself with Perl's rule. Not reproduced: lazy patterns that can match
+      empty (a*?), where Perl backtracks into a longer match after an empty one.]
+   6. \Q...\E quotes the enclosed text (as Perl and pick); added in compile_pattern, so it
+      applies to every pluk regex: -/PAT and -//PAT, the ~ and /~ filters, '+' column
+      regexes, and the regex operators. A \Q without \E quotes to the end of the pattern.
+      \Q is a syntax error in the regex crate, so nothing that works now changes.
+   7. An NA operand gives NA; numbers are used as their text (as the string operators).
+   8. sprintf is deferred (deferred.txt): fmtall, dd, sn, zp, ppl, ppr and the planned
+      tohex tooct tobin cover its common uses, and a printf engine with Perl's behaviour
+      (%d of non-numbers or 1e30, %s of numbers, flags, widths, *) is much code for
+      little gain; a restricted subset is the way in if a need appears.
+
+  Tests compare with pick (and Perl for the empty-match cases) wherever the behaviour is
+  the same.
+
+
+  Items
+
+  1   The operand position in the prepare step (Prepare::ConstRegex); delg ed edg
+      (decisions 1, 3, 7). deferred.txt: sprintf and reqm (decisions 2, 8). Commit.
+
+  2   edbr edgbr (decision 4). Commit.
+
+  3   get npat (decision 5). Commit.
+
+  4   \Q...\E in compile_pattern (decision 6). Commit.

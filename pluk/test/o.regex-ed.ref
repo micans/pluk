@@ -1,0 +1,114 @@
+name	a	b	c	d	e	f	g	h	i	j
+Ann	ann	Ann	a-n_n	a-n-n	$2$1n	.142857	xCGTTGCx	$0nn	.A..G.T.T.G..A.	A
+Bob	bob	Bb	b-o_b	b-o-b	$2$1b	.285714	CCGGTTx	$0ob	..G.G.T.T.A.A.	Bob
+Charlie	charlie	Chrl	ch-ar_lie	ch-ar-lie	$2$1$2$1$2$1e	.428571	GGGGTxC	$0harlie	.G.G.G.G.T.A..	Charlie
+Dan	dan	Dn	d-a_n	d-a-n	$2$1n	.571428	TTx	$0an	.T.T.A.A.	Da
+Esme	esme	Esm	e-s_m_e	e-s-m-e	$2$1$2$1	.714285	CGCGC	$0sme	..G..G..	Esme
+Fred	fred	Frd	f-r_e_d	f-r-e-d	$2$1$2$1	.857142	CTTCxCT	$0red	..T.T..A..T.	Fred
+Gillian	gillian	Glln	gi-ll_ian	gi-ll-ian	$2$1$2$1$2$1n	1.	C	$0illian	..	Gillia
+Harriet	harriet	Hrrt	ha-rr_iet	ha-rr-iet	$2$1$2$1$2$1t	1.142857	G	$0arriet	.G.	Harriet
+Inky	inky	Inky	i-n_k_y	i-n-k-y	$2$1$2$1	1.285714	T	$0nky	.T.	Iky
+John	john	Jhn	j-o_h_n	j-o-h-n	$2$1$2$1	1.428571	x	$0ohn	.A.	Joh
+Kelly	kelly	Klly	k-e_l_l_y	k-e-l-l-y	$2$1$2$1y	1.571428	x	$0elly	.A.A.A.A.A.A.A.A.	Kelly
+Lucy	lucy	Lcy	l-u_c_y	l-u-c-y	$2$1$2$1	1.714285	TCGxCxCGxCTC	$0ucy	.T..G.A..A..G.A..T..	Lucy
+id	a	b	c	d
+r001	uniform	CG-GG-CG-ATA-	quebec	>GGAGGTCCGGAATAGA
+r002	kilo	ACAGCATAAATGC	xrAy	>CAGCATAAATGC
+r003	victor	ATAAT-A---	sierrA	>TAATGAAGATCTC
+r004	foxtrot	-CAC-CCCTT	whiskey	>CCACGACCCTT
+r005	xray	CGTAACG-GGGTT	yAnkee	>GTAACGGAGGGTT
+r006	victor	AC	romeo	>C
+r007	juliet	TGCAT-A	zulu	>GCATTCA
+r008	romeo	T-TACTTGGCG-GTTG	indiA	>GATACTTGGCGTCGTTG
+r009	charlie	ACCTACC-GGG-	chArlie	>CCTACCGAGGGGA
+r010	mike	ATA-CCTA	uniform	>TAGACCTA
+r011	foxtrot	CAGCCAGCAAG	mike	>AGCCAGCAAG
+r012	xray	CCCGT-TGGG-	mike	>CCGTTCTGGGGA
+r013	foxtrot	CAAAG-GTTTGTG	kilo	>AAAGTCGTTTGTG
+r014	golf	TTTG-	victor	>TTGGA
+r015	golf	ATTA-GTGT	xrAy	>TTAGAGTGT
+r016	papa	TACG-AT	pApa	>ACGTCAT
+r017	india	ACAGCTA-C-AATTTAC	echo	>CAGCTATCCTCAATTTAC
+r018	tango	C-T-AGCCAG	whiskey	>TCTTCAGCCAG
+r019	uniform	TACGCAGGTAAC-	limA	>ACGCAGGTAACTC
+r020	golf	GCATTTATATACT-GTT	zulu	>CATTTATATACTTCGTT
+r021	mike	G	juliet	>
+r022	kilo	ACAGTAAGC-G	foxtrot	>CAGTAAGCTCG
+r023	romeo	GCACAGCGTT	whiskey	>CACAGCGTT
+r024	lima	AA-CAG-CGC	uniform	>AGACAGTCCGC
+r025	juliet	-ATTTAAGG	kilo	>CATTTAAGG
+r026	uniform	A	deltA	>
+r027	mike	GTTAGCCACCTA-CACC	chArlie	>TTAGCCACCTATCCACC
+r028	juliet	CCA	quebec	>CA
+r029	oscar	CGCCCCACATATAA	sierrA	>GCCCCACATATAA
+r030	charlie	-CTTTGT	november	>CCTTTGT
+r031	oscar	ACGGTAGC-AGG-A	juliet	>CGGTAGCGAAGGTCA
+r032	yankee	C	kilo	>
+r033	juliet	A-TTTG-	Alpha	>GATTTGGA
+r034	charlie	CTATTACAGGCGTTAG-AT	uniform	>TATTACAGGCGTTAGGAAT
+r035	hotel	ACAA-GCATTG-C	romeo	>CAATCGCATTGGAC
+r036	victor	ACCGCCCG-G-GGC	tAngo	>CCGCCCGTCGGAGGC
+r037	yankee	-TG-G-A-	hotel	>CTGTCGTCATC
+r038	quebec	TT-GCTGG-CCAG	tAngo	>TTCGCTGGGACCAG
+r039	bravo	CCTTA-TGG-CC-CTG	echo	>CTTAGATGGGACCTCCTG
+r040	xray	CA--CGCTGGTAATG	hotel	>AGATCCGCTGGTAATG
+r041	yankee	TTTATA	foxtrot	>TTATA
+r042	xray	A-TTG	limA	>GATTG
+r043	lima	G-A-T	brAvo	>GAATCT
+r044	uniform	CACCGGCAC-ACCGG	xrAy	>ACCGGCACTCACCGG
+r045	quebec	-AC-TATAAT	brAvo	>AACGATATAAT
+r046	quebec	-CACGCATG-G	brAvo	>CCACGCATGTCG
+r047	charlie	ACCGCGCCAAGTATAGG-C	quebec	>CCGCGCCAAGTATAGGGAC
+r048	quebec	TAGGC-ATTAGTT-CCT	pApa	>AGGCTCATTAGTTTCCCT
+r049	echo	ACC-GCCTA-C	juliet	>CCTCGCCTATCC
+r050	india	-TATATT	uniform	>ATATATT
+r051	golf	A	tAngo	>
+r052	kilo	TTG-ATGGCCTGTAAGG-	indiA	>TGGAATGGCCTGTAAGGTC
+r053	sierra	GC-TGTGCA-TG-CT	xrAy	>CTCTGTGCAGATGGACT
+r054	juliet	ATAG	chArlie	>TAG
+r055	whiskey	CGC-GTGGCATAACG	tAngo	>GCGAGTGGCATAACG
+r056	charlie	-ACG	deltA	>CACG
+r057	papa	GCCCG-TGC-	indiA	>CCCGTCTGCGA
+r058	xray	T--TAA-TAT-A-C	foxtrot	>GAGATAATCTATTCAGAC
+r059	zulu	ACTGCT	pApa	>CTGCT
+r060	november	AGGCAACTGGCGGTGC--	romeo	>GGCAACTGGCGGTGCTCTC
+r061	echo	AT-CG-TAC	hotel	>TGACGGATAC
+r062	tango	T-ACTA	hotel	>TCACTA
+r063	lima	CCGCACATG-GGGG	quebec	>CGCACATGGAGGGG
+r064	india	-GCG	mike	>CGCG
+r065	bravo	-AAG-CG-GCAGTG	quebec	>CAAGGACGTCGCAGTG
+r066	charlie	GTAGCAG--AACA	golf	>TAGCAGGAGAAACA
+r067	romeo	CGCAG-TTAC-CCC	deltA	>GCAGTCTTACTCCCC
+r068	lima	CACCGTAAG-G-G-A	uniform	>ACCGTAAGGAGTCGGAA
+r069	delta	ACCCCAGGTAACTACCT-	foxtrot	>CCCCAGGTAACTACCTTC
+r070	oscar	CGGCAATGCC	sierrA	>GGCAATGCC
+r071	papa	A	uniform	>
+r072	yankee	CCAAGGTT	romeo	>CAAGGTT
+r073	echo	ATT	foxtrot	>TT
+r074	zulu	TG-C-TGGTG-AG-AG	deltA	>GGACGATGGTGTCAGGAAG
+r075	zulu	GC	brAvo	>C
+r076	xray	CC-GTAGGTAGCT	zulu	>CGAGTAGGTAGCT
+r077	juliet	GCAC-TGGCAC	indiA	>CACGATGGCAC
+r078	november	AGTTG-AGCATAC	victor	>GTTGTCAGCATAC
+r079	november	-G-ACCCATG-T-	golf	>CGGAACCCATGGATTC
+r080	golf	T-CTGCATA	foxtrot	>TCCTGCATA
+r081	kilo	TTACCCGCGCCCC-	Alpha	>TACCCGCGCCCCTC
+r082	zulu	GCAA	juliet	>CAA
+r083	foxtrot	--	chArlie	>ATC
+r084	november	ATT-GC	Alpha	>TTGAGC
+r085	india	-	golf	>C
+r086	delta	-T	foxtrot	>CT
+r087	papa	C-TGTTAGCAC-GTTT	victor	>TCTGTTAGCACGAGTTT
+r088	november	AGG	Alpha	>GG
+r089	india	-T-ACA-TGT	yAnkee	>ATTCACAGATGT
+r090	zulu	CACACTG-TAAACCCAT	Alpha	>ACACTGTCTAAACCCAT
+r091	papa	TAAATACGC-CCGGCGC	limA	>AAATACGCTCCCGGCGC
+r092	oscar	G	echo	>
+r093	papa	GCTAGCGC	romeo	>CTAGCGC
+r094	sierra	CAATGGCCTATT	indiA	>AATGGCCTATT
+r095	oscar	G-GGCCAA	hotel	>GAGGCCAA
+r096	golf	GGG-TG--GGCCGT	romeo	>GGGATGGATCGGCCGT
+r097	foxtrot	GC-C-CAACTTGGGTAA	kilo	>CGACTCCAACTTGGGTAA
+r098	delta	GTAGCG-AC--	limA	>TAGCGTCACTCGA
+r099	oscar	AACTTATTTAGCCCTTG	pApa	>ACTTATTTAGCCCTTG
+r100	yankee	-GCCCGCTTGCAG	november	>CGCCCGCTTGCAG
