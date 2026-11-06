@@ -63,6 +63,8 @@
     - Bit filters: a negative constant mask is refused; a mask from a column is used as |m| by
       all four operators (pick: /all/ /notall/ use the raw mask); a non-integer value is not
       truncated but fails and is counted separately (step7.txt item 5).
+    - -k ranges: a range that selects no column is an error, and a multiplier of 0 (S-E*0) is
+      refused (pick: empty or repeated selection) (step8-notes.txt item 2).
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

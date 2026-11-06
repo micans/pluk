@@ -1,0 +1,12 @@
+2+1-3*4
+-- range expansion produced some indexes out of range (now dropped)
+ud	num4
+1	1
+12-15
+-- range expansion produced some indexes out of range (now dropped)
+abc	dna
+a	ACGTTGCA
+0-2
+-- range expansion produced some indexes out of range (now dropped)
+name	fib
+Ann	1

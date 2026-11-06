@@ -84,7 +84,9 @@ matches REGEX (Rust regex syntax), e.g. +num\\d or name:+.*_p. Each part is
 %-decoded after splitting on ':' (%3A for ':', %2B for a leading '+').
 
 Options:
-  -k          input has no header line; columns are named 1 2 .. N
+  -k          input has no header line; columns are named 1 2 .. N, and can be
+              given as ranges S-E, S- (to the last), O+S-E (offset), S-E*M
+              (multiplier): columns O + i*M for i = S..E
   -h          do not output the header line
   -c          output only the number of data rows (that pass the filters)
   -A          output all columns
@@ -183,7 +185,7 @@ pub fn parse(args: &[Vec<u8>]) -> Result<Parsed, String> {
         if arg.starts_with(b"@") {
             config.filters.push(parse_filter(arg)?);
         } else {
-            config.columns.push(colspec::parse(arg)?);
+            config.columns.push(colspec::parse(arg, config.k)?);
         }
     }
     check_combinations(&config)?;

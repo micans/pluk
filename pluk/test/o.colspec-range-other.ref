@@ -1,0 +1,10 @@
+name	dna
+Ann	ACGTTGCA
+r001	0	chr1	7	TTAGATAA	IIIIIIII	NM:i:0	MD:Z:8	AS:i:8
+r002	16	chr1	9	AAAAGATAA	IIIIIIIII	
+r004	0	chr2	16	ATAGCT	IIIIII	NM:i:1
+r005	4	*	0	CAGCGGCAT	IIIIIIIII	
+r006	0	chr2	29	TAGGCA	IIIIII	XS:i:3	NM:i:0
+r007	nonnumeric	chr2	37	CAGCGGCAT	IIIIIIIII	NM:i:0
+r008	0	chr1	1	ACG		
+pluk: (Output) handle [3-5] in output does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna

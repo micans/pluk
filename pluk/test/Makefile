@@ -168,6 +168,10 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	{ printf 'a:b\ta@b\t+c\n1\t2\t3\n' | $(p) 'a%3Ab:a@b:%2Bc'; printf 'a:b\ta@b\t+c\n1\t2\t3\n' | $(p) '+a%3A.:+\+c'; } > o.colspec-decode.test
 	for a in '+' 'a:+' '+a(' '+(?<=a)b' 'x::y'; do $(p) "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.colspec-errors.test
 	for a in '+zz.*' 'fib:+zz' 'fib:' 'num(\d)' '+fo.'; do $(p) "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.colspec-unknown.test
+	{ for a in 3-5 11- 2+1-3 1-5*2 3:5-7:1 1-02:2 2-3:+1.; do echo "$$a"; $(p) -k "$$a" < data.txt 2>&1 | head -n 3; done; } > o.colspec-range.test
+	{ for a in 2+1-3*4 12-15 0-2; do echo "$$a"; $(p) -k "$$a" < data.txt 2>&1 | head -n 3; done; } > o.colspec-range-msg.test
+	{ $(p) -k -x 2-12 < data.txt | head -n 2; $(p) --sam 1-4:10- < sam.txt 2> /dev/null; $(p) 3-5 < data.txt 2>&1; [ $$? -eq 1 ]; } > o.colspec-range-other.test
+	{ for a in 5-3 14 007 1-5*0 1-99999999999999999999999 0; do $(p) -k "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done; } 2> o.colspec-range-errors.test
 	for a in @z/gt/3 @@name/gt/:z @fib~eq~:z; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-unknown.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.txt   2> /dev/null > o.filter-sam.test
 	$(p) --sam 1 2 4 @2/eq/16 @@4/ge/9 < sam.bam   > o.filter-bam.test

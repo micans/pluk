@@ -1,0 +1,28 @@
+3-5
+fib2	sq	fx
+0	1	dog
+1	4	cat
+11-
+foo11	abc	dna
+a_n_n	a	ACGTTGCA
+b_o_b	bc	CCGGTTAA
+2+1-3
+fib2	sq	fx
+0	1	dog
+1	4	cat
+1-5*2
+fib	sq	ud	num1	num4
+1	1	1	1	1
+1	4	-2	2	2
+3:5-7:1
+fib2	fx	ud	ms	name
+0	dog	1	0.142857	Ann
+1	cat	-2	0.285714	Bob
+1-02:2
+-- Identical output column names exist (will make unique)
+name	fib
+Ann	1
+2-3:+1.
+fib	fib2	num4	foo11	abc	dna
+1	0	1	a_n_n	a	ACGTTGCA
+1	1	2	b_o_b	bc	CCGGTTAA
