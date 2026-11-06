@@ -118,3 +118,34 @@ Item 4: whole-stack operators
   NaN, -inf, a non-number, a zero, equal values with different spellings, empty stacks.
 
   Tests: math-whole, math-whole-edge. Help refs.
+
+
+Item 5: precision operators; gmeanall from logarithms
+
+  Files: num.rs (write_fixed), exec.rs (Machine::perl), ops.rs (Category::Precision, STR,
+  precision, op_dd ... op_pml; op_gmeanall), opt.rs (help).
+
+  dd and sn write x with N digits after the decimal point (pick's sprintf %.*f and %.*e);
+  frac, pct and pml write x/y, x*100/y and x*1000/y the same way (computed in this order,
+  as pick). The result is text (Kind::Str), e.g. 3.50; an operator that needs a number
+  parses it again. num::write_fixed uses Rust's {:.*} and {:.*e}, which round the exact
+  binary value half to even, as glibc's printf (0.125 with 2 digits is 0.12); the exponent
+  is rewritten as C writes it (1.23e+05). inf and nan are written as other numbers: inf and
+  nan, or Inf and NaN with --num-perl (as Perl's sprintf), which is why the operator needs
+  Machine::perl(). N is the top operand: a non-negative integer up to 1000 (a cap so that a
+  wild value cannot produce megabytes of digits), otherwise NA, as for any operand that is
+  not a number. Division by zero follows IEEE (pick dies).
+
+  gmeanall (decided after item 4): exp(mean(ln|x|)) instead of pick's (product |x|)^(1/n).
+  The product overflows to inf for long stacks of large values (five times 1e200 is inf in
+  pick; 1.000000000000022e+200 in pluk); the logarithms do not, at the cost of last-digit
+  differences against pick. A zero gives ln 0 = -inf and so a mean of 0. gmeanall was
+  removed from the pick comparison math-whole and has its own test, math-gmean.
+
+  Checked against pick (--num-perl): math-precision (data.txt floats, negatives, integers;
+  big.txt; 20 and 15 digits) is identical; math-whole (without gmeanall) still is.
+  math-precision-edge (pluk only): division by zero, 0/0, N negative, a float, not a
+  number, beyond 1000, x not a number, an exact binary tie, Inf and NaN with --num-perl.
+
+  Tests: math-precision, math-precision-edge, math-gmean; math-whole changed (gmeanall
+  removed). Help refs. Unit test in num.rs (fixed).

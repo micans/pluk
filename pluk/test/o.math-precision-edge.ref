@@ -1,0 +1,13 @@
+x	y	n	d	s	f	p	m
+1	0	2	1.00	1.00e+00	inf	inf	inf
+0	0	2	0.00	0.00e+00	nan	nan	nan
+-1	0	2	-1.00	-1.00e+00	-inf	-inf	-inf
+2	3	-1	NA	NA	NA	NA	NA
+2	3	1.5	NA	NA	NA	NA	NA
+2	3	fox	NA	NA	NA	NA	NA
+fox	3	2	NA	NA	NA	NA	NA
+0.125	1	2	0.12	1.25e-01	0.12	12.50	125.00
+2	3	1001	NA	NA	NA	NA	NA
+x	y	f
+1	0	Inf
+0	0	NaN

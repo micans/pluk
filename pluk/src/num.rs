@@ -300,6 +300,20 @@ pub fn write_num(out: &mut Vec<u8>, n: Num, perl: bool) {
     }
 }
 
+// A float with a fixed number of digits after the decimal point, as C's %.*f, or
+// in scientific notation, as %.*e (sci). Rust's formatting rounds the exact binary
+// value half to even, as glibc's printf. inf and nan are written as by write_num
+// (Inf and NaN with perl, as Perl's sprintf).
+pub fn write_fixed(out: &mut Vec<u8>, x: f64, digits: usize, sci: bool, perl: bool) {
+    if !x.is_finite() {
+        write_num(out, Num::F(x), perl);
+    } else if sci {
+        write_exponent_form(out, &format!("{:.*e}", digits, x));
+    } else {
+        out.extend_from_slice(format!("{:.*}", digits, x).as_bytes());
+    }
+}
+
 // As Perl prints a number. Perl's arithmetic preserves integers: when operands
 // hold whole values in the 64-bit range, the result is an integer (signed, or
 // unsigned up to 2^64) and is printed as one. This is approximated here: a whole
@@ -481,6 +495,24 @@ mod tests {
         assert!(matches!(round_with(F(f64::NAN), f64::floor), F(x) if x.is_nan()));
         assert_eq!(round_with(F(-(Int::MIN as f64)), f64::floor), F(-(Int::MIN as f64)));
         assert_eq!(round_with(F(Int::MIN as f64), f64::floor), I(Int::MIN));
+    }
+
+    #[test]
+    fn fixed() {
+        let text = |x: f64, d: usize, sci: bool, perl: bool| {
+            let mut out = Vec::new();
+            write_fixed(&mut out, x, d, sci, perl);
+            String::from_utf8(out).unwrap()
+        };
+        assert_eq!(text(3.14159, 2, false, false), "3.14");
+        assert_eq!(text(2.5, 0, false, false), "2");
+        assert_eq!(text(0.125, 2, false, false), "0.12");      // exact binary tie: to even
+        assert_eq!(text(-0.001, 2, false, false), "-0.00");
+        assert_eq!(text(3.0, 3, false, false), "3.000");
+        assert_eq!(text(123456.0, 2, true, false), "1.23e+05");
+        assert_eq!(text(0.00012, 1, true, false), "1.2e-04");
+        assert_eq!(text(f64::INFINITY, 2, false, false), "inf");
+        assert_eq!(text(f64::NAN, 2, true, true), "NaN");
     }
 
     #[test]

@@ -49,6 +49,7 @@ pub enum Category {
     String,
     Arithmetic,
     Math,
+    Precision,
     Regex,
 }
 
@@ -66,8 +67,9 @@ pub struct OpDef {
     pub fun:      OpFn,
 }
 
-// Most operators produce a number.
+// Most operators produce a number; the precision operators text.
 const NUM: Shape = Shape::Result(Kind::Num);
+const STR: Shape = Shape::Result(Kind::Str);
 
 // The table; descriptions follow pick's.
 pub static OPERATORS: &[OpDef] = &[
@@ -153,6 +155,16 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "*", result: "hmean(Stack)", doc: "Harmonic mean of the absolute values in stack", fun: op_hmeanall },
     OpDef { name: "gmeanall", pops: Pops::All, pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Arithmetic,
             operands: "*", result: "gmean(Stack)", doc: "Geometric mean of the absolute values in stack", fun: op_gmeanall },
+    OpDef { name: "dd",     pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Precision,
+            operands: "x N", result: "x'", doc: "x written with N decimal digits", fun: op_dd },
+    OpDef { name: "sn",     pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Precision,
+            operands: "x N", result: "x'", doc: "x in scientific notation with N decimal digits", fun: op_sn },
+    OpDef { name: "frac",   pops: Pops::N(3), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Precision,
+            operands: "x y N", result: "x/y", doc: "Fraction x/y with N decimal digits", fun: op_frac },
+    OpDef { name: "pct",    pops: Pops::N(3), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Precision,
+            operands: "x y N", result: "pct(x/y)", doc: "Percentage of x relative to y with N decimal digits", fun: op_pct },
+    OpDef { name: "pml",    pops: Pops::N(3), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Precision,
+            operands: "x y N", result: "pml(x/y)", doc: "Per mille of x relative to y with N decimal digits", fun: op_pml },
     OpDef { name: "del",    pops: Pops::N(2), pushes: 1, shape: Shape::Result(Kind::Str), prepare: Prepare::ConstRegex, category: Category::Regex,
             operands: "x p", result: "x =~ s/p//", doc: "Delete pattern p in x", fun: op_del },
 ];
@@ -301,12 +313,47 @@ fn op_hmeanall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
     })
 }
 
+// The geometric mean as the exponent of the mean logarithm, which cannot overflow
+// on long stacks (pick multiplies first; the last digits can differ). A zero gives
+// ln 0 = -inf, so the mean is 0.
 fn op_gmeanall(m: &mut Machine, row: &Row, _: Option<&Regex>) {
     whole(m, row, |xs| {
-        let product: f64 = xs.iter().map(|x| x.to_f64().abs()).product();
-        (!xs.is_empty()).then(|| Num::F(product.powf(1.0 / xs.len() as f64)))
+        let logs: f64 = xs.iter().map(|x| x.to_f64().abs().ln()).sum();
+        (!xs.is_empty()).then(|| Num::F((logs / xs.len() as f64).exp()))
     })
 }
+
+// Precision operators (pick's sprintf %.*f and %.*e): the value of 'operands'
+// numbers, written with N digits; the result is text. N is the top operand: a
+// non-negative integer up to MAX_DIGITS, else NA (as a non-number operand).
+const MAX_DIGITS: num::Int = 1000;
+
+fn precision(m: &mut Machine, row: &Row, operands: usize, sci: bool, value: impl Fn(&[f64]) -> f64) {
+    let n = m.pop();
+    let mut xs: Vec<Value> = (0..operands).map(|_| m.pop()).collect();
+    xs.reverse();
+    let digits = match m.num(&n, row) {
+        Some(Num::I(d)) if (0..=MAX_DIGITS).contains(&d) => Some(d as usize),
+        _ => None,
+    };
+    let nums: Option<Vec<f64>> = xs.iter().map(|x| m.num(x, row).map(Num::to_f64)).collect();
+    let result = match (digits, nums) {
+        (Some(d), Some(v)) => {
+            let mut text = Vec::new();
+            num::write_fixed(&mut text, value(&v), d, sci, m.perl());
+            Value::Bytes(text)
+        }
+        _ => Value::Na,
+    };
+    m.push(result);
+}
+
+fn op_dd(m: &mut Machine, row: &Row, _: Option<&Regex>) { precision(m, row, 1, false, |v| v[0]) }
+fn op_sn(m: &mut Machine, row: &Row, _: Option<&Regex>) { precision(m, row, 1, true, |v| v[0]) }
+// Computed as pick: x*100/y and x*1000/y (division by zero follows IEEE).
+fn op_frac(m: &mut Machine, row: &Row, _: Option<&Regex>) { precision(m, row, 2, false, |v| v[0] / v[1]) }
+fn op_pct(m: &mut Machine, row: &Row, _: Option<&Regex>) { precision(m, row, 2, false, |v| v[0] * 100.0 / v[1]) }
+fn op_pml(m: &mut Machine, row: &Row, _: Option<&Regex>) { precision(m, row, 2, false, |v| v[0] * 1000.0 / v[1]) }
 
 // maxall and minall push the winning operand itself, as max and min: the first
 // value, replaced by a later one that is greater (smaller); NaN never wins (as

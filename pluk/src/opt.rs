@@ -140,7 +140,7 @@ Computes (given among the columns; a stack language, as pick):
   stack, concatenated. Operators so far: dup pop xch (stack), cat (string),
   add sub mul div idiv mod pow ipow max min neg abs sign sq incr decr addall
   mulall maxall minall meanall hmeanall gmeanall (arithmetic), int floor ceil round sqrt exp exp2 exp10 log log2 log10 sin
-  cos tan (math), del (regex).
+  cos tan (math), dd sn frac pct pml (precision), del (regex).
   Numbers are written exactly (round-trip); NA where a number was needed.
   --num-perl  write numbers as Perl and pick do (%.15g, Inf, NaN)
   -i          computes may redefine a name (in place): an input column once,

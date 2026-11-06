@@ -67,6 +67,11 @@ impl Machine {
         self.stack.pop().expect("stack checked at compile time")
     }
 
+    // --num-perl: for operators that write numbers as text (dd, sn, ...).
+    pub fn perl(&self) -> bool {
+        self.perl
+    }
+
     pub fn push(&mut self, value: Value) {
         self.stack.push(value);
     }
