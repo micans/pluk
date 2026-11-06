@@ -47,6 +47,7 @@ pub struct Machine<'d> {
     other_registers: HashMap<Vec<u8>, Value>,
     pub rowno:  u64,
     pub lineno: u64,
+    time_zone:  Option<jiff::tz::TimeZone>,     // for todate, looked up on first use
 }
 
 // A small random number generator, splitmix64 (Steele, Lea and Flood, 2014): a
@@ -86,7 +87,8 @@ impl<'d> Machine<'d> {
     pub fn new(perl: bool, seed: u64, dicts: &'d Dicts) -> Machine<'d> {
         Machine { dicts, fatal: None, stack: Vec::with_capacity(16), cache: Vec::new(), generation: 0, perl,
                   text: Vec::new(), rng: SplitMix64::new(seed), registers: Vec::new(),
-                  register_slots: HashMap::new(), other_registers: HashMap::new(), rowno: 0, lineno: 0 }
+                  register_slots: HashMap::new(), other_registers: HashMap::new(), rowno: 0, lineno: 0,
+                  time_zone: None }
     }
 
     // The register slots of the compiled computes (constant names of save and fetch).
@@ -122,6 +124,11 @@ impl<'d> Machine<'d> {
     // run stops after the current compute.
     pub fn fail(&mut self, msg: String) {
         self.fatal.get_or_insert(msg);
+    }
+
+    // The system time zone (TZ honoured), looked up once.
+    pub fn time_zone(&mut self) -> &jiff::tz::TimeZone {
+        self.time_zone.get_or_insert_with(jiff::tz::TimeZone::system)
     }
 
     // A random float in [0, 1).

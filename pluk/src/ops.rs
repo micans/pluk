@@ -57,6 +57,7 @@ pub enum Prepare {
                        // naming a dictionary (map, dord: 0)
     Test,              // test: the filter operator and its right-hand side (compute.rs)
     Register,          // save, fetch: a constant register name gets a slot (compute.rs)
+    FoldTtu,           // ttu: a constant time unit is translated at compile time
     FormatCount,    // a constant bottom operand is a fmtall format: its # count must
                     // match the number of values above it
 }
@@ -71,6 +72,7 @@ pub enum Category {
     Dictionary,
     Branch,
     State,
+    Time,
     Regex,
 }
 
@@ -162,6 +164,14 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "-", result: "x", doc: "Current table row number (start zero)", fun: op_r0wno },
     OpDef { name: "lineno", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::State,
             operands: "-", result: "x", doc: "Current input line number", fun: op_lineno },
+    OpDef { name: "now",    pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Time,
+            operands: "-", result: "t", doc: "Current epoch (unix seconds)", fun: op_now },
+    OpDef { name: "ttu",    pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::FoldTtu, category: Category::Time,
+            operands: "tu", result: "s", doc: "Time unit (3h, 1.5d; units s m h d w y) in seconds", fun: op_ttu },
+    OpDef { name: "rttu",   pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Time,
+            operands: "s", result: "tu", doc: "Integer seconds as days, hours, minutes, seconds (1d,2h,3m,4s)", fun: op_rttu },
+    OpDef { name: "todate", pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Time,
+            operands: "u", result: "date", doc: "Epoch as local date and time (%Y-%m-%d-%H-%M-%S)", fun: op_todate },
     OpDef { name: "map",    pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
             operands: "x D", result: "map-of-x", doc: "Value of x in dictionary D (not found: as D's default)", fun: op_map },
     OpDef { name: "dord",   pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
@@ -904,6 +914,94 @@ fn op_rowno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.rowno; m.push(Va
 fn op_r0wno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.rowno; m.push(Value::Num(Num::I(n as num::Int - 1))) }
 fn op_lineno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.lineno; m.push(Value::Num(Num::I(n as num::Int))) }
 
+// Time (plan/step15.txt decision 5).
+
+fn op_now(m: &mut Machine, _: &Row, _: &Attached) {
+    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+    m.push(Value::Num(Num::I(secs as num::Int)));
+}
+
+// A time unit as seconds: a number directly followed by one of s m h d w y (a year
+// is 31556952 seconds, as pick); None if the text is not of that form.
+pub fn time_unit(text: &[u8]) -> Option<Num> {
+    let (&unit, number) = text.split_last()?;
+    let seconds: num::Int = match unit {
+        b's' => 1,
+        b'm' => 60,
+        b'h' => 3600,
+        b'd' => 24 * 3600,
+        b'w' => 7 * 24 * 3600,
+        b'y' => 31556952,
+        _ => return None,
+    };
+    // Seconds are whole when the unit is exact (1.5h is 5400): then an integer, so
+    // that ttu and rttu can be chained (pick: 1.5d,ttu,rttu is 1d,12h,0m,0s).
+    match num::mul(num::parse_num(number)?, Num::I(seconds)) {
+        Num::F(x) if x.fract() == 0.0 => Some(num::round_with(Num::F(x), f64::trunc)),
+        n => Some(n),
+    }
+}
+
+// ttu: a constant was translated at compile time (Attached::Value); otherwise the
+// value is translated per row, NA if it is not a time unit (pick: 0 and a warning).
+fn op_ttu(m: &mut Machine, row: &Row, a: &Attached) {
+    let x = m.pop();
+    let result = match (a, x) {
+        (Attached::Value(v), _) => v.clone(),
+        (_, Value::Na) => Value::Na,
+        (_, x) => time_unit(&m.bytes(&x, row)).map_or(Value::Na, Value::Num),
+    };
+    m.push(result);
+}
+
+// rttu: seconds as pick writes them: the components from seconds upwards (s, then
+// m, h, d), stopping when nothing is left, so 3600 is 1h,0m,0s; a negative number
+// gets minus-. A float is rounded to the nearest second, halves to even, as round
+// (1.11m,ttu is 66.6, written 1m,7s; pick truncates); nan, inf and floats beyond the
+// integer range are NA.
+fn op_rttu(m: &mut Machine, row: &Row, _: &Attached) {
+    let x = m.pop();
+    let seconds = m.num(&x, row).map(|n| num::round_with(n, f64::round_ties_even));
+    let result = match seconds {
+        Some(Num::I(n)) => {
+            let mut rest = n.unsigned_abs() as u128;        // u128 holds |Int| in both builds
+            let mut parts = Vec::new();
+            for (size, unit) in [(60, 's'), (60, 'm'), (24, 'h')] {
+                parts.push(format!("{}{}", rest % size, unit));
+                rest /= size;
+                if rest == 0 {
+                    break;
+                }
+            }
+            if rest > 0 {
+                parts.push(format!("{}d", rest));
+            }
+            parts.reverse();
+            let sign = if n < 0 { "minus-" } else { "" };
+            Value::Bytes(format!("{}{}", sign, parts.join(",")).into_bytes())
+        }
+        _ => Value::Na,
+    };
+    m.push(result);
+}
+
+// todate: an integer epoch as local date and time, %Y-%m-%d-%H-%M-%S, with the
+// system's time zone (TZ honoured; jiff crate). A float or an epoch outside jiff's
+// range is NA.
+fn op_todate(m: &mut Machine, row: &Row, _: &Attached) {
+    let x = m.pop();
+    let result = match m.num(&x, row) {
+        Some(Num::I(n)) => i64::try_from(n).ok()
+            .and_then(|n| jiff::Timestamp::from_second(n).ok())
+            .map_or(Value::Na, |t| {
+                let zoned = t.to_zoned(m.time_zone().clone());
+                Value::Bytes(zoned.strftime("%Y-%m-%d-%H-%M-%S").to_string().into_bytes())
+            }),
+        _ => Value::Na,
+    };
+    m.push(result);
+}
+
 // Dictionary operators (plan/step15.txt decision 0). The dictionary was resolved
 // at compile time (Prepare::ConstDict); its name is still on the stack and popped
 // unused. An NA key gives NA.
@@ -1121,6 +1219,10 @@ mod tests {
         assert_eq!(perl_matches(&re("x*"), b""), vec![(0, 0)]);
         let caps = re("(a)(b)?(c)").captures(b"xacy").unwrap();
         assert_eq!(expand_groups(b"[$1|$2|$3|$0|$12|$4|$|$x]", &caps), b"[a||c|ac|||$|$x]".to_vec());
+        assert_eq!(time_unit(b"3h"), Some(Num::I(10800)));
+        assert_eq!(time_unit(b"1.5d"), Some(Num::I(129600)));
+        assert_eq!(time_unit(b"0.5s"), Some(Num::F(0.5)));
+        assert_eq!((time_unit(b"3x"), time_unit(b" 3h"), time_unit(b"h"), time_unit(b"")), (None, None, None, None));
         assert_eq!((format_slots(b"a#b#"), format_slots(b"\\#x#"), format_slots(b"\\x#"), format_slots(b"#\\")), (2, 1, 1, 1));
         // Names are unique.
         for (i, a) in OPERATORS.iter().enumerate() {

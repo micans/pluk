@@ -127,3 +127,44 @@ Item 3: save fetch rowno r0wno lineno
 
   Tests: ops-branch, state-ops, state-ops-edge (names from a column, registers cleared per
   row, two compile-time errors). Help refs.
+
+
+Item 4: now ttu rttu todate
+
+  Files: Cargo.toml (jiff = "0.2.39"), ops.rs (Prepare::FoldTtu, Category::Time,
+  time_unit, the four operators), compute.rs (Attached::Value, fold_ttu), exec.rs
+  (Machine::time_zone), opt.rs (help).
+
+  now pushes the epoch in seconds (an integer); it is read per call, as pick's time().
+
+  ttu translates a value of the form NUMBER UNIT (units s m h d w y; a year is 31556952 s,
+  as pick) to seconds with num::mul; the number is anything parse_num reads (1.5, 1e1,
+  -2). A whole result is an integer (1.5h is 5400): found by comparison with pick, where
+  1.5d,ttu,rttu gives 1d,12h,0m,0s; without this, rttu (integers only) gave NA. pick's
+  pattern (\S+)([smhdwy])$ is not anchored at the start, so ' 3h' (and 'x 3h') parse
+  there; pluk requires the whole value, as for numbers elsewhere. A value that is not a
+  time unit is NA (pick: 0 with a warning). With a constant operand ttu is computed at
+  compile time (as pick): Prepare::FoldTtu attaches the value (Attached::Value), and a
+  constant that is not a time unit is an error before input is read.
+
+  rttu writes integer seconds as pick: the components from seconds upwards (s, m, h, then
+  the rest as d), stopping when nothing is left, so 60 is 1m,0s and 3600 is 1h,0m,0s;
+  negative numbers get minus-. Computed in u128, which holds |Int| in both builds. A
+  float is rounded to the nearest second, halves to even, as round (num::round_with with
+  f64::round_ties_even): 1.11m,ttu is 66.6 and rttu writes 1m,7s. This was changed on
+  request after the first version, which gave NA for floats; pick's % truncates (1.11m
+  gives 1m,6s, and 1.5 gives 0d,0h,0m,1s). nan, inf and floats beyond the integer range
+  are NA.
+
+  todate writes an integer epoch as %Y-%m-%d-%H-%M-%S in local time, with the jiff crate:
+  Timestamp::from_second, to_zoned with the system time zone (TimeZone::system, which
+  honours TZ; looked up once per run and kept in the machine), strftime. A float or an
+  epoch outside jiff's range is NA.
+
+  Checked against pick: time-ops (ttu of hours, days, negative minutes, 1e1s, years,
+  weeks, a constant; ttu then rttu; rttu of 0 to 1700000000 and a negative; todate with
+  TZ=UTC, Europe/Amsterdam and America/New_York) is identical.
+
+  Tests: time-ops, time-edge (values that are not time units, a float for rttu and
+  todate, 0.5s, a constant error, now within two seconds of date +%s). Help refs. Unit
+  test in ops.rs (time_unit).

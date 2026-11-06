@@ -166,6 +166,7 @@ pub enum Attached {
     Dict(usize),
     Test(filter::Op, TestRhs),      // test x y T: the filter operator T and how y is used
     Register(usize, Vec<u8>),       // save, fetch: the slot of a constant register name, and the name
+    Value(crate::exec::Value),      // ttu: the value of a constant, computed at compile time
 }
 
 // The right-hand side of test: the value y per row, or y prepared at compile time
@@ -279,6 +280,10 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, dicts:
                             Prepare::ConstDict(pos) =>
                                 Instr::OpWith(op, Attached::Dict(const_dict(&instrs, &stack, pos, op, dicts, &shown)?)),
                             Prepare::Test => Instr::OpWith(op, prepare_test(&instrs, &stack, dicts, &shown)?),
+                            Prepare::FoldTtu => match fold_ttu(&instrs, &stack, &shown)? {
+                                Some(v) => Instr::OpWith(op, Attached::Value(v)),
+                                None => Instr::Op(op),
+                            },
                             Prepare::Register => match registers.prepare(&instrs, &stack, op, &shown)? {
                                 Some(attached) => Instr::OpWith(op, attached),
                                 None => Instr::Op(op),
@@ -375,6 +380,18 @@ fn prepare_test(instrs: &[Instr], stack: &[Slot], dicts: &Dicts, shown: &str) ->
     Ok(Attached::Test(op, rhs))
 }
 
+// ttu with a constant operand: translated now, as pick does; a constant that is not
+// a time unit is an error before input is read (per row it would be NA every time).
+fn fold_ttu(instrs: &[Instr], stack: &[Slot], shown: &str) -> Result<Option<crate::exec::Value>, String> {
+    let Some(Slot::Const(k)) = stack.last() else { return Ok(None) };
+    let Instr::Const(c) = &instrs[*k] else { unreachable!("Slot::Const refers to a constant") };
+    match ops::time_unit(c) {
+        Some(n) => Ok(Some(crate::exec::Value::Num(n))),
+        None => Err(format!("[{}]: ttu: [{}] is not a time unit (a number and one of s m h d w y)",
+                            shown, String::from_utf8_lossy(c))),
+    }
+}
+
 // Register names seen so far while compiling (plan/step15.txt decision 3): each
 // constant name gets a slot; a fetch of a constant name needs an earlier save of it
 // (in compute order), unless an earlier save used a name from a column.
@@ -459,6 +476,7 @@ pub fn describe_compiled(c: &Compute, names: &ColumnNames) -> String {
             Instr::OpWith(op, Attached::Dict(d)) => format!("  op {} (dictionary {})\n", op.name, d),
             Instr::OpWith(op, Attached::None) => format!("  op {}\n", op.name),
             Instr::OpWith(op, Attached::Test(t, _)) => format!("  op {} ({:?})\n", op.name, t),
+            Instr::OpWith(op, Attached::Value(v)) => format!("  op {} (value {:?})\n", op.name, v),
             Instr::OpWith(op, Attached::Register(slot, name)) =>
                 format!("  op {} (register {} slot {})\n", op.name, String::from_utf8_lossy(name), slot),
         };

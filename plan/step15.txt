@@ -54,7 +54,9 @@
    5. Time: now gives the epoch in seconds. ttu translates a time unit (3h, 1.5d; units s m
       h d w y, y = 31556952 s) to seconds; a constant is folded at compile time (as pick);
       an unparsable unit is NA (pick: 0 with a warning). rttu writes integer seconds as
-      1d,2h,3m,4s (negative: minus-...; 0: 0s); a non-integer is NA. todate writes an epoch
+      1d,2h,3m,4s (negative: minus-...; 0: 0s); a float is rounded to the nearest second,
+      halves to even (1.11m,ttu,rttu is 1m,7s; pick truncates) [changed during item 4;
+      first: a non-integer is NA]. todate writes an epoch
       as %Y-%m-%d-%H-%M-%S in local time, using the jiff crate (time zone from the system,
       TZ honoured; tests set TZ).
    6. Bit operations as step7's bit filters: both operands as absolute values; a float is

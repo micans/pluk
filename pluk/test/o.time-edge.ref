@@ -1,0 +1,14 @@
+ 3h	NA	NA	NA
+3x	NA	NA	NA
+fox	NA	NA	NA
+1.5	NA	2s	NA
+0.5s	0.5	NA	NA
+nan	NA	NA	NA
+1.11m	1m,7s
+0.5s	0s
+1.5s	2s
+2.5s	2s
+-1.11m	minus-1m,7s
+pluk: [x::^3q,ttu]: ttu: [3q] is not a time unit (a number and one of s m h d w y)
+exit 1
+now ok
