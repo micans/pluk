@@ -66,7 +66,8 @@
       in pick), which would also differ between the i64 and int128 builds.
    7. Radix: tobin tohex tooct write a negative number as sign and magnitude (-ff; Perl:
       64-bit two's complement); a float is NA. binto hexto octto parse strictly: an optional
-      prefix (0b, 0x, 0o or a leading 0, matching the operator), digits with Perl's _
+      minus [added during item 6, so that -ff reads back] and prefix (0b, 0x, 0o or a
+      leading 0, matching the operator), digits with Perl's _
       separators allowed between them; anything else, or a value too large for Int, is NA
       (Perl stops silently at the first invalid character, and its oct also reads 0x and
       0b).

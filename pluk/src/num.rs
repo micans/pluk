@@ -286,6 +286,61 @@ pub fn bit_op(op: BitOp, a: Num, b: Num) -> Option<Num> {
     Int::try_from(r).ok().map(Num::I)
 }
 
+// Radix conversion (plan/step15.txt decision 7). to_radix writes an integer in base
+// 2, 8 or 16 (lower case), a negative one as sign and magnitude (-ff); a float is
+// None (NA). from_radix parses strictly: an optional minus (so that to_radix output
+// reads back), an optional prefix matching the base (0b, 0o or 0x, either case; for
+// octal a leading 0 is simply a digit), then digits with single _ separators between
+// them; anything else, or a value outside Int's range, is None.
+pub fn to_radix(n: Num, radix: u32) -> Option<Vec<u8>> {
+    let Num::I(i) = n else { return None };
+    let sign = if i < 0 { "-" } else { "" };
+    let m = i.unsigned_abs();
+    let s = match radix {
+        2 => format!("{sign}{m:b}"),
+        8 => format!("{sign}{m:o}"),
+        16 => format!("{sign}{m:x}"),
+        _ => unreachable!("radix {radix}"),
+    };
+    Some(s.into_bytes())
+}
+
+pub fn from_radix(s: &[u8], radix: u32) -> Option<Num> {
+    let prefix = match radix {
+        2 => b'b',
+        8 => b'o',
+        16 => b'x',
+        _ => unreachable!("radix {radix}"),
+    };
+    let (negative, s) = match s {
+        [b'-', rest @ ..] => (true, rest),
+        _ => (false, s),
+    };
+    let digits = match s {
+        [b'0', p, rest @ ..] if p.to_ascii_lowercase() == prefix => rest,
+        _ => s,
+    };
+    if digits.is_empty() || digits[0] == b'_' || digits[digits.len() - 1] == b'_' {
+        return None;
+    }
+    let mut value: Int = 0;
+    let mut previous = 0u8;
+    for &b in digits {
+        if b == b'_' {
+            if previous == b'_' {
+                return None;
+            }
+        } else {
+            let d = (b as char).to_digit(radix)?;
+            // Accumulated with the sign, so that Int::MIN can be read.
+            value = value.checked_mul(radix as Int)?;
+            value = if negative { value.checked_sub(d as Int)? } else { value.checked_add(d as Int)? };
+        }
+        previous = b;
+    }
+    Some(Num::I(value))
+}
+
 // Rounding: the explicit float -> integer conversions (NUMERIC.design.txt section
 // 5). An integer stays as it is; a float that is not finite or beyond the integer
 // range stays a (whole) float (plan/step12.txt decision 5).
@@ -534,6 +589,42 @@ mod tests {
         assert_eq!(bit_op(BitOp::Lsh, I(1), I(Int::BITS as Int - 2)), Some(I(1 << (Int::BITS - 2))));
         assert_eq!(bit_op(BitOp::Or, I(Int::MIN), I(0)), None);
         assert_eq!(bit_op(BitOp::And, F(3.0), I(1)), None);
+    }
+
+    #[test]
+    fn radix() {
+        let to = |n, r| to_radix(n, r).map(|v| String::from_utf8(v).unwrap());
+        assert_eq!(to(I(255), 16).as_deref(), Some("ff"));
+        assert_eq!(to(I(-255), 16).as_deref(), Some("-ff"));
+        assert_eq!(to(I(5), 2).as_deref(), Some("101"));
+        assert_eq!(to(I(0), 8).as_deref(), Some("0"));
+        assert_eq!(to(I(15), 8).as_deref(), Some("17"));
+        assert_eq!(to(F(3.0), 2), None);
+        let min = to(I(Int::MIN), 2).unwrap();
+        assert_eq!(min.len(), Int::BITS as usize + 1);
+        assert_eq!(from_radix(b"ff", 16), Some(I(255)));
+        assert_eq!(from_radix(b"0XfF", 16), Some(I(255)));
+        assert_eq!(from_radix(b"0b1_01", 2), Some(I(5)));
+        assert_eq!(from_radix(b"017", 8), Some(I(15)));
+        assert_eq!(from_radix(b"0o17", 8), Some(I(15)));
+        for bad in [&b""[..], b"0x", b"_ff", b"ff_", b"f__f", b"0x_ff", b"fg", b"--ff", b"-", b"-0x", b"0x-ff", b"+ff", b" ff", b"xff"] {
+            assert_eq!(from_radix(bad, 16), None, "{:?}", bad);
+        }
+        assert_eq!(from_radix(b"-ff", 16), Some(I(-255)));
+        assert_eq!(from_radix(b"-0x1_F", 16), Some(I(-31)));
+        assert_eq!(from_radix(b"-0", 2), Some(I(0)));
+        for n in [Int::MIN, Int::MIN + 1, -1, Int::MAX] {
+            for r in [2, 8, 16] {
+                assert_eq!(from_radix(&to_radix(I(n), r).unwrap(), r), Some(I(n)));
+            }
+        }
+        assert_eq!(from_radix(b"0b101", 8), None);
+        assert_eq!(from_radix(b"18", 8), None);
+        let max = to_radix(I(Int::MAX), 16).unwrap();
+        assert_eq!(from_radix(&max, 16), Some(I(Int::MAX)));
+        let mut over = max.clone();
+        over.push(b'0');
+        assert_eq!(from_radix(&over, 16), None);
     }
 
     #[test]

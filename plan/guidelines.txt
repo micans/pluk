@@ -132,6 +132,15 @@
       (including 3.0) or a non-number is NA (pick: Perl's conversion, fox is 0); bitoff
       is x & !|y|; bitlsh gives NA when the result does not fit Int (pick: bits lost, 0
       for a shift of 64 or more); bitrsh by Int's width or more gives 0, as pick.
+    - Radix: tobin tohex tooct write a negative integer as sign and magnitude (-ff; pick:
+      64-bit two's complement) and give NA for a float (pick: Perl's int). binto hexto
+      octto parse the whole value strictly: an optional minus (so that -ff reads back),
+      an optional prefix matching the operator (0b,
+      0x, 0o, either case; pick's binto refuses 0b, its octto also reads 0x and 0b, its
+      hexto also reads a bare x), digits with single _ between digits (Perl also allows a
+      leading _ or one after the prefix); anything else, including a plus, whitespace, the
+      empty string or a value beyond Int, is NA (Perl: stops at the first invalid
+      character, 0 for nothing read).
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

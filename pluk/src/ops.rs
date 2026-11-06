@@ -74,6 +74,7 @@ pub enum Category {
     State,
     Time,
     Bit,
+    Radix,
     Regex,
 }
 
@@ -185,6 +186,18 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x y", result: "x << y", doc: "Shift |x| left by |y| (overflow: NA)", fun: op_bitlsh },
     OpDef { name: "bitrsh", pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Bit,
             operands: "x y", result: "x >> y", doc: "Shift |x| right by |y|", fun: op_bitrsh },
+    OpDef { name: "tobin",  pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Radix,
+            operands: "x", result: "x'", doc: "Binary representation of x (negative: -101)", fun: op_tobin },
+    OpDef { name: "tohex",  pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Radix,
+            operands: "x", result: "x'", doc: "Hex representation of x (negative: -ff)", fun: op_tohex },
+    OpDef { name: "tooct",  pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Radix,
+            operands: "x", result: "x'", doc: "Octal representation of x (negative: -17)", fun: op_tooct },
+    OpDef { name: "binto",  pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Radix,
+            operands: "x", result: "x'", doc: "Read binary representation x (optional - and 0b)", fun: op_binto },
+    OpDef { name: "hexto",  pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Radix,
+            operands: "x", result: "x'", doc: "Read hex representation x (optional - and 0x)", fun: op_hexto },
+    OpDef { name: "octto",  pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Radix,
+            operands: "x", result: "x'", doc: "Read octal representation x (optional - and 0o)", fun: op_octto },
     OpDef { name: "map",    pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
             operands: "x D", result: "map-of-x", doc: "Value of x in dictionary D (not found: as D's default)", fun: op_map },
     OpDef { name: "dord",   pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
@@ -934,6 +947,32 @@ fn op_bitxor(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, |a, b|
 fn op_bitoff(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, |a, b| num::bit_op(BitOp::Off, a, b)) }
 fn op_bitlsh(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, |a, b| num::bit_op(BitOp::Lsh, a, b)) }
 fn op_bitrsh(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, |a, b| num::bit_op(BitOp::Rsh, a, b)) }
+
+// Radix (plan/step15.txt decision 7; num::to_radix, num::from_radix).
+fn to_radix(m: &mut Machine, row: &Row, radix: u32) {
+    let x = m.pop();
+    let result = match m.num(&x, row).and_then(|n| num::to_radix(n, radix)) {
+        Some(s) => Value::Bytes(s),
+        None => Value::Na,
+    };
+    m.push(result);
+}
+
+fn from_radix(m: &mut Machine, row: &Row, radix: u32) {
+    let x = m.pop();
+    let result = match x {
+        Value::Na => None,
+        x => num::from_radix(&m.bytes(&x, row), radix),
+    };
+    m.push(result.map_or(Value::Na, Value::Num));
+}
+
+fn op_tobin(m: &mut Machine, row: &Row, _: &Attached) { to_radix(m, row, 2) }
+fn op_tohex(m: &mut Machine, row: &Row, _: &Attached) { to_radix(m, row, 16) }
+fn op_tooct(m: &mut Machine, row: &Row, _: &Attached) { to_radix(m, row, 8) }
+fn op_binto(m: &mut Machine, row: &Row, _: &Attached) { from_radix(m, row, 2) }
+fn op_hexto(m: &mut Machine, row: &Row, _: &Attached) { from_radix(m, row, 16) }
+fn op_octto(m: &mut Machine, row: &Row, _: &Attached) { from_radix(m, row, 8) }
 
 // Time (plan/step15.txt decision 5).
 

@@ -199,3 +199,44 @@ Item 5: bitand bitor bitxor bitoff bitlsh bitrsh
   Tests: bit-ops, bit-edge (negatives, 3.0, 1.5, 1e3, fox, empty, shifts by 0, 62, 126,
   200, a zero shifted by 200, 2^62 shifted by 66; big.txt columns). Help refs. Unit test
   in num.rs (bit_ops).
+
+
+Item 6: tobin tohex tooct binto hexto octto
+
+  num::to_radix(Num, radix) and num::from_radix(&[u8], radix), with thin wrappers in
+  ops.rs (Category::Radix, a "radix" line in the help). tobin tohex tooct push bytes
+  (STR); binto hexto octto push numbers (NUM).
+
+  to_radix: Num::I only (a float, including 3.0, is NA, as the bit operators); a
+  negative number is written as '-' and the magnitude (unsigned_abs, so Int::MIN is
+  fine in both builds); hex is lower case, as Perl's %x.
+
+  from_radix reads the value as bytes (a number from an earlier operator is formatted
+  first). An optional prefix 0 followed by b, o or x (either case, as Perl), matching
+  the operator; for octal a leading 0 is just a digit, so 017 is 15. Then at least one
+  digit, with single underscores only between digits (Perl also accepts _101 and
+  0x_ff; decision 7 says between digits). Digits via char::to_digit(radix), accumulated
+  with checked_mul and checked_add/checked_sub, so a value outside Int's range is NA.
+
+  A leading minus is accepted (before the prefix: -0x1f), so that a negative tohex
+  result reads back with hexto; first omitted as decision 7 says "anything else is NA",
+  added on request at the handover. The value is accumulated with its sign, so Int::MIN
+  reads back as well (unit test: to_radix then from_radix for Int::MIN, -1, Int::MAX in
+  all three bases). A plus, a doubled minus or a minus after the prefix is NA. Perl's
+  hex and oct give 0 for -ff.
+
+  Differences from pick seen in the comparison: octto of decimal numbers containing 8
+  or 9 (pick reads up to that digit), binto of non-binary values, octto of 0b101 (Perl's
+  oct reads 0b and 0x), binto of 0b101 (pick prefixes 0b itself and gets 0), the empty
+  string and fox (pick: 0).
+
+  Checked against pick: radix-ops (sq and fib of data.txt to and from all three bases,
+  constants ff 777 0x1F 1_000; big.txt n4 and n6 including hexto of decimal values) is
+  identical. The differences are in radix-edge.
+
+  The int128 build reads values up to 2^127-1, so the "too large" test uses a value
+  beyond both (34 hex digits); 7fffffffffffffff reads in both.
+
+  Tests: radix-ops, radix-edge (prefixes in both cases, underscores in all positions,
+  invalid digits, minus and plus, whitespace, empty, 3.0, negatives written and read
+  back, the i64 extremes, too large). Help refs. Unit test in num.rs (radix).
