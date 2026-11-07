@@ -2,3 +2,4 @@ pick/
 target/
 o.*.test
 pluk/test/out/
+__pycache__/

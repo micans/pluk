@@ -10,10 +10,17 @@ SHELL=/bin/bash
 
 p=../target/release/pluk
 
-.PHONY: test runpluk runtestopt rundiff runretired accept clean
+.PHONY: test runpluk runtestopt rundiff rundoc runretired accept clean
 
-test: runpluk runtestopt rundiff
+test: runpluk runtestopt rundiff rundoc
 	@echo "--- All tests passed ---"
+
+# The console examples of the documents in ../doc, run and compared
+# (plan/MANUAL.design.txt section 4; Python 3).
+DOCS = ../doc/INTRODUCTION.md ../doc/SAM-NA.md
+
+rundoc:
+	@python3 doccheck.py $(p) $(DOCS)
 
 # A failing invocation does not stop the others; its output is compared as usual.
 .IGNORE: runpluk runtestopt

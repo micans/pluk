@@ -117,16 +117,16 @@ Annie   29    4
 ...
 ```
 
-**Sort the harvest into crates**: one file per fruit, each with the header (the tally goes to stderr).
+**Sort the harvest into crates**: one file per fruit, each with the header (`-q` silences the tally pluk writes to stderr).
 
 ```console
 $ mkdir crates
-$ pluk --demux=fruitfile --demux-dir=crates -A fruitfile:=fruit^.txt < harvest.txt
-File              Written  Filtered
-crates/apple.txt  3        0
-crates/cherry.txt 1        0
-crates/pear.txt   2        0
-crates/plum.txt   2        0
+$ pluk -q --demux=fruitfile --demux-dir=crates -A fruitfile:=fruit^.txt < harvest.txt
+$ ls crates
+apple.txt
+cherry.txt
+pear.txt
+plum.txt
 ```
 
 **And make the data behave.** An assertion stops the run, with the line, when a row
@@ -150,7 +150,7 @@ pluk: assertion @assert@ripeness/ge/0.65 failed: column ripeness value [0.61] at
 pluk reads SAM and BAM. Given the reference sequences it computes the trailing and aligned parts of both
 query and reference, counts edits, and supports output of individual aligment parts.
 It is intended for relatively short non-genomic references such as transcripts, transgenes, plasmids and amplicons.
-Here is [one read](reads.sam) against a [52-base transgene](transgene.fa) in this case showing
+Here is [one read](reads.sam) against a [53-base transgene](transgene.fa) in this case showing
 the full alignment:
 
 ```console

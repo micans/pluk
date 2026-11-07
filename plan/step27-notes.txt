@@ -21,3 +21,34 @@ Item 1: --list-ops-tsv
 
   Tests: list-ops-tsv (the listing, the count of lines with another number of fields (0),
   the number of lines against the number of operator lines of -l). help refs.
+
+
+Item 2: the example checker
+
+  test/doccheck.py PLUK DOCUMENT..: extracts the console blocks (fences of three or more
+  backticks, up to three spaces of indentation, the fence's indentation removed from the
+  content lines as CommonMark does, so blocks inside list items work); skips a block
+  preceded by <!-- notest -->; splits each block into commands ('$ ', backslash
+  continuation) and their expected lines. The commands of a document run in order, in a
+  fresh copy of the document's directory (so mkdir and output files do not touch
+  pluk/doc), with stdin from /dev/null and PLUK's directory first on the PATH. Matching as
+  MANUAL.design.txt section 4: 'pluk:' lines must occur in stderr in order; the others
+  must match stdout, '...' standing for any number of lines; white space runs are one
+  separator; the exit status is not compared. A failure shows the command, the expected
+  lines, stdout and stderr; the run ends with a tally and exit status 1.
+
+  Checked on a scratch document: a wrong value and a wrong stderr message fail, an
+  elision and a notest block behave.
+
+  test/Makefile: target rundoc, part of make test, runs the checker on DOCS
+  (INTRODUCTION.md, SAM-NA.md).
+
+  SAM-NA.md: its examples became console blocks on a new data file, doc/mixed.sam (the
+  read of reads.sam and an unmapped read), so they run: the NA report, the NA text in a
+  later compute, the numeric filter's count, @@2/none/4 for unmapped reads.
+  INTRODUCTION.md: '52-base transgene' corrected to 53 (the checker cannot see prose).
+
+  The introduction's demux example showed the tally, which pluk writes to stderr without
+  a 'pluk:' prefix, so it did not match the convention. Resolved with the user: the
+  example now runs pluk with -q (which silences the tally) and shows ls crates, the
+  four .txt files; the convention stays as it is.

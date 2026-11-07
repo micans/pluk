@@ -13,9 +13,15 @@ keeps the row, writes NA where a value cannot be computed, and counts the reason
 ## 1. Where NA comes from
 
 Each reason is counted once per row and reported at the end of the run (on stderr,
-silenced by `-q`), for example:
+silenced by `-q`). The examples use [mixed.sam](mixed.sam), one mapped and one unmapped
+read against [transgene.fa](transgene.fa):
 
-    pluk: SAM values not available (NA) for 25 rows: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+```console
+$ pluk --sam 1 q::,qry_len < mixed.sam
+read1   45
+read2   NA
+pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+```
 
 | Reason (as reported)                            | Typical cause                                           | Operators that give NA |
 |-------------------------------------------------|---------------------------------------------------------|------------------------|
@@ -59,10 +65,13 @@ Within one compute an NA is a value of its own:
 When the compute is written, NA becomes the text `NA` in its column. Later computes that
 read the column see that text, not an NA value:
 
-    pluk -q --sam 1 n::,ref_trail3p_N l::n,len m::n^1,add k::,ref_trail3p_N,len < unmapped.sam
-    r005    NA      2       NA      NA
+```console
+$ pluk -q --sam 1 n::,ref_trail3p_N l::n,len 'm::n^1,add' k::,ref_trail3p_N,len < mixed.sam
+read1   3    1   4    1
+read2   NA   2   NA   NA
+```
 
-`l` (the length of the text `NA`) is 2; `m` is NA because `NA` is not a number; `k`
+For read2, `l` (the length of the text `NA`) is 2; `m` is NA because `NA` is not a number; `k`
 computes the length inside one compute and is NA. Keep a chain that must stay NA-aware in
 one compute, or test for it.
 
@@ -71,7 +80,11 @@ Filters:
 - A numeric filter (`/gt/`, `/eq/`, `/ep/`, bit filters, ...) fails on NA, so the row is
   not kept; the number of values that were not numbers is reported:
 
-      pluk: @n/gt/10: 1 value not a number (row not kept)
+  ```console
+  $ pluk --sam 1 n::,ref_trail3p_N @n/gt/1 < mixed.sam
+  read1   3
+  pluk: @n/gt/1: 1 value not a number (row not kept)
+  ```
 
   A negated numeric filter (`/ne/`) fails on NA as well: NA is not a number that differs.
 - A string filter (`=`, `~eq~`, `~`, ...) compares the text `NA`.
@@ -85,10 +98,16 @@ the next row.
 
 **Unmapped reads.** Aligner output usually contains unmapped records. Every alignment
 operator gives NA for them, and a numeric filter on such a value drops them (with a
-count). To leave them out from the start, as pick's own tests do, filter on FLAG before
-the computes:
+count). To leave them out from the start, filter on FLAG before the computes (bit 4,
+unmapped, not set):
 
-    pluk --sam/ref.fa @@2/none/4 1 a::,aln_all < reads.sam
+```console
+$ pluk -q --sam/transgene.fa @@2/none/4 1 a::,aln_all < mixed.sam
+read1    10        20        30           40        5
+GCTTAACGGTACCATGAGCTAG---CTAAGGTTCCATGCAATTCG
+||||||||||||x|||||||||~~~||||||||---|||||||||
+GCTTAACGGTACAATGAGCTAGTTTCTAAGGTT---TGCAATTCG
+```
 
 **No reference length.** Without SAM header lines (`samtools view` without `-h`) and
 without `--sam/FILE`, `ref_len` and `ref_trail3p_N` are NA for every row; with
