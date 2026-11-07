@@ -103,6 +103,28 @@ get           x p         p-match-of-x        Group 1 of the match of p in x, or
 npat          x p         np                  Number of (non-overlapping) matches of p in x [regex]
 edbr          x p s       x =~ s/p/s/         As ed, $1 $2 .. (groups) and $0 (match) in s [regex]
 edgbr         x p s       x =~ s/p/s/g        As edg, $1 $2 .. (groups) and $0 (match) in s [regex]
+isforward     -           B                   1 if the alignment is on the forward strand, 0 if reverse (FLAG 0x10) [sam]
+ref_len       -           n                   Length of the reference sequence (seqlen: @SQ or fasta) [sam]
+ref_posx      -           p                   First reference position of the matched part (1-based) [sam]
+ref_posy      -           p                   Last reference position of the matched part [sam]
+qry_len       -           n                   Query length from the CIGAR (M I S = X) [sam]
+qry_posx      -           p                   First query position of the matched part (1-based) [sam]
+qry_posy      -           p                   Last query position of the matched part [sam]
+ref_trail5p_N -           n                   Reference before the matched part (POS-1 + 5' trail) [sam]
+ref_matched_N -           n                   Reference length of the matched part [sam]
+ref_trail3p_N -           n                   Reference after the matched part [sam]
+ref_trail5p_V -           n                   Reference length of the 5' trail of the CIGAR [sam]
+ref_trail3p_V -           n                   Reference length of the 3' trail of the CIGAR [sam]
+qry_trail5p_N -           n                   Query length of the 5' trail (S I) [sam]
+qry_matched_N -           n                   Query length of the matched part [sam]
+qry_trail3p_N -           n                   Query length of the 3' trail [sam]
+aln_trail5p_cgr -           c                   The 5' trail of the CIGAR (leading S H D N I) [sam]
+aln_matched_cgr -           c                   The matched part of the CIGAR [sam]
+aln_trail3p_cgr -           c                   The 3' trail of the CIGAR [sam]
+aln_nmatch    -           n                   M = X length of the matched part [sam]
+aln_nedit     -           n                   Edit distance from NM:i (0 without NM) [sam]
+aln_nmatchx   -           n                   NM minus the D and I of the matched part (mismatches) [sam]
+sam_get       tag def     value               Value of optional field tag (XX:T, XX.T, XX-T), def if absent [sam]
 /lt/          x y         x < y               Numeric less than [filter]
 /le/          x y         x <= y              Numeric less than or equal [filter]
 /eq/          x y         x == y              Numeric equal [filter]
@@ -137,7 +159,7 @@ edgbr         x p s       x =~ s/p/s/g        As edg, $1 $2 .. (groups) and $0 (
 /NOTNUM       x           B                   x is not a number (not in test) [filter]
 
 Use -l TERM.. for a category or the operators whose name contains TERM.
-Categories: stack string arithmetic math precision dictionary branch state time bit radix regex filter
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam filter
 Operator      Consumed    Produced            Description
 --------------------------------------------------------------------------------
 md5           x           md5(x)              MD5 sum of x (hexadecimal) [string]
@@ -153,7 +175,7 @@ bitlsh        x y         x << y              Shift |x| left by |y| (overflow: N
 bitrsh        x y         x >> y              Shift |x| right by |y| [bit]
 
 Use -l TERM.. for a category or the operators whose name contains TERM.
-Categories: stack string arithmetic math precision dictionary branch state time bit radix regex filter
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam filter
 Operator      Consumed    Produced            Description
 --------------------------------------------------------------------------------
 /lt/          x y         x < y               Numeric less than [filter]
@@ -190,7 +212,7 @@ Operator      Consumed    Produced            Description
 /NOTNUM       x           B                   x is not a number (not in test) [filter]
 
 Use -l TERM.. for a category or the operators whose name contains TERM.
-Categories: stack string arithmetic math precision dictionary branch state time bit radix regex filter
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam filter
 Operator      Consumed    Produced            Description
 --------------------------------------------------------------------------------
 /eq/          x y         x == y              Numeric equal [filter]
@@ -198,11 +220,11 @@ Operator      Consumed    Produced            Description
 ~isin~        x D         x in D              x is a key of dictionary D [filter]
 
 Use -l TERM.. for a category or the operators whose name contains TERM.
-Categories: stack string arithmetic math precision dictionary branch state time bit radix regex filter
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam filter
 pluk: no operator or category matches -h
-Categories: stack string arithmetic math precision dictionary branch state time bit radix regex filter
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam filter
 exit 1
 pluk: no operator or category matches nosuch,zz
-Categories: stack string arithmetic math precision dictionary branch state time bit radix regex filter
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam filter
 exit 1
 Operator      Consumed    Produced            Description

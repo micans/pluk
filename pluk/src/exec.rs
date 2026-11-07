@@ -48,6 +48,7 @@ pub struct Machine<'d> {
     pub rowno:  u64,
     pub lineno: u64,
     time_zone:  Option<jiff::tz::TimeZone>,     // for todate, looked up on first use
+    pub sam:    crate::sam::View,               // the per-row SAM view (plan/SAMVIEW.design.txt)
 }
 
 // A small random number generator, splitmix64 (Steele, Lea and Flood, 2014): a
@@ -88,7 +89,7 @@ impl<'d> Machine<'d> {
         Machine { dicts, fatal: None, stack: Vec::with_capacity(16), cache: Vec::new(), generation: 0, perl,
                   text: Vec::new(), rng: SplitMix64::new(seed), registers: Vec::new(),
                   register_slots: HashMap::new(), other_registers: HashMap::new(), rowno: 0, lineno: 0,
-                  time_zone: None }
+                  time_zone: None, sam: crate::sam::View::new(dicts) }
     }
 
     // The register slots of the compiled computes (constant names of save and fetch).
@@ -145,6 +146,7 @@ impl<'d> Machine<'d> {
         (self.rowno, self.lineno) = (rowno, lineno);
         self.registers.fill(None);
         self.other_registers.clear();
+        self.sam.reset();
         for compute in computes {
             self.stack.clear();
             for instr in &compute.instrs {

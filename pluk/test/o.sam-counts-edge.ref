@@ -1,0 +1,30 @@
+r1	5H3S10M2I5M4S2H	1	100	10	24	24	4	20	76	5H3S	10M2I5M	4S2H	15	4	2	a b
+r2	2X8M3X	0	100	10	22	13	1	13	78		2X8M3X		13	0	0	-
+r3	10M	1	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	2	NA	-
+r4	10M	1	NA	10	19	10	1	10	NA		10M		10	0	0	-
+r5	10Q	1	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	0	NA	-
+r6	5S5S	1	100	10	9	10	11	10	91	5S5S			0	0	0	-
+r7	5M2N5M	1	100	10	21	10	1	10	79		5M2N5M		10	NA	NA	-
+r8	3S5M1P5M	1	100	10	19	13	4	13	81	3S	5M1P5M		10	0	0	-
+r9	5M	1	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	0	NA	-
+r10	5M	NA	100	10	14	5	1	5	86		5M		5	0	0	-
+pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+pluk: SAM values not available (NA) for 2 rows: CIGAR or POS not valid
+pluk: SAM values not available (NA) for 1 row: reference length not known (no @SQ line or fasta for RNAME)
+pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+pluk: SAM values not available (NA) for 2 rows: CIGAR or POS not valid
+exit 0
+pluk: (Compute) handle [i] in compute x does not reference a known entity among 1,2,3,4,5,6,7,8,9,10,11,12
+exit 1
+pluk: [x::^NM.q^-,sam_get]: sam_get: tag [NM.q] is not of the form XX:T, XX.T or XX-T (T one of A i f Z H B)
+exit 1
+pluk: [x::^NMM.i^-,sam_get]: sam_get: tag [NMM.i] is not of the form XX:T, XX.T or XX-T (T one of A i f Z H B)
+exit 1
+pluk: [x::2^-,sam_get]: the tag operand of sam_get must be a constant (^NM.i)
+exit 1
+pluk: [x::,isforward]: operator isforward needs --sam or --sam-h
+exit 1
+Operator      Consumed    Produced            Description
+--------------------------------------------------------------------------------
+isforward     -           B                   1 if the alignment is on the forward strand, 0 if reverse (FLAG 0x10) [sam]
+ref_len       -           n                   Length of the reference sequence (seqlen: @SQ or fasta) [sam]

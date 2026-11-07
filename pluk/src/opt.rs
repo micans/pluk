@@ -198,6 +198,11 @@ Computes (given among the columns; a stack language, as pick):
     bit         bitand bitor bitxor bitoff bitlsh bitrsh (on |x| |y|; integers)
     radix       tobin tohex tooct binto hexto octto
     regex       del delg ed edg edbr edgbr get npat (the pattern is a constant)
+    sam         (with --sam) isforward sam_get ref_len ref_posx ref_posy qry_len
+                qry_posx qry_posy ref_trail5p_N ref_matched_N ref_trail3p_N
+                ref_trail5p_V ref_trail3p_V qry_trail5p_N qry_matched_N
+                qry_trail3p_N aln_trail5p_cgr aln_matched_cgr aln_trail3p_cgr
+                aln_nmatch aln_nedit aln_nmatchx (pluk -l sam)
   Numbers are written exactly (round-trip); NA where a number was needed.
   --num-perl  write numbers as Perl and pick do (%.15g, Inf, NaN)
   --seed=N    seed for rand (default: from the clock), for reproducible output

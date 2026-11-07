@@ -19,6 +19,7 @@ use crate::exec::{Machine, OpFn, Value};
 use crate::num::{self, Num};
 use crate::opt::pct_decode;
 use crate::row::Row;
+use crate::sam;
 
 // How many values an operator takes from the stack.
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -58,6 +59,8 @@ pub enum Prepare {
     Test,              // test: the filter operator and its right-hand side (compute.rs)
     Register,          // save, fetch: a constant register name gets a slot (compute.rs)
     FoldTtu,           // ttu: a constant time unit is translated at compile time
+    SamTag,         // sam_get: the tag (below the default) must be a constant XX:T, XX.T
+                    // or XX-T; it is attached as XX:T:
     FormatCount,    // a constant bottom operand is a fmtall format: its # count must
                     // match the number of values above it
 }
@@ -76,6 +79,7 @@ pub enum Category {
     Bit,
     Radix,
     Regex,
+    Sam,
 }
 
 #[derive(Debug)]
@@ -198,6 +202,50 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x", result: "x'", doc: "Read hex representation x (optional - and 0x)", fun: op_hexto },
     OpDef { name: "octto",  pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Radix,
             operands: "x", result: "x'", doc: "Read octal representation x (optional - and 0o)", fun: op_octto },
+    OpDef { name: "isforward", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "B", doc: "1 if the alignment is on the forward strand, 0 if reverse (FLAG 0x10)", fun: op_isforward },
+    OpDef { name: "ref_len", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "Length of the reference sequence (seqlen: @SQ or fasta)", fun: op_ref_len },
+    OpDef { name: "ref_posx", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "p", doc: "First reference position of the matched part (1-based)", fun: op_ref_posx },
+    OpDef { name: "ref_posy", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "p", doc: "Last reference position of the matched part", fun: op_ref_posy },
+    OpDef { name: "qry_len", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "Query length from the CIGAR (M I S = X)", fun: op_qry_len },
+    OpDef { name: "qry_posx", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "p", doc: "First query position of the matched part (1-based)", fun: op_qry_posx },
+    OpDef { name: "qry_posy", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "p", doc: "Last query position of the matched part", fun: op_qry_posy },
+    OpDef { name: "ref_trail5p_N", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "Reference before the matched part (POS-1 + 5' trail)", fun: op_ref_trail5p_n },
+    OpDef { name: "ref_matched_N", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "Reference length of the matched part", fun: op_ref_matched_n },
+    OpDef { name: "ref_trail3p_N", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "Reference after the matched part", fun: op_ref_trail3p_n },
+    OpDef { name: "ref_trail5p_V", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "Reference length of the 5' trail of the CIGAR", fun: op_ref_trail5p_v },
+    OpDef { name: "ref_trail3p_V", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "Reference length of the 3' trail of the CIGAR", fun: op_ref_trail3p_v },
+    OpDef { name: "qry_trail5p_N", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "Query length of the 5' trail (S I)", fun: op_qry_trail5p_n },
+    OpDef { name: "qry_matched_N", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "Query length of the matched part", fun: op_qry_matched_n },
+    OpDef { name: "qry_trail3p_N", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "Query length of the 3' trail", fun: op_qry_trail3p_n },
+    OpDef { name: "aln_trail5p_cgr", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "c", doc: "The 5' trail of the CIGAR (leading S H D N I)", fun: op_aln_trail5p_cgr },
+    OpDef { name: "aln_matched_cgr", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "c", doc: "The matched part of the CIGAR", fun: op_aln_matched_cgr },
+    OpDef { name: "aln_trail3p_cgr", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "c", doc: "The 3' trail of the CIGAR", fun: op_aln_trail3p_cgr },
+    OpDef { name: "aln_nmatch", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "M = X length of the matched part", fun: op_aln_nmatch },
+    OpDef { name: "aln_nedit", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "Edit distance from NM:i (0 without NM)", fun: op_aln_nedit },
+    OpDef { name: "aln_nmatchx", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "NM minus the D and I of the matched part (mismatches)", fun: op_aln_nmatchx },
+    OpDef { name: "sam_get", pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::SamTag, category: Category::Sam,
+            operands: "tag def", result: "value", doc: "Value of optional field tag (XX:T, XX.T, XX-T), def if absent", fun: op_sam_get },
     OpDef { name: "map",    pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
             operands: "x D", result: "map-of-x", doc: "Value of x in dictionary D (not found: as D's default)", fun: op_map },
     OpDef { name: "dord",   pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
@@ -973,6 +1021,78 @@ fn op_tooct(m: &mut Machine, row: &Row, _: &Attached) { to_radix(m, row, 8) }
 fn op_binto(m: &mut Machine, row: &Row, _: &Attached) { from_radix(m, row, 2) }
 fn op_hexto(m: &mut Machine, row: &Row, _: &Attached) { from_radix(m, row, 16) }
 fn op_octto(m: &mut Machine, row: &Row, _: &Attached) { from_radix(m, row, 8) }
+
+// SAM operators (plan/step17.txt; plan/SAMVIEW.design.txt). They need --sam or
+// --sam-h (checked at compile time) and read the per-row view in the machine.
+
+// Push a value of the count stage, or NA (counted by the view).
+fn sam_count(m: &mut Machine, row: &Row, f: impl Fn(&sam::Counts) -> Result<Value, sam::Na>) {
+    let result = match m.sam.counts(row, m.dicts) {
+        Ok(c) => f(c),
+        Err(reason) => Err(reason),
+    };
+    let value = match result {
+        Ok(v) => v,
+        Err(reason) => {
+            m.sam.note(reason);
+            Value::Na
+        }
+    };
+    m.push(value);
+}
+
+fn int(x: num::Int) -> Result<Value, sam::Na> { Ok(Value::Num(Num::I(x))) }
+fn reflen(x: Option<num::Int>) -> Result<Value, sam::Na> { x.map_or(Err(sam::Na::RefLength), int) }
+fn text(x: &[u8]) -> Result<Value, sam::Na> { Ok(Value::Bytes(x.to_vec())) }
+
+fn op_isforward(m: &mut Machine, row: &Row, _: &Attached) {
+    let value = sam::is_forward(row).map_or(Value::Na, |f| Value::Num(Num::I(f as num::Int)));
+    m.push(value);
+}
+fn op_ref_len(m: &mut Machine, row: &Row, _: &Attached) { sam_count(m, row, |c| reflen(c.ref_len)) }
+fn op_ref_posx(m: &mut Machine, row: &Row, _: &Attached) { sam_count(m, row, |c| int(c.ref_posx())) }
+fn op_ref_posy(m: &mut Machine, row: &Row, _: &Attached) { sam_count(m, row, |c| int(c.ref_posy())) }
+fn op_qry_len(m: &mut Machine, row: &Row, _: &Attached) { sam_count(m, row, |c| int(c.qry_len())) }
+fn op_qry_posx(m: &mut Machine, row: &Row, _: &Attached) { sam_count(m, row, |c| int(c.qry_posx())) }
+fn op_qry_posy(m: &mut Machine, row: &Row, _: &Attached) { sam_count(m, row, |c| int(c.qry_posy())) }
+fn op_ref_trail5p_n(m: &mut Machine, row: &Row, _: &Attached) { sam_count(m, row, |c| int(c.ref_trail5p)) }
+fn op_ref_matched_n(m: &mut Machine, row: &Row, _: &Attached) { sam_count(m, row, |c| int(c.ref_matched)) }
+fn op_ref_trail3p_n(m: &mut Machine, row: &Row, _: &Attached) { sam_count(m, row, |c| reflen(c.ref_trail3p)) }
+fn op_ref_trail5p_v(m: &mut Machine, row: &Row, _: &Attached) { sam_count(m, row, |c| int(c.ref_trail5p_v)) }
+fn op_ref_trail3p_v(m: &mut Machine, row: &Row, _: &Attached) { sam_count(m, row, |c| int(c.ref_trail3p_v)) }
+fn op_qry_trail5p_n(m: &mut Machine, row: &Row, _: &Attached) { sam_count(m, row, |c| int(c.qry_trail5p)) }
+fn op_qry_matched_n(m: &mut Machine, row: &Row, _: &Attached) { sam_count(m, row, |c| int(c.qry_matched)) }
+fn op_qry_trail3p_n(m: &mut Machine, row: &Row, _: &Attached) { sam_count(m, row, |c| int(c.qry_trail3p)) }
+fn op_aln_trail5p_cgr(m: &mut Machine, row: &Row, _: &Attached) { sam_count(m, row, |c| text(&c.cgr_trail5p)) }
+fn op_aln_matched_cgr(m: &mut Machine, row: &Row, _: &Attached) { sam_count(m, row, |c| text(&c.cgr_matched)) }
+fn op_aln_trail3p_cgr(m: &mut Machine, row: &Row, _: &Attached) { sam_count(m, row, |c| text(&c.cgr_trail3p)) }
+fn op_aln_nmatch(m: &mut Machine, row: &Row, _: &Attached) { sam_count(m, row, |c| int(c.aln_nmatch)) }
+
+// NM:i, 0 without one; available for every record (it needs no CIGAR).
+fn op_aln_nedit(m: &mut Machine, row: &Row, _: &Attached) {
+    let value = sam::nm(row).map_or(Value::Na, |n| Value::Num(Num::I(n as num::Int)));
+    m.push(value);
+}
+
+fn op_aln_nmatchx(m: &mut Machine, row: &Row, _: &Attached) {
+    let nm = sam::nm(row);
+    sam_count(m, row, |c| match nm {
+        Some(n) => int(n as num::Int - c.matched_indel),
+        None => Ok(Value::Na),
+    })
+}
+
+// sam_get tag def: the tag was checked and normalised to XX:T: at compile time.
+fn op_sam_get(m: &mut Machine, row: &Row, attached: &Attached) {
+    let def = m.pop();
+    m.pop();
+    let Attached::Value(Value::Bytes(tt)) = attached else { unreachable!("sam_get has its tag attached") };
+    let value = match sam::optional_field(row, tt) {
+        Some(v) => Value::Bytes(v.to_vec()),
+        None => def,
+    };
+    m.push(value);
+}
 
 // Time (plan/step15.txt decision 5).
 

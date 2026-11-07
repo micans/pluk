@@ -1,6 +1,7 @@
 // -l: the operator listing (plan/step16.txt decisions 3 and 4).
 //
-// One line per operator in pick's layout, the compute operators by category in the
+// One line per operator in pick's layout (columns of 14, 12 and 20; a longer entry
+// is followed by one space and shifts the rest), the compute operators by category in the
 // order of --help and within a category in table order, then the filter operators.
 // TERMs (words, or comma-separated within a word) select: a category name selects
 // that category, any other term the operators whose name contains it.
@@ -10,7 +11,7 @@ use std::io::Write;
 use crate::ops::{self, Category};
 
 // The categories in --help order, with their names; "filter" follows.
-const CATEGORIES: [(Category, &str); 12] = [
+const CATEGORIES: [(Category, &str); 13] = [
     (Category::Stack, "stack"),
     (Category::String, "string"),
     (Category::Arithmetic, "arithmetic"),
@@ -23,6 +24,7 @@ const CATEGORIES: [(Category, &str); 12] = [
     (Category::Bit, "bit"),
     (Category::Radix, "radix"),
     (Category::Regex, "regex"),
+    (Category::Sam, "sam"),
 ];
 
 const FILTER: &str = "filter";
@@ -112,9 +114,9 @@ pub fn run(words: &[Vec<u8>]) -> i32 {
         eprintln!("pluk: no operator or category matches {}\nCategories: {}", terms.join(","), category_names());
         return 1;
     }
-    let mut text = format!("{:<14}{:<12}{:<20}{}\n{}\n", "Operator", "Consumed", "Produced", "Description", "-".repeat(80));
+    let mut text = format!("{:<13} {:<11} {:<19} {}\n{}\n", "Operator", "Consumed", "Produced", "Description", "-".repeat(80));
     for l in &chosen {
-        text.push_str(&format!("{:<14}{:<12}{:<20}{} [{}]\n", l.name, l.operands, l.result, l.doc, l.category));
+        text.push_str(&format!("{:<13} {:<11} {:<19} {} [{}]\n", l.name, l.operands, l.result, l.doc, l.category));
     }
     text.push_str(&format!("\nUse -l TERM.. for a category or the operators whose name contains TERM.\nCategories: {}\n",
                            category_names()));

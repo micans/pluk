@@ -158,6 +158,14 @@
       column).
     - SAM normal form: a rule that would leave an empty CIGAR is not applied (pick turns a
       CIGAR 5D into an empty CIGAR and moves POS); --sam-nonf requires --sam or --sam-h.
+    - SAM operators (step17) need --sam or --sam-h (compile-time error). Values that cannot be
+      computed are NA and the row is kept, with counts at the end (pick discards the row
+      silently or computes from missing data): unmapped records (FLAG 0x4, RNAME or CIGAR
+      '*'), a CIGAR or POS that is not valid, an unknown reference length (pick: 0). An X
+      operation from the input is aligned (pick: exterior, as its context marker); the CIGAR
+      trails never overlap (pick: a CIGAR of only S H D N I counts twice). aln_nedit with a
+      NM:i value that is not a non-negative integer is NA (pick: 0). suv and input_cigar are
+      not taken over.
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

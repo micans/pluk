@@ -203,7 +203,7 @@ pub struct Compute {
 //
 // inplace (-i): a compute may redefine a name; an input column at most once, a
 // computed name any number of times.
-pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, dicts: &Dicts)
+pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, sam: bool, dicts: &Dicts)
     -> Result<(Vec<Compute>, ColumnNames), String>
 {
     let mut names = input.clone();
@@ -268,6 +268,10 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, dicts:
                         }
                     }
                     Token::Op(op) => {
+                        // SAM operators need SAM input (plan/step17.txt decision 2).
+                        if op.category == ops::Category::Sam && !sam {
+                            return Err(format!("[{}]: operator {} needs --sam or --sam-h", shown, op.name));
+                        }
                         let needed = match op.pops { Pops::N(n) | Pops::All(n) => n };
                         if stack.len() < needed {
                             return Err(format!("[{}]: stack underflow at operator {} (needs {}, has {})",
@@ -288,6 +292,7 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, dicts:
                                 Some(attached) => Instr::OpWith(op, attached),
                                 None => Instr::Op(op),
                             },
+                            Prepare::SamTag => Instr::OpWith(op, Attached::Value(sam_tag(&instrs, &stack, &shown)?)),
                             Prepare::FormatCount => {
                                 check_format(&instrs, &stack, &shown)?;
                                 Instr::Op(op)
@@ -336,6 +341,26 @@ fn const_regex(instrs: &[Instr], stack: &[Slot], pos: usize, op: &OpDef, shown: 
         return Err(format!("[{}]: empty pattern for {}", shown, op.name));
     }
     compile_pattern(pattern, &format!("[{}]", shown))
+}
+
+// sam_get tag def: the tag must be a constant XX:T, with XX.T and XX-T accepted for
+// it (as pick, to avoid writing %3A); T one of A i f Z H B. Attached as XX:T:, the
+// prefix of the optional field.
+fn sam_tag(instrs: &[Instr], stack: &[Slot], shown: &str) -> Result<crate::exec::Value, String> {
+    let tag = match stack.len().checked_sub(2).map(|k| &stack[k]) {
+        Some(Slot::Const(k)) => match &instrs[*k] {
+            Instr::Const(c) => c,
+            _ => unreachable!("Slot::Const refers to a constant"),
+        },
+        _ => return Err(format!("[{}]: the tag operand of sam_get must be a constant (^NM.i)", shown)),
+    };
+    match tag.as_slice() {
+        [a, b, sep, t] if b":.-".contains(sep) && b"AifZHB".contains(t)
+                          && a.is_ascii_alphanumeric() && b.is_ascii_alphanumeric() =>
+            Ok(crate::exec::Value::Bytes(vec![*a, *b, b':', *t, b':'])),
+        _ => Err(format!("[{}]: sam_get: tag [{}] is not of the form XX:T, XX.T or XX-T (T one of A i f Z H B)",
+                         shown, String::from_utf8_lossy(tag))),
+    }
 }
 
 // The dictionary operand of map and dord (pos places below the top) must be a
@@ -557,7 +582,7 @@ mod tests {
         let mut row = crate::row::Row::new();
         row.line.extend_from_slice(b"a\tn1\tn2\tb");
         row.split_fields();
-        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), false, &Dicts::new())
+        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), false, false, &Dicts::new())
     }
 
     #[test]
@@ -582,7 +607,7 @@ mod tests {
         let mut row = crate::row::Row::new();
         row.line.extend_from_slice(b"a\tb");
         row.split_fields();
-        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), true, &Dicts::new())
+        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), true, false, &Dicts::new())
     }
 
     #[test]

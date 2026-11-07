@@ -146,7 +146,7 @@ fn run() -> std::io::Result<()> {
     let (computes, names) = if input.is_empty {
         (Vec::new(), input.names.clone())
     } else {
-        compute::compile(&config.computes, &input.names, config.inplace, &dicts)
+        compute::compile(&config.computes, &input.names, config.inplace, config.sam || config.sam_h, &dicts)
             .map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?
     };
     let computed: Vec<(usize, usize)> = computes.iter().filter(|c| c.output).map(|c| (c.position, c.index)).collect();
@@ -334,6 +334,7 @@ fn run() -> std::io::Result<()> {
         file.finish()?;
     }
     stages.filters.report_na();
+    stages.machine.sam.report();
 
     // -E<N>: checked at the end; the rows have been written (as pick).
     if let Some(n) = config.expect {

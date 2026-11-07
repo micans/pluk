@@ -57,3 +57,49 @@ Item 2: normal form, --sam-nonf
   sam-nf (the synthetic records with and without --sam-nonf, @@ and @ filters, --other, -c,
   --sam-h, --sam-nonf without --sam). Unit tests in sam.rs (normal_form_rules) and row.rs
   (replace_field). Help refs.
+
+
+Item 3: the SAM view and its count stage
+
+  sam.rs: parse_cigar (operations with their byte ranges, so that the cigar parts are
+  substrings of the input CIGAR as in pick), trails (the 5' trail is the leading run of S H
+  D N I, the 3' trail the trailing run of what is left, the matched part between), Counts
+  (the values of SAMVIEW.design.txt section 5; ref_len and ref_trail3p_N are Options, as
+  they need the reference length), View (in the machine, reset per row by Machine::run;
+  counts computed on first use and kept; per-row NA notes and run totals, reported at the
+  end by main through note!). The seqlen dictionary is looked up once, when the machine is
+  created, which is after main has added the SAM header lengths.
+
+  A Rust point: View::counts returns a reference into self.counts on success and has to
+  note an error (a mutation) otherwise. Returning the borrow from one match arm while
+  mutating in the other is refused by the current borrow checker (it extends the borrow over
+  the whole match); the error case is therefore handled first in an if let, after which the
+  Ok case is returned.
+
+  ops.rs: Category::Sam; 22 operators. The count operators share sam_count, which asks the
+  view for the count stage and pushes a value or NA (noting the reason). isforward and
+  aln_nedit need no CIGAR and work for every record, unmapped ones included; aln_nedit gives
+  NA for an NM:i value that is not a non-negative integer. sam_get has Prepare::SamTag:
+  compute.rs checks the constant tag (XX:T, XX.T or XX-T, T one of A i f Z H B, XX two
+  alphanumerics) and attaches XX:T: as the prefix to look for; the lookup splits the
+  optional fields (column 12 on, TABs inside a field included) and takes the first match.
+  In a compute XX:T cannot be written (':' separates the compute's parts); XX.T and XX-T
+  are the usable forms, as in pick.
+
+  compute::compile takes a sam flag: an operator of category sam without --sam or --sam-h is
+  an error naming the operator. -l lists the sam category; the help names the operators.
+  list.rs: the columns of -l keep pick's widths but are always followed by a space, so that
+  the 15-character names (aln_trail5p_cgr) stay apart from the next column.
+
+  Checked against pick: all 21 count operators and sam_get (NM.i, XM-i, MD.Z) on qry3mm.sam
+  and qry3vs.sam, with and without --sam-nonf, mapped records (@@2/none/4, as pick's
+  run-test3.sh): identical (329 and 309 rows). Synthetic records: hard clips at both ends,
+  P inside the matched part: identical; the differences are the decided ones (X aligned,
+  NA for unmapped records, a CIGAR that does not parse and an unknown reference length,
+  non-overlapping trails, NA for NM:i:x). pick could not be compared on qry_len for records
+  with SEQ '*' (it discards them: qry_len requires the query sequence in pick).
+
+  Tests: sam-counts (md5 of all operators on the two files with and without --sam-nonf, the
+  first rows in full, -q), sam-counts-edge (the synthetic records incl. POS 0 and a FLAG
+  that is not a number, the NA report, sam_get tag errors and a non-constant tag, a SAM
+  operator without --sam, -l sam). list-ops and help refs updated.
