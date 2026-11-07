@@ -19,6 +19,7 @@ mod sam;
 mod samseq;
 mod select;
 mod sink;
+mod state;
 
 use std::io::{BufWriter, ErrorKind, Write};
 use std::os::unix::ffi::OsStrExt;
@@ -234,7 +235,7 @@ fn run() -> std::io::Result<()> {
     let pstore_spec = config.pstore.clone().or_else(|| config.group.as_ref().map(|_| opt::Pstore::default()));
     let pstore = match &pstore_spec {
         None => None,
-        Some(spec) => match Pstore::new(spec, &compute::pload_names(&computes), &names, config.group.as_ref()) {
+        Some(spec) => match state::Pstore::new(spec, &compute::pload_names(&computes), &names, config.group.as_ref()) {
             Ok((pstore, initial)) => {
                 machine.kept = initial;
                 Some(pstore)
@@ -486,95 +487,10 @@ struct Stages<'d> {
     rowno:    u64,              // data rows seen (rowno, r0wno); rejected rows count too
     normal_form: bool,          // SAM input without --sam-nonf (plan/SAMVIEW.design.txt section 3)
     nd_adjust: Option<NdAdjust>, // --sam-ND-adjust (plan/step19.txt decision 5)
-    pstore:   Option<Pstore>,   // --pstore: the columns kept for pload (plan/step23.txt)
+    pstore:   Option<state::Pstore>, // --pstore: the columns kept for pload (plan/step23.txt)
     narrow:   Option<Narrow>,   // --sam-narrow-xy (plan/step19.txt decision 4)
     extension: Option<Extend>,  // --sam-aln-context, --sam-aln-xy (plan/step19.txt decision 2)
     fill:     Option<Fill>,     // the sequence fill, when an operator needs the query (SAMSEQ.design.txt)
-}
-
-// --pstore: the column of each kept slot (the slots of pload first, then the other
-// LIST names); with --group the group column and the state of the groups.
-struct Pstore {
-    columns: Vec<usize>,
-    group:   Option<Group>,
-}
-
-// --group=COL, --group-first-ref=COL (plan/step23.txt decision 3).
-struct Group {
-    column:    usize,
-    first_ref: bool,
-    value:     Option<Vec<u8>>,     // the group column's value in the current group
-    n:         u64,                 // groups so far
-    i:         u64,                 // position of the next row in the current group
-}
-
-impl Pstore {
-    // The columns and their values before the first row; the group column.
-    fn new(spec: &opt::Pstore, pload: &[Vec<u8>], names: &names::ColumnNames, group: Option<&(Vec<u8>, bool)>)
-        -> Result<(Pstore, Vec<Option<Vec<u8>>>), String>
-    {
-        let group = match group {
-            None => None,
-            Some((col, first_ref)) => {
-                let column = names.index_of(col).ok_or_else(|| format!("--group: [{}] is not a column name among {}",
-                                                                       String::from_utf8_lossy(col), names.joined()))?;
-                Some(Group { column, first_ref: *first_ref, value: None, n: 0, i: 0 })
-            }
-        };
-        let mut kept: Vec<Vec<u8>> = pload.to_vec();
-        for (k, _) in &spec.list {
-            if !kept.contains(k) {
-                kept.push(k.clone());
-            }
-        }
-        let mut columns = Vec::with_capacity(kept.len());
-        let mut initial = Vec::with_capacity(kept.len());
-        for name in &kept {
-            let i = names.index_of(name).ok_or_else(|| format!("--pstore/pload: [{}] is not a column name among {}",
-                                                               String::from_utf8_lossy(name), names.joined()))?;
-            columns.push(i);
-            let given = spec.list.iter().find(|(k, _)| k == name).map(|(_, v)| v.clone());
-            initial.push(given.or_else(|| spec.default.clone()));
-        }
-        Ok((Pstore { columns, group }, initial))
-    }
-
-    // After the computes, as pick's do_cache: with groups, a row whose group column
-    // differs from the previous row's starts a group and is skipped (true); the kept
-    // columns are then taken from it. Within a group they are taken from every row
-    // (--group) or not at all (--group-first-ref: the first row stays the reference).
-    // groupi and groupno are set for the next row.
-    fn keep(&mut self, row: &row::Row, machine: &mut exec::Machine) -> bool {
-        let mut skip = false;
-        if let Some(g) = &mut self.group {
-            let value = row.field(g.column);
-            if g.value.as_deref() != Some(value) {
-                g.value = Some(value.to_vec());
-                g.n += 1;
-                g.i = 2;
-                skip = true;
-            } else {
-                g.i += 1;
-                if g.first_ref {
-                    (machine.groupi, machine.groupno) = (g.i, g.n);
-                    return false;
-                }
-            }
-            (machine.groupi, machine.groupno) = (g.i, g.n);
-        }
-        let kept = &mut machine.kept;
-        for (slot, &i) in self.columns.iter().enumerate() {
-            let value = kept[slot].get_or_insert_with(Vec::new);
-            value.clear();
-            value.extend_from_slice(row.field(i));
-        }
-        skip
-    }
-
-    // The number of groups (each first row skipped), for the report at the end.
-    fn groups(&self) -> Option<u64> {
-        self.group.as_ref().map(|g| g.n)
-    }
 }
 
 // --sam-ND-adjust: the intervals per reference, and what was changed.

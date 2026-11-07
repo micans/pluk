@@ -75,3 +75,11 @@ Item 2: --group --group-first-ref, groupi groupno
   --demux with skipped rows, errors). help, list-ops refs.
 
   step23 complete with this item.
+
+After item 2: Pstore and Group moved to src/state.rs
+
+  On the user's request (after a question on how localised the group changes were) the
+  previous-row and group state moved from main.rs into its own module, src/state.rs, as
+  sam.rs and bio.rs hold theirs: Pstore (pub, with pub new, keep, groups) and Group
+  (private to the module). main.rs keeps the wiring (resolving the spec, the hook in
+  Stages::judge, the report). No change in behaviour; all tests pass.
