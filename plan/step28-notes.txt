@@ -81,3 +81,18 @@ Item 4: reference for dictionary, branch, state, time, bio (25 operators)
   in the dictionary (the default 'none', and NA from dord), and the save text says that
   registers are shared by the computes of a row (the example fetches in one compute what
   another saved).
+
+
+Item 5: reference for SAM, part 1 (31 operators)
+
+  isforward; positions and lengths (ref_len ref_posx ref_posy qry_len qry_posx qry_posy);
+  the trail and matched counts (_N, _V); the CIGAR parts; aln_nmatch aln_nedit
+  aln_nmatchx; qry_seq qry_qual; the reference and read sequence parts; sam_get sam_put.
+  The general rules (orientation, the definition of the trails and the matched part, NA
+  for unmapped records) are given at the first operator of each group. Rules from
+  SAMVIEW.design.txt and step17, step18, step25.
+
+  New data file doc/align.sam (against transgene.fa): read1 of reads.sam with NM and AS
+  tags; a secondary of read1 with SEQ '*' (filled from read1); read2 on the reverse
+  strand with a hard clip and one mismatch; an unmapped read3. 10 examples; every count
+  was checked by hand against the definitions.

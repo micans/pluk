@@ -1316,93 +1316,192 @@ As `edg`, with `$1` `$2` .. and `$0` in s. Example under `edbr`.
 <!-- op isforward -->
 `-` → `B` — 1 if the alignment is on the forward strand, 0 if reverse (FLAG 0x10)
 
+1 if the alignment is on the forward strand, 0 if it is on the reverse strand (FLAG bit 0x10); NA if FLAG is not a number. Like `sam_get`, it works for every record, unmapped ones included. All SAM operators need `--sam` or `--sam-h` (section 10).
+
+```console
+$ pluk -q --sam 1 2 'f::,isforward' < align.sam
+read1	0	1
+read1	256	1
+read2	16	0
+read3	4	1
+```
+
 #### `ref_len`
 <!-- op ref_len -->
 `-` → `n` — Length of the reference sequence (seqlen: @SQ or fasta)
+
+Positions and lengths of the alignment, 1-based and in the orientation of the reference (as SAM's POS), whatever the strand. `ref_len` is the length of the reference sequence, from the `@SQ` header lines or from the fasta of `--sam/FILE`. `ref_posx` and `ref_posy` are the first and last reference positions of the matched part; `qry_len` is the length of the read as the CIGAR gives it (M I S = X), and `qry_posx` `qry_posy` the first and last positions of the matched part in the read. The matched part of a CIGAR is what lies between its 5' trail (the leading run of S H D N I operations) and its 3' trail (the trailing run); it starts and ends with an aligned operation. For an unmapped record, or a CIGAR or POS that is not valid, these values are NA; without a reference length `ref_len` is NA ([SAM-NA.md](SAM-NA.md)).
+
+```console
+$ pluk -q --sam 1 6 'rl::,ref_len' 'rx::,ref_posx' 'ry::,ref_posy' 'ql::,qry_len' 'qx::,qry_posx' 'qy::,qry_posy' < align.sam
+read1	3S22M3I8M3D9M	53	9	50	45	4	45
+read1	20S25M	53	20	44	45	21	45
+read2	2H4S12M3S	53	30	41	19	5	16
+read3	*	NA	NA	NA	NA	NA	NA
+```
 
 #### `ref_posx`
 <!-- op ref_posx -->
 `-` → `p` — First reference position of the matched part (1-based)
 
+The first reference position of the matched part. Example under `ref_len`.
+
 #### `ref_posy`
 <!-- op ref_posy -->
 `-` → `p` — Last reference position of the matched part
+
+The last reference position of the matched part. Example under `ref_len`.
 
 #### `qry_len`
 <!-- op qry_len -->
 `-` → `n` — Query length from the CIGAR (M I S = X)
 
+The length of the read according to the CIGAR (M I S = X; H not counted). Example under `ref_len`.
+
 #### `qry_posx`
 <!-- op qry_posx -->
 `-` → `p` — First query position of the matched part (1-based)
+
+The first position of the matched part in the read. Example under `ref_len`.
 
 #### `qry_posy`
 <!-- op qry_posy -->
 `-` → `p` — Last query position of the matched part
 
+The last position of the matched part in the read. Example under `ref_len`.
+
 #### `ref_trail5p_N`
 <!-- op ref_trail5p_N -->
 `-` → `n` — Reference before the matched part (POS-1 + 5' trail)
+
+How the reference and the read divide into the 5' trail, the matched part and the 3' trail. On the reference: `ref_trail5p_N` is everything before the matched part (POS - 1 plus the reference length of the 5' trail), `ref_matched_N` the matched part, `ref_trail3p_N` the rest of the reference (it needs the reference length); `ref_trail5p_V` and `ref_trail3p_V` are the reference lengths of the trails of the CIGAR alone (what an alignment display shows). On the read: `qry_trail5p_N`, `qry_matched_N` and `qry_trail3p_N` (I S M = X; H not counted).
+
+```console
+$ pluk -q --sam 1 6 'r5::,ref_trail5p_N' 'rm::,ref_matched_N' 'r3::,ref_trail3p_N' 'v5::,ref_trail5p_V' 'v3::,ref_trail3p_V' < align.sam
+read1	3S22M3I8M3D9M	8	42	3	0	0
+read1	20S25M	19	25	9	0	0
+read2	2H4S12M3S	29	12	12	0	0
+read3	*	NA	NA	NA	NA	NA
+$ pluk -q --sam 1 6 'q5::,qry_trail5p_N' 'qm::,qry_matched_N' 'q3::,qry_trail3p_N' < align.sam
+read1	3S22M3I8M3D9M	3	42	0
+read1	20S25M	20	25	0
+read2	2H4S12M3S	4	12	3
+read3	*	NA	NA	NA
+```
 
 #### `ref_matched_N`
 <!-- op ref_matched_N -->
 `-` → `n` — Reference length of the matched part
 
+The reference length of the matched part. Example under `ref_trail5p_N`.
+
 #### `ref_trail3p_N`
 <!-- op ref_trail3p_N -->
 `-` → `n` — Reference after the matched part
+
+The reference after the matched part (needs the reference length). Example under `ref_trail5p_N`.
 
 #### `ref_trail5p_V`
 <!-- op ref_trail5p_V -->
 `-` → `n` — Reference length of the 5' trail of the CIGAR
 
+The reference length of the CIGAR's 5' trail. Example under `ref_trail5p_N`.
+
 #### `ref_trail3p_V`
 <!-- op ref_trail3p_V -->
 `-` → `n` — Reference length of the 3' trail of the CIGAR
+
+The reference length of the CIGAR's 3' trail. Example under `ref_trail5p_N`.
 
 #### `qry_trail5p_N`
 <!-- op qry_trail5p_N -->
 `-` → `n` — Query length of the 5' trail (S I)
 
+The read length of the 5' trail. Example under `ref_trail5p_N`.
+
 #### `qry_matched_N`
 <!-- op qry_matched_N -->
 `-` → `n` — Query length of the matched part
+
+The read length of the matched part. Example under `ref_trail5p_N`.
 
 #### `qry_trail3p_N`
 <!-- op qry_trail3p_N -->
 `-` → `n` — Query length of the 3' trail
 
+The read length of the 3' trail. Example under `ref_trail5p_N`.
+
 #### `aln_trail5p_cgr`
 <!-- op aln_trail5p_cgr -->
 `-` → `c` — The 5' trail of the CIGAR (leading S H D N I)
+
+The three parts of the CIGAR as CIGAR strings: the 5' trail, the matched part and the 3' trail (substrings of the CIGAR as written).
+
+```console
+$ pluk -q --sam 1 6 't5::,aln_trail5p_cgr' 'm::,aln_matched_cgr' 't3::,aln_trail3p_cgr' < align.sam
+read1	3S22M3I8M3D9M	3S	22M3I8M3D9M	
+read1	20S25M	20S	25M	
+read2	2H4S12M3S	2H4S	12M	3S
+read3	*	NA	NA	NA
+```
 
 #### `aln_matched_cgr`
 <!-- op aln_matched_cgr -->
 `-` → `c` — The matched part of the CIGAR
 
+The matched part of the CIGAR. Example under `aln_trail5p_cgr`.
+
 #### `aln_trail3p_cgr`
 <!-- op aln_trail3p_cgr -->
 `-` → `c` — The 3' trail of the CIGAR
+
+The 3' trail of the CIGAR. Example under `aln_trail5p_cgr`.
 
 #### `aln_nmatch`
 <!-- op aln_nmatch -->
 `-` → `n` — M = X length of the matched part
 
+`aln_nmatch` is the number of aligned bases in the matched part (M = X); `aln_nedit` the edit distance from the NM:i tag (0 without one, NA for a value that is not a non-negative integer; it works for every record); `aln_nmatchx` the mismatches, NM minus the deleted and inserted bases of the matched part.
+
+```console
+$ pluk -q --sam 1 6 'n::,aln_nmatch' 'e::,aln_nedit' 'x::,aln_nmatchx' < align.sam
+read1	3S22M3I8M3D9M	39	7	1
+read1	20S25M	25	12	12
+read2	2H4S12M3S	12	1	1
+read3	*	NA	0	NA
+```
+
 #### `aln_nedit`
 <!-- op aln_nedit -->
 `-` → `n` — Edit distance from NM:i (0 without NM)
+
+The edit distance from NM:i. Example under `aln_nmatch`.
 
 #### `aln_nmatchx`
 <!-- op aln_nmatchx -->
 `-` → `n` — NM minus the D and I of the matched part (mismatches)
 
+The number of mismatches: NM minus the D and I of the matched part. Example under `aln_nmatch`.
+
 #### `qry_seq`
 <!-- op qry_seq -->
 `-` → `seq` — Query sequence (SEQ, or filled for SEQ '*'; --sam-seqmiss)
 
+The read's sequence and quality, as stored in SEQ and QUAL (in the orientation of the reference). A SEQ `*`, as aligners write for secondary alignments, is filled from an earlier record of the same read whose part of the read covers it (reverse-complemented when the strands differ, hard clips taken into account); the quality is filled with it. A record that cannot be filled is skipped, or ends the run with `--sam-seqmiss=exit` (section 10). A SEQ or QUAL whose length does not fit the CIGAR gives NA.
+
+```console
+$ pluk -q --sam 1 2 6 's::,qry_seq' 'q::,qry_qual' < align.sam
+read1	0	3S22M3I8M3D9M	CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG	*
+read1	256	20S25M	CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG	*
+read2	16	2H4S12M3S	GGTTGCTAAAGTTCCACCC	IIIIIIIIIIIIIIIIIII
+read3	4	*	ACGTTGCAAGGT	*
+```
+
 #### `qry_qual`
 <!-- op qry_qual -->
 `-` → `qual` — Query quality (QUAL, or filled with the sequence)
+
+The read's quality (QUAL, or filled with the sequence; `*` if absent; with `--sam-qlt-sim` simplified, section 10). Example under `qry_seq`.
 
 #### `aln_ref`
 <!-- op aln_ref -->
@@ -1540,33 +1639,73 @@ As `edg`, with `$1` `$2` .. and `$0` in s. Example under `edbr`.
 <!-- op ref_trail5p -->
 `-` → `seq` — Reference before the matched part (needs --sam/FILE)
 
+The sequences of the three parts. `ref_trail5p`, `ref_matched` and `ref_trail3p` cut the reference (from the fasta of `--sam/FILE`, which they need; a compile-time error without it); `qry_trail5p`, `qry_matched` and `qry_trail3p` cut the read (SEQ, or the filled sequence). A record that is unmapped, or whose matched part runs past the end of the reference, gives NA.
+
+```console
+$ pluk -q --sam/transgene.fa 1 'a::,ref_trail5p' 'b::,ref_matched' 'c::,ref_trail3p' '@@2/none/4' < align.sam
+read1	GATTACAG	GCTTAACGGTACCATGAGCTAGCTAAGGTTCCATGCAATTCG	AGG
+read1	GATTACAGGCTTAACGGTA	CCATGAGCTAGCTAAGGTTCCATGC	AATTCGAGG
+read2	GATTACAGGCTTAACGGTACCATGAGCTA	GCTAAGGTTCCA	TGCAATTCGAGG
+$ pluk -q --sam 1 'a::,qry_trail5p' 'b::,qry_matched' 'c::,qry_trail3p' '@@2/none/4' < align.sam
+read1	CCA	GCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG	
+read1	CCAGCTTAACGGTACAATGA	GCTAGTTTCTAAGGTTTGCAATTCG	
+read2	GGTT	GCTAAAGTTCCA	CCC
+```
+
 #### `ref_matched`
 <!-- op ref_matched -->
 `-` → `seq` — Reference of the matched part (needs --sam/FILE)
+
+The reference sequence of the matched part. Example under `ref_trail5p`.
 
 #### `ref_trail3p`
 <!-- op ref_trail3p -->
 `-` → `seq` — Reference after the matched part (needs --sam/FILE)
 
+The reference after the matched part. Example under `ref_trail5p`.
+
 #### `qry_trail5p`
 <!-- op qry_trail5p -->
 `-` → `seq` — Query sequence of the 5' trail
+
+The read's sequence of the 5' trail. Example under `ref_trail5p`.
 
 #### `qry_matched`
 <!-- op qry_matched -->
 `-` → `seq` — Query sequence of the matched part
 
+The read's sequence of the matched part. Example under `ref_trail5p`.
+
 #### `qry_trail3p`
 <!-- op qry_trail3p -->
 `-` → `seq` — Query sequence of the 3' trail
+
+The read's sequence of the 3' trail. Example under `ref_trail5p`.
 
 #### `sam_put`
 <!-- op sam_put -->
 `tag val` → `-` — Put tag:val in the optional fields (column 12; replaces the same tag)
 
+Puts tag:val into the optional fields (column 12), replacing the same tag. Example under `sam_get`.
+
 #### `sam_get`
 <!-- op sam_get -->
 `tag def` → `value` — Value of optional field tag (XX:T, XX.T, XX-T), def if absent
+
+`sam_get` gives the value of the first optional field with tag and type XX:T, or def if there is none. `sam_put` puts XX:T:val into the optional fields (column 12, which `--sam` makes hold them all), after the computes: a tag already there is replaced (counted, with a message for the first few rows), else the field is appended. The tag must be a constant, written XX.T or XX-T in a compute (':' separates the parts of a compute); T is one of A i f Z H B. sam_put checks the value against its type and does not put a value that is NA, contains a TAB or newline, or does not fit the type (counted). `sam_put` pushes nothing; its compute is normally hidden (`:=`).
+
+```console
+$ pluk -q --sam 1 'n::^NM.i^0,sam_get' 'a::^AS.i^none,sam_get' < align.sam
+read1	7	30
+read1	12	none
+read2	1	none
+read3	0	none
+$ pluk -q --sam 1 12 't:=^XP.i:4,sam_put' 'u:=^NM.i^0,sam_get,incr^NM.i,xch,sam_put' < align.sam
+read1	NM:i:8	AS:i:30	XP:i:9
+read1	NM:i:13	XP:i:20
+read2	NM:i:2	XP:i:30
+read3	XP:i:0	NM:i:1
+```
 
 ### bio
 
