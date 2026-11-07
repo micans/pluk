@@ -342,6 +342,10 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "B seq", result: "forward", doc: "seq if B is true, else rc(seq)", fun: op_forward },
     OpDef { name: "todna",  pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Bio,
             operands: "x", result: "x'", doc: "DNA letters: uU to tT, other letters n N, other bytes N", fun: op_todna },
+    OpDef { name: "dnatl",  pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Bio,
+            operands: "x f", result: "protein", doc: "DNA (or RNA) x translated from offset f (stop *, unknown ?, rest {..})", fun: op_dnatl },
+    OpDef { name: "dnagc",  pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Bio,
+            operands: "x N", result: "gc(x)", doc: "Percentage G C among the A C G T U of x, N decimals (none: NA)", fun: op_dnagc },
     OpDef { name: "map",    pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
             operands: "x D", result: "map-of-x", doc: "Value of x in dictionary D (not found: as D's default)", fun: op_map },
     OpDef { name: "dord",   pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
@@ -1450,6 +1454,45 @@ fn bio_unary(m: &mut Machine, row: &Row, f: fn(&[u8]) -> Vec<u8>) {
 
 fn op_rc(m: &mut Machine, row: &Row, _: &Attached) { bio_unary(m, row, crate::bio::reverse_complement) }
 fn op_todna(m: &mut Machine, row: &Row, _: &Attached) { bio_unary(m, row, crate::bio::todna) }
+
+// dnatl x f: f a non-negative integer, else NA.
+fn op_dnatl(m: &mut Machine, row: &Row, _: &Attached) {
+    let f = m.pop();
+    let x = m.pop();
+    let frame = match m.num(&f, row) {
+        Some(Num::I(k)) if k >= 0 => usize::try_from(k).ok(),
+        _ => None,
+    };
+    let value = match (frame, &x) {
+        (Some(f), x) if !matches!(x, Value::Na) => Value::Bytes(crate::bio::translate(&m.bytes(x, row), f)),
+        _ => Value::Na,
+    };
+    m.push(value);
+}
+
+// dnagc x N: 100 * (G C) / (A C G T U), with N decimals as pct (0..MAX_DIGITS, else
+// NA); NA without any of those bases.
+fn op_dnagc(m: &mut Machine, row: &Row, _: &Attached) {
+    let n = m.pop();
+    let x = m.pop();
+    let digits = match m.num(&n, row) {
+        Some(Num::I(d)) if (0..=MAX_DIGITS).contains(&d) => Some(d as usize),
+        _ => None,
+    };
+    let counts = match &x {
+        Value::Na => None,
+        x => Some(crate::bio::gc_counts(&m.bytes(x, row))).filter(|&(_, all)| all > 0),
+    };
+    let value = match (digits, counts) {
+        (Some(d), Some((gc, all))) => {
+            let mut text = Vec::new();
+            num::write_fixed(&mut text, gc as f64 * 100.0 / all as f64, d, false, m.perl());
+            Value::Bytes(text)
+        }
+        _ => Value::Na,
+    };
+    m.push(value);
+}
 
 // forward B seq: seq if B is true (as ifelse), else its reverse complement.
 fn op_forward(m: &mut Machine, row: &Row, _: &Attached) {

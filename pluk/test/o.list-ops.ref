@@ -172,6 +172,8 @@ sam_get       tag def     value               Value of optional field tag (XX:T,
 rc            x           rc(x)               Reverse complement (IUPAC codes complemented, U as A) [bio]
 forward       B seq       forward             seq if B is true, else rc(seq) [bio]
 todna         x           x'                  DNA letters: uU to tT, other letters n N, other bytes N [bio]
+dnatl         x f         protein             DNA (or RNA) x translated from offset f (stop *, unknown ?, rest {..}) [bio]
+dnagc         x N         gc(x)               Percentage G C among the A C G T U of x, N decimals (none: NA) [bio]
 /lt/          x y         x < y               Numeric less than [filter]
 /le/          x y         x <= y              Numeric less than or equal [filter]
 /eq/          x y         x == y              Numeric equal [filter]

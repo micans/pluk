@@ -38,3 +38,25 @@ Item 1: src/bio.rs, rc forward todna
   Tests: bio-transform (rc todna forward on constants and columns, NA operands within a
   compute, isforward,qry_seq,forward on both SAM files, rc,rc identity, -l bio). Unit tests
   in bio.rs (revcomp, dna). list-ops and sam-rbt-edge refs (the category list).
+
+
+Item 2: dnatl dnagc
+
+  bio.rs: translate(seq, frame) and gc_counts(seq). The genetic code is the 64-letter
+  string of NCBI table 1 in the order T C A G (index 16 i + 4 j + k), which is pick's
+  table written compactly; a unit test translates all 64 codons and compares with the
+  string. Bases are upper-cased and U is read as T before the codons are looked up; the
+  {..} remainder shows them in that form (pick: upper-cased only).
+
+  ops.rs: dnatl pops f and x (f a non-negative integer, else NA); dnagc pops N and x and
+  writes 100 * GC / (A C G T U) with num::write_fixed and the digit limit of pct
+  (MAX_DIGITS), so the rounding and --num-perl behaviour are those of pct.
+
+  Checked against pick: dnatl in frames 0..3 and dnagc on the ref3.fa sequences, and both
+  on every qry_seq of qry3mm.sam: identical. Synthetic sequences: identical apart from the
+  decided differences (U in dnatl; N, X and gaps not in the dnagc denominator; NA for a
+  sequence without A C G T U, where pick gives 0.00).
+
+  Tests: bio-stats (synthetic sequences in several frames and digits, operand errors and
+  NA operands, the ref3.fa sequences, the SAM query sequences with forward). Unit tests
+  translation, gc. list-ops and bio-transform refs.
