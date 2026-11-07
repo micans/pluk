@@ -364,6 +364,7 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	{ for a in --progress=2/3 --progress=5/0 '--progress=2/3 @fib/gt/30' '--progress=4/1 -c' '--progress=13/1' '--progress=1/0 -h @fib/gt/1000'; do echo "== $$a"; $(p) $$a name < data.txt 2>&1 > /dev/null; done; $(p) --progress name < data.txt 2>&1 > /dev/null | od -c | head -n 2; } > o.progress.test
 	{ for a in --A=nosuch --A= '--A=fib -x name' '--A=x' '--idx-list -c' '--idx-list --demux=fx' '--name-list --other=out/o' '--idx-map --assert-other=out/a' '--idx-list --name-list' --progress=0/1 --progress=3 --progress=3/ --progress=/3 --progress=a/b; do $(p) $$a name 'x::fib' < data.txt; echo "exit $$?"; done; } > o.opts-edge.test 2>&1
 	{ $(p) -l; $(p) -l bit,time md5; $(p) -k -l filter; $(p) -l eq isin; $(p) -l -h; echo "exit $$?"; $(p) -l nosuch,zz; echo "exit $$?"; $(p) -l | head -n 1; } > o.list-ops.test 2>&1
+	{ $(p) --list-ops-tsv < /dev/null; $(p) --list-ops-tsv < /dev/null | awk -F'\t' 'NF != 5' | wc -l; $(p) --list-ops-tsv < /dev/null | wc -l; $(p) -l < /dev/null | grep -c '\[.*\]$$'; } > o.list-ops-tsv.test 2>&1
 	{ $(p) -kl; echo "exit $$?"; $(p) -ll; echo "exit $$?"; $(p) name -l < data.txt; echo "exit $$?"; } > o.list-errors.test 2>&1
 	{ $(p) -zzz a; echo "exit $$?"; $(p) -kz a; echo "exit $$?"; $(p) name -z < data.txt; echo "exit $$?"; } > o.z-errors.test 2>&1
 	seq 1 1000000 > seq.tmp; $(p) --test-lineno < seq.tmp | head -n 2 > o.brokenpipe.test; [ $${PIPESTATUS[0]} -eq 0 ]; rm seq.tmp

@@ -193,6 +193,8 @@ Dictionaries (NAME: letters, digits, _; used by ~isin~ ~hasval~ map dord):
   -z ARG..    write the %-encoding of each ARG (on one line); no ARG: a table
   -zz ARG..   write the %-decoding of each ARG (one per line)
   -H, --help  print this help
+  --list-ops-tsv  all operators (compute and filter), one per line, tab-separated:
+              name, category, operands, result, description (for scripts)
   --version   print the version
 
 Short options combine, e.g. -kO12/^#. Options take effect from left to right.

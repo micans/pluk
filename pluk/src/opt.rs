@@ -95,6 +95,7 @@ pub enum Parsed {
     Encode(Vec<Vec<u8>>),
     Decode(Vec<Vec<u8>>),
     List(Vec<Vec<u8>>),
+    ListTsv,        // --list-ops-tsv (plan/MANUAL.design.txt section 3)
 }
 
 pub fn parse_args() -> Config {
@@ -114,6 +115,7 @@ pub fn parse_args() -> Config {
             write_list(&encoded, b" ");
         }
         Ok(Parsed::List(words)) => process::exit(crate::list::run(&words)),
+        Ok(Parsed::ListTsv) => process::exit(crate::list::tsv()),
         Ok(Parsed::Decode(words)) => {
             let decoded: Vec<Vec<u8>> = words.iter().map(|w| pct_decode(w)).collect();
             write_list(&decoded, b"\n");
@@ -322,6 +324,8 @@ Dictionaries (NAME: letters, digits, _; used by ~isin~ ~hasval~ map dord):
   -z ARG..    write the %-encoding of each ARG (on one line); no ARG: a table
   -zz ARG..   write the %-decoding of each ARG (one per line)
   -H, --help  print this help
+  --list-ops-tsv  all operators (compute and filter), one per line, tab-separated:
+              name, category, operands, result, description (for scripts)
   --version   print the version
 
 Short options combine, e.g. -kO12/^#. Options take effect from left to right.
@@ -438,6 +442,7 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
     match long {
         b"help"    => return Ok(Some(Parsed::Help)),
         b"version" => return Ok(Some(Parsed::Version)),
+        b"list-ops-tsv" => return Ok(Some(Parsed::ListTsv)),
         // --sam and --sam-h imply -k and -O12; a later -O overrides.
         b"sam"   => set_sam(config, false),
         b"sam-h" => set_sam(config, true),

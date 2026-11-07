@@ -106,6 +106,24 @@ fn category_names() -> String {
     names.join(" ")
 }
 
+// --list-ops-tsv (plan/MANUAL.design.txt section 3): every operator, in -l order, as
+// name, category, operands, result and description separated by TABs, for scripts (the
+// documentation checker). The exit status.
+pub fn tsv() -> i32 {
+    let mut text = String::new();
+    for l in lines() {
+        text.push_str(&format!("{}\t{}\t{}\t{}\t{}\n", l.name, l.category, l.operands, l.result, l.doc));
+    }
+    let mut out = std::io::stdout().lock();
+    match out.write_all(text.as_bytes()).and_then(|_| out.flush()) {
+        Err(e) if e.kind() != std::io::ErrorKind::BrokenPipe => {
+            eprintln!("pluk: {}", e);
+            1
+        }
+        _ => 0,
+    }
+}
+
 // The listing for the words after -l; the exit status (1: nothing matches).
 pub fn run(words: &[Vec<u8>]) -> i32 {
     let terms: Vec<String> = words.iter()
@@ -140,6 +158,16 @@ mod tests {
     fn names(terms: &[&str]) -> Vec<&'static str> {
         let terms: Vec<String> = terms.iter().map(|t| t.to_string()).collect();
         lines().into_iter().filter(|l| selected(l, &terms)).map(|l| l.name).collect()
+    }
+
+    #[test]
+    fn tsv_fields() {
+        // No field of the listing contains a TAB or a newline, so every line has five.
+        for l in lines() {
+            for f in [l.name, l.category, l.operands, l.result, l.doc] {
+                assert!(!f.contains('\t') && !f.contains('\n'), "{}", l.name);
+            }
+        }
     }
 
     #[test]

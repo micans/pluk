@@ -1,0 +1,221 @@
+dup	stack	x	x x	Duplicate top entry x
+pop	stack	x	-	Remove top entry x from stack
+xch	stack	x y	y x	Exchange x and y
+cat	string	x y	xy	Concatenation of x and y
+len	string	x	len(x)	Length of string x (bytes)
+lc	string	x	lc(x)	Lower case of x (ASCII)
+uc	string	x	uc(x)	Upper case of x (ASCII)
+rev	string	x	rev(x)	String reverse of x (bytes)
+rot13	string	x	rot13(x)	Rot13 encoding of x
+substr	string	x i k	x[i:i+k-1]	Substring of x starting at i (zero-based) of length k (as Perl)
+head	string	x k	x[0:k-1]	Initial part of string x, of length k [head,tail,skip,shed]
+tail	string	x k	x[#x-k:#x-1]	Trailing part of string x, of length k [head,tail,skip,shed]
+skip	string	x k	x[k:#x-1]	Trailing part of string x, skipping first k [head,tail,skip,shed]
+shed	string	x k	x[0:#x-k-1]	Leading part of string x, shedding last k [head,tail,skip,shed]
+strim	string	s nx ny	s'	Trim nx bytes from the start and ny from the end of s
+ppl	string	x N	x'	x right-padded with blanks to width N (left-aligned)
+ppr	string	x N	x'	x left-padded with blanks to width N (right-aligned)
+zp	string	x N	x'	x left zero-padded to width N
+nchar	string	x c	nc	Number of occurrences of c in x (non-overlapping)
+catall	string	*	Stack-joined	Stringified stack
+joinall	string	* s	Stack-joined-by-s	Stringified stack with s as separator
+join	string	x y j	xjy	Join two elements with string separator
+uie	string	x y	x-or-y	Use x if not empty (and not NA), otherwise use y
+urlec	string	x	urlec(x)	URL encoding of x (all but A-Z a-z 0-9 _ as %XX)
+urldc	string	x	urldc(x)	URL decoding of x (%XX)
+cgsum	string	c s	Sum of s in c	Sum of the lengths of the s operations in CIGAR c
+cgmax	string	c s	Max of s in c	Largest length of an s operation in CIGAR c
+cgcount	string	c s	Count of s in c	Number of s operations in CIGAR c
+md5	string	x	md5(x)	MD5 sum of x (hexadecimal)
+fmtall	string	f *	Map-*-into-f	In f replace # instances by stack (\# is a literal #)
+add	arithmetic	x y	x+y	Add x and y
+sub	arithmetic	x y	x-y	Subtract y from x
+mul	arithmetic	x y	x*y	Multiply x and y
+div	arithmetic	x y	x/y	Division (a float; by zero: inf or nan)
+idiv	arithmetic	x y	x // y	Integer division, floored (by zero: NA)
+mod	arithmetic	x y	x mod y	x modulo y, sign of y (by zero: NA)
+pow	arithmetic	x y	x**y	x raised to power y
+ipow	arithmetic	x y	x**y	x raised to power y in integers (negative y as pow; overflow: NA)
+max	arithmetic	x y	max(x,y)	Maximum of x and y
+min	arithmetic	x y	min(x,y)	Minimum of x and y
+neg	arithmetic	x	-x	The sign-reversed value of x
+abs	arithmetic	x	abs(x)	Absolute value of x
+sign	arithmetic	x	sign(x)	The sign of x (-1, 0 or 1)
+sq	arithmetic	x	x^2	Square of x
+incr	arithmetic	x	x++	x incremented by one
+decr	arithmetic	x	x--	x decremented by one
+rand	arithmetic	x	rand(x)	Random real in range [0, x) (x 0: [0, 1); see --seed)
+addall	arithmetic	*	sum(Stack)	Sum of all entries in stack
+mulall	arithmetic	*	product(Stack)	Product of all entries in stack
+maxall	arithmetic	*	max(Stack)	Max over all entries in stack
+minall	arithmetic	*	min(Stack)	Min over all entries in stack
+meanall	arithmetic	*	mean(Stack)	Mean of all entries in stack
+hmeanall	arithmetic	*	hmean(Stack)	Harmonic mean of the absolute values in stack
+gmeanall	arithmetic	*	gmean(Stack)	Geometric mean of the absolute values in stack
+int	math	x	int(x)	x truncated towards zero (do not use for rounding)
+floor	math	x	floor(x)	The floor of x
+ceil	math	x	ceil(x)	The ceil of x
+round	math	x	round(x)	The integer nearest to x, halves to even (2.5 -> 2, 3.5 -> 4)
+qnl	math	x Q	q(x)	Normalised quantile of x, lower tail: (#steps <= x, plus 1)/(n+1) (--quant-Q)
+qnu	math	x Q	q(x)	Normalised quantile of x, upper tail: (#steps >= x, plus 1)/(n+1)
+sqrt	math	x	sqrt(x)	Square root of x
+exp	math	x	e**x	Exponential function applied to x
+exp2	math	x	2^x	2 to the power of x
+exp10	math	x	10^x	10 to the power of x
+log	math	x	log(x)	Natural logarithm of x
+log2	math	x	log2(x)	Logarithm of x in base 2
+log10	math	x	log10(x)	Logarithm of x in base 10
+sin	math	x	sin(x)	Sine of x
+cos	math	x	cos(x)	Cosine of x
+tan	math	x	tan(x)	Tangent of x
+dd	precision	x N	x'	x written with N decimal digits
+sn	precision	x N	x'	x in scientific notation with N decimal digits
+frac	precision	x y N	x/y	Fraction x/y with N decimal digits
+pct	precision	x y N	pct(x/y)	Percentage of x relative to y with N decimal digits
+pml	precision	x y N	pml(x/y)	Per mille of x relative to y with N decimal digits
+map	dictionary	x D	map-of-x	Value of x in dictionary D (not found: as D's default)
+dord	dictionary	x D	ord-of-x	Order of x in dictionary D (first appearance, 1-based; NA if absent)
+ifelse	branch	B x y	x or y	If B put x else put y (B: a non-zero number, or a non-empty string)
+test	branch	x y T	B	Test T applied to x y: 1 or 0 (T a filter operator: /gt/ ~eq~ ~ ~isin~ ...)
+save	state	x n	x	Store x in register n (per row), x stays
+fetch	state	n	reg(n)	Value in register n (stored earlier in this row)
+pload	state	c	prev(c)	Column c of the previous row (--pstore; c a constant name)
+groupi	state	-	i	Position of the row in its group (2 for the first output; --group)
+groupno	state	-	g	Number of the row's group (1-based; --group)
+rowno	state	-	x	Current table row number (start one)
+r0wno	state	-	x	Current table row number (start zero)
+lineno	state	-	x	Current input line number
+now	time	-	t	Current epoch (unix seconds)
+ttu	time	tu	s	Time unit (3h, 1.5d; units s m h d w y) in seconds
+rttu	time	s	tu	Integer seconds as days, hours, minutes, seconds (1d,2h,3m,4s)
+todate	time	u	date	Epoch as local date and time (%Y-%m-%d-%H-%M-%S)
+bitand	bit	x y	x and y	Bitwise and of |x| and |y|
+bitor	bit	x y	x or y	Bitwise or of |x| and |y|
+bitxor	bit	x y	x xor y	Bitwise exclusive or of |x| and |y|
+bitoff	bit	x y	x rm y	Remove the bits of |y| from |x|
+bitlsh	bit	x y	x << y	Shift |x| left by |y| (overflow: NA)
+bitrsh	bit	x y	x >> y	Shift |x| right by |y|
+tobin	radix	x	x'	Binary representation of x (negative: -101)
+tohex	radix	x	x'	Hex representation of x (negative: -ff)
+tooct	radix	x	x'	Octal representation of x (negative: -17)
+binto	radix	x	x'	Read binary representation x (optional - and 0b)
+hexto	radix	x	x'	Read hex representation x (optional - and 0x)
+octto	radix	x	x'	Read octal representation x (optional - and 0o)
+del	regex	x p	x =~ s/p//	Delete pattern p in x
+delg	regex	x p	x =~ s/p//g	Globally delete pattern p in x
+ed	regex	x p s	x =~ s/p/s/	Substitute pattern p by s in x (s literal)
+edg	regex	x p s	x =~ s/p/s/g	Globally substitute pattern p by s in x (s literal)
+get	regex	x p	p-match-of-x	Group 1 of the match of p in x, or the entire match; empty if no match
+npat	regex	x p	np	Number of (non-overlapping) matches of p in x
+edbr	regex	x p s	x =~ s/p/s/	As ed, $1 $2 .. (groups) and $0 (match) in s
+edgbr	regex	x p s	x =~ s/p/s/g	As edg, $1 $2 .. (groups) and $0 (match) in s
+isforward	sam	-	B	1 if the alignment is on the forward strand, 0 if reverse (FLAG 0x10)
+ref_len	sam	-	n	Length of the reference sequence (seqlen: @SQ or fasta)
+ref_posx	sam	-	p	First reference position of the matched part (1-based)
+ref_posy	sam	-	p	Last reference position of the matched part
+qry_len	sam	-	n	Query length from the CIGAR (M I S = X)
+qry_posx	sam	-	p	First query position of the matched part (1-based)
+qry_posy	sam	-	p	Last query position of the matched part
+ref_trail5p_N	sam	-	n	Reference before the matched part (POS-1 + 5' trail)
+ref_matched_N	sam	-	n	Reference length of the matched part
+ref_trail3p_N	sam	-	n	Reference after the matched part
+ref_trail5p_V	sam	-	n	Reference length of the 5' trail of the CIGAR
+ref_trail3p_V	sam	-	n	Reference length of the 3' trail of the CIGAR
+qry_trail5p_N	sam	-	n	Query length of the 5' trail (S I)
+qry_matched_N	sam	-	n	Query length of the matched part
+qry_trail3p_N	sam	-	n	Query length of the 3' trail
+aln_trail5p_cgr	sam	-	c	The 5' trail of the CIGAR (leading S H D N I)
+aln_matched_cgr	sam	-	c	The matched part of the CIGAR
+aln_trail3p_cgr	sam	-	c	The 3' trail of the CIGAR
+aln_nmatch	sam	-	n	M = X length of the matched part
+aln_nedit	sam	-	n	Edit distance from NM:i (0 without NM)
+aln_nmatchx	sam	-	n	NM minus the D and I of the matched part (mismatches)
+qry_seq	sam	-	seq	Query sequence (SEQ, or filled for SEQ '*'; --sam-seqmiss)
+qry_qual	sam	-	qual	Query quality (QUAL, or filled with the sequence)
+aln_ref	sam	-	aln	Alignment: reference line (needs --sam/FILE)
+aln_aln	sam	-	aln	Alignment: match line (| x ~ - = _ `)
+aln_qry	sam	-	aln	Alignment: query line
+aln_rlr	sam	-	aln	Alignment: ruler with reference positions
+aln_qlt	sam	-	aln	Alignment: query quality line
+aln_all	sam	-	aln	Alignment: ruler, reference, match, query lines
+aln_allq	sam	-	aln	Alignment: as aln_all, with the quality line
+aln_all_pack	sam	-	aln	Alignment: as aln_all, lines joined by byte 0x01
+aln_nedit_pia	sam	-	n	Edits in aln_aln, intron aware (x - ~)
+aln_nedit_piu	sam	-	n	Edits in aln_aln, intron unaware (x - ~ =)
+aln_posinfo	sam	n	info	Mismatch and indel positions; indel sequences up to length n (0: all)
+patchiness	sam	s d	score	Largest penalty sum of runs in alignment string s within window d
+patchiness2	sam	s d	score	As patchiness; the window counts aligned columns only
+sam_rbt	sam	x y	-	Set the rbt region to reference positions x..y (for the rbt_ operators)
+rbt_refx	sam	-	p	rbt: first reference position (region clipped to the matched part)
+rbt_refy	sam	-	p	rbt: last reference position
+rbt_dx	sam	-	n	rbt: positions cut off at the start (rbt_refx - x)
+rbt_dy	sam	-	n	rbt: positions cut off at the end (y - rbt_refy)
+rbt_qryx	sam	-	p	rbt: first query position
+rbt_qryy	sam	-	p	rbt: last query position
+rbt_qrylen	sam	-	n	rbt: query length
+rbt_qry	sam	-	seq	rbt: query sequence
+rbt_nmatch	sam	-	n	rbt: aligned bases (| x)
+rbt_nmatchx	sam	-	n	rbt: mismatched aligned bases (x)
+rbt_ndel	sam	-	n	rbt: deleted bases (-)
+rbt_nins	sam	-	n	rbt: inserted bases (~)
+rbt_nedit	sam	-	n	rbt: edits (- ~ x)
+rbt_alnref	sam	-	aln	rbt: the region's columns of aln_ref
+rbt_alnaln	sam	-	aln	rbt: the region's columns of aln_aln
+rbt_alnqry	sam	-	aln	rbt: the region's columns of aln_qry
+rbt_alnrlr	sam	-	aln	rbt: the region's columns of aln_rlr
+rbt_alnqlt	sam	-	aln	rbt: the region's columns of aln_qlt
+rbt_alnall	sam	-	aln	rbt: ruler, reference, match, query, quality lines of the region
+ref_trail5p	sam	-	seq	Reference before the matched part (needs --sam/FILE)
+ref_matched	sam	-	seq	Reference of the matched part (needs --sam/FILE)
+ref_trail3p	sam	-	seq	Reference after the matched part (needs --sam/FILE)
+qry_trail5p	sam	-	seq	Query sequence of the 5' trail
+qry_matched	sam	-	seq	Query sequence of the matched part
+qry_trail3p	sam	-	seq	Query sequence of the 3' trail
+sam_put	sam	tag val	-	Put tag:val in the optional fields (column 12; replaces the same tag)
+sam_get	sam	tag def	value	Value of optional field tag (XX:T, XX.T, XX-T), def if absent
+rc	bio	x	rc(x)	Reverse complement (IUPAC codes complemented, U as A)
+forward	bio	B seq	forward	seq if B is true, else rc(seq)
+todna	bio	x	x'	DNA letters: uU to tT, other letters n N, other bytes N
+dnatl	bio	x f	protein	DNA (or RNA) x translated from offset f (stop *, unknown ?, rest {..})
+dnagc	bio	x N	gc(x)	Percentage G C among the A C G T U of x, N decimals (none: NA)
+fasta	bio	i s	fasta	FASTA record: >i newline s
+fastq	bio	i s	fastq	FASTQ record of i and s, quality Z for every base
+fastQ	bio	i s q	fastq	FASTQ record of i, s and quality q (q * gives Z; other length: NA)
+strpair	bio	x y	pair(x,y)	Per position | where x and y are equal, x where not (shorter length)
+/lt/	filter	x y	x < y	Numeric less than
+/le/	filter	x y	x <= y	Numeric less than or equal
+/eq/	filter	x y	x == y	Numeric equal
+/ge/	filter	x y	x >= y	Numeric greater than or equal
+/gt/	filter	x y	x > y	Numeric greater than
+/ne/	filter	x y	x != y	Numeric not equal
+~lt~	filter	x y	x lt y	String (byte) less than
+~le~	filter	x y	x le y	String (byte) less than or equal
+~eq~	filter	x y	x eq y	String equal
+~ge~	filter	x y	x ge y	String (byte) greater than or equal
+~gt~	filter	x y	x gt y	String (byte) greater than
+~ne~	filter	x y	x ne y	String not equal
+=	filter	x y	x eq y	String equal
+/=	filter	x y	x ne y	String not equal
+~	filter	x p	x =~ p	Regex p matches x (:NAME: a fixed string)
+/~	filter	x p	x !~ p	Regex p does not match x
+~isin~	filter	x D	x in D	x is a key of dictionary D
+~isnotin~	filter	x D	x not in D	x is not a key of dictionary D
+~hasval~	filter	x D~v	D{x} eq v	x is a key of D with value v (not in test)
+~hasnotval~	filter	x D~v	D{x} ne v	x is not a key of D with value v (not in test)
+~notin~	filter	x D	x not in D	Synonym of ~isnotin~
+~notval~	filter	x D~v	D{x} ne v	Synonym of ~hasnotval~ (not in test)
+/ep/	filter	x y/e	|x-y| <= e	x within e of y (default e 0.0001)
+/epx/	filter	x y/e	|x-y| > e	x not within e of y
+/om/	filter	x y/k	x ~ y	|x| within a factor k of |y| (default k 2)
+/omx/	filter	x y/k	x !~ y	|x| not within a factor k of |y|
+/all/	filter	x m	all m in |x|	All bits of mask m set in |x|
+/any/	filter	x m	any m in |x|	At least one bit of mask m set in |x|
+/notall/	filter	x m	!all m in |x|	Not all bits of mask m set in |x|
+/none/	filter	x m	!any m in |x|	No bit of mask m set in |x|
+/ISINT	filter	x	B	x is an integer (no VALUE; not in test)
+/NOTINT	filter	x	B	x is not an integer (not in test)
+/ISNUM	filter	x	B	x is a number, not nan (not in test)
+/NOTNUM	filter	x	B	x is not a number (not in test)
+0
+218
+218

@@ -1,0 +1,23 @@
+
+Notes for plan/step27.txt (documentation infrastructure; manual skeleton).
+
+
+Planning
+
+  The manual's design was agreed in discussion and written to plan/MANUAL.design.txt
+  (descriptions in the manual's prose with generated signature lines, option A;
+  --list-ops-tsv; tested console examples; Python 3 for the checkers). Decided before
+  starting: the scripts live in pluk/test/; operators without a description are reported
+  only until the reference is written.
+
+
+Item 1: --list-ops-tsv
+
+  opt.rs: Parsed::ListTsv for --list-ops-tsv (an early exit, as -l and --help); help text.
+  list.rs: tsv() writes the same lines as -l (compute operators by category in -l order,
+  then the filter operators, category 'filter'), with the five fields name, category,
+  operands, result, description separated by TABs and no header. A unit test checks that
+  no field contains a TAB or newline, so every line has exactly five fields.
+
+  Tests: list-ops-tsv (the listing, the count of lines with another number of fields (0),
+  the number of lines against the number of operator lines of -l). help refs.

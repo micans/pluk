@@ -1,0 +1,83 @@
+
+MANUAL design: the pluk documentation, its structure, and how it is kept true to the code.
+
+Status: DECIDED (discussions after step26; seed plan/MANUAL.notes.txt).
+
+
+1. Documents
+
+   pluk/doc/INTRODUCTION.md   Introduction to pluk: short, a tour on harvest.txt, then SAM.
+                              Written first (done in draft; the user's voice).
+   pluk/doc/PLUK-MANUAL.md    The user manual, co-authored, in the spirit of pick's manual:
+                              many useful invocations, then the details.
+   pluk/doc/SAM-NA.md         NA in SAM processing.
+   pluk/doc/*.txt *.fa *.sam  The data files the examples use (harvest.txt, transgene.fa,
+                              reads.sam, and more as needed).
+
+   Both INTRODUCTION.md and the manual open with the same preamble (MANUAL.notes.txt
+   section 0): pluk as a reimplementation of pick, the code written by Claude in dialogue
+   with the author of pick, the steps and items, plan/ as the record. No mention of pick's
+   bugs there. The body of the manual describes pluk only and does not compare with pick.
+
+
+2. Manual outline
+
+    1  Introduction (brief; points to INTRODUCTION.md), building pluk (cargo; the int128
+       build), the crates used and why.
+    2  Quick start.
+    3  Concepts: header and rows, names, -k -K, bytes, %-encoding (-z -zz), numbers, NA,
+       messages and exit status, -q.
+    4  Selecting columns.
+    5  Filters and assertions.
+    6  Computes: syntax, the stack language, -i and __, maps, renaming, capture groups.
+    7  Dictionaries and quantiles.
+    8  State across rows: registers, rowno lineno, --pstore, --group.
+    9  Input and output: gzip, -/PAT -//PAT, -h -c -E, --other --assert-other, --demux,
+       --idx-list etc., --progress, --threads.
+   10  SAM and BAM (NA summary, pointer to SAM-NA.md).
+   11  Bio operators.
+   12  Recipes: complex useful patterns, collected as they turn up (not hunted for).
+   13  Messages and reports.
+   14  Differences from pick, the one place where pick is compared:
+         14.1 not taken over; 14.2 additions without a pick counterpart; 14.3 changed
+         behaviour, one flat list per topic in manual order, each entry 'pick: .. / pluk:
+         ..' with a link into the body (source: plan/guidelines.txt, regrouped by topic
+         and checked against the code).
+   15  Operator reference: every operator described (section 3).
+
+   Examples (recipes) live inside the sections, as ```console blocks.
+
+
+3. Operators: every one described, tied to the code (option A)
+
+   The descriptions live in the manual's prose. Each operator has a small heading; under
+   it a generated signature line (operands, result, category, the short description of
+   the operator table), kept in sync by a script, then hand-written text and examples.
+   The script reports operators without a description and descriptions of operators that
+   no longer exist.
+
+   The script reads the operator table from pluk itself: pluk --list-ops-tsv (a permanent
+   option) writes one line per operator, tab-separated: name, category, operands, result,
+   description; compute and filter operators alike.
+
+
+4. Tested examples
+
+   A script extracts every ```console block of the documents, runs each '$ ' command in
+   pluk/doc/ (with pluk on the PATH), and compares:
+   - expected lines starting with 'pluk:' against stderr, all others against stdout (the
+     two streams are matched separately: stdout is buffered, stderr is not, so their order
+     is not fixed; an example may omit stderr altogether);
+   - a line '...' stands for any number of lines;
+   - runs of white space count as one separator, so the documents can align columns
+     while pluk writes TABs;
+   - a command continued with '\' at the end of a line is joined;
+   - a block preceded by <!-- notest --> is not run.
+
+
+5. Tooling
+
+   Python 3 (the first Python dependency of make test). The scripts live in pluk/test/
+   and read the documents in pluk/doc/: one for the operator signatures (check mode for make test, update mode to
+   rewrite the generated lines), one for the examples. Both run as part of make test, so a
+   mismatch between documentation and code fails the suite.
