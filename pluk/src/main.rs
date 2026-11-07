@@ -200,7 +200,8 @@ fn run() -> std::io::Result<()> {
         } else if config.all {
             select::OutputSelection::all(column_args, &computed, insert_offset, &names)
         } else {
-            select::OutputSelection::from_names(column_args, &computed, &names)
+            select::OutputSelection::from_names(column_args, &computed, &names, config.input_order)
+                .map(|s| if config.input_order { s.in_input_order(&names) } else { s })
         };
         result.map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?
     };

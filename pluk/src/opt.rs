@@ -35,6 +35,7 @@ pub struct Config {
     pub quiet: bool,                    // -q: no messages other than errors
     pub add_row_column: bool,           // -R
     pub make_unique: bool,              // -u
+    pub input_order: bool,              // -U: output columns in input order (plan/step24.txt decision 2)
     pub sam: bool,                      // --sam
     pub sam_h: bool,                    // --sam-h
     pub sam_seqmiss_exit: bool,         // --sam-seqmiss=exit (default skip; SAMSEQ.design.txt section 5)
@@ -157,6 +158,9 @@ Options:
   -/<pat>     skip lines matching regular expression <pat>, e.g. -/^#
   -//<pat>    output lines matching <pat> unchanged
   -u          make duplicate input column names unique (suffixes _v02, _v03, ..)
+  -U          output the selected columns in input order (computed columns after
+              them, in the order of the computes); a column given twice is output
+              once, as without -U
   -F          accepted for compatibility with pick; no effect
   -O<N>       ragged input: <N> columns, merge columns at and after <N> (requires -k)
   -R          header has no name for the first (row name) column; it is named _
@@ -712,6 +716,7 @@ fn parse_bundle(chars: &[u8], config: &mut Config) -> Result<(), String> {
             b'i' => config.inplace = true,
             b'R' => config.add_row_column = true,
             b'u' => config.make_unique = true,
+            b'U' => config.input_order = true,
             b'F' => (),     // pick: names are not regexes; pluk: accepted, no effect (COLSPEC.design.txt)
             b'A' => {
                 // Optional attached number, possibly negative: -A, -A4, -A-1.

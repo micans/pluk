@@ -19,9 +19,10 @@ impl OutputSelection {
 
     // Output the named columns and '::' computes, in the given order. A column
     // given more than once is kept once, at its first position; this is reported
-    // on STDERR as pick does. A compute shows its name's final binding
-    // (INPLACE.design.txt section 2), as do names given as column arguments.
-    pub fn from_names(args: &[ColSpec], computed: &[(usize, usize)], names: &ColumnNames)
+    // on STDERR as pick does, unless -U asks for unique columns (quiet). A compute
+    // shows its name's final binding (INPLACE.design.txt section 2), as do names
+    // given as column arguments.
+    pub fn from_names(args: &[ColSpec], computed: &[(usize, usize)], names: &ColumnNames, quiet: bool)
         -> Result<OutputSelection, String>
     {
         let mut wanted = Vec::with_capacity(args.len() + computed.len());
@@ -39,10 +40,24 @@ impl OutputSelection {
                 output_offset.push(i);
             }
         }
-        if have_duplicate {
+        if have_duplicate && !quiet {
             crate::note::note!("-- Identical output column names exist (will make unique)");
         }
         Ok(OutputSelection::from_offsets(output_offset, names))
+    }
+
+    // -U (plan/step24.txt decision 2): the selected columns in input order. A column
+    // that is (the current binding of) an input column sorts by that input position,
+    // a redefined one included; the other computed columns follow in the order of
+    // the computes. With -A and -x the order is the input order already.
+    pub fn in_input_order(self, names: &ColumnNames) -> OutputSelection {
+        let key = |o: usize| match (0..names.n_input()).find(|&j| names.current(j) == o) {
+            Some(j) => (0, j),
+            None => (1, o),
+        };
+        let mut offsets = self.output_offset;
+        offsets.sort_by_key(|&o| key(o));
+        OutputSelection::from_offsets(offsets, names)
     }
 
     // -A: output all input columns, in input order, and the '::' computes that do
