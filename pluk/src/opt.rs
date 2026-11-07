@@ -48,6 +48,7 @@ pub struct Config {
     pub sam_narrow_xy: Option<(u64, u64)>, // --sam-narrow-xy=X,Y (plan/step19.txt decision 4)
     pub sam_nd_adjust: Option<Vec<u8>>, // --sam-ND-adjust=NAME, a dictionary name (decision 5)
     pub sam_rbt: Option<(u64, u64)>,    // --sam-rbt=X,Y (plan/step20.txt decision 7)
+    pub quants: Vec<(Vec<u8>, Vec<u8>)>, // --quant-NAME=FILE: name, file (plan/step24.txt decision 0)
     pub pstore: Option<Pstore>,         // --pstore[/LIST[/DEFAULT]] (plan/step23.txt decision 2)
     pub group: Option<(Vec<u8>, bool)>, // --group=COL (false), --group-first-ref=COL (true) (decision 3)
     pub threads: Option<u32>,           // --threads=N
@@ -205,6 +206,8 @@ Options:
   --idx-list  write the input indexes of the output columns (computed columns
               are numbered after the input columns) and stop after the header
   --name-list write the output column names; --idx-map: index and name per line
+  --quant-NAME=FILE  quantile steps for qnl and qnu: one number per line, in
+              non-decreasing order
   --pstore    keep columns of each row for the next: ^c,pload reads column c of
               the previous row (also computed columns, as computed);
               --pstore/LIST/DEFAULT: LIST k:v,k:v and DEFAULT give the values
@@ -476,6 +479,18 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
                 return Err("--group and --group-first-ref cannot be combined".to_string());
             }
             config.group = Some((pct_decode(col), first));
+        }
+        _ if long.starts_with(b"quant-") => {
+            let rest = &long[6..];
+            let n = rest.iter().take_while(|&&b| b.is_ascii_alphanumeric() || b == b'_').count();
+            if n == 0 || rest.get(n) != Some(&b'=') || n + 1 == rest.len() {
+                return Err("--quant-NAME=FILE: NAME of [A-Za-z0-9_], and a FILE".to_string());
+            }
+            let name = rest[..n].to_vec();
+            if config.quants.iter().any(|(q, _)| *q == name) {
+                return Err(format!("--quant-{}: given twice", String::from_utf8_lossy(&name)));
+            }
+            config.quants.push((name, rest[n + 1..].to_vec()));
         }
         b"pstore" => config.pstore = Some(Pstore::default()),
         _ if long.starts_with(b"pstore/") => config.pstore = Some(parse_pstore(&long[7..])?),

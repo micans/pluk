@@ -56,6 +56,7 @@ pub enum Prepare {
     Pload,          // pload: the column name must be a constant; it gets a slot (step23)
     ConstRegex(usize), // the operand this many places below the top must be a constant;
                        // it is compiled as a regex (del: 0, ed: 1)
+    ConstQuant,     // qnl, qnu: the top operand must be a constant naming a --quant (step24)
     ConstDict(usize),  // the operand this many places below the top must be a constant
                        // naming a dictionary (map, dord: 0)
     Test,              // test: the filter operator and its right-hand side (compute.rs)
@@ -405,6 +406,10 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x", result: "ceil(x)", doc: "The ceil of x", fun: op_ceil },
     OpDef { name: "round",  pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Math,
             operands: "x", result: "round(x)", doc: "The integer nearest to x, halves to even (2.5 -> 2, 3.5 -> 4)", fun: op_round },
+    OpDef { name: "qnl",    pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::ConstQuant, category: Category::Math,
+            operands: "x Q", result: "q(x)", doc: "Normalised quantile of x, lower tail: (#steps <= x, plus 1)/(n+1) (--quant-Q)", fun: op_qnl },
+    OpDef { name: "qnu",    pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::ConstQuant, category: Category::Math,
+            operands: "x Q", result: "q(x)", doc: "Normalised quantile of x, upper tail: (#steps >= x, plus 1)/(n+1)", fun: op_qnu },
     OpDef { name: "sqrt",   pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Math,
             operands: "x", result: "sqrt(x)", doc: "Square root of x", fun: op_sqrt },
     OpDef { name: "exp",    pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Math,
@@ -1149,6 +1154,30 @@ fn op_groupno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.groupno; m.pus
 fn op_rowno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.rowno; m.push(Value::Num(Num::I(n as num::Int))) }
 fn op_r0wno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.rowno; m.push(Value::Num(Num::I(n as num::Int - 1))) }
 fn op_lineno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.lineno; m.push(Value::Num(Num::I(n as num::Int))) }
+
+// qnl and qnu (plan/step24.txt decision 1): the steps are sorted, so the counts come
+// from binary searches (partition_point). x that is not a number (or nan) gives NA.
+fn quantile(m: &mut Machine, row: &Row, a: &Attached, upper: bool) {
+    m.pop();
+    let x = m.pop();
+    let Attached::Quant(q) = a else { unreachable!("qnl and qnu have their steps attached") };
+    let steps = &m.dicts.quant(*q).steps;
+    let value = match m.num(&x, row).filter(|x| !matches!(x, Num::F(f) if f.is_nan())) {
+        None => Value::Na,
+        Some(x) => {
+            let count = if upper {
+                steps.len() - steps.partition_point(|&s| compare(s, x) == Some(Ordering::Less))
+            } else {
+                steps.partition_point(|&s| compare(s, x) != Some(Ordering::Greater))
+            };
+            Value::Num(Num::F((count + 1) as f64 / (steps.len() + 1) as f64))
+        }
+    };
+    m.push(value);
+}
+
+fn op_qnl(m: &mut Machine, row: &Row, a: &Attached) { quantile(m, row, a, false) }
+fn op_qnu(m: &mut Machine, row: &Row, a: &Attached) { quantile(m, row, a, true) }
 
 // Bit operations (plan/step15.txt decision 6; num::bit_op).
 fn op_bitand(m: &mut Machine, row: &Row, _: &Attached) { numeric2(m, row, |a, b| num::bit_op(BitOp::And, a, b)) }

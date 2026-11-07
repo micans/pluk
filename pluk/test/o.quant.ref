@@ -1,0 +1,43 @@
+2	0.1	1
+15	0.2	0.9
+28	0.3	0.8
+41	0.5	0.6
+54	0.6	0.5
+67	0.7	0.4
+80	0.8	0.3
+93	1	0.1
+2	0.1	1
+15	0.2	0.9
+28	0.3	0.8
+4	0.2	1	0.5	1
+5	0.8	1	0.5	1
+6	0.8	0.4	0.5	1
+10	1	0.4	1	0.5
+11	1	0.2	1	0.5
+fox	NA	NA	NA	NA
+-1e9	0.2	1	0.5	1
+pluk: --quant-Q: out/qbad1.txt line 3: [2] is smaller than the step before it
+exit 1
+pluk: --quant-Q: out/qbad2.txt line 2: [] is not a number
+exit 1
+pluk: --quant-Q: out/qbad3.txt has no steps
+exit 1
+pluk: --quant-Q: out/qbad4.txt line 2: [inf] is not a number
+exit 1
+pluk: --quant-Q: cannot read out/nofile: No such file or directory (os error 2)
+exit 1
+--quant-Q: given twice
+exit 1
+--quant-NAME=FILE: NAME of [A-Za-z0-9_], and a FILE
+exit 1
+--quant-NAME=FILE: NAME of [A-Za-z0-9_], and a FILE
+exit 1
+pluk: [a::1^R,qnl]: no --quant-R given
+pluk: [a::1:1,qnl]: the quantile operand of qnl must be a constant (^NAME)
+Operator      Consumed    Produced            Description
+--------------------------------------------------------------------------------
+qnl           x Q         q(x)                Normalised quantile of x, lower tail: (#steps <= x, plus 1)/(n+1) (--quant-Q) [math]
+qnu           x Q         q(x)                Normalised quantile of x, upper tail: (#steps >= x, plus 1)/(n+1) [math]
+
+Use -l TERM.. for a category or the operators whose name contains TERM.
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam bio filter

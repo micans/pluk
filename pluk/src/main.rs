@@ -68,6 +68,14 @@ fn run() -> std::io::Result<()> {
         }
     };
 
+    // --quant-NAME=FILE (plan/step24.txt): read before input, as the dictionaries.
+    for (name, file) in &config.quants {
+        if let Err(msg) = dicts.load_quant(name, file) {
+            eprintln!("pluk: {}", msg);
+            process::exit(1);
+        }
+    }
+
     // --sam-ND-adjust: the intervals per reference, checked before input is read.
     let nd_adjust = match &config.sam_nd_adjust {
         None => None,

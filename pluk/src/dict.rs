@@ -16,6 +16,7 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
 use crate::io::open_buffered;
+use crate::num::Num;
 use crate::opt::pct_decode;
 
 // The dictionary holding the SAM reference sequences (--sam/FILE), named as in pick.
@@ -90,12 +91,63 @@ pub struct Dicts {
     list: Vec<Dict>,
     index: HashMap<Vec<u8>, usize>,
     ordered: HashSet<Vec<u8>>,     // names of the dictionaries that record their order
+    quants: Vec<Quant>,            // --quant-NAME (plan/step24.txt), apart from the dictionaries
+}
+
+// The quantile steps of --quant-NAME=FILE, in non-decreasing order.
+pub struct Quant {
+    pub name:  Vec<u8>,
+    pub steps: Vec<Num>,
 }
 
 impl Dicts {
 
     pub fn new() -> Dicts {
-        Dicts { list: Vec::new(), index: HashMap::new(), ordered: HashSet::new() }
+        Dicts { list: Vec::new(), index: HashMap::new(), ordered: HashSet::new(), quants: Vec::new() }
+    }
+
+    // --quant-NAME=FILE (plan/step24.txt decision 0): one finite number per line, in
+    // non-decreasing order, at least one.
+    pub fn load_quant(&mut self, name: &[u8], source: &[u8]) -> Result<(), String> {
+        let option = format!("--quant-{}", String::from_utf8_lossy(name));
+        let path = Path::new(OsStr::from_bytes(source));
+        let error = |e: io::Error| format!("{}: cannot read {}: {}", option, path.display(), e);
+        let mut reader = open_buffered(File::open(path).map_err(error)?).map_err(error)?;
+        let mut line = Vec::new();
+        let mut steps: Vec<Num> = Vec::new();
+        let mut lineno = 0;
+        while read_line(&mut reader, &mut line).map_err(error)? {
+            lineno += 1;
+            let at = || format!("{}: {} line {}", option, path.display(), lineno);
+            let x = match crate::num::parse_num(&line) {
+                Some(Num::F(f)) if !f.is_finite() => None,
+                x => x,
+            };
+            let Some(x) = x else {
+                return Err(format!("{}: [{}] is not a number", at(), String::from_utf8_lossy(&line)));
+            };
+            if let Some(&prev) = steps.last() {
+                if crate::num::compare(prev, x) == Some(std::cmp::Ordering::Greater) {
+                    return Err(format!("{}: [{}] is smaller than the step before it", at(),
+                                       String::from_utf8_lossy(&line)));
+                }
+            }
+            steps.push(x);
+        }
+        if steps.is_empty() {
+            return Err(format!("{}: {} has no steps", option, path.display()));
+        }
+        self.quants.push(Quant { name: name.to_vec(), steps });
+        Ok(())
+    }
+
+    // The position of the quantile steps called name, for qnl and qnu.
+    pub fn quant_index(&self, name: &[u8]) -> Option<usize> {
+        self.quants.iter().position(|q| q.name == name)
+    }
+
+    pub fn quant(&self, i: usize) -> &Quant {
+        &self.quants[i]
     }
 
     // Read all dictionaries, in the order given. The dictionaries named in ordered

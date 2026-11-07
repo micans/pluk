@@ -1,0 +1,36 @@
+
+Notes for plan/step24.txt (quantiles; -U).
+
+
+Planning
+
+  pick's read_quant, get_quant and get_revquant read; the two binary searches come down
+  to qnl = (#steps <= x, plus 1)/(n+1) and qnu = (#steps >= x, plus 1)/(n+1). Agreed: a
+  repeated --quant-NAME is an error; -U orders by input position with or without a
+  header, computed columns after the input columns.
+
+
+Item 1: --quant-NAME, qnl qnu
+
+  opt.rs: config.quants, a list of (name, file); NAME of [A-Za-z0-9_] as dictionary names;
+  a repeated name is an error.
+
+  dict.rs: Dicts holds the quantile steps too (Quant: name, steps as Num), apart from the
+  dictionaries (their own list, quant_index, quant), because the machine already refers
+  to Dicts; load_quant reads the file with the dictionaries' reader (gzip recognised),
+  parses each line with num::parse_num (integers stay exact; inf and nan refused) and
+  checks the order with num::compare. main.rs loads them right after the dictionaries.
+
+  compute.rs: Prepare::ConstQuant: the top operand must be a constant naming a --quant;
+  Attached::Quant(position). ops.rs: qnl and qnu share quantile(), which counts with
+  partition_point on the sorted steps (the number of steps <= x, or >= x), and pushes a
+  float; x that is not a number, or nan, gives NA.
+
+  Checked against pick: the manual's example (steps from pick's quants script for 1..100
+  in 10) and qnl, qnu on -5..110 in steps of 3 against three step files (the deciles, a
+  file with ties, a single step), with --num-perl: identical. Not compared: x that is not
+  a number (pick: 0).
+
+  Tests: quant (the manual's example, qnu, a gzipped file, ties, one step, below and above
+  all steps, a non-number, file errors, unknown and non-constant Q, -l qn). The step file
+  is written in the test (pick's quants script is not needed). help, list-ops refs.

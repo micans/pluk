@@ -1,0 +1,57 @@
+
+- Quantiles; -U
+
+  plan/remaining.txt A2 and B -U.
+
+    --quant-NAME=FILE   quantile steps for qnl and qnu
+    qnl x Q             normalised quantile of x, lower tail
+    qnu x Q             normalised quantile of x, upper tail
+    -U                  output columns in input order
+
+
+
+  Outcome of the discussion
+
+  Decisions:
+   0. --quant-NAME=FILE (pick): FILE has one number per line, in non-decreasing order
+      (ties allowed), at least one; read before input, gzip recognised as for
+      dictionaries. A line that is not a number (an empty line included), a value out of
+      order, an empty file, or a value that is inf or nan is an error naming the file
+      and line (pick: the same, without the line number). NAME as dictionary names; a
+      repeated --quant-NAME is an error (agreed; pick: the later file replaces the
+      earlier). The steps are kept apart from the dictionaries (pick: %quant).
+
+   1. qnl x Q and qnu x Q, with n steps q1 <= .. <= qn (pick's get_quant and
+      get_revquant, which come down to these formulas):
+        qnl = (number of qi <= x, plus 1) / (n + 1)
+        qnu = (number of qi >= x, plus 1) / (n + 1)
+      both between 1/(n+1) and 1 (pick's manual: the lowest bucket has rank 1, a
+      sentinel step at infinity beyond the last). Category math. The result is a float,
+      written as pluk writes floats (round-trip; --num-perl as pick: 2/11 is
+      0.181818181818182). x that is not a number gives NA (pick: Perl's conversion,
+      'fox' is 0). Q must be a constant naming a --quant (an error before input is read
+      otherwise; pick: an error per row), as the dictionary of map (step15).
+
+   2. -U (pick: 'with -k and -K keep output columns unique and in original order').
+      Output columns are already unique in pluk (a repeated column is output once, with
+      pick's message). -U puts the selected input columns in input order; pick does
+      this by sorting the column names numerically, which is input order with -k and -K
+      and meaningless with a header (Perl warnings, names counted as 0). Agreed: -U
+      orders by input position whatever the names, so it works with a
+      header too (a generalisation); computed columns follow the input columns, in the
+      order of the computes (pick: their non-numeric names sort as 0, before the input
+      columns). With -A and -x the order is the input order already; -U then changes
+      nothing but is accepted.
+
+  Tests: pick's manual example (seq 1 100 through pick's quants script into a file, then
+  seq 2 13 100 with qnl), qnu on the same, ties and values below the first and above the
+  last step, a one-step file, errors (unordered, not a number, empty, unknown Q, Q not a
+  constant, x not a number); -U with -k, -K and a header, with repeated columns, ranges,
+  computes; compared with pick where the behaviour is the same.
+
+
+  Items
+
+  1   --quant-NAME, qnl qnu (decisions 0, 1). Commit.
+
+  2   -U (decision 2). Commit.

@@ -58,6 +58,8 @@ int           x           int(x)              x truncated towards zero (do not u
 floor         x           floor(x)            The floor of x [math]
 ceil          x           ceil(x)             The ceil of x [math]
 round         x           round(x)            The integer nearest to x, halves to even (2.5 -> 2, 3.5 -> 4) [math]
+qnl           x Q         q(x)                Normalised quantile of x, lower tail: (#steps <= x, plus 1)/(n+1) (--quant-Q) [math]
+qnu           x Q         q(x)                Normalised quantile of x, upper tail: (#steps >= x, plus 1)/(n+1) [math]
 sqrt          x           sqrt(x)             Square root of x [math]
 exp           x           e**x                Exponential function applied to x [math]
 exp2          x           2^x                 2 to the power of x [math]

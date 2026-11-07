@@ -167,6 +167,7 @@ pub enum Attached {
     Test(filter::Op, TestRhs),      // test x y T: the filter operator T and how y is used
     Register(usize, Vec<u8>),       // save, fetch: the slot of a constant register name, and the name
     Pload(usize, Vec<u8>),          // pload: the slot of the kept column, and its name (step23)
+    Quant(usize),                   // qnl, qnu: the position of the quantile steps (step24)
     Value(crate::exec::Value),      // ttu: the value of a constant, computed at compile time
 }
 
@@ -310,6 +311,19 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, context: Context, dic
                             Prepare::Nothing => Instr::Op(op),
                             Prepare::ConstRegex(pos) =>
                                 Instr::OpWith(op, Attached::Regex(const_regex(&instrs, &stack, pos, op, &shown)?)),
+                            Prepare::ConstQuant => {
+                                let name = match stack.last() {
+                                    Some(Slot::Const(k)) => match &instrs[*k] {
+                                        Instr::Const(c) => c.clone(),
+                                        _ => unreachable!("Slot::Const refers to a constant"),
+                                    },
+                                    _ => return Err(format!("[{}]: the quantile operand of {} must be a constant (^NAME)",
+                                                            shown, op.name)),
+                                };
+                                let q = dicts.quant_index(&name).ok_or_else(|| format!(
+                                    "[{}]: no --quant-{} given", shown, String::from_utf8_lossy(&name)))?;
+                                Instr::OpWith(op, Attached::Quant(q))
+                            }
                             Prepare::ConstDict(pos) =>
                                 Instr::OpWith(op, Attached::Dict(const_dict(&instrs, &stack, pos, op, dicts, &shown)?)),
                             Prepare::Test => Instr::OpWith(op, prepare_test(&instrs, &stack, dicts, &shown)?),
@@ -578,6 +592,7 @@ pub fn describe_compiled(c: &Compute, names: &ColumnNames) -> String {
             Instr::OpWith(op, Attached::Value(v)) => format!("  op {} (value {:?})\n", op.name, v),
             Instr::OpWith(op, Attached::Register(slot, name)) =>
                 format!("  op {} (register {} slot {})\n", op.name, String::from_utf8_lossy(name), slot),
+            Instr::OpWith(op, Attached::Quant(q)) => format!("  op {} (quant {})\n", op.name, q),
             Instr::OpWith(op, Attached::Pload(slot, name)) =>
                 format!("  op {} (kept column {} slot {})\n", op.name, String::from_utf8_lossy(name), slot),
         };
