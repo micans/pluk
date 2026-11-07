@@ -1,0 +1,45 @@
+
+Notes for plan/step26.txt (renaming computes).
+
+
+Planning
+
+  The extent was judged before starting: the map of step11 already compiles one compute
+  per column; renaming changes the target names and makes __ point at the source column;
+  the keep-original form touches the output selection. The user changed pick's
+  keep-original syntax to P//SPEC//S (symmetric); agreed: exactly three shapes, mixed
+  delimiters (pick's P/SPEC//S) and a two-part keep form refused with hints, the keep
+  form needs '::'; a generated name equal to an existing column always an error; pick's
+  suffix warning kept as a warning.
+
+
+Item 1: NAME shapes, prefix/suffix renaming, keep-original
+
+  compute.rs: parse_name finds the runs of '/' in the raw NAME (a literal '/' is %2F, so
+  every '/' is a delimiter) and accepts one single run (SPEC/S), two single runs
+  (P/SPEC/S) or two double runs (P//SPEC//S); everything else is an error with a hint.
+  P and S are %-decoded; SPEC is parsed as a column specification and always kept as a
+  map, so a single plain name goes through the same per-column loop. ComputeSpec.rename
+  (Rename: prefix, suffix, keep). The suffix warning is given at parse time.
+
+  The per-column loop now produces (target name, source column) pairs: the target is
+  P + name + S (item 2 will put capture group 1 in place of name); two equal targets are
+  an error naming both columns; a target that equals the source name is the in-place
+  case (the -i rule applies; with // an error); any other target that exists already is
+  an error. __ resolves to the source column (before: the target's current binding,
+  which is the same column for a plain map). Compute.keep holds the source column for
+  P//SPEC//S.
+
+  main.rs: the computed list for column arguments (computed_keep) puts the source column
+  just before each new column of a keep compute; -A and -x get the list without them (the
+  originals are output anyway, and an original excluded with -x stays excluded).
+  --test-compute shows the renaming.
+
+  Checked against pick: new_/fib/, /fib/_new, fib/_new, new_/fib/_x, a regex and a list
+  with a prefix: identical; P//SPEC//S against pick's P/SPEC//S for a prefix, a suffix
+  and a list: identical.
+
+  Tests: rename (the pick examples, the keep forms, in place with -i, -A, -x, -A<N>,
+  a %2F prefix, the warning, the errors, --test-compute). compute-parse-errors: the
+  former 'not yet supported' case p/x/s is now valid; p/x//s takes its place. Unit test
+  rename_shapes; errors extended. help refs.

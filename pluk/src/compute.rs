@@ -34,10 +34,22 @@ pub struct ComputeSpec {
     pub text:   Vec<u8>,        // the argument, for messages
     pub name:   Vec<u8>,        // %-decoded; PLUKAAAAA, ... for an unnamed compute; for a map
                                 // the NAME as given
-    pub map:    Option<ColSpec>,// a list, '+' regex or -k range as NAME (INPLACE.design.txt 3)
+    pub map:    Option<ColSpec>,// a list, '+' regex or -k range as NAME (INPLACE.design.txt 3);
+                                // with renaming the SPEC of P/SPEC/S (any column specification)
+    pub rename: Option<Rename>, // P/SPEC/S, SPEC/S, P//SPEC//S (plan/step26.txt)
     pub output: bool,           // '::' (true) or ':=' (false)
     pub tokens: Vec<Token>,
     pub position: usize,        // the number of column arguments before it (output order)
+}
+
+// The renaming of P/SPEC/S, SPEC/S and P//SPEC//S (plan/step26.txt decision 0): the
+// new column of each selected column is prefix + name + suffix; keep: the original is
+// output as well, before it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Rename {
+    pub prefix: Vec<u8>,
+    pub suffix: Vec<u8>,
+    pub keep:   bool,
 }
 
 // Whether an argument is a compute.
@@ -79,14 +91,17 @@ pub fn parse(arg: &[u8], headless: bool, unnamed: &mut UnnamedNames) -> Result<C
         .ok_or_else(|| format!("[{}]: not a compute", shown))?;
     let (raw_name, output, spec) = (&arg[..k], arg[k + 1] == b':', &arg[k + 2..]);
 
-    let (name, map) = if raw_name.is_empty() {
-        (unnamed.next(), None)
+    let (name, map, rename) = if raw_name.is_empty() {
+        (unnamed.next(), None, None)
     } else {
         match parse_name(raw_name, headless).map_err(|e| format!("[{}]: {}", shown, e))? {
-            Some(cs) => (raw_name.to_vec(), Some(cs)),
-            None => (pct_decode(raw_name), None),
+            (Some(cs), rename) => (raw_name.to_vec(), Some(cs), rename),
+            (None, _) => (pct_decode(raw_name), None, None),
         }
     };
+    if rename.as_ref().is_some_and(|r| r.keep) && !output {
+        return Err(format!("[{}]: P//SPEC//S outputs the original columns; it needs '::', not ':='", shown));
+    }
     if spec.is_empty() {
         return Err(format!("[{}]: compute is empty", shown));
     }
@@ -111,7 +126,7 @@ pub fn parse(arg: &[u8], headless: bool, unnamed: &mut UnnamedNames) -> Result<C
         }
         kind = None;
     }
-    Ok(ComputeSpec { text: arg.to_vec(), name, map, output, tokens, position: 0 })
+    Ok(ComputeSpec { text: arg.to_vec(), name, map, rename, output, tokens, position: 0 })
 }
 
 fn token(kind: u8, body: &[u8], headless: bool) -> Result<Token, String> {
@@ -135,17 +150,53 @@ fn token(kind: u8, body: &[u8], headless: bool) -> Result<Token, String> {
     }
 }
 
-// NAME: a single plain name (None), or a list, '+' regex or -k range (a map,
-// INPLACE.design.txt section 3). '/' (pick's prefix/suffix names) is deferred.
-fn parse_name(raw: &[u8], headless: bool) -> Result<Option<ColSpec>, String> {
-    if raw.contains(&b'/') {
-        return Err("prefix/suffix names ('/' in NAME) not yet supported".to_string());
+// NAME: a single plain name (None), a list, '+' regex or -k range (a map,
+// INPLACE.design.txt section 3), or one of the renaming shapes (plan/step26.txt
+// decision 0), whose SPEC is always returned as a map: SPEC/S, P/SPEC/S, P//SPEC//S.
+// Every literal '/' is a delimiter ('/' in a name is written %2F).
+fn parse_name(raw: &[u8], headless: bool) -> Result<(Option<ColSpec>, Option<Rename>), String> {
+    // The runs of '/': (start, length).
+    let mut runs: Vec<(usize, usize)> = Vec::new();
+    let mut i = 0;
+    while i < raw.len() {
+        if raw[i] == b'/' {
+            let n = raw[i..].iter().take_while(|&&b| b == b'/').count();
+            runs.push((i, n));
+            i += n;
+        } else {
+            i += 1;
+        }
     }
-    let cs = colspec::parse(raw, headless)?;
-    Ok(match cs.elements.as_slice() {
-        [Element::Name(_)] => None,
-        _ => Some(cs),
-    })
+    if runs.is_empty() {
+        let cs = colspec::parse(raw, headless)?;
+        return Ok(match cs.elements.as_slice() {
+            [Element::Name(_)] => (None, None),
+            _ => (Some(cs), None),
+        });
+    }
+    if runs.iter().any(|&(_, n)| n > 2) {
+        return Err("'///' in NAME (a literal / is written %2F)".to_string());
+    }
+    let (prefix, spec, suffix, keep) = match runs.as_slice() {
+        [(s, 1)] => (&raw[..0], &raw[..*s], &raw[s + 1..], false),
+        [(_, 2)] => return Err("SPEC//S: the keep-original form is P//SPEC//S (P may be empty: //SPEC//S)".to_string()),
+        [(a, 1), (b, 1)] => (&raw[..*a], &raw[a + 1..*b], &raw[b + 1..], false),
+        [(a, 2), (b, 2)] => (&raw[..*a], &raw[a + 2..*b], &raw[b + 2..], true),
+        [_, _] => return Err("mixed '/' and '//' in NAME: P/SPEC/S, or P//SPEC//S to keep the original \
+                              (pick's P/SPEC//S)".to_string()),
+        _ => return Err("too many '/' delimiters in NAME: SPEC/S, P/SPEC/S or P//SPEC//S \
+                         (a literal / is written %2F)".to_string()),
+    };
+    if spec.is_empty() {
+        return Err("no column specification between the delimiters of NAME".to_string());
+    }
+    // pick: 'did you want SPEC/S/?' (decision 6).
+    if runs.len() == 1 && (suffix.contains(&b':') || suffix.starts_with(b"+")) {
+        crate::note::note!("pluk: the suffix [{}] of {} looks like a column specification; did you want {}/?",
+                           String::from_utf8_lossy(suffix), String::from_utf8_lossy(raw), String::from_utf8_lossy(raw));
+    }
+    let cs = colspec::parse(spec, headless)?;
+    Ok((Some(cs), Some(Rename { prefix: pct_decode(prefix), suffix: pct_decode(suffix), keep })))
 }
 
 // A compiled instruction.
@@ -194,6 +245,7 @@ pub struct Compute {
     pub index:    usize,        // its column index (N + i)
     pub output:   bool,
     pub position: usize,        // as ComputeSpec
+    pub keep:     Option<usize>,// P//SPEC//S: the source column, output before this one (step26)
     pub instrs:   Vec<Instr>,
     pub stack:    Vec<Slot>,    // the static stack at the end, for --test-compute
 }
@@ -229,8 +281,10 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, context: Context, dic
         // A map is one compute per selected column (current bindings), in COLSPEC
         // order, duplicates merged; each is compiled as a single-name compute named
         // after its column, so it sees the applications before it.
-        let targets: Vec<Vec<u8>> = match &spec.map {
-            None => vec![spec.name.clone()],
+        // With renaming (P/SPEC/S, plan/step26.txt) each column gets a new name; the
+        // source column is what __ refers to.
+        let targets: Vec<(Vec<u8>, Option<usize>)> = match &spec.map {
+            None => vec![(spec.name.clone(), None)],
             Some(cs) => {
                 let mut columns: Vec<usize> = Vec::new();
                 for i in cs.expand(&names, "Compute", &format!("compute {}", String::from_utf8_lossy(&spec.name)))? {
@@ -238,10 +292,36 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, context: Context, dic
                         columns.push(i);
                     }
                 }
-                columns.iter().map(|&i| names.name(i).to_vec()).collect()
+                let mut targets: Vec<(Vec<u8>, Option<usize>)> = Vec::with_capacity(columns.len());
+                for &i in &columns {
+                    let source = names.name(i);
+                    let target = match &spec.rename {
+                        None => source.to_vec(),
+                        Some(r) => [&r.prefix[..], source, &r.suffix[..]].concat(),
+                    };
+                    if let Some(r) = &spec.rename {
+                        let t = String::from_utf8_lossy(&target);
+                        if let Some((_, other)) = targets.iter().find(|(n, _)| *n == target) {
+                            return Err(format!("[{}]: columns [{}] and [{}] both get the name [{}]", shown,
+                                               String::from_utf8_lossy(names.name(other.unwrap())),
+                                               String::from_utf8_lossy(source), t));
+                        }
+                        if target == source {
+                            // No renaming (/fib/): in place, as a plain map (decision 4).
+                            if r.keep {
+                                return Err(format!("[{}]: the original and the new column would both be [{}]", shown, t));
+                            }
+                        } else if names.index_of(&target).is_some() {
+                            return Err(format!("[{}]: the new name [{}] (from column [{}]) exists already", shown, t,
+                                               String::from_utf8_lossy(source)));
+                        }
+                    }
+                    targets.push((target, Some(i)));
+                }
+                targets
             }
         };
-        for target in targets {
+        for (target, source) in targets {
             let name = String::from_utf8_lossy(&target);
             if names.index_of(&target).is_some() {
                 if !inplace {
@@ -266,7 +346,7 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, context: Context, dic
                     // __ is the compute's own name, before this compute binds it: the
                     // value being replaced (INPLACE.design.txt section 4). Tested on the
                     // raw text, so %5F%5F is a column called __.
-                    Token::Column(cs) if cs.text == b"__" => match names.index_of(&target) {
+                    Token::Column(cs) if cs.text == b"__" => match source.or_else(|| names.index_of(&target)) {
                         Some(i) => {
                             instrs.push(Instr::Field(i));
                             stack.push(Slot::Column);
@@ -381,8 +461,9 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, context: Context, dic
                 }
             }
             let index = names.push(&target);
+            let keep = source.filter(|_| spec.rename.as_ref().is_some_and(|r| r.keep));
             computes.push(Compute { name: target.clone(), index, output: spec.output, position: spec.position,
-                                    instrs, stack });
+                                    keep, instrs, stack });
         }
     }
     // sam_put with an in-place compute on column 12: the output would show the computed
@@ -627,6 +708,10 @@ pub fn describe(spec: &ComputeSpec) -> String {
     let what = if spec.map.is_some() { "map " } else { "" };
     let mut out = format!("compute {}{} ({})\n", what, String::from_utf8_lossy(&spec.name),
                           if spec.output { "output" } else { "no output" });
+    if let Some(r) = &spec.rename {
+        out.push_str(&format!("  rename prefix [{}] suffix [{}]{}\n", String::from_utf8_lossy(&r.prefix),
+                              String::from_utf8_lossy(&r.suffix), if r.keep { " keep" } else { "" }));
+    }
     for token in &spec.tokens {
         let line = match token {
             Token::Const(c) => format!("  const [{}]\n", String::from_utf8_lossy(c)),
@@ -745,8 +830,24 @@ mod tests {
     }
 
     #[test]
+    fn rename_shapes() {
+        let r = |a: &str| parse1(a).unwrap().rename.map(|r| (String::from_utf8(r.prefix).unwrap(),
+                                                              String::from_utf8(r.suffix).unwrap(), r.keep));
+        let some = |p: &str, s: &str, k: bool| Some((p.to_string(), s.to_string(), k));
+        assert_eq!(r("fib/_new::^1"), some("", "_new", false));
+        assert_eq!(r("new_/fib/::^1"), some("new_", "", false));
+        assert_eq!(r("new_/fib/_x::^1"), some("new_", "_x", false));
+        assert_eq!(r("new_//fib//::^1"), some("new_", "", true));
+        assert_eq!(r("//fib//_new::^1"), some("", "_new", true));
+        assert_eq!(r("a%2Fb/+fi.*/c::^1"), some("a/b", "c", false));
+        assert_eq!(r("fib::^1"), None);
+        assert!(parse1("x/fib:sq/::^1").unwrap().map.is_some());
+    }
+
+    #[test]
     fn errors() {
-        for bad in ["x::", "x::,", "x::^a:", "x::^a,nosuch", "p/x/s::^1", "x::+(a", "+(::^1"] {
+        for bad in ["x::", "x::,", "x::^a:", "x::^a,nosuch", "x::+(a", "+(::^1", "p/x//s::^1", "p//x/s::^1",
+                    "x//s::^1", "a/b/c/d::^1", "p///x::^1", "//s::^1", "p//x//s:=^1"] {
             assert!(parse1(bad).is_err(), "{}", bad);
         }
         // Map NAMEs; a range only with -k.

@@ -1,0 +1,85 @@
+
+- Renaming computes: prefix/selection/suffix, keep-original, capture group 1
+
+  The renaming forms deferred in step11 (INPLACE.design.txt section 6; pick's behaviour in
+  INPLACE.notes.txt 1b and 1e; COLSPEC.design.txt section 1 on capture group 1). They
+  build on the map of step11: a list, '+' regex or -k range as NAME is compiled as one
+  compute per selected column, __ is that column. Renaming changes which name each
+  application gets; capture group 1 changes how the name is derived. Likely the last new
+  functionality for a while.
+
+  Expected extent (discussed): compute.rs (NAME parsing, the per-column loop, __ pointing
+  at the source column), colspec.rs (capture group 1 per matched column), output
+  selection (the keep-original form contributes the original before each new column:
+  main.rs computed list, select::from_names). The machine, operators, filters, SAM and
+  the row pipeline are not touched.
+
+
+
+  Outcome of the discussion
+
+  Decisions:
+   0. NAME shapes. A literal '/' in a column name, regex, prefix or suffix is written %2F
+      (as everywhere in pluk), so every literal '/' in a NAME is a delimiter. Exactly
+      three shapes with delimiters are valid:
+        SPEC/S        one '/': suffix S (pick's two-part form)
+        P/SPEC/S      two single '/': prefix P, suffix S, either may be empty
+                      (new_/fib/, /fib/_x)
+        P//SPEC//S    two doubled '//': as P/SPEC/S, and the original column is output
+                      as well, before the new one; P and S may be empty (new_//fib//,
+                      //fib//_new)
+      Anything else is an error with a hint: mixed delimiters (P/SPEC//S, which is
+      pick's keep-original syntax, refused with a message giving P//SPEC//S; P//SPEC/S),
+      a two-part keep form (SPEC//S: 'use //SPEC//S'), three or more delimiters, a run
+      of three slashes. SPEC is a column specification as in step8 (plain name, ':'
+      list, '+' regex, -k range).
+
+   1. The new name of each selected column: P + base + S, where base is capture group 1
+      of the '+' regex element that matched the column (decision 3), else the column's
+      name. __ in the compute is the source column (pick). A single plain SPEC
+      (new_/fib/) gives one new column; a list, regex or range gives one per column, in
+      COLSPEC order, duplicates merged (as the map of step11).
+
+   2. The keep-original form P//SPEC//S outputs each source column just before its new
+      column, at the compute's output position among the column arguments (pick:
+      P/SPEC//S). It requires '::'; with ':=' it is an error (a hidden compute cannot ask
+      for output). With -A and -x the originals are output anyway: no effect, accepted.
+
+   3. Capture group 1 (pick): a '+' regex element with a capturing group names the new
+      column after group 1 of its match, also without delimiters:
+      '+num(\d)::__^10,add' creates columns 1 2 4 and keeps num1 num2 num4 (no -i
+      needed). With P and S: P + group + S. Elements without a group (plain names,
+      ranges, regexes without a capturing group, (?:..) groups) use the full name. This
+      changes one current behaviour: -i '+num(\d)::..' now redefines num1 num2 num4 in
+      place (the group ignored); it will create new columns instead. A group that does
+      not take part in the match, or matches empty, is an error naming the column (a
+      column cannot be named by nothing).
+
+   4. Empty P and S and no capture group (/fib/, //fib//): the new name is the original
+      name, so the form is an in-place redefinition and needs -i, as the plain map; with
+      // the original and the new column would have one name: an error.
+
+   5. Collisions. Two generated names that are equal (two columns giving the same group,
+      or P + name + S coinciding) are an error naming both columns. A generated name that
+      equals an existing column: always an error (agreed, option (b): renaming onto
+      another column is most likely a mistake; in-place redefinition stays possible with
+      the plain map form). Rejected: (a), the -i rule of plain names.
+
+   6. The two-part form SPEC/S with an S that looks like a column specification (it
+      contains ':' or starts with '+'; pick: 'did you want SPEC/S/?'): a warning (agreed;
+      note!, -q), as such a suffix is legal.
+
+  Tests: pick's examples (INPLACE.notes.txt 1b, 1e) compared with pick wherever the syntax
+  is the same (P/SPEC/S, SPEC/S, capture groups); the keep-original form against pick's
+  P/SPEC//S output; lists, regexes and ranges with P and S; __ as the source column; the
+  errors (mixed delimiters with the hint, SPEC//S, three delimiters, '///', // with :=,
+  collisions, an empty group); -A and -x with the new columns; --test-compute output for
+  the renamed computes.
+
+
+  Items
+
+  1   NAME shapes and prefix/suffix renaming, including the keep-original form (decisions
+      0-2, 4-6). Commit.
+
+  2   Capture group 1 naming (decision 3). Commit.

@@ -91,8 +91,12 @@
       integers); rows rejected by @@ filters have empty computed columns in --other.
     - In-place computes (INPLACE.design.txt): an input column can be redefined once (pick:
       any number of times); a list NAME cannot create new columns, a repeated column in a
-      map NAME is applied once; -A<N> cannot be combined with -x; renaming forms
-      (P/SPEC/S), capture-group naming and --A=NAME are not implemented (yet).
+      map NAME is applied once; -A<N> cannot be combined with -x.
+    - Renaming computes (step26.txt): the keep-original form is P//SPEC//S (pick:
+      P/SPEC//S, which is refused with a hint); exactly the shapes SPEC/S, P/SPEC/S and
+      P//SPEC//S are accepted; a generated name that equals an existing column is an
+      error even with -i (pick: allowed with -i), as are two equal generated names;
+      P//SPEC//S with ':=' is an error.
     - -K cannot be combined with --sam or --sam-h (step11-notes.txt item 5).
     - Arithmetic (step12.txt): division by zero gives inf or nan (div) or NA (idiv, mod)
       where pick dies; a float given to idiv, mod or ipow is NA (pick truncates); ipow

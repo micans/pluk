@@ -178,6 +178,11 @@ fn run() -> std::io::Result<()> {
             .map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?
     };
     let computed: Vec<(usize, usize)> = computes.iter().filter(|c| c.output).map(|c| (c.position, c.index)).collect();
+    // P//SPEC//S (plan/step26.txt decision 2): with column arguments the source column
+    // is output just before its new column; with -A and -x it is output anyway.
+    let computed_keep: Vec<(usize, usize)> = computes.iter().filter(|c| c.output)
+        .flat_map(|c| c.keep.map(|k| (c.position, k)).into_iter().chain(std::iter::once((c.position, c.index))))
+        .collect();
 
     // As in pick, the names are checked once the first line has been read;
     // with empty input there is nothing to check against.
@@ -200,7 +205,7 @@ fn run() -> std::io::Result<()> {
         } else if config.all {
             select::OutputSelection::all(column_args, &computed, insert_offset, &names)
         } else {
-            select::OutputSelection::from_names(column_args, &computed, &names, config.input_order)
+            select::OutputSelection::from_names(column_args, &computed_keep, &names, config.input_order)
                 .map(|s| if config.input_order { s.in_input_order(&names) } else { s })
         };
         result.map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?

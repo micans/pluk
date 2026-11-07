@@ -262,6 +262,11 @@ Computes (given among the columns; a stack language, as pick):
               the compute's own name (the value being replaced). With -i, NAME
               can be a list, +REGEX or (-k) range of existing columns: the
               compute is applied to each, e.g. -i +num\\d::__^1,add.
+  P/SPEC/S::..    renaming: the compute is applied to each column of SPEC (a
+              name, list, +REGEX or range), __ being that column, and gives a new
+              column named P + name + S (P or S may be empty: P/SPEC/, SPEC/S);
+              P//SPEC//S also outputs each original before its new column. A
+              literal / in a name is written %2F.
 
 Filters (given among the columns; VALUE is %-decoded, e.g. %2F for '/'):
   @NAME/op/VALUE  numeric comparison of column NAME with VALUE, op one of

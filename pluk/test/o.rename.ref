@@ -1,0 +1,103 @@
+== name new_/fib/::__^1,add
+name	new_fib
+Ann	2
+Bob	2
+== name /fib/_new::__^1,add
+name	fib_new
+Ann	2
+Bob	2
+== name fib/_new::__^1,add
+name	fib_new
+Ann	2
+Bob	2
+== name new_/fib/_x::__^1,add
+name	new_fib_x
+Ann	2
+Bob	2
+== name new_/+fib.*/::__^1,add
+name	new_fib	new_fib2
+Ann	2	1
+Bob	2	2
+== name x/fib:sq/::__^1,add
+name	xfib	xsq
+Ann	2	2
+Bob	2	5
+== name new_//fib//::__^1,add
+name	fib	new_fib
+Ann	1	2
+Bob	1	2
+== name //fib//_new::__^1,add
+name	fib	fib_new
+Ann	1	2
+Bob	1	2
+== name x//fib:sq//::__^1,add
+name	fib	xfib	sq	xsq
+Ann	1	2	1	2
+Bob	1	2	4	5
+== -i name /fib/::__^1,add
+name	fib
+Ann	2
+Bob	2
+== name f/+fi.*/::__^1,add x/fib2/::__
+name	ffib	ffib2	xfib2
+Ann	2	1	0
+Bob	2	2	1
+== name a%2Fb/fib/::__
+name	a/bfib
+Ann	1
+Bob	1
+== name fib/:x::^1
+pluk: the suffix [:x] of fib/:x looks like a column specification; did you want fib/:x/?
+name	fib:x
+Ann	1
+Bob	1
+== -A p//fib//::__^1,add
+name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna	pfib
+Ann	1	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA	2
+Bob	1	1	4	cat	-2	0.285714	2	3	2	b_o_b	bc	CCGGTTAA	2
+== -x fib p//fib//::__^1,add
+name	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna	pfib
+Ann	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA	2
+Bob	1	4	cat	-2	0.285714	2	3	2	b_o_b	bc	CCGGTTAA	2
+== -A2 p/fib:sq/::__^10,mul
+name	fib	pfib	psq	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
+Ann	1	10	10	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA
+Bob	1	10	40	1	4	cat	-2	0.285714	2	3	2	b_o_b	bc	CCGGTTAA
+== name /fib/::__^1,add
+pluk: [/fib/::__^1,add]: name [fib] already exists (use -i for in-place change)
+exit 1
+== name //fib//::__^1,add
+pluk: [//fib//::__^1,add]: the original and the new column would both be [fib]
+exit 1
+== name /fib/2::^1
+pluk: [/fib/2::^1]: the new name [fib2] (from column [fib]) exists already
+exit 1
+== name p/fib//s::^1
+[p/fib//s::^1]: mixed '/' and '//' in NAME: P/SPEC/S, or P//SPEC//S to keep the original (pick's P/SPEC//S)
+exit 1
+== name fib//s::^1
+[fib//s::^1]: SPEC//S: the keep-original form is P//SPEC//S (P may be empty: //SPEC//S)
+exit 1
+== name a/b/c/d::^1
+[a/b/c/d::^1]: too many '/' delimiters in NAME: SPEC/S, P/SPEC/S or P//SPEC//S (a literal / is written %2F)
+exit 1
+== name p///fib::^1
+[p///fib::^1]: '///' in NAME (a literal / is written %2F)
+exit 1
+== name //s::^1
+[//s::^1]: SPEC//S: the keep-original form is P//SPEC//S (P may be empty: //SPEC//S)
+exit 1
+== name p//fib//s:=^1
+[p//fib//s:=^1]: P//SPEC//S outputs the original columns; it needs '::', not ':='
+exit 1
+== name /nosuch/x::^1
+pluk: (Compute) handle [nosuch] in compute /nosuch/x does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+exit 1
+compute map p//2:3//s (output)
+  rename prefix [p] suffix [s] keep
+  column [__]
+  const [1]
+  op add
+compute map x/+.*/ (output)
+  rename prefix [x] suffix []
+  const [1]
