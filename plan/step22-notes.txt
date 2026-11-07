@@ -16,3 +16,37 @@ Item 1: ~notin~ ~notval~
   Tests: filter-synonyms (each synonym against its long form on big.txt: @ and @@, a
   multi-column handle, ~notval~ with and without a value; test with ~notin~, ~notval~
   refused in test, an unknown dictionary, -l notin notval). help, list-ops refs.
+
+
+Item 2: the test setup
+
+  The questions: how idiosyncratic is the setup (simple, but is something being missed);
+  a different framework would need significant benefits to justify dependencies and
+  complexity; can all tests run with the failures tallied instead of stopping at the
+  first.
+
+  The answer: the setup is golden-file (snapshot) testing, the common way command-line
+  tools are tested (pick, GNU coreutils, jq, BusyBox). The Rust crates for it (trycmd /
+  snapbox, insta, assert_cmd) would add per-test reporting, parallel runs and an
+  overwrite mode, as development dependencies, at the price of rewriting about 420
+  invocations into their formats; not worth it. The run takes about 16 s wall-clock
+  (1.4 s CPU; the rest is the file system).
+
+  Weaknesses found, and what was done:
+  - make stopped at the first failing command. make -k does not help: it continues with
+    other targets, not with the rest of a recipe, and runpluk is one recipe of about 400
+    lines (checked on a small Makefile). Now .IGNORE: runpluk runtestopt.
+  - The pattern rule %.ref: %.test ran diff only when the .test was newer than the .ref;
+    it worked because every run rewrites all outputs. rundiff now compares every pair
+    with cmp, regardless of times, and tallies (decision 2).
+  - An output whose invocation was removed stayed behind and kept its reference passing.
+    runpluk now removes o.*.test first. Before the change, a run from a clean state found
+    no such case apart from the retired o.tc-midfile.ref (already excluded).
+  - Shell code inside the Makefile ($$ escaping, long one-line commands) is the main
+    readability cost; left as it is. Longer test scripts could move to test/*.sh files
+    called from the Makefile if it becomes a problem.
+
+  Checked: all 426 references pass; with two references changed and one output missing,
+  all three are reported with a tally and exit status 2; with a binary that does not
+  exist every invocation runs and the tally reports 419 of 426 failed (7 outputs do not
+  depend on pluk); make accept with and without T.

@@ -16,9 +16,17 @@
    1. A filter written @x~notin~D or @x~notval~D~v was until now an error ('unrecognised
       operator': any ~letters~ is read as an operator name), so no existing filter changes
       meaning. (Corrected in item 1; the draft assumed the regex filter ~.)
-   2. The test setup: the user's questions, discussed and answered in step22-notes.txt;
-      changes to test/Makefile or the test conventions that come out of it are made in
-      item 2 [to be filled in from the questions].
+   2. The test setup (the user's questions: how idiosyncratic it is; whether all tests can
+      run with the failures tallied; answered in step22-notes.txt). The golden-file setup
+      stays (no test framework crate). Four changes to test/Makefile:
+      - .IGNORE: runpluk runtestopt, so that a failing invocation does not stop the others;
+      - rundiff compares every reference with its output (cmp, whatever the file times),
+        reports 'missing' and 'differs' (with the first lines of the diff) for each, and
+        ends with '--- N of M tests failed: names ---' (exit 1) or '--- M tests compared ---';
+      - runpluk removes all o.*.test first, so that an output no longer produced shows up
+        as missing instead of passing with a stale file;
+      - make accept T='name ..' copies o.<name>.test to o.<name>.ref (o. and .test/.ref
+        may be given).
 
 
   Items
@@ -26,4 +34,4 @@
   1   ~notin~ ~notval~ (decisions 0, 1): filter.rs table, list.rs, help text; tests (both
       synonyms against the long forms on big.txt/big.keep.txt, in test, -l). Commit.
 
-  2   The test setup (decision 2). Commit (if anything changes).
+  2   The test setup (decision 2). Commit.

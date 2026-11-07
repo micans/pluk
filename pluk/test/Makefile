@@ -3,21 +3,46 @@ SHELL=/bin/bash
 # Tests in the style of ../../pick/test/Makefile: each invocation writes
 # o.<name>.test, which is compared against the stored o.<name>.ref .
 # Run from the pluk directory with 'make test', which builds pluk first.
+# All invocations run, even if one fails (.IGNORE); rundiff then compares every
+# reference and reports the tally (plan/step22.txt item 2). Every invocation reads
+# a file or /dev/null (one that reads the terminal makes the run hang).
+# make accept T='name ..' copies o.<name>.test to o.<name>.ref.
 
 p=../target/release/pluk
 
-.PHONY: test runpluk runtestopt rundiff runretired
+.PHONY: test runpluk runtestopt rundiff runretired accept clean
 
 test: runpluk runtestopt rundiff
 	@echo "--- All tests passed ---"
 
+# A failing invocation does not stop the others; its output is compared as usual.
+.IGNORE: runpluk runtestopt
+
 # Reference files produced only by retired invocations (target runretired).
 RETIRED_REFS = o.tc-midfile.ref
+REFS = $(filter-out $(RETIRED_REFS), $(wildcard *.ref))
 
-rundiff: $(filter-out $(RETIRED_REFS), $(wildcard *.ref))
+# Every reference against its output, whatever the file times: a missing output
+# or a difference is a failure; the first lines of each difference are shown.
+rundiff:
+	@failed=""; n=0; \
+	for r in $(REFS); do \
+	  n=$$((n + 1)); t=$${r%.ref}.test; \
+	  if [ ! -f $$t ]; then echo "missing: $$t"; failed="$$failed $${r%.ref}"; \
+	  elif ! cmp -s $$t $$r; then echo "differs: $$t $$r"; diff $$t $$r | head -n 20; failed="$$failed $${r%.ref}"; fi; \
+	done; \
+	nf=$$(echo $$failed | wc -w); \
+	if [ $$nf -gt 0 ]; then echo "--- $$nf of $$n tests failed:$$failed ---"; exit 1; fi; \
+	echo "--- $$n tests compared ---"
+
+# make accept T='name ..': the output o.<name>.test becomes the reference.
+accept:
+	@if [ -z "$(T)" ]; then echo "usage: make accept T='name ..' (o.<name>.test becomes o.<name>.ref)"; exit 1; fi
+	@for t in $(T); do t=$${t#o.}; t=$${t%.test}; t=$${t%.ref}; cp o.$$t.test o.$$t.ref && echo "accepted o.$$t.ref"; done
 
 runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.bgz bam-tags.bam bam-nosq.bam bam-cg.bam bam-empty.bam bam-sqdiff.bam
 	rm -rf out && mkdir out
+	rm -f o.*.test
 	$(p) --test-lineno                  < data.txt         > o.lineno.test
 	$(p) --test-lineno                  < big.txt          > o.big-lineno.test
 	gzip -c big.txt | $(p) --test-lineno                   > o.big-lineno-gz.test
@@ -439,9 +464,6 @@ runtestopt: data.txt
 	$(p) --sam-h/sam.fa --test-dict  < sam.bam      > o.bam-seqlen.test 2> o.bam-seqlen-msg.test
 	$(p) --sam --test-dict            < bam-nosq.bam > o.bam-nosq-seqlen.test
 	$(p) --sam --test-samsort         < bam-tags.bam > o.bam-samsort.test
-
-%.ref : %.test
-	diff $< $@
 
 clean:
 	rm -f o.*.test

@@ -1,4 +1,12 @@
 
+Let's do
+  A 1-3
+  B -U
+  C sam_put
+  D document most likely SAM NA cascades (not considering all weird edge cases)
+  E document pluk
+
+
 What remains after step21 (2026-11-07): pick functionality not in pluk, items deferred
 during the steps, and requested additions. Drawn from pick -l and pick --sam -l against
 pluk -l, pick -H and its option parser against pluk --help, deferred.txt, SAM.notes.txt
