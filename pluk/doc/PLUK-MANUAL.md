@@ -9,7 +9,7 @@ by Stijn over a period of about three days. The `plan/` directory retains that h
 Many corner/edge cases in pick were settled and sometimes fixed.*
 
 
-*This manual is being written. Sections 7 to 14 are outlines; sections 1 to 6 and the operator reference (section 15) are complete.*
+*This manual is being written. Sections 9 to 14 are outlines; sections 1 to 8 and the operator reference (section 15) are complete.*
 
 
 ## 1. Introduction
@@ -761,12 +761,270 @@ Fenna	36	heavy load
 
 ## 7. Dictionaries and quantiles
 
-`--kd`, `--fd`, `--cd`, `--td`, `--fasta-dict`, defaults and `__EXIT__`, `map` and `dord`, `~isin~` and friends; `--quant-NAME` with `qnl` and `qnu`.
+A dictionary maps keys to values. It is loaded from a file or from the command line
+before the input is read, and used by the operators `map` and `dord` (section 15) and by
+the filters `~isin~`, `~hasval~` and their negations (section 5). A dictionary name
+consists of letters, digits and `_`.
+
+The examples use three small files: [prices.txt](prices.txt) (fruit and price, no
+header), [fruits.txt](fruits.txt) (a table with a header) and [trees.fa](trees.fa) (a
+sequence for some of the trees). Plums have no price: `map` gives the key itself, and
+multiplying by it gives NA.
+
+```console
+$ pluk --fd-PRICE=prices.txt picker fruit kg 'cost::kg:fruit^PRICE,map,mul^2,dd' < harvest.txt
+picker	fruit	kg	cost
+Annie	apple	14.5	30.45
+Bert	pear	9.0	22.50
+Chen	apple	22.1	46.41
+Dora	plum	6.4	NA
+Eamon	cherry	3.2	28.80
+Fenna	apple	18.0	37.80
+Gus	pear	12.7	31.75
+Hilde	plum	7.9	NA
+$ pluk --fd-PRICE=prices.txt picker fruit '@fruit~notin~PRICE' < harvest.txt
+picker	fruit
+Dora	plum
+Hilde	plum
+```
+
+### Loading a dictionary
+
+- `--kd-NAME=FILE` keys from the first column of FILE, each with value 1;
+- `--fd-NAME=FILE` keys and values from the first two columns of FILE (further columns
+  are ignored);
+- `--cd-NAME=k1:v1,k2:v2` keys and values from the list; a key without `:v` has value 1;
+  in the list a comma and a colon are written `%2C` and `%3A`;
+- `--fasta-dict-NAME=FILE` sequences from a fasta file, keyed by the identifier (up to
+  the first white space); a sequence over several lines is joined, and the key `*` maps
+  to the empty sequence;
+- `--td=FILE` a table with a header: every column other than the key column (the first)
+  becomes a dictionary named after the column, mapping the key to the value in that
+  column. `--td^KEY=FILE` takes column KEY as the key column. In a table a repeated key
+  is an error.
+
+`--kdict-`, `--fdict-` and `--cdict-` are synonyms of `--kd-`, `--fd-` and `--cd-`, and
+`--tdict` and `--table-dict` of `--td`. A FILE may be gzip-compressed. In a file a later
+line with the same key replaces the earlier value.
+
+```console
+$ pluk --td=fruits.txt picker fruit 'c::fruit^colour,map' 's::fruit^season,map' < harvest.txt
+picker	fruit	c	s
+Annie	apple	red	autumn
+Bert	pear	green	autumn
+Chen	apple	red	autumn
+...
+$ printf 'plum\ncherry\n' > stone.txt
+$ pluk --kd-STONE=stone.txt picker fruit 's::fruit^STONE,map' '@fruit/=apple' < harvest.txt
+picker	fruit	s
+Bert	pear	pear
+Dora	plum	1
+Eamon	cherry	1
+...
+$ printf 'k\nA07\nP03\n*\n' | pluk --fasta-dict-TREE=trees.fa -A 's::k^TREE,map' 'n::s,len'
+k	s	n
+A07	GGATCC	6
+P03	TTAGGCAA	8
+*		0
+```
+
+### Keys that are not found
+
+By default `map` gives a key that is not in the dictionary unchanged (the `--kd`
+example above). A default is given after the name: `--fd-NAME/DEFAULT=FILE`,
+`--td/DEFAULT=FILE`, `--td^KEY/DEFAULT=FILE`. The default `__EXIT__` makes a key that is
+not found an error that ends the run; it is the default of `--fasta-dict`. In a default
+an `=` is written `%3D`, and in KEY `/` and `=` as `%2F` and `%3D`. Defaults play no part
+in the dictionary filters, which only ask whether a key is present.
+
+```console
+$ pluk --fd-PRICE/none=prices.txt picker fruit 'p::fruit^PRICE,map' '@fruit=plum' < harvest.txt
+picker	fruit	p
+Dora	plum	none
+Hilde	plum	none
+$ pluk --fd-PRICE/__EXIT__=prices.txt picker fruit 'p::fruit^PRICE,map' < harvest.txt
+picker	fruit	p
+Annie	apple	2.10
+Bert	pear	2.50
+Chen	apple	2.10
+pluk: map: key [plum] not found in dictionary [PRICE] (__EXIT__) at line 5
+$ pluk --fasta-dict-TREE=trees.fa picker tree 'bc::tree^TREE,map' < harvest.txt
+picker	tree	bc
+Annie	A12	ACGTTGCA
+Bert	P03	TTAGGCAA
+Chen	A07	GGATCC
+pluk: map: key [U11] not found in dictionary [TREE] (__EXIT__) at line 5
+```
+
+### Merging
+
+A dictionary NAME given more than once is merged in command-line order: later values
+replace earlier ones, with a message, and `dord` numbers the keys in order of first
+appearance over all of them.
+
+```console
+$ pluk --fd-PRICE=prices.txt --cd-PRICE=plum:4.75,apple:1.99 picker fruit 'p::fruit^PRICE,map' 'o::fruit^PRICE,dord' '@picker~[ABDE]' < harvest.txt
+picker	fruit	p	o
+Annie	apple	1.99	1
+Bert	pear	2.50	2
+Dora	plum	4.75	4
+Eamon	cherry	9.00	3
+pluk: --cd-PRICE=plum:4.75,apple:1.99: merging into existing dictionary PRICE
+```
+
+### Quantiles
+
+`--quant-NAME=FILE` reads quantile steps, one number per line in non-decreasing order
+(checked when the file is read). The operators `qnl` and `qnu` (section 15) say where a
+value falls among them, as a fraction in (0, 1]: `qnl` counts the steps at or below the
+value, `qnu` those at or above it.
+
+```console
+$ printf '0.70\n0.80\n0.90\n0.95\n' > ripe.txt
+$ pluk --quant-R=ripe.txt picker ripeness 'lo::ripeness^R,qnl' 'hi::ripeness^R,qnu' < harvest.txt
+picker	ripeness	lo	hi
+Annie	0.92	0.8	0.4
+Bert	0.75	0.4	0.8
+Chen	0.88	0.6	0.6
+Dora	0.99	1	0.2
+Eamon	0.61	0.2	1
+Fenna	0.95	1	0.4
+Gus	0.80	0.6	0.8
+Hilde	0.70	0.4	1
+```
+
 
 
 ## 8. State across rows
 
-Registers (`save`, `fetch`), `rowno`, `r0wno`, `lineno`, `--pstore` and `pload`, `--group` and `--group-first-ref` with `groupi` and `groupno`.
+A compute normally sees only its own row. This section describes what it can know beyond
+that: values saved earlier in the same row, the row's number, and the previous row or the
+first row of a group.
+
+```console
+$ pluk --pstore picker kg 'prev::^kg,pload' 'diff::kg:prev,sub^1,dd' < harvest.txt
+picker	kg	prev	diff
+Annie	14.5	NA	NA
+Bert	9.0	14.5	-5.5
+Chen	22.1	9.0	13.1
+...
+$ pluk --group=gene gene 'intron_start::^exon_end,pload,incr' 'intron_end::exon_start,decr' < exons.txt
+gene	intron_start	intron_end
+foo	181	259
+foo	391	519
+bar	1121	1399
+pluk: --group: 3 groups (the first row of each not output)
+```
+
+### Registers
+
+`save` stores a value in a register and leaves it on the stack; `fetch` pushes it again
+(section 15). A register is named by a constant and holds its value for the rest of the
+row, so that a value computed in one compute can be used in a later one without being
+output. Registers are cleared between rows; a `fetch` of a register that no earlier `save`
+stores is an error before the input is read.
+
+```console
+$ pluk picker kg 'lb::kg^2.20462,mul^LB,save^1,dd' 'oz::^LB,fetch^16,mul^0,dd' < harvest.txt
+picker	kg	lb	oz
+Annie	14.5	32.0	511
+Bert	9.0	19.8	317
+Chen	22.1	48.7	780
+...
+```
+
+### Row and line numbers
+
+`rowno` is the number of the row in the input (the first row after the header is 1),
+`r0wno` the same counted from 0, and `lineno` the line number in the input, the header
+included. Rows rejected by a filter are counted too.
+
+```console
+$ pluk picker 'r::,rowno' 'z::,r0wno' 'l::,lineno' '@fruit=pear' < harvest.txt
+picker	r	z	l
+Bert	2	1	3
+Gus	7	6	8
+```
+
+### The previous row: --pstore and pload
+
+With `--pstore`, pluk keeps the columns of each row for the next one, and `^c,pload`
+pushes column c of the previous row. Computed columns are kept too, with their computed
+value. The previous row is the previous row that passed the `@@` filters; the `@` filters
+do not matter, as they come after the computes. For the first row, `pload` gives NA.
+
+```console
+$ pluk --pstore picker kg 'prev::^kg,pload' '@fruit=apple' < harvest.txt
+picker	kg	prev
+Annie	14.5	NA
+Chen	22.1	9.0
+Fenna	18.0	3.2
+$ pluk --pstore picker kg 'prev::^kg,pload' '@@fruit=apple' < harvest.txt
+picker	kg	prev
+Annie	14.5	NA
+Chen	22.1	14.5
+Fenna	18.0	22.1
+```
+
+`--pstore/LIST/DEFAULT` gives the values for the first row instead: LIST is a list
+`k:v,k:v` of columns and values, DEFAULT the value of the other columns. With an empty
+LIST, `--pstore//0` makes a counter (it counts every row that reaches the computes):
+
+```console
+$ pluk --pstore/kg:0/none picker kg 'prev::^kg,pload' 'who::^picker,pload' < harvest.txt
+picker	kg	prev	who
+Annie	14.5	0	none
+Bert	9.0	14.5	Annie
+Chen	22.1	9.0	Bert
+...
+$ pluk --pstore//0 picker 'n::^n,pload,incr' '@kg/gt/12' < harvest.txt
+picker	n
+Annie	1
+Chen	3
+Fenna	6
+Gus	7
+```
+
+### Groups: --group and --group-first-ref
+
+`--group=COL` divides the input into groups of consecutive rows with the same value in
+COL (an input column or a computed one). `pload` reads the previous row within the
+group, so the first row of each group has no previous row and is not output; a group of
+one row gives no output at all. `groupi` gives the position of the row in its group (2
+for the first row output) and `groupno` the number of the group. At the end the number
+of groups is reported.
+
+[exons.txt](exons.txt) lists exons by gene; the introns lie between consecutive exons:
+
+```console
+$ cat exons.txt
+gene	exon	exon_start	exon_end
+foo	1	100	180
+foo	2	260	390
+foo	3	520	600
+bar	1	1000	1120
+bar	2	1400	1510
+baz	1	2000	2300
+$ pluk --group=gene gene exon 'i::,groupi' 'g::,groupno' 'intron_start::^exon_end,pload,incr' 'intron_end::exon_start,decr' < exons.txt
+gene	exon	i	g	intron_start	intron_end
+foo	2	2	1	181	259
+foo	3	3	1	391	519
+bar	2	2	2	1121	1399
+pluk: --group: 3 groups (the first row of each not output)
+```
+
+With `--group-first-ref=COL` the groups are formed in the same way, but `pload` reads the
+group's first row (the first row itself is again not output). It implies `--pstore`; its LIST and DEFAULT apply before the first
+group.
+
+```console
+$ pluk --group-first-ref=gene gene exon 'first::^exon_start,pload' 'span::exon_end:first,sub^1,add' < exons.txt
+gene	exon	first	span
+foo	2	100	291
+foo	3	100	501
+bar	2	1000	511
+```
+
 
 
 ## 9. Input and output

@@ -1,0 +1,3 @@
+apple	2.10
+pear	2.50
+cherry	9.00

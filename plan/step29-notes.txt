@@ -53,3 +53,29 @@ Item 3: section 6, computes
   'kg::..', or v:= followed by two v:: computes) pluk writes '-- Identical output column
   names exist (will make unique)' to stderr, but the output has the column once and
   nothing is made unique. The notice looks spurious; for the user to decide.
+
+
+Item 4: section 7, dictionaries and quantiles
+
+  New data files in doc/: prices.txt (fruit and price, no header; plum deliberately
+  absent, so map gives the key and a product NA), fruits.txt (a table: fruit colour season
+  stone), trees.fa (sequences for three of the trees, one over two lines, one with a
+  description after the identifier; the missing trees show __EXIT__, the default of
+  --fasta-dict). The section covers --kd --fd --cd --fasta-dict --td (^KEY, /DEFAULT),
+  the synonyms, gzip, defaults and __EXIT__, merging (later values replace earlier ones,
+  with a message; dord counts first appearance over all of them), the dictionary filters
+  (defaults play no part), --quant-NAME with qnl and qnu. Facts checked by running pluk:
+  in an --fd file a repeated key takes the later value silently, in a --td table it is an
+  error; columns of an --fd file after the second are ignored; --quant steps that
+  decrease are an error.
+
+
+Item 5: section 8, state across rows
+
+  New data file doc/exons.txt (genes foo bar baz with 3, 2 and 1 exons): pick's intron
+  example with --group, groupi and groupno shown, and the single-exon gene showing that a
+  group of one row gives no output; --group-first-ref for the span from the first exon.
+  Registers (named by a constant, per row, shared between computes), rowno r0wno lineno
+  (rows rejected by filters are counted; lineno includes the header), --pstore and pload
+  (the previous row is the previous one that passed the @@ filters, shown against @),
+  --pstore/LIST/DEFAULT and the //0 counter. All facts checked by running pluk.
