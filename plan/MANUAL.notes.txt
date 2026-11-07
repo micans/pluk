@@ -1,0 +1,91 @@
+
+Proposal for the pluk manual (plan/remaining.txt C c / the user's list E), for discussion.
+Seed for a MANUAL.design.txt once agreed.
+
+User's requirement: the pluk/pick differences are collated in one section, not spread
+through the document.
+
+
+1. Form and place
+
+   pluk/doc/PLUK-MANUAL.md (markdown, as pick/doc/PICK-USER-MANUAL.md), with the
+   companion notes in pluk/doc/ (SAM-NA.md exists). Written for a reader who does not
+   know pick: the body describes pluk only and never says 'unlike pick'. A pick user
+   reads section 14 (differences) and the body as needed.
+
+
+2. Outline
+
+    1  Introduction: what pluk does (a column tool for tab-separated data and SAM/BAM),
+       in a few examples; building it (cargo; the int128 build); the crates used and why
+       (plan/sketch asks for this, with their standing).
+    2  Quick start: ten common tasks, each one line with output.
+    3  Concepts: header and rows, column names, -k and -K, bytes (no encoding assumed),
+       %-encoding of arguments (-z, -zz), numbers (integers exact, floats round-trip,
+       --num-perl), NA, messages and exit status, -q.
+    4  Selecting columns: names, ':' lists, '+' regexes (whole-name, anchored), -k
+       ranges; -A -A<N> --A=NAME -x -U; -u; -R; ragged input -O<N>.
+    5  Filters: @ and @@ (before and after computes), the operators by kind (string,
+       numeric, regex, dictionary, bands, bits, predicates), multi-column handles, -o -s,
+       assertions @assert@ @@assert@.
+    6  Computes: NAME::SPEC and NAME:=SPEC, the stack language, unnamed computes, the
+       operator categories (pointer to -l and to the reference, section 15), -i and __,
+       maps (lists, regexes, ranges as NAME), renaming P/SPEC/S, SPEC/S, P//SPEC//S and
+       capture group 1.
+    7  Dictionaries and quantiles: --kd --fd --cd --td --fasta-dict, defaults and
+       __EXIT__, map dord, ~isin~ and friends; --quant-NAME with qnl qnu.
+    8  State across rows: registers (save fetch, per row), rowno r0wno lineno, --pstore
+       and pload, --group --group-first-ref groupi groupno.
+    9  Input and output: gzip, -/PAT -//PAT, -h, -c, -E<N>, --other, --assert-other,
+       --demux --demux-dir, --idx-list --name-list --idx-map, --progress, --threads.
+   10  SAM and BAM: --sam --sam-h --sam/FILE, normal form and --sam-nonf, the sequence fill
+       (--sam-seqmiss), the view operators (positions, counts, parts), the alignment
+       display (aln_*, --sam-aln-prefix -mrk, --sam-qlt-sim), edits and posinfo,
+       patchiness, view options (--sam-aln-context -xy, --sam-narrow-xy, --sam-ND-adjust),
+       region-bound tally (sam_rbt, --sam-rbt), sam_put. NA: summary, pointer to SAM-NA.md.
+   11  Bio operators: rc forward todna dnatl dnagc fasta fastq fastQ strpair.
+   12  Recipes: longer worked examples (intron coordinates with --group, alignment views
+       of a region, edit tallies, renaming a family of columns).
+   13  Messages and reports: the end-of-run counts (NA reasons, filters, fill, groups,
+       sam_put, ...), -q, exit status 1, and what each count means.
+   14  Differences from pick (the single collated section):
+         14.1 Not taken over (suv, input_cigar, sprintf, reqm, tmap, -v -d, -ll, names
+              options for now, ...)
+         14.2 Additions without a pick counterpart (multi-column handles, predicates,
+              @@assert@, --assert-other extensions, --demux-dir, -u, ~notin~ ~notval~,
+              --sam-seqmiss, BAM input, P//SPEC//S as pluk's keep syntax, ...)
+         14.3 Changed behaviour, grouped by topic in manual order (selection, filters,
+              computes and numbers, operators by category, dictionaries, state, output,
+              SAM, bio): each entry 'pick: ... / pluk: ...' with a link to the section of
+              the body. Source: the difference list in plan/guidelines.txt, which is
+              already grouped by step; it would be regrouped by topic and checked against
+              the code.
+         14.4 Bugs of pick fixed (survey section 8 and others), briefly.
+   15  Operator reference: every compute and filter operator with operands, result and
+       description, by category.
+
+
+3. Keeping it true
+
+   - The operator reference (15) is generated from pluk -l (a make target writes it into
+     the manual between markers), and a test checks that the manual's copy equals the
+     current -l output, so the reference cannot drift from the code.
+   - The examples of sections 2 and 12 are run by a test (each example's command and its
+     expected output kept in the manual; a small script extracts and runs them), so a
+     change in behaviour shows up as a failing test.
+   - plan/guidelines.txt keeps its difference list during development (it is where new
+     differences are recorded first); section 14 is regrouped from it.
+
+
+4. Questions
+
+   a. The outline: anything to add, merge or drop? (Recipes as a separate section, or
+      examples only inside the sections?)
+   b. Generated reference and tested examples (section 3): wanted, or too much machinery
+      for a manual?
+   c. Section 14.3: one flat list per topic, or a table (topic, pick, pluk, link)?
+   d. Order of writing, as steps: e.g. (1) skeleton, sections 1-3 and the generated
+      reference; (2) sections 4-9; (3) section 10-11 (reusing SAM-NA.md); (4) section 14;
+      (5) recipes and the example tests.
+   e. Level of detail per operator in the body: by category with the notable rules only
+      (the reference gives one line each), or every operator described?
