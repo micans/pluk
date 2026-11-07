@@ -83,3 +83,25 @@ After item 2: Pstore and Group moved to src/state.rs
   sam.rs and bio.rs hold theirs: Pstore (pub, with pub new, keep, groups) and Group
   (private to the module). main.rs keeps the wiring (resolving the spec, the hook in
   Stages::judge, the report). No change in behaviour; all tests pass.
+
+After item 2: main.rs split further (samrows.rs, stages.rs)
+
+  Discussed with the user which other parts of main.rs could move; agreed: the SAM
+  processing per row and the row pipeline, and the end-of-run reports gathered into one
+  place. No change in behaviour; all tests pass.
+
+  - src/samrows.rs: the sequence fill (Fill with its reasons and message limit) and the
+    input rewrites: NdAdjust, Narrow, Extend and a new Rewrites struct whose apply()
+    runs ND-adjust, narrowing, normal form and the extension in pick's order (it was
+    inline in Stages::judge) and records the context in the view; Rewrites::report gives
+    their counts.
+  - src/stages.rs: Stages, judge, Failure and route. judge now reads as the pipeline of
+    SAMVIEW.design.txt section 2: fill, @@ stage, rewrites, computes, kept state, @
+    stage. Stages::report gathers the end-of-run counts of the stages (filters NA, SAM
+    view, fastQ, groups, rewrites, fill), in the order they had.
+  - main.rs (744 -> 465 lines): run() with its setup, the row loop and the output files;
+    write_list, Progress, main. The notes of the output files (--other, --assert-other,
+    --demux) stay in run(), as they come with closing the files (which can fail).
+
+  The sam.rs module was not used for this: it is about the per-row view the operators
+  read (1400 lines), not about the row pipeline.

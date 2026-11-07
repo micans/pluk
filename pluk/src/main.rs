@@ -18,7 +18,9 @@ mod row;
 mod sam;
 mod samseq;
 mod select;
+mod samrows;
 mod sink;
+mod stages;
 mod state;
 
 use std::io::{BufWriter, ErrorKind, Write};
@@ -69,7 +71,7 @@ fn run() -> std::io::Result<()> {
     // --sam-ND-adjust: the intervals per reference, checked before input is read.
     let nd_adjust = match &config.sam_nd_adjust {
         None => None,
-        Some(name) => match NdAdjust::new(&dicts, name) {
+        Some(name) => match samrows::NdAdjust::new(&dicts, name) {
             Ok(nd) => Some(nd),
             Err(msg) => {
                 eprintln!("pluk: --sam-ND-adjust={}: {}", String::from_utf8_lossy(name), msg);
@@ -221,15 +223,13 @@ fn run() -> std::io::Result<()> {
             note::note!("pluk: the SAM input is not grouped by read (@HD SO:{} GO:{}); a SEQ '*' is filled only \
                          from earlier rows of the same read", input.sam_order.sort_name(), input.sam_order.group_name());
         }
-        Some(Fill::new(config.sam_seqmiss_exit))
+        Some(samrows::Fill::new(config.sam_seqmiss_exit))
     } else {
         None
     };
-    let extension = (config.sam_aln_context.is_some() || config.sam_aln_xy.is_some()).then(|| Extend {
-        options: sam::ContextOptions { n: config.sam_aln_context.unwrap_or(0), xy: config.sam_aln_xy },
-        n_no_reflen: 0,
-    });
-    let narrow = config.sam_narrow_xy.map(|xy| Narrow { xy, n_outside: 0 });
+    let context = (config.sam_aln_context.is_some() || config.sam_aln_xy.is_some())
+        .then(|| sam::ContextOptions { n: config.sam_aln_context.unwrap_or(0), xy: config.sam_aln_xy });
+    let rewrites = samrows::Rewrites::new(normal_form, nd_adjust, config.sam_narrow_xy, context);
     // --pstore (plan/step23.txt): the kept columns, resolved now that all names are known.
     // --group implies --pstore (plan/step23.txt decision 3).
     let pstore_spec = config.pstore.clone().or_else(|| config.group.as_ref().map(|_| opt::Pstore::default()));
@@ -243,8 +243,7 @@ fn run() -> std::io::Result<()> {
             Err(msg) => return Err(std::io::Error::new(ErrorKind::InvalidInput, msg)),
         },
     };
-    let mut stages = Stages { filters, computes, machine, rowno: 0, normal_form, nd_adjust, narrow, extension, fill,
-                              pstore };
+    let mut stages = stages::Stages { filters, computes, machine, rowno: 0, rewrites, pstore, fill };
 
     // --idx-list, --name-list, --idx-map: the output columns, without reading the data.
     if let Some(kind) = config.list {
@@ -325,7 +324,7 @@ fn run() -> std::io::Result<()> {
                 p.tick();
             }
             match kind {
-                io::LineKind::Data        => if route(&mut stages, &mut input.row, input.n_lines,
+                io::LineKind::Data        => if stages::route(&mut stages, &mut input.row, input.n_lines,
                                                           &mut other, &mut assert_other, &mut None)? {
                     n_output += 1
                 },
@@ -354,7 +353,7 @@ fn run() -> std::io::Result<()> {
                 p.tick();
             }
             match kind {
-                io::LineKind::Data => if route(&mut stages, &mut input.row, input.n_lines,
+                io::LineKind::Data => if stages::route(&mut stages, &mut input.row, input.n_lines,
                                                &mut other, &mut assert_other, &mut demux)? {
                     n_output += 1;
                     match &mut demux {
@@ -383,31 +382,7 @@ fn run() -> std::io::Result<()> {
         }
         file.finish()?;
     }
-    stages.filters.report_na();
-    stages.machine.sam.report();
-    let n = stages.machine.n_quality_mismatch;
-    if n > 0 {
-        note::note!("pluk: fastQ: quality of another length than the sequence (NA): {} value{}", n,
-                    if n == 1 { "" } else { "s" });
-    }
-    if let Some(n) = stages.pstore.as_ref().and_then(|p| p.groups()).filter(|&n| n > 0) {
-        note::note!("pluk: --group: {} group{} (the first row of each not output)", n, if n == 1 { "" } else { "s" });
-    }
-    if let Some(nd) = stages.nd_adjust.as_ref().filter(|n| n.n_rows > 0) {
-        note::note!("pluk: --sam-ND-adjust: N turned into D in {} row{} ({} bases)", nd.n_rows,
-                    if nd.n_rows == 1 { "" } else { "s" }, nd.n_switched);
-    }
-    if let Some(nar) = stages.narrow.as_ref().filter(|n| n.n_outside > 0) {
-        note::note!("pluk: alignment outside the --sam-narrow-xy region, made unmapped (FLAG 0x4, CIGAR '*'): {} row{}",
-                    nar.n_outside, if nar.n_outside == 1 { "" } else { "s" });
-    }
-    if let Some(ext) = stages.extension.as_ref().filter(|e| e.n_no_reflen > 0) {
-        note::note!("pluk: alignment not extended at the right (reference length not known): {} row{}",
-                    ext.n_no_reflen, if ext.n_no_reflen == 1 { "" } else { "s" });
-    }
-    if let Some(fill) = &stages.fill {
-        fill.report();
-    }
+    stages.report();
 
     // -E<N>: checked at the end; the rows have been written (as pick).
     if let Some(n) = config.expect {
@@ -475,260 +450,6 @@ impl Progress {
                 eprintln!(" {:9}", self.rows);
             }
         }
-    }
-}
-
-// What happens to a data row before output: the @@ stage, the computes, the @
-// stage (plan/COMPUTE.design.txt section 1).
-struct Stages<'d> {
-    filters:  filter::Filters<'d>,
-    computes: Vec<compute::Compute>,
-    machine:  exec::Machine<'d>,
-    rowno:    u64,              // data rows seen (rowno, r0wno); rejected rows count too
-    normal_form: bool,          // SAM input without --sam-nonf (plan/SAMVIEW.design.txt section 3)
-    nd_adjust: Option<NdAdjust>, // --sam-ND-adjust (plan/step19.txt decision 5)
-    pstore:   Option<state::Pstore>, // --pstore: the columns kept for pload (plan/step23.txt)
-    narrow:   Option<Narrow>,   // --sam-narrow-xy (plan/step19.txt decision 4)
-    extension: Option<Extend>,  // --sam-aln-context, --sam-aln-xy (plan/step19.txt decision 2)
-    fill:     Option<Fill>,     // the sequence fill, when an operator needs the query (SAMSEQ.design.txt)
-}
-
-// --sam-ND-adjust: the intervals per reference, and what was changed.
-struct NdAdjust {
-    intervals:  std::collections::HashMap<Vec<u8>, Vec<(u64, u64)>>,
-    n_rows:     u64,
-    n_switched: u64,
-}
-
-impl NdAdjust {
-    // The dictionary must exist; each value is a list of intervals.
-    fn new(dicts: &dict::Dicts, name: &[u8]) -> Result<NdAdjust, String> {
-        let d = dicts.get(name).ok_or("no dictionary of that name")?;
-        let mut intervals = std::collections::HashMap::new();
-        for (key, value) in &d.map {
-            let list = sam::parse_intervals(value)
-                .map_err(|e| format!("key [{}]: {}", String::from_utf8_lossy(key), e))?;
-            intervals.insert(key.clone(), list);
-        }
-        Ok(NdAdjust { intervals, n_rows: 0, n_switched: 0 })
-    }
-
-    // Turn the N operations outside the intervals of RNAME into D; NM:i follows.
-    fn apply(&mut self, row: &mut row::Row) {
-        let Some(list) = self.intervals.get(row.field(sam::RNAME)) else { return };
-        let Some(pos) = sam::number(row.field(sam::POS)) else { return };
-        let Some((cigar, switched)) = sam::nd_adjust(pos, row.field(sam::CIGAR), list) else { return };
-        row.replace_field(sam::CIGAR, &cigar);
-        let nm = (sam::OPTIONAL..row.n_fields()).find_map(|i| sam::bump_nm(row.field(i), switched).map(|f| (i, f)));
-        if let Some((i, field)) = nm {
-            row.replace_field(i, &field);
-        }
-        self.n_rows += 1;
-        self.n_switched += switched;
-    }
-}
-
-// Narrowing: the region, and the records outside it (made unmapped).
-struct Narrow {
-    xy:        (u64, u64),
-    n_outside: u64,
-}
-
-// The context extension: the options, and the records whose right side could not be
-// extended because the reference length is not known.
-struct Extend {
-    options:     sam::ContextOptions,
-    n_no_reflen: u64,
-}
-
-// Why a SEQ '*' could not be filled (SAMSEQ.design.txt sections 2-5).
-const FILL_REASONS: [&str; 4] = [
-    "segment ambiguous (FLAG 0x1 with 0x40 and 0x80 both set or both unset)",
-    "CIGAR '*' or not valid, so the part of the read is not known",
-    "the stored sequences of the read have another length",
-    "no earlier row of the read holds the sequence",
-];
-const FILL_MESSAGES: u64 = 5;   // per-row messages, then only the counts
-
-// The sequence fill: the cache of the current read, the mode and the counts.
-struct Fill {
-    cache:  samseq::GroupCache,
-    exit:   bool,               // --sam-seqmiss=exit
-    filled: u64,
-    missed: [u64; 4],           // per reason in FILL_REASONS
-}
-
-impl Fill {
-    fn new(exit: bool) -> Fill {
-        Fill { cache: samseq::GroupCache::new(), exit, filled: 0, missed: [0; 4] }
-    }
-
-    // The query for this row, or why the row cannot go on: Ok(None) skip, Err exit.
-    fn process(&mut self, row: &row::Row, lineno: u64) -> Result<Option<sam::Query>, String> {
-        let flag = sam::flag(row).and_then(|f| u16::try_from(f).ok()).unwrap_or(0);
-        let outcome = self.cache.process(row.field(0), flag, row.field(sam::CIGAR), row.field(sam::SEQ),
-                                         row.field(sam::QUAL));
-        let reason = match outcome {
-            samseq::Fill::Present | samseq::Fill::NotSource => return Ok(Some(sam::Query::Row)),
-            samseq::Fill::LengthMismatch => return Ok(Some(sam::Query::Mismatch)),
-            samseq::Fill::Filled { seq, qual } => {
-                self.filled += 1;
-                return Ok(Some(sam::Query::Filled { seq, qual }));
-            }
-            samseq::Fill::Ambiguous => 0,
-            samseq::Fill::NoCigar => 1,
-            samseq::Fill::LengthConflict { .. } => 2,
-            samseq::Fill::NotFound { .. } => 3,
-        };
-        let qname = String::from_utf8_lossy(row.field(0));
-        // An ambiguous segment is skipped whatever the mode (SAMSEQ.design.txt section 2).
-        if self.exit && reason != 0 {
-            return Err(format!("SEQ '*' of read {} cannot be filled: {} (--sam-seqmiss=exit)",
-                               qname, FILL_REASONS[reason]));
-        }
-        self.missed[reason] += 1;
-        if self.missed.iter().sum::<u64>() <= FILL_MESSAGES {
-            note::note!("pluk: line {}: SEQ '*' of read {} cannot be filled: {}; row skipped",
-                        lineno, qname, FILL_REASONS[reason]);
-        }
-        Ok(None)
-    }
-
-    fn report(&self) {
-        if self.filled > 0 {
-            note::note!("pluk: SEQ '*' filled from another row of the read: {} row{}", self.filled,
-                        if self.filled == 1 { "" } else { "s" });
-        }
-        for (n, reason) in self.missed.iter().zip(FILL_REASONS) {
-            if *n > 0 {
-                note::note!("pluk: SEQ '*' not filled, row skipped: {} row{}: {}", n, if *n == 1 { "" } else { "s" },
-                            reason);
-            }
-        }
-    }
-}
-
-impl Stages<'_> {
-    // The computed fields of the previous row are removed first, so that a row
-    // rejected by the @@ stage has none (they read as empty).
-    fn judge(&mut self, row: &mut row::Row, lineno: u64) -> Result<filter::Verdict, Failure> {
-        row.clear_computed();
-        self.rowno += 1;
-        // The fill comes before every filter (SAMVIEW.design.txt section 2).
-        if let Some(fill) = &mut self.fill {
-            match fill.process(row, lineno).map_err(Failure::Fatal)? {
-                Some(query) => self.machine.sam.query = query,
-                None => return Err(Failure::Skipped),
-            }
-        }
-        if !self.filters.pre(row).map_err(Failure::Assertion)? {
-            return Ok(filter::Verdict::RejectPre);
-        }
-        // SAM input rewrites: after the @@ stage, before the computes; pick's order:
-        // ND-adjust, narrow, normal form, extension.
-        if let Some(nd) = &mut self.nd_adjust {
-            if row.n_fields() > sam::CIGAR && !sam::is_unmapped(row) {
-                nd.apply(row);
-            }
-        }
-        // Narrowing: mapped records only; a record
-        // outside the region gets FLAG 0x4 and CIGAR '*' (RNAME and POS kept).
-        if let Some(nar) = &mut self.narrow {
-            if row.n_fields() > sam::CIGAR && !sam::is_unmapped(row) {
-                if let Some(pos) = sam::number(row.field(sam::POS)) {
-                    match sam::narrow(pos, row.field(sam::CIGAR), nar.xy.0, nar.xy.1) {
-                        sam::Narrowed::Unchanged => {}
-                        sam::Narrowed::Changed { pos, cigar } => {
-                            row.replace_field(sam::POS, pos.to_string().as_bytes());
-                            row.replace_field(sam::CIGAR, &cigar);
-                        }
-                        sam::Narrowed::Outside => {
-                            nar.n_outside += 1;
-                            if let Some(flag) = sam::flag(row) {
-                                row.replace_field(sam::FLAG, (flag | 0x4).to_string().as_bytes());
-                            }
-                            row.replace_field(sam::CIGAR, b"*");
-                        }
-                    }
-                }
-            }
-        }
-        // As pick, every record, unmapped ones included (CIGAR '*' never changes).
-        if self.normal_form && row.n_fields() > sam::CIGAR {
-            if let Some((pos, cigar)) = sam::normal_form(row.field(sam::POS), row.field(sam::CIGAR)) {
-                row.replace_field(sam::POS, &pos);
-                row.replace_field(sam::CIGAR, &cigar);
-            }
-        }
-        // Context extension, after the normal form (pick's order); mapped records only.
-        if let Some(ext) = &mut self.extension {
-            self.machine.sam.context = (0, 0);
-            if row.n_fields() > sam::CIGAR && !sam::is_unmapped(row) {
-                if let Some(pos) = sam::number(row.field(sam::POS)) {
-                    let reflen = self.machine.sam.reference_length(row);
-                    let (extension, no_reflen) = sam::extend(pos, row.field(sam::CIGAR), reflen, &ext.options);
-                    ext.n_no_reflen += u64::from(no_reflen);
-                    if let Some(e) = extension {
-                        row.replace_field(sam::POS, e.pos.to_string().as_bytes());
-                        row.replace_field(sam::CIGAR, &e.cigar);
-                        self.machine.sam.context = e.context;
-                    }
-                }
-            }
-        }
-        if !self.computes.is_empty() {
-            self.machine.run(&self.computes, row, self.rowno, lineno).map_err(Failure::Fatal)?;
-        }
-        // --pstore: kept after the computes, before the @ stage (plan/step23.txt decision 0);
-        // with --group the first row of a group is skipped there, as the fill's skip.
-        if let Some(p) = &mut self.pstore {
-            if p.keep(row, &mut self.machine) {
-                return Err(Failure::Skipped);
-            }
-        }
-        let kept = self.filters.post(row).map_err(Failure::Assertion)?;
-        Ok(if kept { filter::Verdict::Keep } else { filter::Verdict::RejectPost })
-    }
-}
-
-// Why a row could not be judged: an assertion failed (diverted with
-// --assert-other), or an operator failed (map with __EXIT__), which ends the run.
-enum Failure {
-    Assertion(String),
-    Fatal(String),
-    Skipped,        // a SEQ '*' that cannot be filled, with --sam-seqmiss=skip
-}
-
-// Whether the current data row is kept. A row rejected by a filter is written to
-// --other, and if rejected by an @ filter also counted by --demux (which opens
-// its file); a row that fails an assertion is written to --assert-other, or else
-// ends the run with an error giving the line number.
-fn route(stages: &mut Stages, row: &mut row::Row, lineno: u64,
-         other: &mut Option<sink::SideFile>, assert_other: &mut Option<sink::SideFile>,
-         demux: &mut Option<demux::Demux>)
-    -> std::io::Result<bool>
-{
-    match stages.judge(row, lineno) {
-        Ok(filter::Verdict::Keep) => Ok(true),
-        Ok(verdict) => {
-            if let Some(file) = other {
-                file.write_row(row)?;
-            }
-            if let (filter::Verdict::RejectPost, Some(d)) = (verdict, demux) {
-                d.filtered(row, lineno)?;
-            }
-            Ok(false)
-        }
-        Err(Failure::Assertion(msg)) => match assert_other {
-            Some(file) => {
-                file.write_row(row)?;
-                Ok(false)
-            }
-            None => Err(std::io::Error::new(ErrorKind::InvalidData, format!("{} at line {}", msg, lineno))),
-        },
-        Err(Failure::Fatal(msg)) => Err(std::io::Error::new(ErrorKind::InvalidData, format!("{} at line {}", msg, lineno))),
-        // Not a filter rejection: not written to --other (SAMSEQ.design.txt section 5).
-        Err(Failure::Skipped) => Ok(false),
     }
 }
 
