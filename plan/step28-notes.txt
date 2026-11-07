@@ -67,3 +67,17 @@ Item 3: reference for arithmetic, math, precision, bit, radix (57 operators)
 
   A first trig example used pi/2, where the tangent is a meaningless 1.6e16 from floating
   point; replaced by 0 and 1.
+
+
+Item 4: reference for dictionary, branch, state, time, bio (25 operators)
+
+  Rules from step15 (map and dord, test and ifelse, registers, row numbers, time), step23
+  (pload, groupi groupno) and step21 (the bio operators). 15 examples. Three needed care:
+  now changes with every run, so its example tests that it is past 2001; todate depends on
+  the time zone, so its example sets TZ=UTC; the group example sorts harvest.txt by fruit
+  inline (a group is a run of consecutive rows).
+
+  Reading the outputs led to two changes: the map example now includes a fruit that is not
+  in the dictionary (the default 'none', and NA from dord), and the save text says that
+  registers are shared by the computes of a row (the example fetches in one compute what
+  another saved).

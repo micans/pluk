@@ -969,9 +969,21 @@ x/y per mille, with N decimals. Example under `dd`.
 <!-- op map -->
 `x D` → `map-of-x` — Value of x in dictionary D (not found: as D's default)
 
+`map` gives the value of key x in dictionary D; for a key that is not in D it gives D's not-found result: the key itself, the default given with the dictionary (`--cd-NAME/DEFAULT=...`), or, with the default `__EXIT__`, an error that ends the run with the line number. `dord` gives the position (1-based) at which x first appeared in D, counted over everything merged into D in command-line order, and NA for a key that is not in D. D must be a constant naming a dictionary; an NA x gives NA.
+
+```console
+$ pluk --cd-PRICE/none=apple:2.10,pear:2.50,cherry:9.00 picker fruit 'p::fruit^PRICE,map' 'o::fruit^PRICE,dord' '@picker~[ABD]' < harvest.txt
+picker	fruit	p	o
+Annie	apple	2.10	1
+Bert	pear	2.50	2
+Dora	plum	none	NA
+```
+
 #### `dord`
 <!-- op dord -->
 `x D` → `ord-of-x` — Order of x in dictionary D (first appearance, 1-based; NA if absent)
+
+The order of key x in dictionary D (NA if absent). Example under `map`.
 
 ### branch
 
@@ -979,9 +991,21 @@ x/y per mille, with N decimals. Example under `dd`.
 <!-- op ifelse -->
 `B x y` → `x or y` — If B put x else put y (B: a non-zero number, or a non-empty string)
 
+`ifelse` gives x if B is true and y otherwise: a number is true if it is not zero, anything else if it is not empty; an NA B gives NA. `test` applies a filter operator T (any of section 5: `/gt/`, `~eq~`, `=`, `~`, `~isin~`, `/ep/`, `/all/`, ...) to x and y and gives 1 or 0; T must be a constant, as must the pattern of `~` and the dictionary of `~isin~`; where a filter would fail on a value that is not a number, `test` gives NA. `~hasval~`, `~hasnotval~` and the predicates such as `/ISNUM` cannot be used in `test`.
+
+```console
+$ pluk picker kg 'h::kg^15^/gt/,test' 'w::kg^15^/gt/,test^heavy^light,ifelse' 'a::picker^%5E[A-D]^~,test' < harvest.txt
+picker	kg	h	w	a
+Annie	14.5	0	light	1
+Bert	9.0	0	light	1
+...
+```
+
 #### `test`
 <!-- op test -->
 `x y T` → `B` — Test T applied to x y: 1 or 0 (T a filter operator: /gt/ ~eq~ ~ ~isin~ ...)
+
+Filter operator T applied to x and y: 1 or 0. Example under `ifelse`.
 
 ### state
 
@@ -989,33 +1013,81 @@ x/y per mille, with N decimals. Example under `dd`.
 <!-- op save -->
 `x n` → `x` — Store x in register n (per row), x stays
 
+`save` stores x in register n and leaves x on the stack; `fetch` gives the value stored in register n. Registers hold for one row and are shared by all computes of that row: a later compute can fetch what an earlier one saved, and every row starts without them. A constant register name is checked before input is read: a `fetch` that no earlier `save` (in compute order) stores is an error. A name taken from a column is looked up per row; a register that was not stored gives NA.
+
+```console
+$ pluk picker 'r::bruised:kg,div^r,save^r,fetch,mul^4,dd' 's::^r,fetch' < harvest.txt
+picker	r	s
+Annie	0.0190	0.13793103448275862
+Bert	0.0000	0
+...
+```
+
 #### `fetch`
 <!-- op fetch -->
 `n` → `reg(n)` — Value in register n (stored earlier in this row)
+
+The value stored in register n in this row. Example under `save`.
 
 #### `pload`
 <!-- op pload -->
 `c` → `prev(c)` — Column c of the previous row (--pstore; c a constant name)
 
+Column c of the previous row, with `--pstore` (or `--group`): the value it had after the computes of that row, so that a column can build on its own previous value. c must be a constant naming an input or computed column. Before the first row the value is NA, unless `--pstore/LIST/DEFAULT` gives one (`--pstore//0`: 0 for every column). Section 8 describes `--pstore` and `--group`.
+
+```console
+$ pluk --pstore//0 picker kg 'total::^total,pload:kg,add' < harvest.txt
+picker	kg	total
+Annie	14.5	14.5
+Bert	9.0	23.5
+...
+```
+
 #### `groupi`
 <!-- op groupi -->
 `-` → `i` — Position of the row in its group (2 for the first output; --group)
+
+With `--group=COL` or `--group-first-ref=COL`, rows with the same value in COL follow one another as a group, and the first row of each group is not output (it is the reference for `pload`). `groupi` is the position of the row in its group (2 for the first row output), `groupno` the number of the group. Without `--group` they are an error.
+
+```console
+$ { head -n 1 harvest.txt; tail -n +2 harvest.txt | sort -k2,2; } | pluk -q --group=fruit fruit picker 'i::,groupi' 'g::,groupno'
+fruit	picker	i	g
+apple	Chen	2	1
+apple	Fenna	3	1
+...
+```
 
 #### `groupno`
 <!-- op groupno -->
 `-` → `g` — Number of the row's group (1-based; --group)
 
+The number of the row's group (1-based). Example under `groupi`.
+
 #### `rowno`
 <!-- op rowno -->
 `-` → `x` — Current table row number (start one)
+
+`rowno` is the number of the data row (1 for the first row after the header; with `-k` the first line is row 1), `r0wno` the same counted from 0, `lineno` the line number in the input. Rows that a filter rejects later still count, so the numbers are those of the input.
+
+```console
+$ pluk picker 'r::,rowno' 'z::,r0wno' 'l::,lineno' @fruit=apple < harvest.txt
+picker	r	z	l
+Annie	1	0	2
+Chen	3	2	4
+Fenna	6	5	7
+```
 
 #### `r0wno`
 <!-- op r0wno -->
 `-` → `x` — Current table row number (start zero)
 
+The data row number counted from 0. Example under `rowno`.
+
 #### `lineno`
 <!-- op lineno -->
 `-` → `x` — Current input line number
+
+The line number in the input. Example under `rowno`.
 
 ### time
 
@@ -1023,17 +1095,43 @@ x/y per mille, with N decimals. Example under `dd`.
 <!-- op now -->
 `-` → `t` — Current epoch (unix seconds)
 
+The current time in seconds since 1970-01-01 (the epoch), the same for every row of a run only to the second. The example tests that it is past 2001.
+
+```console
+$ pluk picker 'n::,now^1000000000^/gt/,test' '@picker=Annie' < harvest.txt
+picker	n
+Annie	1
+```
+
 #### `ttu`
 <!-- op ttu -->
 `tu` → `s` — Time unit (3h, 1.5d; units s m h d w y) in seconds
+
+`ttu` reads a time unit, a number followed by one of s m h d w y (a year is 31556952 seconds), and gives seconds; anything else is NA (a constant that is not a time unit is an error before input is read). `rttu` writes seconds as days, hours, minutes and seconds (1d,2h,3m,4s; 0 as 0s; a negative number with a minus sign); a float is rounded to the nearest second.
+
+```console
+$ pluk 'a::^1.5d,ttu' 'b::^90061,rttu' 'c::^1.11m,ttu,rttu' '@picker=Annie' < harvest.txt
+a	b	c
+129600	1d,1h,1m,1s	1m,7s
+```
 
 #### `rttu`
 <!-- op rttu -->
 `s` → `tu` — Integer seconds as days, hours, minutes, seconds (1d,2h,3m,4s)
 
+Seconds written as 1d,2h,3m,4s. Example under `ttu`.
+
 #### `todate`
 <!-- op todate -->
 `u` → `date` — Epoch as local date and time (%Y-%m-%d-%H-%M-%S)
+
+An epoch (seconds since 1970-01-01) as the local date and time, year-month-day-hour-minute-second. The time zone is the system's, or the one in the environment variable TZ. A float is NA.
+
+```console
+$ TZ=UTC pluk 'd::^0,todate' 'e::^1700000000,todate' '@picker=Annie' < harvest.txt
+d	e
+1970-01-01-00-00-00	2023-11-14-22-13-20
+```
 
 ### bit
 
@@ -1476,37 +1574,95 @@ As `edg`, with `$1` `$2` .. and `$0` in s. Example under `edbr`.
 <!-- op rc -->
 `x` → `rc(x)` — Reverse complement (IUPAC codes complemented, U as A)
 
+`rc` gives the reverse complement of x: A C G T become T G C A in either case, U becomes A, the IUPAC codes are complemented (R Y, K M, B V, D H) and N, S, W and every other byte stay as they are. `todna` makes x DNA: u and U become t and T, other letters n or N (keeping the case), and every other byte N.
+
+```console
+$ printf 'ACGTN\nacgu\nRYKM-\n' | pluk -k 1 'r::1,rc' 'd::1,todna'
+ACGTN	NACGT	ACGTN
+acgu	acgt	acgt
+RYKM-	-KMRY	NNNNN
+```
+
 #### `forward`
 <!-- op forward -->
 `B seq` → `forward` — seq if B is true, else rc(seq)
+
+seq if B is true, otherwise its reverse complement (`rc`); B is true as for `ifelse`. With SAM input, `isforward` gives B: `,isforward,qry_seq,forward` is the read as it was sequenced (SAM stores the sequence of a reverse-strand alignment reverse-complemented).
+
+```console
+$ printf '1\tACGTT\n0\tACGTT\n' | pluk -k 1 2 'f::1:2,forward'
+1	ACGTT	ACGTT
+0	ACGTT	AACGT
+```
 
 #### `todna`
 <!-- op todna -->
 `x` → `x'` — DNA letters: uU to tT, other letters n N, other bytes N
 
+x as DNA letters. Example under `rc`.
+
 #### `dnatl`
 <!-- op dnatl -->
 `x f` → `protein` — DNA (or RNA) x translated from offset f (stop *, unknown ?, rest {..})
+
+`dnatl` translates x from offset f (0, 1, 2, ...) with the standard genetic code: x is read in upper case, U as T; a stop codon is *, a codon with other letters (N, IUPAC codes) ?, and the one or two bases left at the end are added between braces. An x not longer than f gives the empty string; f must be a non-negative integer, else NA. `dnagc` gives the percentage of G and C among the A C G T U of x (either case), with N decimals (0 to 1000); without any of those bases it is NA.
+
+```console
+$ printf 'ATGGCCTAA\nAUGUUU\nACGTNNNN\nNNNN\n' | pluk -k 1 't::1^0,dnatl' 'g::1^1,dnagc'
+ATGGCCTAA	MA*	44.4
+AUGUUU	MF	16.7
+ACGTNNNN	T?{NN}	50.0
+NNNN	?{N}	NA
+```
 
 #### `dnagc`
 <!-- op dnagc -->
 `x N` → `gc(x)` — Percentage G C among the A C G T U of x, N decimals (none: NA)
 
+The G C percentage of x, with N decimals. Example under `dnatl`.
+
 #### `fasta`
 <!-- op fasta -->
 `i s` → `fasta` — FASTA record: >i newline s
+
+`fasta` writes a FASTA record of identifier i and sequence s; `fastq` a FASTQ record with the quality Z for every base, `fastQ` one with the quality q. A q of `*` (SAM's missing quality) gives Z for every base, as `fastq` (unless s is one base long); another q whose length differs from s gives NA, counted at the end. The record contains newlines; output only that column to get a file.
+
+```console
+$ pluk -h 'f::picker^ACGT,fasta' '@fruit=pear' < harvest.txt
+>Bert
+ACGT
+>Gus
+ACGT
+$ pluk -h 'q::picker^ACGT^!!%23%23,fastQ' '@picker=Bert' < harvest.txt
+@Bert
+ACGT
++
+!!##
+```
 
 #### `fastq`
 <!-- op fastq -->
 `i s` → `fastq` — FASTQ record of i and s, quality Z for every base
 
+A FASTQ record with quality Z for every base. Example under `fasta`.
+
 #### `fastQ`
 <!-- op fastQ -->
 `i s q` → `fastq` — FASTQ record of i, s and quality q (q * gives Z; other length: NA)
 
+A FASTQ record with quality q. Example under `fasta`.
+
 #### `strpair`
 <!-- op strpair -->
 `x y` → `pair(x,y)` — Per position | where x and y are equal, x where not (shorter length)
+
+For each position up to the shorter of x and y, | where the bytes are equal and x where they differ (exact, case matters). The result uses the symbols of `aln_aln`, so `patchiness` can score it.
+
+```console
+$ printf 'ACGTA\tACCTA\nacgt\tACGT\n' | pluk -k 1 2 's::1:2,strpair'
+ACGTA	ACCTA	||x||
+acgt	ACGT	xxxx
+```
 
 ### filter
 
