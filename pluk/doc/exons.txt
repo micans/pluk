@@ -1,0 +1,7 @@
+gene	exon	exon_start	exon_end
+foo	1	100	180
+foo	2	260	390
+foo	3	520	600
+bar	1	1000	1120
+bar	2	1400	1510
+baz	1	2000	2300
