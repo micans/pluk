@@ -1739,7 +1739,77 @@ pluk: (Output) handle [nosuch] in output does not reference a known entity among
 
 ## 14. Differences from pick
 
-The one place where pluk is compared with pick: not taken over; additions without a pick counterpart; changed behaviour by topic; pick's corner cases settled.
+This is the one place where pluk is compared with pick. The rest of the manual describes
+pluk only. pluk takes over pick's interface: the same arguments, options and operators
+mean the same thing, except where this section says otherwise. The differences are
+recorded as they are decided, in `plan/guidelines.txt` and here.
+
+### 14.1 Not taken over
+
+Operators:
+
+- `sprintf` and `reqm` (quote a value for use as a regex): not implemented; `fmtall`,
+  `dd`, `sn`, `zp`, `ppl`, `ppr` and the radix operators cover most uses of `sprintf`.
+- `tmap` and named table dictionaries (`--table-dict-NAME`): `--td` makes one dictionary
+  per column instead, used with `map` (section 7).
+- `suv` and `input_cigar` (internal to pick's SAM processing), and `debug`.
+- The deprecated operator names that pick still accepts with a warning (`alnmatch`,
+  `qrylen`, `refstart`, ...).
+
+Options:
+
+- `-W` (a header line whose names are not used), `-f` (allow equal input and output
+  names), `-v` and `-d` (verbosity, debugging), `-ll`, `-qq` and `-qqq` (`-q` has one
+  level).
+- `-P` and `-Z` (protection against division by zero, discarding such rows), `--inf`
+  and pick's `PICK_*` environment variables: pluk gives `inf`, `nan` or NA (section 3).
+- `--fastq-dict-NAME` (sequences from a FASTQ file).
+- `--inames`, `--add-inames`, `--onames` (renaming input and output columns), for now.
+- `--remind-me` (the SAM field and FLAG tables).
+
+### 14.2 Additions
+
+Options and arguments without a pick counterpart:
+
+- `-u`, make repeated input column names unique (section 4).
+- `--demux-dir`, the directory for the `--demux` files (section 9).
+- `--seed`, a seed for `rand`; `--num-perl`, numbers written as Perl writes them
+  (sections 3 and 6).
+- `@@assert@`, an assertion before the computes (section 5).
+- `--sam-seqmiss`, what to do with a SEQ `*` that cannot be filled (section 10).
+- BAM input, and `--threads` for its decompression (section 10).
+- `--list-ops-tsv`, the operator table for scripts (section 9).
+
+Filters:
+
+- A filter on a list, a `+REGEX` or a `-k` range of columns: every column must pass
+  (section 5).
+- The predicates `/ISINT`, `/NOTINT`, `/ISNUM`, `/NOTNUM` (section 15).
+- `~notin~` and `~notval~`, synonyms of `~isnotin~` and `~hasnotval~`.
+
+Computes:
+
+- `P//SPEC//S`, renaming that keeps each original column (pick writes `P/SPEC//S`,
+  section 6).
+- `strpair`, pick's experimental `_strpair` under a plain name (section 11).
+
+Messages:
+
+- Counts at the end of a run of what could not be computed or tested, such as values
+  that are not a number, NA in SAM processing, rows filled, groups (section 13).
+
+Building:
+
+- A build with 128-bit integers (section 1).
+
+### 14.3 Changed behaviour
+
+*This part of the section is being written.*
+
+### 14.4 pick's corner cases
+
+*This part of the section is being written.*
+
 
 
 ## 15. Operator reference

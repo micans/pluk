@@ -27,3 +27,22 @@ Item 1: section 13, messages and reports
   - pluk without column arguments writes its usage note and exits with status 0.
   Candidates for a small code step: give every message the prefix (the doc examples then
   need no 2>&1), and decide on the exit status without arguments.
+
+
+Item 2: section 14.1 and 14.2
+
+  Drawn up by comparing pick with pluk directly rather than from the plan files alone:
+  operators from pick -l and pick --sam -l against pluk --list-ops-tsv (pick only:
+  _strpair debug reqm sprintf suv tmap; input_cigar is internal), options from pick's
+  option parser (pick lines 1263-1590) and pick -H against pluk --help, each absent
+  option tried on pluk. Not taken over: sprintf reqm tmap and named table dictionaries,
+  suv input_cigar debug, the deprecated names; -W -f -v -d -ll -qq, -P -Z --inf and the
+  PICK_* variables (division protection), --fastq-dict, the names options, --remind-me.
+  Additions: -u --demux-dir --seed --num-perl @@assert@ --sam-seqmiss BAM --threads
+  --list-ops-tsv, multi-column filter handles, the predicates, ~notin~ ~notval~,
+  P//SPEC//S, strpair, the end-of-run counts, the int128 build.
+
+  plan/remaining.txt is partly stale (A.1-A.3 and B's -U were implemented in steps
+  23-25); it is a planning record and was not used as the source. pick's --group-all
+  dies in pick itself ('not available currently') and is not listed. guidelines.txt now
+  says that a new difference is recorded there and in section 14 (decision 3).

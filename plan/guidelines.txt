@@ -33,7 +33,9 @@
 
   For the foreseeable future pluk's interface will be exactly the same as pick's. More esoteric pick features,
   which will arrive very late in the step sequence, may be rethought at that time.
-  Intended differences from pick are decided explicitly and listed here, with a pointer to the design file:
+  Intended differences from pick are decided explicitly and listed here, with a pointer to the design file (since
+  step31 also in section 14 of pluk/doc/PLUK-MANUAL.md, regrouped by topic: a new difference is recorded in
+  both places):
     - regex column names are introduced by a leading '+' and match the whole name (COLSPEC.design.txt, 1).
     - -u (make duplicate input column names unique) and the duplicate check on input names (step1 item 6).
     - -R cannot be combined with -k (step1-context.txt).
