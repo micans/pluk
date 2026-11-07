@@ -15,12 +15,15 @@ p=../target/release/pluk
 test: runpluk runtestopt rundiff rundoc
 	@echo "--- All tests passed ---"
 
-# The console examples of the documents in ../doc, run and compared
-# (plan/MANUAL.design.txt section 4; Python 3).
-DOCS = ../doc/INTRODUCTION.md ../doc/SAM-NA.md
+# The console examples of the documents in ../doc, run and compared, and the
+# operator reference of the manual checked against pluk --list-ops-tsv
+# (plan/MANUAL.design.txt sections 3 and 4; Python 3). After a change to an operator:
+# python3 opscheck.py --update $(p) ../doc/PLUK-MANUAL.md
+DOCS = ../doc/INTRODUCTION.md ../doc/SAM-NA.md ../doc/PLUK-MANUAL.md
 
 rundoc:
 	@python3 doccheck.py $(p) $(DOCS)
+	@python3 opscheck.py $(p) ../doc/PLUK-MANUAL.md
 
 # A failing invocation does not stop the others; its output is compared as usual.
 .IGNORE: runpluk runtestopt

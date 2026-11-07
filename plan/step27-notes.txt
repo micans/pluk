@@ -52,3 +52,28 @@ Item 2: the example checker
   a 'pluk:' prefix, so it did not match the convention. Resolved with the user: the
   example now runs pluk with -q (which silences the tally) and shows ls crates, the
   four .txt files; the convention stays as it is.
+
+
+Item 3: PLUK-MANUAL.md skeleton, the signature checker
+
+  doc/PLUK-MANUAL.md: the preamble (as the user edited it in INTRODUCTION.md), a note
+  that the manual is being written, the headings of sections 1 to 14 with a line on what
+  each will cover, and section 15, the operator reference: per category (in -l order) a
+  heading #### `NAME` with a marker <!-- op NAME --> and the generated signature line
+  `OPERANDS` → `RESULT` — DESCRIPTION for each of the 218 operators. Generated with
+  opscheck.py --skeleton.
+
+  test/opscheck.py PLUK MANUAL: reads pluk --list-ops-tsv; for every marker compares the
+  next line with the generated signature (an error if it differs), reports a marker for an
+  operator pluk does not have (an error), and counts operators missing from the manual and
+  markers without a description (text before the next heading or marker), which are only
+  reported (decision b). --update rewrites the signature lines in place and prints the
+  block for every operator missing from the manual, to be placed by hand (the placement is
+  an editorial choice). Self-tested on a modified copy: a changed signature, a stale
+  marker, a removed operator and a described one; --update restores the signature exactly.
+
+  test/Makefile: rundoc also runs opscheck.py on the manual; the manual is added to the
+  documents of doccheck.py (no console blocks yet). The command for refreshing the
+  signatures after an operator change is noted in the Makefile.
+
+  step27 complete with this item.

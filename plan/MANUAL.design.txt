@@ -56,6 +56,12 @@ Status: DECIDED (discussions after step26; seed plan/MANUAL.notes.txt).
    The script reports operators without a description and descriptions of operators that
    no longer exist.
 
+   The form in the manual (step27 item 3): a heading #### `NAME`, a marker line
+   <!-- op NAME -->, the signature line `OPERANDS` → `RESULT` — DESCRIPTION, then the
+   description up to the next heading or marker. test/opscheck.py checks it (part of make
+   test); --update rewrites the signature lines; --skeleton prints the reference for
+   every operator.
+
    The script reads the operator table from pluk itself: pluk --list-ops-tsv (a permanent
    option) writes one line per operator, tab-separated: name, category, operands, result,
    description; compute and filter operators alike.
