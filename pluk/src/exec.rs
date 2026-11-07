@@ -53,6 +53,9 @@ pub struct Machine<'d> {
     pub kept:   Vec<Option<Vec<u8>>>,             // --pstore: the kept columns of the previous row (None: NA)
     pub groupi: u64,                              // --group: position of the row in its group
     pub groupno: u64,                             // --group: number of the group
+    pub sam_put: Vec<Vec<u8>>,                    // sam_put: the TAG:TYPE:VALUE entries of this row
+    pub put_unusable: u64,                        // sam_put values NA or with TAB or newline
+    pub put_wrong_type: u64,                      // sam_put values not of the tag's type
 }
 
 // A small random number generator, splitmix64 (Steele, Lea and Flood, 2014): a
@@ -95,7 +98,7 @@ impl<'d> Machine<'d> {
                   register_slots: HashMap::new(), other_registers: HashMap::new(), rowno: 0, lineno: 0,
                   time_zone: None, sam: crate::sam::View::new(dicts),
                   n_quality_mismatch: 0, kept: Vec::new(),
-                  groupi: 0, groupno: 0 }
+                  groupi: 0, groupno: 0, sam_put: Vec::new(), put_unusable: 0, put_wrong_type: 0 }
     }
 
     // The register slots of the compiled computes (constant names of save and fetch).
@@ -153,6 +156,7 @@ impl<'d> Machine<'d> {
         self.registers.fill(None);
         self.other_registers.clear();
         self.sam.reset();
+        self.sam_put.clear();
         for compute in computes {
             self.stack.clear();
             for instr in &compute.instrs {

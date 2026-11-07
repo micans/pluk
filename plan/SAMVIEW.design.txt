@@ -216,7 +216,8 @@ plan/SAMSEQ.design.txt.
    --sam-h/FILE; those that need the query sequence (sam::needs_query) make the fill active.
    cgsum cgmax cgcount take a CIGAR string from the stack and work everywhere. -l sam lists
    the SAM operators. Not taken over: suv (the view's values are operators), input_cigar
-   (withheld), sam_put (separate, SAM.notes.txt).
+   (withheld). sam_put: step25 (plan/step25.txt; a per-row buffer of TAG:TYPE:VALUE
+   entries, applied to column 12 after the computes, as an input rewrite of the row).
 
    sam_get TAG DEFAULT: TAG a constant XX:T, XX.T or XX-T (checked at compile time, as
    pick); the value of the first optional field with that tag and type, else DEFAULT.

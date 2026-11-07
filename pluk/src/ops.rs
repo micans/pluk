@@ -342,6 +342,8 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "-", result: "seq", doc: "Query sequence of the matched part", fun: op_qry_matched },
     OpDef { name: "qry_trail3p", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
             operands: "-", result: "seq", doc: "Query sequence of the 3' trail", fun: op_qry_trail3p },
+    OpDef { name: "sam_put", pops: Pops::N(2), pushes: 0, shape: Shape::Consume, prepare: Prepare::SamTag, category: Category::Sam,
+            operands: "tag val", result: "-", doc: "Put tag:val in the optional fields (column 12; replaces the same tag)", fun: op_sam_put },
     OpDef { name: "sam_get", pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::SamTag, category: Category::Sam,
             operands: "tag def", result: "value", doc: "Value of optional field tag (XX:T, XX.T, XX-T), def if absent", fun: op_sam_get },
     OpDef { name: "rc",     pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Bio,
@@ -1482,6 +1484,34 @@ fn op_aln_allq(m: &mut Machine, row: &Row, _: &Attached) {
 }
 fn op_aln_all_pack(m: &mut Machine, row: &Row, _: &Attached) {
     aln_lines(m, row, |a| vec![&a.ruler, &a.reference, &a.aln, &a.query], 0x01, true)
+}
+
+// sam_put tag val (plan/step25.txt): TAG:TYPE:VALUE goes into the machine's buffer,
+// applied to column 12 after the computes; an earlier entry with the same tag in this
+// row is replaced (the last wins). A value that is NA, holds a TAB or newline, or is
+// not of the tag's type is not put, and counted.
+fn op_sam_put(m: &mut Machine, row: &Row, attached: &Attached) {
+    let val = m.pop();
+    m.pop();
+    let Attached::Value(Value::Bytes(tt)) = attached else { unreachable!("sam_put has its tag attached") };
+    if matches!(val, Value::Na) {
+        m.put_unusable += 1;
+        return;
+    }
+    let value = m.bytes(&val, row).into_owned();
+    if value.contains(&b'\t') || value.contains(&b'\n') {
+        m.put_unusable += 1;
+        return;
+    }
+    if !sam::valid_tag_value(tt[3], &value) {
+        m.put_wrong_type += 1;
+        return;
+    }
+    let entry = [&tt[..], &value[..]].concat();
+    match m.sam_put.iter().position(|e| e[..2] == entry[..2]) {
+        Some(k) => m.sam_put[k] = entry,
+        None => m.sam_put.push(entry),
+    }
 }
 
 // sam_get tag def: the tag was checked and normalised to XX:T: at compile time.

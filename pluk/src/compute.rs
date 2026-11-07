@@ -351,7 +351,7 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, context: Context, dic
                                 Some(attached) => Instr::OpWith(op, attached),
                                 None => Instr::Op(op),
                             },
-                            Prepare::SamTag => Instr::OpWith(op, Attached::Value(sam_tag(&instrs, &stack, &shown)?)),
+                            Prepare::SamTag => Instr::OpWith(op, Attached::Value(sam_tag(&instrs, &stack, op.name, &shown)?)),
                             Prepare::FormatCount => {
                                 check_format(&instrs, &stack, &shown)?;
                                 Instr::Op(op)
@@ -385,6 +385,12 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, context: Context, dic
                                     instrs, stack });
         }
     }
+    // sam_put with an in-place compute on column 12: the output would show the computed
+    // column, without the put tags (plan/step25.txt decision 5).
+    if sam && uses(&computes, "sam_put") && input.len() > crate::sam::OPTIONAL
+        && names.current(crate::sam::OPTIONAL) != crate::sam::OPTIONAL {
+        return Err("sam_put cannot be combined with a compute that redefines column 12 in place (-i)".to_string());
+    }
     Ok((computes, names))
 }
 
@@ -415,23 +421,31 @@ pub fn needs_query(computes: &[Compute]) -> bool {
     })
 }
 
+// Whether a compute uses the operator called name (sam_put, step25).
+pub fn uses(computes: &[Compute], name: &str) -> bool {
+    computes.iter().flat_map(|c| &c.instrs).any(|instr| match instr {
+        Instr::Op(op) | Instr::OpWith(op, _) => op.name == name,
+        _ => false,
+    })
+}
+
 // sam_get tag def: the tag must be a constant XX:T, with XX.T and XX-T accepted for
 // it (as pick, to avoid writing %3A); T one of A i f Z H B. Attached as XX:T:, the
 // prefix of the optional field.
-fn sam_tag(instrs: &[Instr], stack: &[Slot], shown: &str) -> Result<crate::exec::Value, String> {
+fn sam_tag(instrs: &[Instr], stack: &[Slot], op: &str, shown: &str) -> Result<crate::exec::Value, String> {
     let tag = match stack.len().checked_sub(2).map(|k| &stack[k]) {
         Some(Slot::Const(k)) => match &instrs[*k] {
             Instr::Const(c) => c,
             _ => unreachable!("Slot::Const refers to a constant"),
         },
-        _ => return Err(format!("[{}]: the tag operand of sam_get must be a constant (^NM.i)", shown)),
+        _ => return Err(format!("[{}]: the tag operand of {} must be a constant (^NM.i)", shown, op)),
     };
     match tag.as_slice() {
         [a, b, sep, t] if b":.-".contains(sep) && b"AifZHB".contains(t)
                           && a.is_ascii_alphanumeric() && b.is_ascii_alphanumeric() =>
             Ok(crate::exec::Value::Bytes(vec![*a, *b, b':', *t, b':'])),
-        _ => Err(format!("[{}]: sam_get: tag [{}] is not of the form XX:T, XX.T or XX-T (T one of A i f Z H B)",
-                         shown, String::from_utf8_lossy(tag))),
+        _ => Err(format!("[{}]: {}: tag [{}] is not of the form XX:T, XX.T or XX-T (T one of A i f Z H B)",
+                         shown, op, String::from_utf8_lossy(tag))),
     }
 }
 

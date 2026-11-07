@@ -1,0 +1,70 @@
+
+- sam_put
+
+  plan/remaining.txt A3/C. pick's sam_put tag val appends TAB TAG:VALUE to column 12
+  (the optional fields, merged by -O12); it pops two values and pushes nothing. Seed:
+  SAM.notes.txt (idea (a), chosen; the -i workaround stays available).
+
+  All decisions agreed (the refinements of 4 and 6 confirmed by the user).
+
+
+  Outcome of the discussion
+
+  Decisions:
+   0. Mechanism (the user's escape hatch, idea (a) of SAM.notes.txt). sam_put is a SAM
+      operator (needs --sam or --sam-h). The machine holds one byte buffer, cleared per
+      row; each sam_put adds TAG:VALUE to it. After the computes (where --pstore keeps its
+      values, before the @ stage) a non-empty buffer is applied to column 12 of the row:
+      with --sam, -O12 merges all optional fields into column 12 and every record has
+      one, possibly empty (BAM input alike). Without a sam_put in the computes nothing is
+      created and nothing runs. The row itself is changed (Row::replace_field on its last
+      field, which is a cheap append), so whole-line output (-A, --sam-h), @ filters on
+      column 12, --other, --assert-other and --demux all see one record. Rows rejected by
+      @ filters reach --other with the tags; rows rejected by @@ filters do not (the
+      computes did not run). An empty column 12 gets no leading TAB (pick: a leading
+      TAB, survey 8.16).
+
+   1. The tag: a constant with the syntax of sam_get, XX:T, XX.T or XX-T (T one of A i f Z
+      H B, XX two alphanumerics), checked before input is read (Prepare::SamTag; in a
+      compute XX.T and XX-T are the usable forms). A tag from a column (pick: rewritten
+      at run time) is not possible.
+
+   2. A value that is NA or contains a TAB or a newline: the tag is not added, counted at
+      the end (the record cannot be corrupted).
+
+   3. The value is checked against its type, following the SAM specification's
+      definitions: A one printable character; i an integer; f a number in SAM's float
+      syntax (no inf or nan); Z printable characters, space included; H an even number of
+      hex digits; B a type letter (c C s S i I f) followed by comma-separated numbers. A
+      value that fails is treated as in 2: not added, counted.
+
+   4. A tag already in the record is replaced (pick adds a second one, which is not valid
+      SAM); counted, with a diagnostic naming the line and read. Matched by the
+      two-letter tag name, whatever its type (XX:i replaces XX:Z: SAM's uniqueness rule is
+      by name); the first occurrence is replaced if the input has it more than once; the
+      diagnostic for the first 5 rows, then only the count at the end (as the fill).
+
+   5. sam_put together with a compute that redefines column 12 in place (the -i
+      workaround) is refused before input is read: the output would show the computed
+      column and the put tags would be lost.
+
+   6. Several sam_put in one row are applied in execution order. A sam_put whose
+      tag an earlier sam_put of the same row put replaces it (the last wins), without
+      counting as a replacement (nothing was in the input); this keeps decision 4's
+      rule of one tag per name.
+
+   7. The compute holding sam_put has an empty value (sam_put pushes nothing; Shape::
+      Consume, as sam_rbt); it is normally written hidden: t:=^XX.i:4,sam_put.
+
+  Tests: tags from constants and columns on test/sam-clean.txt and the pick/align SAM
+  files; an empty column 12; -A and --sam-h whole-line output; selected columns with and
+  without 12; @ and @@ filters, --other; each type with valid and invalid values; NA, TAB
+  and newline values; replacement of an input tag (the diagnostic and its limit, the
+  count); the same tag put twice in a row; the refused -i combination; the tag errors;
+  sam_put without --sam; compared with pick where the behaviour is the same (a new tag on
+  a record with optional fields).
+
+
+  Items
+
+  1   sam_put (decisions 0-7). Commit.

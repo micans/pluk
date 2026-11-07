@@ -173,6 +173,7 @@ ref_trail3p   -           seq                 Reference after the matched part (
 qry_trail5p   -           seq                 Query sequence of the 5' trail [sam]
 qry_matched   -           seq                 Query sequence of the matched part [sam]
 qry_trail3p   -           seq                 Query sequence of the 3' trail [sam]
+sam_put       tag val     -                   Put tag:val in the optional fields (column 12; replaces the same tag) [sam]
 sam_get       tag def     value               Value of optional field tag (XX:T, XX.T, XX-T), def if absent [sam]
 rc            x           rc(x)               Reverse complement (IUPAC codes complemented, U as A) [bio]
 forward       B seq       forward             seq if B is true, else rc(seq) [bio]

@@ -242,6 +242,12 @@
     - -U orders the output columns by input position also with a header line (pick sorts
       the names numerically, meaningful with -k and -K only); computed columns follow the
       input columns in compute order (pick: first, as their names count as 0).
+    - sam_put (step25): the tag is a constant (pick: also from a column); a tag already in
+      the record is replaced, matched by name (pick: a second one is added), counted with a
+      diagnostic for the first rows; the same tag put twice in a row: the last wins; a
+      value that is NA, holds a TAB or newline, or does not fit the tag's SAM type is not
+      put, counted; an empty column 12 gets no leading TAB (pick: one); sam_put with an
+      in-place compute on column 12 is refused.
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

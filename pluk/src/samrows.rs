@@ -149,6 +149,50 @@ pub struct Extend {
     n_no_reflen: u64,
 }
 
+// sam_put (plan/step25.txt): the tags of a row put into column 12 after the computes;
+// the tags that replaced one of the input, with a diagnostic for the first few rows.
+pub struct Put {
+    n_replaced: u64,        // rows in which an input tag was replaced
+}
+
+const PUT_MESSAGES: u64 = 5;
+
+impl Put {
+    pub fn new() -> Put {
+        Put { n_replaced: 0 }
+    }
+
+    // Apply the row's entries (taken from the machine's buffer) to column 12.
+    pub fn apply(&mut self, row: &mut row::Row, entries: &mut Vec<Vec<u8>>, lineno: u64) {
+        if entries.is_empty() || row.n_fields() <= sam::OPTIONAL {
+            return;
+        }
+        let (column, replaced) = sam::put_tags(row.field(sam::OPTIONAL), entries);
+        row.replace_field(sam::OPTIONAL, &column);
+        entries.clear();
+        if replaced > 0 {
+            self.n_replaced += 1;
+            if self.n_replaced <= PUT_MESSAGES {
+                note::note!("pluk: line {}: sam_put replaced a tag of read {}", lineno,
+                            String::from_utf8_lossy(row.field(0)));
+            }
+        }
+    }
+
+    pub fn report(&self, unusable: u64, wrong_type: u64) {
+        let s = |n: u64| if n == 1 { "" } else { "s" };
+        if self.n_replaced > 0 {
+            note::note!("pluk: sam_put replaced a tag of the input: {} row{}", self.n_replaced, s(self.n_replaced));
+        }
+        if unusable > 0 {
+            note::note!("pluk: sam_put: tag not put (value NA, or with a TAB or newline): {} time{}", unusable, s(unusable));
+        }
+        if wrong_type > 0 {
+            note::note!("pluk: sam_put: tag not put (value not of the tag's type): {} time{}", wrong_type, s(wrong_type));
+        }
+    }
+}
+
 // Why a SEQ '*' could not be filled (SAMSEQ.design.txt sections 2-5).
 const FILL_REASONS: [&str; 4] = [
     "segment ambiguous (FLAG 0x1 with 0x40 and 0x80 both set or both unset)",

@@ -82,4 +82,5 @@ sam_put (separate from the SAM steps; used by the author)
 
 SAM steps completed (2026-11-07): step17 groundwork, step18 reference and alignment
 display, step19 view options, step20 region-bound tally. Not taken over: suv, input_cigar
-(withheld). Still open: sam_put (above), --remind-me, BAM output (BAMOUT.notes.txt).
+(withheld). Still open: --remind-me, BAM output (BAMOUT.notes.txt). sam_put: done in
+step25 (idea (a) above, as a per-row buffer applied to column 12; plan/step25.txt).

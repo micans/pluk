@@ -1,0 +1,47 @@
+
+Notes for plan/step25.txt (sam_put).
+
+
+Planning
+
+  Idea (a) of SAM.notes.txt, shaped by the user as an escape hatch: active only with
+  --sam and only when sam_put is used; the tags appended to the last field. The analysis
+  of the decisions for robustness and least surprise added: matching an existing tag by
+  name whatever its type, replacing the first occurrence, a limit of 5 diagnostics, and
+  the last-wins rule for the same tag twice in a row (to keep one tag per name).
+
+
+Item 1: sam_put
+
+  exec.rs: Machine.sam_put, the row's entries (TAG:TYPE:VALUE), cleared by Machine::run;
+  two counters for values not put (NA, TAB or newline; not of the type).
+
+  ops.rs: sam_put pops val and tag (Shape::Consume, Prepare::SamTag as sam_get: the tag
+  is checked before input is read and attached as XX:T:); the value is checked
+  (sam::valid_tag_value, after the SAM specification's definitions of A i f Z H B); an
+  entry with the same tag earlier in the row is replaced, else the entry is added.
+  compute.rs: the shared tag check now names the operator in its messages (sam_get or
+  sam_put); compute::uses tells whether a compute uses an operator; compile refuses
+  sam_put when column 12 is redefined in place.
+
+  sam.rs: put_tags(column, entries) splits column 12 at TABs, replaces the first field
+  with the same two-letter tag or appends, and joins again (no leading TAB in an empty
+  column), returning the number of fields replaced. samrows.rs: Put applies the buffer
+  to the row with Row::replace_field on column 12 (the last field, so an append in the
+  line) and counts the rows with a replaced input tag, with a note for the first 5.
+  stages.rs: applied after the computes, before the --pstore keep and the @ stage;
+  Stages::report adds the sam_put counts. main.rs creates Put only when a compute uses
+  sam_put; otherwise nothing runs.
+
+  Checked against pick: a new tag from a column and two constant tags on sam-clean.txt
+  with -A: identical apart from the decided difference (no leading TAB for a record
+  without optional fields; pick writes an empty column 12 first). Further: replacement
+  (by name, NM:i by NM:Z), the same tag twice, invalid values per type, NA and TAB
+  values, @ and @@ filters and --other (the tags are in --other), --sam-h whole lines,
+  BAM input, NM:i increased in place on qry3vs.sam (the tag keeps its position).
+
+  Tests: sam-put (the cases above, selected columns without 12, the refused -i
+  combination, sam_put without --sam, tag errors, -l sam_put). Unit tests tag_values,
+  tags_put. list-ops ref.
+
+  step25 complete with this item.

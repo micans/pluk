@@ -252,7 +252,8 @@ fn run() -> std::io::Result<()> {
             Err(msg) => return Err(std::io::Error::new(ErrorKind::InvalidInput, msg)),
         },
     };
-    let mut stages = stages::Stages { filters, computes, machine, rowno: 0, rewrites, pstore, fill };
+    let put = compute::uses(&computes, "sam_put").then(samrows::Put::new);
+    let mut stages = stages::Stages { filters, computes, machine, rowno: 0, rewrites, pstore, fill, put };
 
     // --idx-list, --name-list, --idx-map: the output columns, without reading the data.
     if let Some(kind) = config.list {

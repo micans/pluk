@@ -1,0 +1,72 @@
+r001	0	chr1	7	30	8M	*	0	0	TTAGATAA	IIIIIIII	NM:i:0	MD:Z:8	AS:i:8	XX:i:7
+r002	16	chr1	9	30	3S6M	*	0	0	AAAAGATAA	IIIIIIIII	XX:i:9
+r004	0	chr2	16	30	6M	*	0	0	ATAGCT	IIIIII	NM:i:1	XX:i:16
+r005	4	*	0	0	*	*	0	0	CAGCGGCAT	IIIIIIIII	XX:i:0
+r006	0	chr2	29	17	6M	*	0	0	TAGGCA	IIIIII	XS:i:3	NM:i:0	XX:i:29
+r001	NM:i:0	MD:Z:8	AS:i:8	XA:Z:hello world	XB:f:1.5
+r002	XA:Z:hello world	XB:f:1.5
+r004	NM:i:1	XA:Z:hello world	XB:f:1.5
+r005	XA:Z:hello world	XB:f:1.5
+r006	XS:i:3	NM:i:0	XA:Z:hello world	XB:f:1.5
+pluk: line 5: sam_put replaced a tag of read r001
+pluk: line 7: sam_put replaced a tag of read r004
+pluk: line 9: sam_put replaced a tag of read r006
+r001	NM:Z:x	MD:Z:8	AS:i:8	XX:i:2
+r002	NM:Z:x	XX:i:2
+r004	NM:Z:x	XX:i:2
+r005	NM:Z:x	XX:i:2
+r006	XS:i:3	NM:Z:x	XX:i:2
+pluk: sam_put replaced a tag of the input: 3 rows
+r001	NM:i:0	MD:Z:8	AS:i:8	XG:B:i,1,2	XH:H:1AE3	XI:A:z
+r002	XG:B:i,1,2	XH:H:1AE3	XI:A:z
+r004	NM:i:1	XG:B:i,1,2	XH:H:1AE3	XI:A:z
+r005	XG:B:i,1,2	XH:H:1AE3	XI:A:z
+r006	XS:i:3	NM:i:0	XG:B:i,1,2	XH:H:1AE3	XI:A:z
+pluk: sam_put: tag not put (value NA, or with a TAB or newline): 10 times
+pluk: sam_put: tag not put (value not of the tag's type): 20 times
+r002	XX:i:9
+r001	NM:i:0	MD:Z:8	AS:i:8	XX:i:7
+r004	NM:i:1	XX:i:16
+r005	XX:i:0
+r006	XS:i:3	NM:i:0	XX:i:29
+r002	XX:i:9
+r004	NM:i:1	XX:i:16
+r006	XS:i:3	NM:i:0	XX:i:29
+r001	0
+r002	16
+r004	0
+r005	4
+r006	0
+@HD	VN:1.6	SO:unsorted
+@SQ	SN:chr1	LN:1000
+@SQ	SN:chr2	LN:500
+@PG	ID:hand	PN:handwritten
+r001	0	chr1	7	30	8M	*	0	0	TTAGATAA	IIIIIIII	NM:i:0	MD:Z:8	AS:i:8	XX:i:7
+r002	16	chr1	9	30	3S6M	*	0	0	AAAAGATAA	IIIIIIIII	XX:i:9
+r004	0	chr2	16	30	6M	*	0	0	ATAGCT	IIIIII	NM:i:1	XX:i:16
+r005	4	*	0	0	*	*	0	0	CAGCGGCAT	IIIIIIIII	XX:i:0
+r006	0	chr2	29	17	6M	*	0	0	TAGGCA	IIIIII	XS:i:3	NM:i:0	XX:i:29
+r001	NM:i:0	MD:Z:8	AS:i:8	XX:i:7
+r002	XX:i:9
+r004	NM:i:1	XX:i:16
+pluk: line 1: sam_put replaced a tag of read readGBW2-1-rc
+pluk: line 2: sam_put replaced a tag of read readGBW1-1
+pluk: line 3: sam_put replaced a tag of read readGBW1-1-rc
+readGBW2-1-rc	AS:i:73	XN:i:0	XM:i:28	XO:i:10	XG:i:32	NM:i:61	MD:Z:0^AGTTTGTATGATCAAAGCCCCCTGAACGATGCTATGCGATACTAAGTTCAGTTTGGGGCAAAGCATAGTCAGTTGCGTATCTAGGGG3G0G2C0G3C43^A1C0G0A0T8G1^CTACTAA0G31^TGACCT6^GT40C2C2^GACGC0G0G0A1A0T10C1T1G0C0T0T1C1C2T1G1^TTTATACGTAAGGCCGGCAGGTGTATGACCGTATCGAGTTTGATACCCCCT0	YT:Z:UU
+readGBW1-1	AS:i:75	XN:i:0	XM:i:41	XO:i:8	XG:i:19	NM:i:61	MD:Z:0^AGGGGGCTTACAGCCGTTGGCTGTGCAAATCTGTATCGCCAGACCTGTATCGCCAG0C0A1G0A0A0C0C0C0C3T0T2G1G0G0G0C0T39^TG6A0G0G0T2^A33C0A0C0C1G25^GAC34^GATAA0G0C0G16G0T0C0G0G3^TCTGT1T1G1A2A0T0G0C5^GCTTACAGCCGTGCTGCCGTTTACTGCGTATCTACGTATCACGTACTGATAAAGACTACAAA0	YT:Z:UU
+readGBW1-1-rc	AS:i:79	XN:i:0	XM:i:30	XO:i:7	XG:i:19	NM:i:50	MD:Z:0^AGGGGGCTTACAGCCGTTGGCTGTGCAAATCTGTATCGCCAGACCTGTATCGCCAGCAC2A0C0C1C1A0G0T0T0G0A0G1G0G0G35A1^TGT0C2C61^GGCA0A0T0G25^CGA22^GC20G0G0A1G0T2G1A2G0C2G1^TGCGTATCGCTTACAGCCGTGCTGCCGTTTACTGCGTATCTACGTATCACGTACTGATAAAGACTACAAA0	YT:Z:UU
+pluk: sam_put replaced a tag of the input: 3 rows
+pluk: sam_put cannot be combined with a compute that redefines column 12 in place (-i)
+exit 1
+pluk: [t:=^XX.i:4,sam_put]: operator sam_put needs --sam or --sam-h
+exit 1
+pluk: [t:=^XX:4,sam_put]: sam_put: tag [XX] is not of the form XX:T, XX.T or XX-T (T one of A i f Z H B)
+exit 1
+pluk: [t:=1:4,sam_put]: the tag operand of sam_put must be a constant (^NM.i)
+exit 1
+Operator      Consumed    Produced            Description
+--------------------------------------------------------------------------------
+sam_put       tag val     -                   Put tag:val in the optional fields (column 12; replaces the same tag) [sam]
+
+Use -l TERM.. for a category or the operators whose name contains TERM.
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam bio filter

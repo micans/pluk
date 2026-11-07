@@ -1096,6 +1096,77 @@ pub fn optional_field<'r>(row: &'r Row, tt: &[u8]) -> Option<&'r [u8]> {
         .map(|f| &f[tt.len()..])
 }
 
+// Whether value is a valid value of SAM type t (plan/step25.txt decision 3), after the
+// definitions of the SAM specification: A [!-~]; i [-+]?[0-9]+; f
+// [-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?; Z [ !-~]*; H ([0-9A-F][0-9A-F])*;
+// B [cCsSiIf](,f)* with f the float syntax.
+pub fn valid_tag_value(t: u8, value: &[u8]) -> bool {
+    let printable = |b: &u8| (b'!'..=b'~').contains(b);
+    match t {
+        b'A' => value.len() == 1 && printable(&value[0]),
+        b'i' => {
+            let digits = value.strip_prefix(b"-").or_else(|| value.strip_prefix(b"+")).unwrap_or(value);
+            !digits.is_empty() && digits.iter().all(u8::is_ascii_digit)
+        }
+        b'f' => valid_float(value),
+        b'Z' => value.iter().all(|b| *b == b' ' || printable(b)),
+        b'H' => value.len() % 2 == 0 && value.iter().all(|b| b.is_ascii_digit() || (b'A'..=b'F').contains(b)),
+        b'B' => match value.split_first() {
+            Some((sub, rest)) if b"cCsSiIf".contains(sub) =>
+                rest.is_empty() || (rest[0] == b',' && rest[1..].split(|&b| b == b',').all(valid_float)),
+            _ => false,
+        },
+        _ => false,
+    }
+}
+
+// SAM's float syntax: [-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?
+fn valid_float(v: &[u8]) -> bool {
+    let v = v.strip_prefix(b"-").or_else(|| v.strip_prefix(b"+")).unwrap_or(v);
+    let (mantissa, exponent) = match v.iter().position(|&b| b == b'e' || b == b'E') {
+        Some(k) => (&v[..k], Some(&v[k + 1..])),
+        None => (v, None),
+    };
+    let (int, frac) = match mantissa.iter().position(|&b| b == b'.') {
+        Some(k) => (&mantissa[..k], &mantissa[k + 1..]),
+        None => (&b""[..], mantissa),
+    };
+    let digits = |s: &[u8]| s.iter().all(u8::is_ascii_digit);
+    let mantissa_ok = !frac.is_empty() && digits(int) && digits(frac);
+    let exponent_ok = match exponent {
+        None => true,
+        Some(e) => {
+            let e = e.strip_prefix(b"-").or_else(|| e.strip_prefix(b"+")).unwrap_or(e);
+            !e.is_empty() && digits(e)
+        }
+    };
+    mantissa_ok && exponent_ok
+}
+
+// The optional fields of a record (column 12 with -O12: TAB-separated) with the tags
+// of entries (TAG:TYPE:VALUE each) put in: an entry replaces the first field with the
+// same two-letter tag, whatever its type, else it is appended (no leading TAB in an
+// empty column). Returns the new column and the number of fields replaced.
+pub fn put_tags(column: &[u8], entries: &[Vec<u8>]) -> (Vec<u8>, u64) {
+    let mut fields: Vec<Vec<u8>> = if column.is_empty() {
+        Vec::new()
+    } else {
+        column.split(|&b| b == b'\t').map(|f| f.to_vec()).collect()
+    };
+    let mut replaced = 0;
+    for e in entries {
+        let same = |f: &Vec<u8>| f.len() >= 3 && f[..2] == e[..2] && f[2] == b':';
+        match fields.iter().position(same) {
+            Some(k) => {
+                fields[k] = e.clone();
+                replaced += 1;
+            }
+            None => fields.push(e.clone()),
+        }
+    }
+    (fields.join(&b'\t'), replaced)
+}
+
 // NM:i, 0 without one (pick); None if present but not a non-negative integer.
 pub fn nm(row: &Row) -> Option<u64> {
     match optional_field(row, b"NM:i:") {
@@ -1316,6 +1387,31 @@ mod tests {
 
     fn nar(pos: u64, cigar: &str, x: u64, y: u64) -> Narrowed {
         narrow(pos, cigar.as_bytes(), x, y)
+    }
+
+    #[test]
+    fn tag_values() {
+        let ok = |t: u8, v: &str| valid_tag_value(t, v.as_bytes());
+        assert!(ok(b'A', "x") && !ok(b'A', "xy") && !ok(b'A', " ") && !ok(b'A', ""));
+        assert!(ok(b'i', "-12") && ok(b'i', "+3") && ok(b'i', "0") && !ok(b'i', "1.5") && !ok(b'i', "") && !ok(b'i', "-"));
+        assert!(ok(b'f', "1.5") && ok(b'f', ".5") && ok(b'f', "-3") && ok(b'f', "1e-5") && ok(b'f', "2.5E+3"));
+        assert!(!ok(b'f', "1.") && !ok(b'f', "inf") && !ok(b'f', "nan") && !ok(b'f', "1e") && !ok(b'f', ""));
+        assert!(ok(b'Z', "a b~!") && ok(b'Z', "") && !ok(b'Z', "a\tb") && !ok(b'Z', "\u{7f}"));
+        assert!(ok(b'H', "1AE3") && ok(b'H', "") && !ok(b'H', "1A3") && !ok(b'H', "1ae3"));
+        assert!(ok(b'B', "c") && ok(b'B', "i,1,-2,3") && ok(b'B', "f,1.5,2e3") && !ok(b'B', "x,1") && !ok(b'B', "i1") && !ok(b'B', "i,"));
+    }
+
+    #[test]
+    fn tags_put() {
+        let put = |c: &str, e: &[&str]| {
+            let entries: Vec<Vec<u8>> = e.iter().map(|x| x.as_bytes().to_vec()).collect();
+            let (col, n) = put_tags(c.as_bytes(), &entries);
+            (String::from_utf8(col).unwrap(), n)
+        };
+        assert_eq!(put("", &["XX:i:1"]), ("XX:i:1".to_string(), 0));
+        assert_eq!(put("NM:i:0\tMD:Z:10", &["XX:i:1"]), ("NM:i:0\tMD:Z:10\tXX:i:1".to_string(), 0));
+        assert_eq!(put("NM:i:0\tMD:Z:10", &["NM:Z:x"]), ("NM:Z:x\tMD:Z:10".to_string(), 1));
+        assert_eq!(put("NM:i:0\tNM:i:5", &["NM:i:2"]), ("NM:i:2\tNM:i:5".to_string(), 1));
     }
 
     #[test]

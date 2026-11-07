@@ -25,6 +25,7 @@ pub struct Stages<'d> {
     pub rewrites: samrows::Rewrites,        // the SAM input rewrites (SAMVIEW.design.txt section 3)
     pub pstore:   Option<state::Pstore>,    // --pstore, --group (plan/step23.txt)
     pub fill:     Option<samrows::Fill>,    // the sequence fill, when an operator needs the query
+    pub put:      Option<samrows::Put>,     // sam_put, when a compute uses it (plan/step25.txt)
 }
 
 impl Stages<'_> {
@@ -47,6 +48,10 @@ impl Stages<'_> {
         self.rewrites.apply(row, &mut self.machine.sam);
         if !self.computes.is_empty() {
             self.machine.run(&self.computes, row, self.rowno, lineno).map_err(Failure::Fatal)?;
+        }
+        // sam_put: the tags into column 12, after the computes (plan/step25.txt decision 0).
+        if let Some(put) = &mut self.put {
+            put.apply(row, &mut self.machine.sam_put, lineno);
         }
         // --pstore: kept after the computes, before the @ stage (plan/step23.txt decision 0);
         // with --group the first row of a group is skipped there, as the fill's skip.
@@ -72,6 +77,9 @@ impl Stages<'_> {
             note::note!("pluk: --group: {} group{} (the first row of each not output)", n, if n == 1 { "" } else { "s" });
         }
         self.rewrites.report();
+        if let Some(put) = &self.put {
+            put.report(self.machine.put_unusable, self.machine.put_wrong_type);
+        }
         if let Some(fill) = &self.fill {
             fill.report();
         }
