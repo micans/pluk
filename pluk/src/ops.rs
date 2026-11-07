@@ -53,6 +53,7 @@ pub enum Kind {
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Prepare {
     Nothing,
+    Pload,          // pload: the column name must be a constant; it gets a slot (step23)
     ConstRegex(usize), // the operand this many places below the top must be a constant;
                        // it is compiled as a regex (del: 0, ed: 1)
     ConstDict(usize),  // the operand this many places below the top must be a constant
@@ -172,6 +173,8 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x n", result: "x", doc: "Store x in register n (per row), x stays", fun: op_save },
     OpDef { name: "fetch",  pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Register, category: Category::State,
             operands: "n", result: "reg(n)", doc: "Value in register n (stored earlier in this row)", fun: op_fetch },
+    OpDef { name: "pload",  pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Pload, category: Category::State,
+            operands: "c", result: "prev(c)", doc: "Column c of the previous row (--pstore; c a constant name)", fun: op_pload },
     OpDef { name: "rowno",  pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::State,
             operands: "-", result: "x", doc: "Current table row number (start one)", fun: op_rowno },
     OpDef { name: "r0wno",  pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::State,
@@ -1108,6 +1111,15 @@ fn op_save(m: &mut Machine, row: &Row, a: &Attached) {
             m.store_register(name, x);
         },
     }
+}
+
+// pload c (plan/step23.txt decision 1): the kept value of column c from the previous
+// row (or from --pstore/LIST/DEFAULT before the first); NA if there is none.
+fn op_pload(m: &mut Machine, _: &Row, a: &Attached) {
+    m.pop();
+    let Attached::Pload(slot, _) = a else { unreachable!("pload has its slot attached") };
+    let value = m.kept[*slot].clone().map_or(Value::Na, Value::Bytes);
+    m.push(value);
 }
 
 fn op_fetch(m: &mut Machine, row: &Row, a: &Attached) {

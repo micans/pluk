@@ -50,6 +50,7 @@ pub struct Machine<'d> {
     time_zone:  Option<jiff::tz::TimeZone>,     // for todate, looked up on first use
     pub sam:    crate::sam::View<'d>,             // the per-row SAM view (plan/SAMVIEW.design.txt)
     pub n_quality_mismatch: u64,                  // fastQ with a quality of another length (NA)
+    pub kept:   Vec<Option<Vec<u8>>>,             // --pstore: the kept columns of the previous row (None: NA)
 }
 
 // A small random number generator, splitmix64 (Steele, Lea and Flood, 2014): a
@@ -91,7 +92,7 @@ impl<'d> Machine<'d> {
                   text: Vec::new(), rng: SplitMix64::new(seed), registers: Vec::new(),
                   register_slots: HashMap::new(), other_registers: HashMap::new(), rowno: 0, lineno: 0,
                   time_zone: None, sam: crate::sam::View::new(dicts),
-                  n_quality_mismatch: 0 }
+                  n_quality_mismatch: 0, kept: Vec::new() }
     }
 
     // The register slots of the compiled computes (constant names of save and fetch).

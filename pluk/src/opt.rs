@@ -48,6 +48,7 @@ pub struct Config {
     pub sam_narrow_xy: Option<(u64, u64)>, // --sam-narrow-xy=X,Y (plan/step19.txt decision 4)
     pub sam_nd_adjust: Option<Vec<u8>>, // --sam-ND-adjust=NAME, a dictionary name (decision 5)
     pub sam_rbt: Option<(u64, u64)>,    // --sam-rbt=X,Y (plan/step20.txt decision 7)
+    pub pstore: Option<Pstore>,         // --pstore[/LIST[/DEFAULT]] (plan/step23.txt decision 2)
     pub threads: Option<u32>,           // --threads=N
     pub pat_purge: Option<Vec<u8>>,     // -/PAT, %-decoded
     pub pat_pass: Option<Vec<u8>>,      // -//PAT, %-decoded
@@ -203,6 +204,10 @@ Options:
   --idx-list  write the input indexes of the output columns (computed columns
               are numbered after the input columns) and stop after the header
   --name-list write the output column names; --idx-map: index and name per line
+  --pstore    keep columns of each row for the next: ^c,pload reads column c of
+              the previous row (also computed columns, as computed);
+              --pstore/LIST/DEFAULT: LIST k:v,k:v and DEFAULT give the values
+              before the first row (else NA); counting: --pstore//0 n::^n,pload,incr
   --progress  a dot on stderr every 1000000 input rows; --progress=K/N: every
               K rows, and the row count after every N dots
 
@@ -455,6 +460,8 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
                 _ => ListKind::Map,
             });
         }
+        b"pstore" => config.pstore = Some(Pstore::default()),
+        _ if long.starts_with(b"pstore/") => config.pstore = Some(parse_pstore(&long[7..])?),
         b"progress" => config.progress = Some((1_000_000, 0)),
         _ if long.starts_with(b"progress=") => {
             let bad = || "--progress=K/N: K a positive number of rows, N a number of dots (0: no counts)".to_string();
@@ -822,6 +829,31 @@ fn parse_number<T: std::str::FromStr>(s: &[u8]) -> Option<T> {
     std::str::from_utf8(s).ok()?.parse::<T>().ok()
 }
 
+// --pstore/LIST/DEFAULT: LIST k:v,k:v (keys and values %-decoded) gives the values of
+// the row before the first, DEFAULT (%-decoded) the value of every other kept column
+// (without it: NA).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Pstore {
+    pub list:    Vec<(Vec<u8>, Vec<u8>)>,
+    pub default: Option<Vec<u8>>,
+}
+
+fn parse_pstore(s: &[u8]) -> Result<Pstore, String> {
+    let (list, default) = match s.iter().position(|&b| b == b'/') {
+        Some(k) => (&s[..k], Some(pct_decode(&s[k + 1..]))),
+        None => (s, None),
+    };
+    let mut pairs = Vec::new();
+    for pair in list.split(|&b| b == b',').filter(|p| !p.is_empty()) {
+        match pair.iter().position(|&b| b == b':') {
+            Some(k) => pairs.push((pct_decode(&pair[..k]), pct_decode(&pair[k + 1..]))),
+            None => return Err(format!("--pstore: [{}] has no value (expected name:value)",
+                                       String::from_utf8_lossy(pair))),
+        }
+    }
+    Ok(Pstore { list: pairs, default })
+}
+
 // A non-negative integer written in digits only (no sign).
 fn digits(s: &[u8]) -> Option<u64> {
     if s.is_empty() || !s.iter().all(u8::is_ascii_digit) {
@@ -898,6 +930,18 @@ mod tests {
 
     fn texts(c: &Config) -> Vec<Vec<u8>> {
         c.columns.iter().map(|spec| spec.text.clone()).collect()
+    }
+
+    #[test]
+    fn pstore_spec() {
+        let p = |s: &str| parse_pstore(s.as_bytes());
+        let pair = |k: &str, v: &str| (k.as_bytes().to_vec(), v.as_bytes().to_vec());
+        assert_eq!(p("x:1,y:0"), Ok(Pstore { list: vec![pair("x", "1"), pair("y", "0")], default: None }));
+        assert_eq!(p("/0"), Ok(Pstore { list: vec![], default: Some(b"0".to_vec()) }));
+        assert_eq!(p("x:1/"), Ok(Pstore { list: vec![pair("x", "1")], default: Some(vec![]) }));
+        assert_eq!(p("a%2Cb:%2F/x%2Fy"), Ok(Pstore { list: vec![pair("a,b", "/")], default: Some(b"x/y".to_vec()) }));
+        assert_eq!(p("x:a:b"), Ok(Pstore { list: vec![pair("x", "a:b")], default: None }));
+        assert!(p("x").is_err());
     }
 
     #[test]

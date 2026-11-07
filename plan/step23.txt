@@ -1,0 +1,81 @@
+
+- Previous-row and group state
+
+  plan/remaining.txt A1. pick's previous-row cache and its grouping extension (pick's
+  manual: 'Loading data from the previous row', 'Loading a previous row within a group';
+  pick's do_cache and the pload compile check).
+
+    --pstore  --pstore/LIST  --pstore/LIST/DEFAULT  --pstore//DEFAULT
+    --group=COL  --group-first-ref=COL
+    pload c      column c of the previous (reference) row
+    groupi       position of the row within its group
+    groupno      number of the group
+
+  The order of the following steps (user's list at the top of plan/remaining.txt):
+  step24 quantiles (qnl qnu, --quant-NAME) and -U; step25 sam_put; then documentation:
+  the SAM NA cascades, the pluk manual.
+
+
+
+  Outcome of the discussion
+
+  Decisions:
+   0. What pick does. With --pstore (or --group) the values of some columns of a row are
+      kept after the row's computes, for the next row: the columns named by pload
+      operands and in LIST. pload c pushes column c of the previous row. The cache is
+      updated after the computes and before the @ assertions and filters, so a row
+      rejected by an @ filter still updates it, one rejected by an @@ filter (or skipped
+      by the SAM fill) does not. Computed columns are kept with their computed values:
+      pick's Fibonacci example, pick -k --pstore/x:1,y:0 x::^y,pload y::x^x,pload,add,
+      reads the previous y although y is computed after x.
+
+   1. pload c: c must be a constant naming an input or computed column, any compute in the
+      spec (pick: the same compile-time check); the column's last binding is meant (with
+      -i, the value it has at output). A pload without --pstore or --group is a
+      compile-time error (pick). The kept columns are found at compile time: those named
+      by pload and in LIST; only they are copied per row.
+
+   2. --pstore/LIST/DEFAULT (pick's syntax): LIST is k:v,k:v with %-decoded keys and
+      values, the values of the 'row before the first'; a key that is not a column name
+      is an error (pick). DEFAULT is the value of every other kept column before the
+      first row (agreed: option (c)): pick's default is the string 00000000 (numerically 0), so
+      that idioms such as n::^n,pload,incr count from 1 without a DEFAULT. Options:
+        (a) as pick, 00000000;
+        (b) 0;
+        (c) NA, consistent with pluk's NA (a value that is not there), so that such an
+            idiom needs --pstore//0, and a missing value cannot pass as a number
+            unnoticed (NA flows on and is visible in the output).
+      Agreed: (c), with the idiom shown in the help text.
+
+   3. --group=COL and --group-first-ref=COL (pick): groups are runs of consecutive rows
+      with the same value in COL (an input or computed column, its last binding, compared
+      as bytes after the computes). The first row of every group is skipped after its
+      computes (not output, not written to --other, not counted by -c or -E; as the
+      SAM fill's skip) and is the reference for the next row; --group: pload reads the
+      previous row; --group-first-ref: pload reads the group's first row throughout. A
+      group of one row leaves nothing (pick). groupi is the position in the group (2 for
+      the first row that is output, then 3, ..); groupno the group's number (1-based).
+      --group and --group-first-ref imply --pstore (pick) and cannot be combined with
+      each other; with --pstore/LIST/DEFAULT the LIST and DEFAULT apply to the row
+      before the first group (agreed: allowed, as pick).
+
+   4. groupi and groupno without --group or --group-first-ref: a compile-time error (pick
+      gives meaningless values: 2 and 0) (agreed). Category state (pick: input), with
+      pload (pick: state/stack).
+
+   5. Rows skipped as first of a group are counted and reported at the end (note!, -q):
+      'N groups' (agreed; pick says nothing).
+
+  Tests: pick's Fibonacci example; counting and running totals with --pstore//0; pload
+  of input and computed columns, with -i; @ and @@ filters around the cache; --group and
+  --group-first-ref on sorted data (pick's intron example on a small exon table),
+  groupi groupno, groups of one row; --other, -c, --demux with skipped rows; errors
+  (pload without --pstore, a non-constant or unknown name, an unknown LIST key, groupi
+  without --group); compared with pick wherever the behaviour is the same.
+
+
+  Items
+
+  1   --pstore and pload (decisions 0-2). Commit.
+
+  2   --group --group-first-ref, groupi groupno (decisions 3-5). Commit.

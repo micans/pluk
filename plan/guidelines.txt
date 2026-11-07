@@ -230,6 +230,9 @@
       absent QUAL) on a sequence that is not one base long, the same record as fastq (pick:
       the '*'), and gives NA, counted, for a q of another length (pick: writes it);
       _strpair is taken over as strpair.
+    - --pstore (step23): a kept column without a LIST value or DEFAULT starts as NA (pick:
+      the string 00000000, numerically 0), so a counter needs --pstore//0; DEFAULT is
+      %-decoded (pick: LIST only).
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

@@ -166,6 +166,7 @@ pub enum Attached {
     Dict(usize),
     Test(filter::Op, TestRhs),      // test x y T: the filter operator T and how y is used
     Register(usize, Vec<u8>),       // save, fetch: the slot of a constant register name, and the name
+    Pload(usize, Vec<u8>),          // pload: the slot of the kept column, and its name (step23)
     Value(crate::exec::Value),      // ttu: the value of a constant, computed at compile time
 }
 
@@ -204,10 +205,12 @@ pub struct Compute {
 // inplace (-i): a compute may redefine a name; an input column at most once, a
 // computed name any number of times.
 // rbt_region: --sam-rbt was given, so the rbt_ operators have a region from the start.
+// pstore: --pstore or --group was given, so pload can be used.
 pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, sam: bool, rbt_region: bool,
-               dicts: &Dicts)
+               pstore: bool, dicts: &Dicts)
     -> Result<(Vec<Compute>, ColumnNames), String>
 {
+    let mut kept: HashMap<Vec<u8>, usize> = HashMap::new();
     let mut rbt_region = rbt_region;
     let mut names = input.clone();
     let mut computes = Vec::with_capacity(specs.len());
@@ -303,6 +306,22 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, sam: b
                                 Some(v) => Instr::OpWith(op, Attached::Value(v)),
                                 None => Instr::Op(op),
                             },
+                            Prepare::Pload => {
+                                if !pstore {
+                                    return Err(format!("[{}]: pload needs --pstore, --group or --group-first-ref", shown));
+                                }
+                                let name = match stack.last() {
+                                    Some(Slot::Const(k)) => match &instrs[*k] {
+                                        Instr::Const(c) => c.clone(),
+                                        _ => unreachable!("Slot::Const refers to a constant"),
+                                    },
+                                    _ => return Err(format!("[{}]: the operand of pload must be a constant column \
+                                                             name (^name)", shown)),
+                                };
+                                let next = kept.len();
+                                let slot = *kept.entry(name.clone()).or_insert(next);
+                                Instr::OpWith(op, Attached::Pload(slot, name))
+                            }
                             Prepare::Register => match registers.prepare(&instrs, &stack, op, &shown)? {
                                 Some(attached) => Instr::OpWith(op, attached),
                                 None => Instr::Op(op),
@@ -483,6 +502,22 @@ impl Registers {
     }
 }
 
+// The column names that pload reads, in slot order (plan/step23.txt decision 1). They
+// are resolved to columns by the caller once all computes are known (a pload may name
+// a compute that comes later).
+pub fn pload_names(computes: &[Compute]) -> Vec<Vec<u8>> {
+    let mut names: Vec<(usize, Vec<u8>)> = Vec::new();
+    for instr in computes.iter().flat_map(|c| &c.instrs) {
+        if let Instr::OpWith(_, Attached::Pload(slot, name)) = instr {
+            if !names.iter().any(|(s, _)| s == slot) {
+                names.push((*slot, name.clone()));
+            }
+        }
+    }
+    names.sort();
+    names.into_iter().map(|(_, n)| n).collect()
+}
+
 // The dictionaries that a dord names with a constant (a constant token directly
 // before the operator, as pick's check for ^D,dord): they record the order of
 // their keys while they are read, which happens before computes are compiled.
@@ -532,6 +567,8 @@ pub fn describe_compiled(c: &Compute, names: &ColumnNames) -> String {
             Instr::OpWith(op, Attached::Value(v)) => format!("  op {} (value {:?})\n", op.name, v),
             Instr::OpWith(op, Attached::Register(slot, name)) =>
                 format!("  op {} (register {} slot {})\n", op.name, String::from_utf8_lossy(name), slot),
+            Instr::OpWith(op, Attached::Pload(slot, name)) =>
+                format!("  op {} (kept column {} slot {})\n", op.name, String::from_utf8_lossy(name), slot),
         };
         out.push_str(&line);
     }
@@ -610,7 +647,7 @@ mod tests {
         let mut row = crate::row::Row::new();
         row.line.extend_from_slice(b"a\tn1\tn2\tb");
         row.split_fields();
-        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), false, false, false, &Dicts::new())
+        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), false, false, false, false, &Dicts::new())
     }
 
     #[test]
@@ -635,7 +672,7 @@ mod tests {
         let mut row = crate::row::Row::new();
         row.line.extend_from_slice(b"a\tb");
         row.split_fields();
-        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), true, false, false, &Dicts::new())
+        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), true, false, false, false, &Dicts::new())
     }
 
     #[test]

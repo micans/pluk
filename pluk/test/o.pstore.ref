@@ -1,0 +1,148 @@
+0	1
+1	1
+1	2
+2	3
+3	5
+5	8
+8	13
+13	21
+21	34
+34	55
+== --pstore//0 n::^n,pload,incr
+n
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+== --pstore//0 name prev::^name,pload sum::^sum,pload:fib,add
+name	prev	sum
+Ann	0	1
+Bob	Ann	2
+Charlie	Bob	4
+Dan	Charlie	7
+Esme	Dan	12
+Fred	Esme	20
+Gillian	Fred	33
+Harriet	Gillian	54
+Inky	Harriet	88
+John	Inky	143
+Kelly	John	232
+Lucy	Kelly	376
+== --pstore//0 name n::^n,pload,incr @fib/gt/2
+name	n
+Dan	4
+Esme	5
+Fred	6
+Gillian	7
+Harriet	8
+Inky	9
+John	10
+Kelly	11
+Lucy	12
+== --pstore//0 name n::^n,pload,incr @@fib/gt/2
+name	n
+Dan	1
+Esme	2
+Fred	3
+Gillian	4
+Harriet	5
+Inky	6
+John	7
+Kelly	8
+Lucy	9
+== --pstore/fib:100 name fib p::^fib,pload
+name	fib	p
+Ann	1	100
+Bob	1	1
+Charlie	2	1
+Dan	3	2
+Esme	5	3
+Fred	8	5
+Gillian	13	8
+Harriet	21	13
+Inky	34	21
+John	55	34
+Kelly	89	55
+Lucy	144	89
+== -i --pstore//0 name fib fib::^fib,pload:fib,add
+-- Identical output column names exist (will make unique)
+name	fib
+Ann	1
+Bob	2
+Charlie	4
+Dan	7
+Esme	12
+Fred	20
+Gillian	33
+Harriet	54
+Inky	88
+John	143
+Kelly	232
+Lucy	376
+== --pstore name n::^n,pload,incr p::^name,pload
+name	n	p
+Ann	NA	NA
+Bob	NA	Ann
+Charlie	NA	Bob
+Dan	NA	Charlie
+Esme	NA	Dan
+Fred	NA	Esme
+Gillian	NA	Fred
+Harriet	NA	Gillian
+Inky	NA	Harriet
+John	NA	Inky
+Kelly	NA	John
+Lucy	NA	Kelly
+== --pstore/name:%2Fx/%3A name p::^name,pload q::^fib,pload
+name	p	q
+Ann	/x	:
+Bob	Ann	1
+Charlie	Bob	1
+Dan	Charlie	2
+Esme	Dan	3
+Fred	Esme	5
+Gillian	Fred	8
+Harriet	Gillian	13
+Inky	Harriet	21
+John	Inky	34
+Kelly	John	55
+Lucy	Kelly	89
+9
+name	n
+John	10
+Kelly	11
+Lucy	12
+name	n
+Ann	1
+Bob	2
+Charlie	3
+Dan	4
+Esme	5
+Fred	6
+Gillian	7
+Harriet	8
+Inky	9
+pluk: [p::^name,pload]: pload needs --pstore, --group or --group-first-ref
+exit 1
+pluk: [p::name,pload]: the operand of pload must be a constant column name (^name)
+exit 1
+pluk: --pstore/pload: [nope] is not a column name among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna,p
+exit 1
+pluk: --pstore/pload: [nope] is not a column name among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+exit 1
+--pstore: [nope] has no value (expected name:value)
+exit 1
+Operator      Consumed    Produced            Description
+--------------------------------------------------------------------------------
+pload         c           prev(c)             Column c of the previous row (--pstore; c a constant name) [state]
+
+Use -l TERM.. for a category or the operators whose name contains TERM.
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam bio filter

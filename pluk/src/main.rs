@@ -158,7 +158,7 @@ fn run() -> std::io::Result<()> {
         (Vec::new(), input.names.clone())
     } else {
         compute::compile(&config.computes, &input.names, config.inplace, config.sam || config.sam_h,
-                         config.sam_rbt.is_some(), &dicts)
+                         config.sam_rbt.is_some(), config.pstore.is_some(), &dicts)
             .map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?
     };
     let computed: Vec<(usize, usize)> = computes.iter().filter(|c| c.output).map(|c| (c.position, c.index)).collect();
@@ -224,7 +224,19 @@ fn run() -> std::io::Result<()> {
         n_no_reflen: 0,
     });
     let narrow = config.sam_narrow_xy.map(|xy| Narrow { xy, n_outside: 0 });
-    let mut stages = Stages { filters, computes, machine, rowno: 0, normal_form, nd_adjust, narrow, extension, fill };
+    // --pstore (plan/step23.txt): the kept columns, resolved now that all names are known.
+    let pstore = match &config.pstore {
+        None => None,
+        Some(spec) => match Pstore::new(spec, &compute::pload_names(&computes), &names) {
+            Ok((pstore, initial)) => {
+                machine.kept = initial;
+                Some(pstore)
+            }
+            Err(msg) => return Err(std::io::Error::new(ErrorKind::InvalidInput, msg)),
+        },
+    };
+    let mut stages = Stages { filters, computes, machine, rowno: 0, normal_form, nd_adjust, narrow, extension, fill,
+                              pstore };
 
     // --idx-list, --name-list, --idx-map: the output columns, without reading the data.
     if let Some(kind) = config.list {
@@ -464,9 +476,49 @@ struct Stages<'d> {
     rowno:    u64,              // data rows seen (rowno, r0wno); rejected rows count too
     normal_form: bool,          // SAM input without --sam-nonf (plan/SAMVIEW.design.txt section 3)
     nd_adjust: Option<NdAdjust>, // --sam-ND-adjust (plan/step19.txt decision 5)
+    pstore:   Option<Pstore>,   // --pstore: the columns kept for pload (plan/step23.txt)
     narrow:   Option<Narrow>,   // --sam-narrow-xy (plan/step19.txt decision 4)
     extension: Option<Extend>,  // --sam-aln-context, --sam-aln-xy (plan/step19.txt decision 2)
     fill:     Option<Fill>,     // the sequence fill, when an operator needs the query (SAMSEQ.design.txt)
+}
+
+// --pstore: the column of each kept slot (the slots of pload first, then the other
+// LIST names).
+struct Pstore {
+    columns: Vec<usize>,
+}
+
+impl Pstore {
+    // The columns and their values before the first row.
+    fn new(spec: &opt::Pstore, pload: &[Vec<u8>], names: &names::ColumnNames)
+        -> Result<(Pstore, Vec<Option<Vec<u8>>>), String>
+    {
+        let mut kept: Vec<Vec<u8>> = pload.to_vec();
+        for (k, _) in &spec.list {
+            if !kept.contains(k) {
+                kept.push(k.clone());
+            }
+        }
+        let mut columns = Vec::with_capacity(kept.len());
+        let mut initial = Vec::with_capacity(kept.len());
+        for name in &kept {
+            let i = names.index_of(name).ok_or_else(|| format!("--pstore/pload: [{}] is not a column name among {}",
+                                                               String::from_utf8_lossy(name), names.joined()))?;
+            columns.push(i);
+            let given = spec.list.iter().find(|(k, _)| k == name).map(|(_, v)| v.clone());
+            initial.push(given.or_else(|| spec.default.clone()));
+        }
+        Ok((Pstore { columns }, initial))
+    }
+
+    // After the computes: the kept columns of this row, for the next.
+    fn keep(&self, row: &row::Row, kept: &mut [Option<Vec<u8>>]) {
+        for (slot, &i) in self.columns.iter().enumerate() {
+            let value = kept[slot].get_or_insert_with(Vec::new);
+            value.clear();
+            value.extend_from_slice(row.field(i));
+        }
+    }
 }
 
 // --sam-ND-adjust: the intervals per reference, and what was changed.
@@ -654,6 +706,10 @@ impl Stages<'_> {
         }
         if !self.computes.is_empty() {
             self.machine.run(&self.computes, row, self.rowno, lineno).map_err(Failure::Fatal)?;
+        }
+        // --pstore: kept after the computes, before the @ stage (plan/step23.txt decision 0).
+        if let Some(p) = &self.pstore {
+            p.keep(row, &mut self.machine.kept);
         }
         let kept = self.filters.post(row).map_err(Failure::Assertion)?;
         Ok(if kept { filter::Verdict::Keep } else { filter::Verdict::RejectPost })

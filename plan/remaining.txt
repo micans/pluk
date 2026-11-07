@@ -5,6 +5,8 @@ Let's do
   C sam_put
   D document most likely SAM NA cascades (not considering all weird edge cases)
   E document pluk
+  F incorporate prefix/colselect/suffix::compute with capture group
+    incorporate prefix//colselect//suffix::compute with capture group for duplication
 
 
 What remains after step21 (2026-11-07): pick functionality not in pluk, items deferred

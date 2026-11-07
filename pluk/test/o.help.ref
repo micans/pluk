@@ -78,6 +78,10 @@ Options:
   --idx-list  write the input indexes of the output columns (computed columns
               are numbered after the input columns) and stop after the header
   --name-list write the output column names; --idx-map: index and name per line
+  --pstore    keep columns of each row for the next: ^c,pload reads column c of
+              the previous row (also computed columns, as computed);
+              --pstore/LIST/DEFAULT: LIST k:v,k:v and DEFAULT give the values
+              before the first row (else NA); counting: --pstore//0 n::^n,pload,incr
   --progress  a dot on stderr every 1000000 input rows; --progress=K/N: every
               K rows, and the row count after every N dots
 

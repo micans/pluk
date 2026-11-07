@@ -1,0 +1,46 @@
+
+Notes for plan/step23.txt (previous-row and group state).
+
+
+Planning
+
+  pick's code read (option parsing of --pstore and --group, the pload compile check,
+  do_cache and its place in the row loop) and its manual. Agreed: NA as the value before
+  the first row (decision 2 (c)), LIST/DEFAULT allowed with --group, groupi groupno
+  without --group an error, a note with the number of groups. Proposed order of the next
+  steps: step24 quantiles and -U, step25 sam_put, then documentation.
+
+
+Item 1: --pstore and pload
+
+  opt.rs: Pstore { list, default } and parse_pstore: the text after --pstore/ is split at
+  the first '/' into LIST and DEFAULT (as pick's non-greedy match: a DEFAULT may contain
+  '/'); LIST pairs split at the first ':', both sides %-decoded; DEFAULT %-decoded too
+  (pick: not); a pair without ':' is an error.
+
+  compute.rs: Prepare::Pload. The operand must be a constant; it gets a slot (one per
+  name, as the registers of save and fetch) and is attached as Attached::Pload(slot,
+  name). compile takes a pstore flag (pload without --pstore is an error). The names
+  are not resolved during compile: a pload may name a compute that comes later (pick's
+  Fibonacci example reads y in x, before y is defined). compute::pload_names lists them
+  in slot order.
+
+  main.rs: Pstore::new resolves the pload names and the further LIST names to columns
+  with ColumnNames::index_of after compile, which gives a name's last binding (with -i the
+  value it has at output); an unknown name is an error naming the known ones. The values
+  before the first row: the LIST value, else DEFAULT, else None (NA). Machine.kept holds
+  the values; Stages::judge copies the kept columns of the row into it after the computes
+  and before the @ stage (pick's place of do_cache), so rows rejected by @ filters update
+  it and rows rejected by @@ filters or skipped by the fill do not. The values are the
+  bytes of the fields: an NA computed value is kept as the text NA, as a later compute
+  would read it.
+
+  op_pload pops the name (resolved already) and pushes the kept bytes, or NA.
+
+  Checked against pick (with //0 or LIST values, where the NA default does not show):
+  pick's Fibonacci example, a counter, a running sum with the previous name, a counter
+  behind an @ filter (continues) and behind an @@ filter (only the rows that pass), a
+  LIST start value, an in-place running sum with -i: identical.
+
+  Tests: pstore (the examples above, the NA default, %-decoding of LIST and DEFAULT, -c,
+  --other, errors, -l pload). Unit test pstore_spec. help, list-ops refs.
