@@ -89,9 +89,11 @@ impl Demux {
         Ok(self.files.len() - 1)
     }
 
-    // Complete all files and write the tally to stderr, sorted by file name.
+    // Complete all files and write the tally to stderr, sorted by file name: a title line
+    // with the pluk: prefix, then a table (plan/step32.txt decision 2).
     pub fn finish(mut self) -> io::Result<()> {
         self.files.sort_by(|a, b| a.path.cmp(&b.path));
+        crate::note::note!("pluk: --demux: rows written and filtered per file");
         crate::note::note!("File\tWritten\tFiltered");
         for file in self.files {
             crate::note::note!("{}\t{}\t{}", String::from_utf8_lossy(&file.path), file.written, file.filtered);

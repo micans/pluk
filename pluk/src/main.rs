@@ -53,8 +53,9 @@ fn run() -> std::io::Result<()> {
         && !config.test_samsort && !config.test_compute
     {
         eprintln!("pluk: no columns given. Use --help for help, -h suppresses header line output");
-        eprintln!("pluk only works as a pipe, so invoke e.g. as: pluk foo bar < data.txt");
-        return Ok(());
+        eprintln!("pluk: it works as a pipe, e.g. pluk foo bar < data.txt");
+        // Nothing was done: exit status 1 (plan/step32.txt decision 3; pick: 0).
+        process::exit(1);
     }
 
     // Dictionaries are read once all options are known, before any input is read

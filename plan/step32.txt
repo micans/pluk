@@ -35,3 +35,6 @@
 
   3   The manual: section 13 (no unprefixed messages left; examples without 2>&1 where
       it was only there for them), section 14 (exit status), other examples. Commit.
+
+  (Item 3 was folded into items 1 and 2: the documentation examples are part of make test,
+  so each item updated the manual for its own messages.)

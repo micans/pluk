@@ -31,6 +31,7 @@ Lucy
 pluk: -E0: expected 0 output rows, found 4
 exit 1
 exit 0
+pluk: --demux: rows written and filtered per file
 File	Written	Filtered
 out/ant	1	0
 out/bat	0	1

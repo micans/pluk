@@ -5,6 +5,7 @@ pluk: line 9 does not look like SAM [shortline	0	chr2]
 @SQ	SN:chr2	LN:500
 @PG	ID:hand	PN:handwritten
 @CO	comment in the middle
+pluk: --demux: rows written and filtered per file
 File	Written	Filtered
 out/dm4/*	1	0
 out/dm4/chr1	3	0

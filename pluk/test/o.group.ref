@@ -62,6 +62,7 @@ pluk: --group: 3 groups (the first row of each not output)
 gene	exon_start	exon_end
 A	300	400
 A	500	600
+pluk: --demux: rows written and filtered per file
 File	Written	Filtered
 out/A	2	0
 out/C	1	0

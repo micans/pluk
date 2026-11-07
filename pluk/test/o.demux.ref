@@ -1,3 +1,4 @@
+pluk: --demux: rows written and filtered per file
 File	Written	Filtered
 out/dm1/ant	1	0
 out/dm1/bat	0	1

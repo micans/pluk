@@ -32,3 +32,24 @@ Item 1: the 'pluk:' prefix, the notes reworded
   tests cover every changed message, so no new test was needed for this item. The
   manual's section 13 is updated in the same item (three of its examples showed the old
   forms with 2>&1); make test-int128 passes as well.
+
+
+Item 2: the --demux tally, the exit status without columns; the manual
+
+  The tally starts with 'pluk: --demux: rows written and filtered per file', then the
+  table as before (File Written Filtered, one row per file); -q leaves out both. pluk
+  without column arguments now exits with status 1; its second line became 'pluk: it
+  works as a pipe, e.g. pluk foo bar < data.txt' (with the prefix, 'pluk: pluk only
+  works ..' read badly). The test o.out-usage now records the exit status instead of
+  requiring 0. 12 golden files changed, each by the title line only (o.out-usage by the
+  new second line and 'exit 1'); accepted after reading the diffs.
+
+  The manual is brought up to date in this item rather than in a separate item 3, since
+  the documentation examples are part of make test: section 9 (the tally, its title),
+  section 13 (the table row, exit status 1 without columns), section 14.3 (every message
+  starts with pluk:, exit status 1 without columns with pick's 0, the tally's title).
+  doccheck.py: in a command that contains 2>&1 every expected line, 'pluk:' lines
+  included, is compared with stdout, where the messages then are (the section 9 example
+  shows the tally with 2>&1; before, a 'pluk:' line was always looked for in stderr).
+
+  Step32 complete with this item (item 3 folded into items 1 and 2).

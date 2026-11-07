@@ -111,7 +111,7 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	printf '\ta\tb\nr1\t1\t2\n' | $(p) _ b        > o.out-emptyfirst.test
 	head -n 1 data.txt | $(p) name fib            > o.out-headeronly.test
 	printf 'a\tb\ta\n1\t2\t3\n' | $(p) -u a_v02 a b  > o.out-u.test
-	$(p) < data.txt > o.out-usage.test 2>&1; [ $$? -eq 0 ]
+	{ $(p) < data.txt; echo "exit $$?"; } > o.out-usage.test 2>&1
 	$(p) -A fib                      < data.txt   > o.A-names.test
 	$(p) -A name name                < data.txt   > o.A-dupnames.test 2> o.A-dupnames-msg.test
 	$(p) -x fib name                 < data.txt   > o.x-names.test

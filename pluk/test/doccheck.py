@@ -11,7 +11,8 @@ expected output. The commands of one document run in order, in a fresh copy of t
 document's directory, with PLUK's directory first on the PATH.
 
 Expected lines starting with 'pluk:' are compared with stderr: each must occur, in order.
-The other lines are compared with stdout, all of them; a line '...' stands for any number
+The other lines are compared with stdout, all of them (in a command that contains 2>&1
+every expected line is compared with stdout, where pluk's messages then are); a line '...' stands for any number
 of lines. Runs of white space count as one separator. The exit status is not compared.
 
 Outside the code blocks two references are checked as well (plan/step31.txt decision 5):
@@ -154,8 +155,9 @@ def check(pluk, document):
         for lineno, command, expected in runs:
             r = subprocess.run(command, shell=True, cwd=here, env=env, capture_output=True, text=True,
                                stdin=subprocess.DEVNULL)
-            want_err = [norm(e) for e in expected if e.startswith('pluk:')]
-            want_out = [norm(e) for e in expected if not e.startswith('pluk:')]
+            merged = '2>&1' in command
+            want_err = [norm(e) for e in expected if e.startswith('pluk:') and not merged]
+            want_out = [norm(e) for e in expected if merged or not e.startswith('pluk:')]
             got_out = [norm(o) for o in r.stdout.split('\n')]
             got_err = [norm(e) for e in r.stderr.split('\n')]
             while got_out and not got_out[-1]:

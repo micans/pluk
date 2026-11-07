@@ -1092,18 +1092,19 @@ columns as the output.
 NAME, instead of to standard output. The value is a relative path; with
 `--demux-dir=PATH` the files are made in PATH, which must exist. Every file has the
 header line. A row rejected by an `@` filter still creates its file, so that every value
-has a file, possibly with only the header. At the end a tally of the files, the rows
-written and the rows filtered goes to standard error (`-q` leaves it out). NAME is often
+has a file, possibly with only the header. At the end pluk writes a tally to
+standard error: a title line, then a table of the files with the rows written and the
+rows filtered (`-q` leaves it out; the example shows it with `2>&1`). NAME is often
 a computed column:
 
 ```console
 $ mkdir byfruit
 $ pluk --demux=fruit --demux-dir=byfruit picker kg fruit @kg/gt/10 < harvest.txt 2>&1
+pluk: --demux: rows written and filtered per file
 File	Written	Filtered
 byfruit/apple	3	0
 byfruit/cherry	0	1
-byfruit/pear	1	1
-byfruit/plum	0	2
+...
 $ ls byfruit
 apple
 cherry
@@ -1735,7 +1736,7 @@ $ pluk picker 's::kg,nosuch' < harvest.txt
 pluk: [s::kg,nosuch]: unknown operator [nosuch]
 ```
 
-pluk without column arguments writes a short usage note and exits with status 0.
+pluk without column arguments writes a short usage note and exits with status 1.
 
 ### Warnings
 
@@ -1767,7 +1768,7 @@ count is not zero:
 | `N rows failed an assertion (written to FILE)` | rows diverted by `--assert-other` | 5 |
 | `merging into existing dictionary NAME` | a dictionary given more than once (written when it is loaded) | 7 |
 | `--group: N groups` | groups of `--group` and `--group-first-ref` | 8 |
-| `File Written Filtered` | the `--demux` tally: rows written to each file, rows rejected by `@` filters (no `pluk:` prefix) | 9 |
+| `--demux: rows written and filtered per file` | the `--demux` tally: a table follows, one line per file with the rows written and the rows rejected by `@` filters | 9 |
 | `the list contains computed columns` | `--idx-list`, `--idx-map` with computes | 9 |
 | `SAM reference lengths: header/fasta/shared/conflict` | references in the `@SQ` lines, in the fasta, in both, and with lengths that differ (written when the fasta is loaded) | 10 |
 | `SAM values not available (NA) for N rows: REASON` | rows for which SAM operators gave NA, per reason | 10, [SAM-NA.md](SAM-NA.md) |
@@ -2014,15 +2015,18 @@ pluk does.
   shell. `--other` also receives the rows rejected by `@@` filters; the pass-through
   lines of `-//PAT` before the header go to every output file; with `-c` the files keep
   their header. `--demux` file names cannot be empty, absolute or contain `.` or `..`
-  parts; too many open files is an error; the tally has no LastFlush column; `-c` with
-  `--demux` is refused; `--demux-buffer` has no effect.
+  parts; too many open files is an error; the tally has a title line and no LastFlush
+  column; `-c` with `--demux` is refused; `--demux-buffer` has no effect.
 - `-E<N>` counts the rows that pass the filters (written to standard output or to
   `--demux` files), not those written to `--other` or `--assert-other`.
 - `--progress` counts input rows, rejected or not, also with `-c` (pick counts output
   rows).
 - `--idx-list`, `--name-list` and `--idx-map` cannot be combined with each other, with
   `-c`, `--demux`, `--other` or `--assert-other`.
-- `-q` has one level and silences every message that is not an error.
+- `-q` has one level and silences every message that is not an error. Every message
+  starts with `pluk:`.
+- pluk without column arguments writes its usage note and exits with status 1 (pick:
+  0).
 - `-z` encodes only the characters that mean something in a pluk argument (`% : ^ , /
   ~ = @ +`) and white space and control bytes (pick: everything but letters, digits and
   `_`); `-zz` writes one value per line (pick: one line); the table of `-z` goes to

@@ -5,6 +5,7 @@ pluk: range [1-20] has indexes beyond the last column (dropped)
 name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
 pluk: --cd-D=b:2: merging into existing dictionary D
 name
+pluk: --demux: rows written and filtered per file
 File	Written	Filtered
 out/ant	1	0
 out/bat	0	1
