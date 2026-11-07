@@ -9,7 +9,7 @@ by Stijn over a period of about three days. The `plan/` directory retains that h
 Many corner/edge cases in pick were settled and sometimes fixed.*
 
 
-*This manual is being written. Sections 12 and 14 are outlines; sections 1 to 11, 13 and the operator reference (section 15) are complete.*
+*This manual is being written. Section 12 is an outline; sections 1 to 11, 13, 14 and the operator reference (section 15) are complete.*
 
 
 ## 1. Introduction
@@ -1906,13 +1906,159 @@ pluk does.
   (`0b`, `0x`, `0o`), digits with single `_` between them; anything else is NA (Perl
   stops at the first invalid character).
 
-#### Input, output, SAM
+#### Dictionaries and quantiles (section 7)
 
-*This part of the section is being written.*
+- `--td^KEY/DEFAULT=FILE`: the key comes before the default (pick: `/DEFAULT^KEY`); a
+  `^` in DEFAULT is refused, which catches pick's order; a repeated column name in the
+  table's header is refused.
+- Defaults are %-decoded. A dictionary given more than once is merged, with a message;
+  `__EXIT__` stays once given.
+- `dord` numbers keys by first appearance over all merged sources (pick: by line number
+  per file, the last occurrence winning) and gives NA for an absent key (pick: a huge
+  number).
+- `map` with `__EXIT__` ends the run with the line number.
+- A fasta file with a `>` line without identifier, a repeated identifier, or data
+  before the first `>` is an error. `--cd` ignores empty pairs and refuses a pair with
+  more than one `:`.
+- `SAMFA` and `seqlen` are reserved names; only `--sam/FILE` sets the SAM reference
+  (pick: also the first fasta dictionary loaded).
+- `qnl` and `qnu` give NA for a value that is not a number (pick: 0); a repeated
+  `--quant-NAME` is an error (pick: the later replaces the earlier); a step file with an
+  empty line, `inf` or `nan` is an error naming the line.
+
+#### State across rows (section 8)
+
+- `--pstore`: a column without a LIST value or DEFAULT starts as NA (pick: the string
+  `00000000`, numerically 0), so a counter is written `--pstore//0`; DEFAULT is
+  %-decoded (pick: LIST only).
+- `groupi` and `groupno` without `--group` or `--group-first-ref` are an error (pick: 2
+  and 0); the two options cannot be combined; the number of groups is reported.
+
+#### Input and output (sections 9 and 13)
+
+- In `-/PAT` and `-//PAT` a literal `/` is written `%2F`, and an empty pattern is
+  refused. `--sam` and `--sam-h` keep skipping or passing the `@` lines when either is
+  given.
+- A repeated letter in a bundle of short options is accepted.
+- Output files (`--other`, `--assert-other`, `--demux`) are never opened through a
+  shell. `--other` also receives the rows rejected by `@@` filters; the pass-through
+  lines of `-//PAT` before the header go to every output file; with `-c` the files keep
+  their header. `--demux` file names cannot be empty, absolute or contain `.` or `..`
+  parts; too many open files is an error; the tally has no LastFlush column; `-c` with
+  `--demux` is refused; `--demux-buffer` has no effect.
+- `-E<N>` counts the rows that pass the filters (written to standard output or to
+  `--demux` files), not those written to `--other` or `--assert-other`.
+- `--progress` counts input rows, rejected or not, also with `-c` (pick counts output
+  rows).
+- `--idx-list`, `--name-list` and `--idx-map` cannot be combined with each other, with
+  `-c`, `--demux`, `--other` or `--assert-other`.
+- `-q` has one level and silences every message that is not an error.
+- `-z` encodes only the characters that mean something in a pluk argument (`% : ^ , /
+  ~ = @ +`) and white space and control bytes (pick: everything but letters, digits and
+  `_`); `-zz` writes one value per line (pick: one line); the table of `-z` goes to
+  standard output (pick: standard error); `-zzz` is an error.
+- `-l` lists by category in the order of `--help` (pick: alphabetically); a TERM is a
+  category or a fixed part of operator names (pick: a regex); the filter operators are
+  listed too; no match gives exit status 1.
+
+#### SAM and BAM (section 10)
+
+- BAM input is read with `--sam` and `--sam-h` (pick has no BAM support). A BAM header
+  without `@SQ` lines gets them from the binary reference list; `@SQ` lines that differ
+  from it are an error.
+- `-K` cannot be combined with `--sam`; `--sam-nonf`, `--sam-aln-mrk`, `--sam-qlt-sim`
+  and `--sam-aln-prefix` require `--sam` or `--sam-h`; SAM operators without them are an
+  error before input is read.
+- The normal form is not applied where it would leave an empty CIGAR (pick turns a
+  CIGAR `5D` into an empty one and moves POS).
+- Values that cannot be computed are NA, the row is kept, and the NA is counted by
+  reason (pick discards the row silently or computes from missing data, for example
+  `ref_posx` 0 for an unmapped read); an unknown reference length is NA (pick: 0).
+- The reference comes only from `--sam/FILE`; an operator that needs it without that
+  option is an error before input is read (pick: rows are discarded silently). An RNAME
+  that is not in the fasta ends the run only when an operator needs its sequence. Parts
+  that cannot be computed are NA (pick: `*`), including a matched part that runs past
+  the reference end (pick: a partial sequence).
+- An `X` operation from the input is an aligned base, compared as `|` or `x` (pick
+  treats it as the context marker of `--sam-aln-context`); `P` draws nothing (pick stops
+  the alignment there); a CIGAR that runs past the reference end gives NA (pick: a
+  message and partial strings); only a QUAL of `*` is drawn as `!` (pick: any QUAL
+  shorter than 2), another QUAL that does not fit SEQ is NA; `--sam-qlt-sim` leaves a
+  QUAL of `*` as it is.
+- `aln_posinfo` compares `=` and `X` as `M`, ignores case (U as T), walks past `P` and
+  skips added context (pick stops at the first of these); past the reference end, or
+  with an n that is not a non-negative integer, it is NA. `aln_nedit` with an NM value
+  that is not a non-negative integer is NA (pick: 0). `aln_nedit_pia` and
+  `aln_nedit_piu` count only `x`, `-`, `~` (and `=`), never the dangling and context
+  columns (pick counts `` ` `` and `.`).
+- `patchiness` and `patchiness2` give NA for a character outside their table, a newline
+  included (pick dies or skips the newline), and for a window that is not a non-negative
+  integer. `cgsum`, `cgmax` and `cgcount` give NA for a CIGAR that does not parse, also
+  the empty string and lower-case operations (pick: a message and the partial result).
+- `--sam-aln-context` and `--sam-aln-xy`: without `--sam-aln-context` the context is 0
+  (pick: 10000); with both, the larger extension applies per side; a soft clip behind
+  a hard clip is used and H stays outermost (pick writes D before H); without a
+  reference length the right side is not extended, counted; unmapped records and
+  invalid CIGARs or POS are not rewritten. X and Y are positive integers, X at most Y.
+- `--sam-narrow-xy`: a record outside the region, or without an aligned operation left,
+  gets FLAG 0x4 added and CIGAR `*`, keeps RNAME, POS and its other FLAG bits, and is
+  kept and counted (pick: FLAG 4, POS 1, CIGAR `*`, the record then often discarded).
+- `--sam-ND-adjust`: the dictionary's values are checked before input is read; an empty
+  value means no intervals; unmapped records are not changed.
+- Region-bound tally: a region that does not overlap the matched part gives NA for every
+  `rbt_` value, counted (pick: `*`, `rbt_refx` 1, `rbt_refy` 0, counts 0 and `rbt_nedit`
+  the region length); `sam_rbt` operands that are not integers with 1 <= x <= y give
+  NA; an `X` operation is compared (pick: neither a match nor a mismatch).
+- The sequence fill: a SEQ `*` is filled from an earlier row of the same read and
+  segment whose part of the read contains the needed part, hard clips taken into
+  account, whatever rows lie between; a primary removed by an `@@` filter still
+  supplies its secondaries (pick: the previous row only, if it passed the `@@` filters,
+  no hard clips, no segments). A row that cannot be filled is skipped and counted, or
+  ends the run with `--sam-seqmiss=exit` (pick: discarded silently). A SEQ that does not
+  fit its CIGAR gives NA for `qry_seq` and `qry_qual` (pick: the SEQ).
+- `sam_put`: the tag is a constant (pick: also from a column); a tag already in the
+  record is replaced (pick adds a second one), counted; the same tag put twice in a row:
+  the last wins; a value that is NA, holds a TAB or newline, or does not fit the tag's
+  type is not put, counted; `sam_put` with an in-place compute on column 12 is refused.
+
+#### Bio operators (section 11)
+
+- The bio operators form their own category (pick: `rc` and `forward` among the string
+  operators); an NA operand gives NA.
+- `rc` complements the IUPAC codes too (R and Y, K and M, B and V, D and H; pick: only
+  A C G T U).
+- `forward` decides as `ifelse`: a number is true if it is not zero, so `0.0` is false
+  (pick: Perl's truth, in which the string `0.0` is true).
+- `dnatl` reads U as T (pick: `?`) and takes the offset as a non-negative integer.
+- `dnagc` divides by the number of A, C, G, T and U only (pick: by the whole length, N
+  and gaps included) and gives NA when there are none (pick: 0).
+- `fastQ` with a quality of `*` writes `Z` for every base, as `fastq` (pick: the `*`),
+  and gives NA, counted, for a quality of another length (pick writes it).
 
 ### 14.4 pick's corner cases
 
-*This part of the section is being written.*
+Some of pick's SAM behaviour is hard to specify or depends on circumstance; pluk settles
+it as follows (the changes above that stem from these are not repeated).
+
+- `--sam-aln-xy` extends pick's alignments to the reference ends in most cases, also
+  when X..Y lies within the alignment; pluk extends only as far as needed to include
+  X..Y and never reduces.
+- pick's `qry_qual` gives the empty string unless another operator that needs the
+  sequence is used in the same run; pluk's always gives the quality.
+- pick's `--sam-narrow-xy` drops hard clips and can write `0S` at either end, which also
+  keeps the normal form from removing a deletion cut by X or Y; narrowing followed by
+  context extension of a record made unmapped gives the CIGAR `*5D`. pluk keeps H
+  outermost, writes no `0S`, and does not extend unmapped records.
+- A CIGAR of only S, H, D, N and I has overlapping trails in pick, and its query length
+  is counted twice; in pluk the trails never overlap.
+- pick's `--sam-ND-adjust` tests the overlap against a shifted interval (in effect a-2
+  to b-1); pluk keeps an N that overlaps a..b exactly.
+- pick's region-bound tally checks the read's bases and exits with status 1 on lower
+  case or IUPAC codes; pluk does not.
+- In pick, rows that fail in SAM processing are dropped without a message; in pluk every
+  such row is kept or skipped with a count (section 13).
+- pick's `sam_put` on a record without optional fields writes a leading TAB in column
+  12; pluk does not.
 
 
 

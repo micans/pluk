@@ -65,3 +65,21 @@ Item 3: section 14.3 part 1
   (pick pads on the right), the assertion exit status (pick 255); in pluk: -R with -k,
   a 0 multiplier, a non-numeric constant, -A<N> with -x, --A=NAME of a computed column,
   an empty pattern, a second redefinition with -i. No stale entry found in guidelines.txt.
+
+
+Item 4: section 14.3 part 2 and 14.4
+
+  14.3 topics: dictionaries and quantiles, state across rows, input and output (-/PAT,
+  option bundles, output files, -E, --progress, the list options, -q, -z, -l), SAM and
+  BAM, bio. 14.4: the SAM corner cases of SAM.pick-survey.txt section 8 that are
+  behaviour rather than wording (8.1-8.2 aln-xy, 8.3 qry_qual, 8.5-8.6 narrowing, 8.10
+  overlapping trails, 8.13 ND-adjust shift, 8.9 rbt self-check, 8.15 silent discards,
+  8.16 sam_put leading TAB), in a neutral voice; 14.3 does not repeat them. Not listed:
+  pick's internal matters (8.4 suv, 8.11 and 8.15's unused return values, 8.16's cache
+  leak) and help-text errors (8.13, 8.14).
+
+  Checked with pick on align.sam and reads.sam: qry_qual alone is empty; narrowing
+  20,30 drops read2's 2H and gives the unmapped read3 POS 1; --sam-aln-xy=20,30 turns
+  read1 into POS 1 5D3X22M3I8M3D9M3D (pluk: unchanged); ref_posx of an unmapped read is
+  0. In pluk: a repeated --quant, rc of IUPAC codes, dnagc without ACGTU, forward with
+  0.0, groupi without --group, --group with --group-first-ref, -c with --demux.
