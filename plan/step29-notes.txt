@@ -33,3 +33,23 @@ Item 2: section 5, filters and assertions
   --other; @assert@ and @@assert@, their message and exit status 1, --assert-other. The
   manual's opening note now says sections 1 to 5 are complete (item 1 had left it at 1 to
   3).
+
+
+Item 3: section 6, computes
+
+  NAME::SPEC and NAME:=SPEC; the stack language (^ : ,; a SPEC not starting with one of
+  them starts with a column; what is left on the stack is concatenated, shown with
+  'kg^1,dd:bruised'); splats and the *all operators; NA from an operator that needs a
+  number; --seed (--num-perl only referred to section 3); unnamed computes; output
+  positions with -A, -A<N>, --A=NAME; -i and __ (earlier computes see the old value);
+  -i over lists; renaming P/SPEC/S, P//SPEC//S, capture group 1; -e (with %20 for a
+  space in a value).
+
+  Two facts from --help were missing from section 5 and are added there: with ~ and /~
+  a :OTHER value is matched as a fixed string; assertions are checked before the filters
+  of their stage, and -o and -s do not apply to them.
+
+  Observed, not changed: when -i redefines a name that is also output (-i picker kg
+  'kg::..', or v:= followed by two v:: computes) pluk writes '-- Identical output column
+  names exist (will make unique)' to stderr, but the output has the column once and
+  nothing is made unique. The notice looks spurious; for the user to decide.

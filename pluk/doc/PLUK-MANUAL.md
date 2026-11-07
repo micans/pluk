@@ -9,7 +9,7 @@ by Stijn over a period of about three days. The `plan/` directory retains that h
 Many corner/edge cases in pick were settled and sometimes fixed.*
 
 
-*This manual is being written. Sections 6 to 14 are outlines; sections 1 to 5 and the operator reference (section 15) are complete.*
+*This manual is being written. Sections 7 to 14 are outlines; sections 1 to 6 and the operator reference (section 15) are complete.*
 
 
 ## 1. Introduction
@@ -428,7 +428,8 @@ The operators, each described in section 15:
 The value is a constant, or `:OTHER` for the value of another column in the same row; a
 leading `^` marks a constant explicitly (`^14.5` is the same as `14.5`). The value is
 %-decoded (section 3) after this leading `:` or `^` is read, so `%3A` and `%5E` give a
-literal colon and caret.
+literal colon and caret. For `~` and `/~`, the value of `:OTHER` is matched as a fixed string, not as a
+pattern.
 
 ```console
 $ pluk id x y @x/lt/:y < numbers.txt
@@ -509,7 +510,8 @@ Hilde	7.9
 ### Assertions
 
 An assertion is a filter that must hold for every row: `@assert@COLUMN...` after the
-computes, `@@assert@COLUMN...` before them. The first row that fails it ends the run with
+computes, `@@assert@COLUMN...` before them. Assertions are checked before the filters of the same stage, and `-o` and `-s` do
+not apply to them. The first row that fails it ends the run with
 an error naming the assertion, the column, the value and the line (exit status 1). With
 `--assert-other=FILE` such rows are written to FILE instead and the run goes on.
 
@@ -537,7 +539,224 @@ Eamon	cherry	C02	3.2	0	0.61
 
 ## 6. Computes
 
-`NAME::SPEC` and `NAME:=SPEC`, the stack language, unnamed computes, `-i` and `__`, maps over lists, regular expressions and ranges, renaming (`P/SPEC/S`, `SPEC/S`, `P//SPEC//S`) and capture group 1.
+A compute makes a new column from the columns of the same row. `NAME::SPEC` computes
+column NAME and outputs it; `NAME:=SPEC` computes it without output, for use by later
+computes and filters.
+
+```console
+$ pluk picker 'lb::kg^2.20462,mul^1,dd' < harvest.txt
+picker	lb
+Annie	32.0
+Bert	19.8
+Chen	48.7
+...
+$ pluk picker kg 'size::kg^15^/gt/,test^big^small,ifelse' < harvest.txt
+picker	kg	size
+Annie	14.5	small
+Bert	9.0	small
+Chen	22.1	big
+...
+$ pluk picker 't:=kg^2,mul' 'u::t^1,add' < harvest.txt
+picker	u
+Annie	30
+Bert	19
+Chen	45.2
+...
+```
+
+### The stack language
+
+SPEC is read from left to right and works on a stack:
+
+- `^VALUE` pushes a constant;
+- `:COLUMN` pushes the value of a column (a computed column too, if it was computed
+  earlier);
+- `,OP` applies an operator: it takes its operands from the top of the stack and pushes
+  its result. Every operator is described in section 15 (`pluk -l` lists them).
+
+A SPEC that does not start with `^`, `:` or `,` starts with a column, so `kg^2,mul` is
+`:kg^2,mul`. Constants and column names are %-decoded (section 3). When SPEC ends, what
+is left on the stack is the value, all entries concatenated; usually that is one entry.
+
+```console
+$ pluk picker 'two::kg^1,dd:bruised' 'tag::^tree-:tree' < harvest.txt
+picker	two	tag
+Annie	14.52	tree-A12
+Bert	9.00	tree-P03
+Chen	22.15	tree-A07
+...
+```
+
+A column given as a list, a `+REGEX` or (with `-k`) a range pushes every column it names,
+in order: a splat. The operators that end in `all` take the whole stack.
+
+```console
+$ pluk picker 'all::kg:bruised:ripeness,addall' 'kb::+[kb].*^-,joinall' < harvest.txt
+picker	all	kb
+Annie	17.42	14.5-2
+Bert	9.75	9.0-0
+Chen	27.98	22.1-5
+...
+```
+
+### Numbers and NA
+
+Arithmetic is exact on integers and round-trips on floats (section 3; `--num-perl` writes
+numbers as Perl does). An operator that needs a number and gets something else gives NA:
+
+```console
+$ pluk id x 'h::x^2,div' < numbers.txt
+id	x	h
+A	7	3.5
+B	-3	-1.5
+C	9223372036854775807	4.611686018427388e+18
+D	0.1	0.05
+E	nan	nan
+F		NA
+G	fox	NA
+H	1e300	5e+299
+```
+
+`rand` draws from a generator seeded from the clock; `--seed=N` makes the output
+reproducible.
+
+```console
+$ pluk --seed=7 picker 'die::^6,rand,floor^1,add' < harvest.txt
+picker	die
+Annie	3
+Bert	1
+Chen	6
+...
+```
+
+### Unnamed computes
+
+`::SPEC` without a name is output under a generated name, PLUKAAAAA, PLUKAAAAB and so on.
+
+```console
+$ pluk picker '::kg^2,mul' '::bruised^1,add' < harvest.txt
+picker	PLUKAAAAA	PLUKAAAAB
+Annie	29	3
+Bert	18	1
+Chen	44.2	6
+...
+```
+
+### Where computed columns go
+
+A computed column is output where its argument stands among the column arguments. With
+`-A` (all input columns) the computed columns follow the input columns; `-A<N>` inserts
+them after the first N input columns, `--A=NAME` after the input column NAME.
+
+```console
+$ pluk picker 'lb::kg^2.2,mul^1,dd' kg < harvest.txt
+picker	lb	kg
+Annie	31.9	14.5
+Bert	19.8	9.0
+Chen	48.6	22.1
+...
+$ pluk -A 'lb::kg^2.2,mul^1,dd' < harvest.txt
+picker	fruit	tree	kg	bruised	ripeness	lb
+Annie	apple	A12	14.5	2	0.92	31.9
+Bert	pear	P03	9.0	0	0.75	19.8
+Chen	apple	A07	22.1	5	0.88	48.6
+...
+$ pluk -A2 'lb::kg^2.2,mul^1,dd' < harvest.txt
+picker	fruit	lb	tree	kg	bruised	ripeness
+Annie	apple	31.9	A12	14.5	2	0.92
+Bert	pear	19.8	P03	9.0	0	0.75
+Chen	apple	48.6	A07	22.1	5	0.88
+...
+$ pluk --A=kg 'lb::kg^2.2,mul^1,dd' < harvest.txt
+picker	fruit	tree	kg	lb	bruised	ripeness
+Annie	apple	A12	14.5	31.9	2	0.92
+Bert	pear	P03	9.0	19.8	0	0.75
+Chen	apple	A07	22.1	48.6	5	0.88
+...
+```
+
+### Changing a column in place: -i and __
+
+A compute may not use a name that already exists, unless `-i` is given. With `-i` a
+compute may redefine an input column once and a computed column any number of times.
+Computes before the redefinition see the old value, later ones and the output the new
+value. In SPEC, `__` stands for the compute's own name, that is the value being replaced.
+
+```console
+$ pluk picker 'kg::__^1000,mul' < harvest.txt
+pluk: [kg::__^1000,mul]: name [kg] already exists (use -i for in-place change)
+$ pluk -i picker 'g::kg' 'kg::__^1000,mul' 'h::kg' < harvest.txt
+picker	g	kg	h
+Annie	14.5	14500	14500
+Bert	9.0	9000	9000
+Chen	22.1	22100	22100
+...
+```
+
+With `-i`, NAME can be a list, a `+REGEX` or (with `-k`) a range of existing columns: the
+compute is applied to each of them, `__` being that column.
+
+```console
+$ pluk -i -A 'kg:ripeness::__^10,mul' < harvest.txt
+picker	fruit	tree	kg	bruised	ripeness
+Annie	apple	A12	145	2	9.200000000000001
+Bert	pear	P03	90	0	7.5
+Chen	apple	A07	221	5	8.8
+...
+```
+
+### New columns from many: renaming
+
+`P/SPEC/S::...` applies the compute to each column named by SPEC (a name, list, `+REGEX`
+or range), `__` being that column, and makes a new column for each, named P, the column
+name and S. P or S may be empty (`P/SPEC/` and `SPEC/S`). With `P//SPEC//S` each
+original column is output too, before its new column. A `/` in a name is written `%2F`.
+
+```console
+$ pluk picker 'g_/kg:ripeness/_x10::__^10,mul' < harvest.txt
+picker	g_kg_x10	g_ripeness_x10
+Annie	145	9.200000000000001
+Bert	90	7.5
+Chen	221	8.8
+...
+$ pluk picker 'g_//kg:ripeness//_x10::__^10,mul' < harvest.txt
+picker	kg	g_kg_x10	ripeness	g_ripeness_x10
+Annie	14.5	145	0.92	9.200000000000001
+Bert	9.0	90	0.75	7.5
+Chen	22.1	221	0.88	8.8
+...
+$ pluk picker 'kg:ripeness/_sq::__,sq' < harvest.txt
+picker	kg_sq	ripeness_sq
+Annie	210.25	0.8464
+Bert	81	0.5625
+Chen	488.4100000000001	0.7744
+...
+```
+
+When SPEC is a `+REGEX` with a capture group, group 1 replaces the whole name, with or
+without P and S:
+
+```console
+$ pluk picker '+(k)g::__^10,mul' 'w_/+(r)ip.*/_x::__' < harvest.txt
+picker	k	w_r_x
+Annie	145	0.92
+Bert	90	0.75
+Chen	221	0.88
+...
+```
+
+### White space: -e
+
+With `-e` white space is removed from filters and computes before they are read, so that
+a long SPEC can be spaced out. (A value that contains white space must then use `%20`.)
+
+```console
+$ pluk -e picker 'lb :: kg ^2 ,mul' '@lb / gt / 30' 'note :: ^heavy%20load' < harvest.txt
+picker	lb	note
+Chen	44.2	heavy load
+Fenna	36	heavy load
+```
+
 
 
 ## 7. Dictionaries and quantiles
