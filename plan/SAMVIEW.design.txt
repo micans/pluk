@@ -78,7 +78,11 @@ plan/SAMSEQ.design.txt.
                ref_trail5p_N and ref_trail5p_N + ref_matched_N, from the query sequence (SEQ
                orientation) at qry_trail5p_N and qry_trail5p_N + qry_matched_N; nothing is
                stored, the cut points come from the count stage
-     aln       [step18] the alignment strings (aln_ref aln_aln aln_qry aln_rlr aln_qlt)
+     aln       the alignment strings aln_ref aln_aln aln_qry aln_rlr aln_qlt (step18,
+               decisions 3-6: drawn from POS and the CIGAR, X compared, P and H draw
+               nothing, NA past the reference end; --sam-aln-mrk appended after the
+               ruler, --sam-qlt-sim applied to the quality); computed once per row and
+               kept, as aln_all aln_allq aln_all_pack and later aln_nedit_pia/piu use it
      rbt       [step20] the region-bound tally
 
    A stage that cannot be computed records why (section 6); every operator that needs it

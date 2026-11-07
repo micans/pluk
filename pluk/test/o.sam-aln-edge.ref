@@ -1,0 +1,140 @@
+== 
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/2/0/0
+n1	3	2S4M3N5M1S	       10   
+GTACGTACGTTC
+||||===xxxxx
+GTAC---TCAGG
+CDEF   GHIJK	ABCDEFGHIJKL
+n2	5	3=1X2=	     1
+ACGTAC
+|||x||
+ACGAAC
+!!!!!!	*
+n3	2	2H3M2P3M	      
+CGTACG
+|||xxx
+CGTCGT
+######	######
+n4	1	14M	         10   
+acgtnnnnttACGT
+||||||||||||||
+ACGTNNNNTTacgt
+!!!!!!!!!!!!!!	*
+n5	1	3S2D6M2D2S	         1
+ACGTACGTAC
+``xxxxxx``
+--TACGTA--
+  !!!!!!  	*
+n6	30	8M	NA	*
+n7	8	2M2D3M	  10   
+TACGTTC
+xx--xxx
+AC--AGG
+!+  5?I	!+5?I
+n8	0	*	NA	*
+n9	1	5M	NA	NA
+pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+pluk: SAM values not available (NA) for 1 row: SEQ or QUAL length differs from the CIGAR
+pluk: SAM values not available (NA) for 1 row: CIGAR past the reference end
+== --sam-nonf
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/2/0/0
+n1	3	2S4M3N5M1S	       10   
+GTACGTACGTTC
+||||===xxxxx
+GTAC---TCAGG
+CDEF   GHIJK	ABCDEFGHIJKL
+n2	5	3=1X2=	     1
+ACGTAC
+|||x||
+ACGAAC
+!!!!!!	*
+n3	2	2H3M2P3M	      
+CGTACG
+|||xxx
+CGTCGT
+######	######
+n4	1	14M	         10   
+acgtnnnnttACGT
+||||||||||||||
+ACGTNNNNTTacgt
+!!!!!!!!!!!!!!	*
+n5	1	3I2D6M2D2I	            10 
+---ACGTACGTAC--
+___--xxxxxx--__
+GGG--TACGTA--TT
+!!!  !!!!!!  !!	*
+n6	30	8M	NA	*
+n7	8	2M2D3M	  10   
+TACGTTC
+xx--xxx
+AC--AGG
+!+  5?I	!+5?I
+n8	0	*	NA	*
+n9	1	5M	NA	NA
+pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+pluk: SAM values not available (NA) for 1 row: SEQ or QUAL length differs from the CIGAR
+pluk: SAM values not available (NA) for 1 row: CIGAR past the reference end
+== --sam-aln-mrk --sam-qlt-sim
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/2/0/0
+n1	3	2S4M3N5M1S	       10   
+GTACGTACGTTC  <>  2, 12, 20
+||||===xxxxx
+GTAC---TCAGG  <>  2, 9, 1
+cCCC   CCddd	cccCCCCCdddd
+n2	5	3=1X2=	     1
+ACGTAC  <>  4, 6, 24
+|||x||
+ACGAAC  []  0, 6, 0
+......	*
+n3	2	2H3M2P3M	      
+CGTACG  <>  1, 6, 27
+|||xxx
+CGTCGT  []  0, 6, 0
+......	......
+n4	1	14M	         10   
+acgtnnnnttACGT  []  0, 14, 0
+||||||||||||||
+ACGTNNNNTTacgt  []  0, 14, 0
+..............	*
+n5	1	3S2D6M2D2S	         1
+ACGTACGTAC  <>  2, 6, 26
+``xxxxxx``
+--TACGTA--  <>  3, 6, 2
+  ......  	*
+n6	30	8M	NA	*
+n7	8	2M2D3M	  10   
+TACGTTC  <>  7, 7, 20
+xx--xxx
+AC--AGG  []  0, 5, 0
+.a  bcd	.abcd
+n8	0	*	NA	*
+n9	1	5M	NA	NA
+pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+pluk: SAM values not available (NA) for 1 row: SEQ or QUAL length differs from the CIGAR
+pluk: SAM values not available (NA) for 1 row: CIGAR past the reference end
+0000000   n   1  \t   +   +                                   1   0    
+0000020         001   +   +       G   T   A   C   G   T   A   C   G   T
+0000040   T   C 001   +   +       |   |   |   |   =   =   =   x   x   x
+0000060   x   x 001   +   +       G   T   A   C   -   -   -   T   C   A
+n1	>        10   
+> GTACGTACGTTC
+> ||||===xxxxx
+> GTAC---TCAGG	GTACGTACGTTC
+n2	>      1
+n1	cccCCCCCdddd
+n2	*
+n3	......
+n4	*
+n5	*
+n6	*
+n7	.abcd
+n8	*
+n9	NA
+pluk: [x::,aln_aln]: operator aln_aln needs the reference sequence (--sam/FILE or --sam-h/FILE)
+exit 1
+--sam-aln-mrk requires --sam or --sam-h
+exit 1
+--sam-qlt-sim requires --sam or --sam-h
+exit 1
+--sam-aln-prefix requires --sam or --sam-h
+exit 1

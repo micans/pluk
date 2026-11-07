@@ -190,6 +190,8 @@ fn run() -> std::io::Result<()> {
         return Ok(());
     }
     let mut machine = exec::Machine::new(config.num_perl, config.seed.unwrap_or_else(exec::clock_seed), &dicts);
+    machine.sam.options = sam::AlnOptions { prefix: config.sam_aln_prefix.clone().unwrap_or_default(),
+                                            markers: config.sam_aln_mrk, qlt_sim: config.sam_qlt_sim };
     machine.set_registers(&computes);
     let normal_form = (config.sam || config.sam_h) && !config.sam_nonf;
     // The fill is active when an operator needs the query sequence (step17 decision 8).

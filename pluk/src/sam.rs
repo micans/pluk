@@ -180,15 +180,128 @@ fn cut(seq: &[u8], a: usize, b: usize, part: Part) -> &[u8] {
 
 // Operators that need the reference sequence (SAMFA, from --sam/FILE; a compile-time
 // error without it) and those that need the query sequence (the fill is active).
+const ALIGNMENT: [&str; 8] = ["aln_ref", "aln_aln", "aln_qry", "aln_rlr", "aln_qlt", "aln_all", "aln_allq", "aln_all_pack"];
 const NEEDS_REFERENCE: &[&str] = &["ref_trail5p", "ref_matched", "ref_trail3p"];
 const NEEDS_QUERY: &[&str] = &["qry_seq", "qry_qual", "qry_trail5p", "qry_matched", "qry_trail3p"];
 
 pub fn needs_reference(op: &str) -> bool {
-    NEEDS_REFERENCE.contains(&op)
+    NEEDS_REFERENCE.contains(&op) || ALIGNMENT.contains(&op)
 }
 
 pub fn needs_query(op: &str) -> bool {
-    NEEDS_QUERY.contains(&op)
+    NEEDS_QUERY.contains(&op) || ALIGNMENT.contains(&op)
+}
+
+// ---- The alignment display (plan/step18.txt decisions 3-6) ----
+
+// The options of the alignment display.
+#[derive(Clone, Debug, Default)]
+pub struct AlnOptions {
+    pub prefix:  Vec<u8>,   // --sam-aln-prefix=STR, before every line of aln_all aln_allq aln_all_pack
+    pub markers: bool,      // --sam-aln-mrk
+    pub qlt_sim: bool,      // --sam-qlt-sim
+}
+
+// --sam-qlt-sim: the quality symbols ! .. ~ in steps of five quality values (as pick).
+const QLT_SIM: &[u8; 94] =
+    b".....,,,,,aaaaaAAAAAbbbbbBBBBBcccccCCCCCdddddDDDDDeeeeeEEEEEfffffFFFFFgggggGGGGGhhhhhHHHHHiiii";
+
+pub fn qlt_sim(qual: &[u8]) -> Vec<u8> {
+    qual.iter().map(|&b| if (b'!'..=b'~').contains(&b) { QLT_SIM[(b - b'!') as usize] } else { b }).collect()
+}
+
+// The five alignment strings.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Aln {
+    pub reference: Vec<u8>,     // aln_ref
+    pub aln:       Vec<u8>,     // aln_aln
+    pub query:     Vec<u8>,     // aln_qry
+    pub ruler:     Vec<u8>,     // aln_rlr
+    pub quality:   Vec<u8>,     // aln_qlt
+}
+
+// The alignment strings from the reference, the query sequence and quality (SEQ
+// orientation; QUAL '*' already replaced), the CIGAR and POS, as pick's
+// sam_compute_aln. Err: the CIGAR runs past the end of the reference or the query.
+pub fn draw(reference: &[u8], seq: &[u8], qual: &[u8], ops: &[Op], pos: u64) -> Result<Aln, Na> {
+    let t_for_u = |b: u8| match b { b'u' => b't', b'U' => b'T', _ => b };
+    let reference: Vec<u8> = reference.iter().map(|&b| t_for_u(b)).collect();
+    let seq: Vec<u8> = seq.iter().map(|&b| t_for_u(b)).collect();
+    let mut a = Aln::default();
+    let mut pr = usize::try_from(pos - 1).map_err(|_| Na::RefEnd)?;
+    let mut pq = 0usize;
+    for op in ops {
+        let n = usize::try_from(op.len).map_err(|_| Na::RefEnd)?;
+        let r_end = if op.consumes_reference() { pr.checked_add(n).filter(|&e| e <= reference.len()).ok_or(Na::RefEnd)? } else { pr };
+        let q_end = if op.consumes_query() { pq.checked_add(n).filter(|&e| e <= seq.len()).ok_or(Na::SeqLength)? } else { pq };
+        match op.op {
+            b'M' | b'=' | b'X' => {
+                let (r, q) = (&reference[pr..r_end], &seq[pq..q_end]);
+                a.aln.extend(r.iter().zip(q).map(|(x, y)| if x.eq_ignore_ascii_case(y) { b'|' } else { b'x' }));
+                a.reference.extend_from_slice(r);
+                a.query.extend_from_slice(q);
+                a.quality.extend_from_slice(&qual[pq..q_end]);
+            }
+            b'I' => {
+                a.reference.resize(a.reference.len() + n, b'-');
+                a.aln.resize(a.aln.len() + n, b'~');
+                a.query.extend_from_slice(&seq[pq..q_end]);
+                a.quality.extend_from_slice(&qual[pq..q_end]);
+            }
+            b'D' | b'N' => {
+                a.reference.extend_from_slice(&reference[pr..r_end]);
+                a.aln.resize(a.aln.len() + n, if op.op == b'D' { b'-' } else { b'=' });
+                a.query.resize(a.query.len() + n, b'-');
+                a.quality.resize(a.quality.len() + n, b' ');
+            }
+            _ => {}     // S: the query advances, nothing drawn; H P: nothing
+        }
+        (pr, pq) = (r_end, q_end);
+    }
+    mark_ends(&mut a.aln);
+    a.ruler = ruler(&a.reference, pos);
+    Ok(a)
+}
+
+// A leading run of ~ (insertion) becomes _, else a leading run of - (deletion)
+// becomes `; the same at the end (pick).
+fn mark_ends(aln: &mut [u8]) {
+    for (from, to) in [(b'~', b'_'), (b'-', b'`')] {
+        let n = aln.iter().take_while(|&&b| b == from).count();
+        aln[..n].fill(to);
+        if n > 0 {
+            break;
+        }
+    }
+    for (from, to) in [(b'~', b'_'), (b'-', b'`')] {
+        let n = aln.iter().rev().take_while(|&&b| b == from).count();
+        let len = aln.len();
+        aln[len - n..].fill(to);
+        if n > 0 {
+            break;
+        }
+    }
+}
+
+// The ruler: column i is reference position POS + i minus the number of '-' in
+// aln_ref before it; where that position is a multiple of 10 its number is written
+// from that column. As long as aln_ref.
+fn ruler(aln_ref: &[u8], pos: u64) -> Vec<u8> {
+    let mut rlr = vec![b' '; aln_ref.len()];
+    let mut skip = 0u64;
+    for (i, &b) in aln_ref.iter().enumerate() {
+        let n = pos + i as u64 - skip;
+        if b == b'-' {
+            skip += 1;
+        } else if n % 10 == 0 {
+            for (k, d) in n.to_string().bytes().enumerate() {
+                if let Some(c) = rlr.get_mut(i + k) {
+                    *c = d;
+                }
+            }
+        }
+    }
+    rlr
 }
 
 // The per-row SAM view, held by the machine; reset for every row. A stage is
@@ -198,6 +311,8 @@ pub struct View<'d> {
     samfa:   Option<&'d dict::Dict>,        // the reference sequences (--sam/FILE), if any
     counts:  Option<Result<Counts, Na>>,
     reference: Option<Result<&'d [u8], Na>>,
+    aln:     Option<Result<Aln, Na>>,
+    pub options: AlnOptions,                // set by main.rs
     pub query: Query,                       // set for every row while the fill is active
     noted:   [bool; N_REASONS],             // this row has been counted for the reason
     pub n_na: [u64; N_REASONS],             // rows per reason, for the report at the end
@@ -206,12 +321,13 @@ pub struct View<'d> {
 impl<'d> View<'d> {
     pub fn new(dicts: &'d Dicts) -> View<'d> {
         View { seqlen: dicts.get(dict::SEQ_LENGTHS), samfa: dicts.get(dict::SAM_REFERENCE), counts: None,
-               reference: None, query: Query::Row, noted: [false; N_REASONS], n_na: [0; N_REASONS] }
+               reference: None, aln: None, options: AlnOptions::default(), query: Query::Row, noted: [false; N_REASONS], n_na: [0; N_REASONS] }
     }
 
     pub fn reset(&mut self) {
         self.counts = None;
         self.reference = None;
+        self.aln = None;
         self.noted = [false; N_REASONS];
     }
 
@@ -276,6 +392,73 @@ impl<'d> View<'d> {
             Query::Filled { seq, .. } => Ok(seq),
             Query::Mismatch => Err(Na::SeqLength),
         }
+    }
+
+    // The query quality: QUAL, or the filled one.
+    fn query_qual<'a>(&'a self, row: &'a Row) -> Result<&'a [u8], Na> {
+        match &self.query {
+            Query::Row => Ok(row.field(QUAL)),
+            Query::Filled { qual, .. } => Ok(qual),
+            Query::Mismatch => Err(Na::SeqLength),
+        }
+    }
+
+    // qry_qual: QUAL or the filled one, translated with --sam-qlt-sim ('*' stays).
+    pub fn qry_qual(&mut self, row: &Row) -> Result<Vec<u8>, Na> {
+        let result = match self.query_qual(row) {
+            Ok(q) if self.options.qlt_sim && q != b"*" => Ok(qlt_sim(q)),
+            Ok(q) => Ok(q.to_vec()),
+            Err(reason) => Err(reason),
+        };
+        self.noted(result)
+    }
+
+    // The alignment stage, computed once per row; an Err is counted.
+    pub fn aln(&mut self, row: &Row) -> Result<&Aln, Na> {
+        if self.aln.is_none() {
+            let aln = self.compute_aln(row);
+            self.aln = Some(aln);
+        }
+        if let Some(Err(reason)) = self.aln {
+            self.note(reason);
+            return Err(reason);
+        }
+        match &self.aln {
+            Some(Ok(a)) => Ok(a),
+            _ => unreachable!("alignment computed above"),
+        }
+    }
+
+    fn compute_aln(&mut self, row: &Row) -> Result<Aln, Na> {
+        let c = self.count_stage(row)?;
+        let marks = (c.ref_trail5p, c.ref_matched, c.ref_trail3p, c.qry_trail5p, c.qry_matched, c.qry_trail3p);
+        let reference = self.reference_stage(row)?;
+        let ops = parse_cigar(row.field(CIGAR)).ok_or(Na::Cigar)?;
+        let pos = number(row.field(POS)).ok_or(Na::Cigar)?;
+        let seq = self.query_seq(row)?;
+        let qual = self.query_qual(row)?;
+        // QUAL '*' (decision 3): '!' for every base, '.' with --sam-qlt-sim.
+        let qual = if qual == b"*" {
+            vec![if self.options.qlt_sim { b'.' } else { b'!' }; seq.len()]
+        } else if qual.len() != seq.len() {
+            return Err(Na::SeqLength);
+        } else if self.options.qlt_sim {
+            qlt_sim(qual)
+        } else {
+            qual.to_vec()
+        };
+        let mut aln = draw(reference, seq, &qual, &ops, pos)?;
+        // --sam-aln-mrk (decision 5): after the ruler, which keeps the unmarked length.
+        if self.options.markers {
+            let (r5, rm, r3, q5, qm, q3) = marks;
+            let r3 = r3.ok_or(Na::RefLength)?;
+            let mark = |t5: Int, m: Int, t3: Int| {
+                format!("  {}{}  {}, {}, {}", if t5 > 0 { '<' } else { '[' }, if t3 > 0 { '>' } else { ']' }, t5, m, t3)
+            };
+            aln.reference.extend_from_slice(mark(r5, rm, r3).as_bytes());
+            aln.query.extend_from_slice(mark(q5, qm, q3).as_bytes());
+        }
+        Ok(aln)
     }
 
     // A part of the reference (decision 2 of plan/step18.txt): before position
@@ -467,5 +650,48 @@ mod tests {
         assert_eq!(nf("7", "5D"), None);                        // would leave nothing
         assert_eq!(nf("7", "4I"), some("7", "4S"));
         assert_eq!(nf("x", "2D10M"), None);
+    }
+
+    fn drawn(reference: &str, seq: &str, cigar: &str, pos: u64) -> Result<[String; 5], Na> {
+        let ops = parse_cigar(cigar.as_bytes()).unwrap();
+        let qual = vec![b'!'; seq.len()];
+        let a = draw(reference.as_bytes(), seq.as_bytes(), &qual, &ops, pos)?;
+        let s = |v: Vec<u8>| String::from_utf8(v).unwrap();
+        Ok([s(a.ruler), s(a.reference), s(a.aln), s(a.query), s(a.quality)])
+    }
+
+    #[test]
+    fn alignment_strings() {
+        // Matches ignore case, X is compared, S is skipped, N drawn as =.
+        let a = drawn("ACGTACGTACGT", "TTaCGtCX", "2S3M2N2X1S", 1).unwrap();
+        assert_eq!(a[1], "ACGTACG");
+        assert_eq!(a[2], "|||==xx");
+        assert_eq!(a[3], "aCG--tC");
+        assert_eq!(a[4], "!!!  !!");
+        // U becomes T in both; leading and trailing runs of ~ and -.
+        assert_eq!(drawn("ACGU", "AGGCGTTT", "2I4M2I", 1).unwrap()[2], "__x|||__");
+        assert_eq!(drawn("ACGU", "ACGT", "4M", 1).unwrap()[2], "||||");
+        assert_eq!(drawn("ACGTACGT", "CGTA", "1D4M1D", 1).unwrap()[2], "`||||`");
+        // One class per end: a leading run of ~ hides a following run of -.
+        assert_eq!(drawn("ACGTACGT", "GGCGT", "2I1D3M", 1).unwrap()[2], "__-|||");
+        // Past the reference end, at a match and at a deletion.
+        assert_eq!(drawn("ACGT", "CGTA", "4M", 2), Err(Na::RefEnd));
+        assert_eq!(drawn("ACGT", "CG", "2M3D", 2), Err(Na::RefEnd));
+        assert_eq!(drawn("ACGT", "CG", "3M", 2), Err(Na::SeqLength));
+        // H and P draw nothing.
+        assert_eq!(drawn("ACGTAC", "ACGTAC", "2H3M1P3M", 1).unwrap()[2], "||||||");
+    }
+
+    #[test]
+    fn alignment_ruler() {
+        assert_eq!(String::from_utf8(ruler(b"ACGTACGTACGTAC", 7)).unwrap(), "   10        2");
+        // Columns of '-' in aln_ref do not advance the position; a number is cut at the end.
+        assert_eq!(String::from_utf8(ruler(b"AC--GTACGTAC", 18)).unwrap(), "    20      ");
+        assert_eq!(String::from_utf8(ruler(b"ACG", 98)).unwrap(), "  1");
+    }
+
+    #[test]
+    fn quality_simplified() {
+        assert_eq!(qlt_sim(b"!&+05?I~ "), b".,aAbcdi ".to_vec());
     }
 }

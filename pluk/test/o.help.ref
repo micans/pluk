@@ -55,6 +55,12 @@ Options:
   --sam-seqmiss=skip|exit  a row with SEQ '*' whose sequence is not found in an
               earlier row of the read (needed by qry_seq qry_qual) is skipped
               (default) or ends pluk with an error
+  --sam-aln-prefix=STR  put STR before every line of aln_all aln_allq
+              aln_all_pack
+  --sam-aln-mrk  aln_ref and aln_qry end in markers and the lengths of the
+              5' trail, the matched part and the 3' trail
+  --sam-qlt-sim  simplify quality symbols, five values per symbol: .,aAbB..iI
+              (qry_qual aln_qlt)
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
   --idx-list  write the input indexes of the output columns (computed columns

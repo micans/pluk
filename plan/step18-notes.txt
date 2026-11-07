@@ -57,3 +57,49 @@ Item 1: the reference stage and the parts
   --sam-h/FILE with an @SQ line, qry_ parts without a fasta, RNAME not in SAMFA with a
   reference part (exit) and with only query parts (no exit), the compile-time errors).
   list-ops ref updated.
+
+
+Item 2: the alignment strings, aln_all aln_allq aln_all_pack, the three options
+
+  sam.rs: draw(reference, seq, qual, ops, pos) is a free function (unit-tested) that walks
+  the CIGAR as pick's sam_compute_aln and returns the five strings (struct Aln). Each
+  operation first computes its end on the reference and on the query (if it consumes
+  them) and checks it against the sequence length, which gives the NA 'CIGAR past the
+  reference end' (also for D and N, where pick does not check). The query end cannot be
+  passed when the query stage has done its check, but draw checks it as well (SeqLength).
+  mark_ends replaces the leading and trailing runs (~ to _, else - to `), ruler writes the
+  position numbers; both follow pick's regular expressions and substr assignment, cut at
+  the length of aln_ref.
+
+  View::aln is the stage: computed once per row from the count stage, the reference stage
+  and the query (SEQ and QUAL, or the filled ones), and kept (Option<Result<Aln, Na>>).
+  QUAL '*' becomes '!' (or '.' with --sam-qlt-sim) for every base; a QUAL of another
+  length than SEQ is NA (SeqLength; the fill normally catches it). The markers of
+  --sam-aln-mrk are appended after the ruler is made; they need ref_trail3p_N, which is
+  known whenever SAMFA is (--sam/FILE fills seqlen from the fasta), else NA (RefLength).
+
+  The options are in sam::AlnOptions, held by the view and set by main.rs after the machine
+  is created. --sam-aln-prefix=STR takes STR as given (no %-decoding, as pick; shell quoting
+  covers spaces: '--sam-aln-prefix=++ '). The three options require --sam or --sam-h, as
+  --sam-nonf and --sam-seqmiss.
+
+  qry_qual now goes through View::qry_qual, which applies --sam-qlt-sim (a QUAL '*' stays
+  '*'); qry_seq keeps its own small function.
+
+  aln_lines in ops.rs joins any selection of the five strings with a separator and the
+  prefix (aln_all aln_allq aln_all_pack); the single strings use it without either.
+
+  Checked against pick: all eight operators on qry3mm.sam and qry3vs.sam (mapped
+  records), plain, --sam-nonf, --sam-aln-mrk, and --sam-qlt-sim with --sam-aln-prefix,
+  also combined: identical. qry_qual with --sam-qlt-sim differs on QUAL '*' as decided
+  (pick gives ',' when another sequence operator is present, '' when qry_qual is the only
+  one: survey 8.3). Synthetic records (N, =, X, H, P, lower case, U, exterior I and D with
+  --sam-nonf, a real QUAL, past the reference end, unmapped): identical apart from the
+  decided differences (X drawn as x, P not stopping the alignment, NA past the end and for
+  unmapped records, which pick discards).
+
+  Tests: sam-aln (md5 of the eight operators on both files in four option settings, the
+  first record with markers and prefix), sam-aln-edge (the synthetic records with and
+  without --sam-nonf and with --sam-aln-mrk --sam-qlt-sim, aln_all_pack through od, the
+  prefix, qry_qual with --sam-qlt-sim, the compile-time error, the option errors). Unit
+  tests: alignment_strings, alignment_ruler, quality_simplified. help and list-ops refs.

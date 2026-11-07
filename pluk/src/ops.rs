@@ -254,6 +254,22 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "-", result: "seq", doc: "Query sequence (SEQ, or filled for SEQ '*'; --sam-seqmiss)", fun: op_qry_seq },
     OpDef { name: "qry_qual", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
             operands: "-", result: "qual", doc: "Query quality (QUAL, or filled with the sequence)", fun: op_qry_qual },
+    OpDef { name: "aln_ref", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "aln", doc: "Alignment: reference line (needs --sam/FILE)", fun: op_aln_ref },
+    OpDef { name: "aln_aln", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "aln", doc: "Alignment: match line (| x ~ - = _ `)", fun: op_aln_aln },
+    OpDef { name: "aln_qry", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "aln", doc: "Alignment: query line", fun: op_aln_qry },
+    OpDef { name: "aln_rlr", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "aln", doc: "Alignment: ruler with reference positions", fun: op_aln_rlr },
+    OpDef { name: "aln_qlt", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "aln", doc: "Alignment: query quality line", fun: op_aln_qlt },
+    OpDef { name: "aln_all", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "aln", doc: "Alignment: ruler, reference, match, query lines", fun: op_aln_all },
+    OpDef { name: "aln_allq", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "aln", doc: "Alignment: as aln_all, with the quality line", fun: op_aln_allq },
+    OpDef { name: "aln_all_pack", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "aln", doc: "Alignment: as aln_all, lines joined by byte 0x01", fun: op_aln_all_pack },
     OpDef { name: "ref_trail5p", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
             operands: "-", result: "seq", doc: "Reference before the matched part (needs --sam/FILE)", fun: op_ref_trail5p },
     OpDef { name: "ref_matched", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
@@ -1135,10 +1151,10 @@ fn op_aln_nmatchx(m: &mut Machine, row: &Row, _: &Attached) {
 
 // qry_seq and qry_qual: the row's SEQ and QUAL, or those the fill found (main.rs
 // sets the view's query before the computes); NA if SEQ or QUAL do not fit the CIGAR.
-fn query(m: &mut Machine, row: &Row, qual: bool) {
+fn op_qry_seq(m: &mut Machine, row: &Row, _: &Attached) {
     let value = match &m.sam.query {
-        sam::Query::Row => Value::Bytes(row.field(if qual { sam::QUAL } else { sam::SEQ }).to_vec()),
-        sam::Query::Filled { seq, qual: q } => Value::Bytes(if qual { q.clone() } else { seq.clone() }),
+        sam::Query::Row => Value::Bytes(row.field(sam::SEQ).to_vec()),
+        sam::Query::Filled { seq, .. } => Value::Bytes(seq.clone()),
         sam::Query::Mismatch => {
             m.sam.note(sam::Na::SeqLength);
             Value::Na
@@ -1147,8 +1163,11 @@ fn query(m: &mut Machine, row: &Row, qual: bool) {
     m.push(value);
 }
 
-fn op_qry_seq(m: &mut Machine, row: &Row, _: &Attached) { query(m, row, false) }
-fn op_qry_qual(m: &mut Machine, row: &Row, _: &Attached) { query(m, row, true) }
+fn op_qry_qual(m: &mut Machine, row: &Row, _: &Attached) {
+    let result = m.sam.qry_qual(row);
+    let value = result.map_or(Value::Na, Value::Bytes);
+    m.push(value);
+}
 
 // Push a sequence from the view, or NA (counted by the view). An RNAME that is not in
 // SAMFA ends the run when its not-found value is __EXIT__ (plan/step18.txt decision 0).
@@ -1182,6 +1201,38 @@ fn op_ref_trail3p(m: &mut Machine, row: &Row, _: &Attached) { ref_part(m, row, s
 fn op_qry_trail5p(m: &mut Machine, row: &Row, _: &Attached) { qry_part(m, row, sam::Part::Trail5p) }
 fn op_qry_matched(m: &mut Machine, row: &Row, _: &Attached) { qry_part(m, row, sam::Part::Matched) }
 fn op_qry_trail3p(m: &mut Machine, row: &Row, _: &Attached) { qry_part(m, row, sam::Part::Trail3p) }
+
+// The alignment strings (plan/step18.txt decisions 3-6).
+fn aln_lines(m: &mut Machine, row: &Row, lines: fn(&sam::Aln) -> Vec<&[u8]>, sep: u8, prefix: bool) {
+    let prefix = if prefix { m.sam.options.prefix.clone() } else { Vec::new() };
+    let result = m.sam.aln(row).map(|a| {
+        let mut out = Vec::new();
+        for (i, line) in lines(a).into_iter().enumerate() {
+            if i > 0 {
+                out.push(sep);
+            }
+            out.extend_from_slice(&prefix);
+            out.extend_from_slice(line);
+        }
+        out
+    });
+    sam_sequence(m, row, result);
+}
+
+fn op_aln_ref(m: &mut Machine, row: &Row, _: &Attached) { aln_lines(m, row, |a| vec![&a.reference], 0, false) }
+fn op_aln_aln(m: &mut Machine, row: &Row, _: &Attached) { aln_lines(m, row, |a| vec![&a.aln], 0, false) }
+fn op_aln_qry(m: &mut Machine, row: &Row, _: &Attached) { aln_lines(m, row, |a| vec![&a.query], 0, false) }
+fn op_aln_rlr(m: &mut Machine, row: &Row, _: &Attached) { aln_lines(m, row, |a| vec![&a.ruler], 0, false) }
+fn op_aln_qlt(m: &mut Machine, row: &Row, _: &Attached) { aln_lines(m, row, |a| vec![&a.quality], 0, false) }
+fn op_aln_all(m: &mut Machine, row: &Row, _: &Attached) {
+    aln_lines(m, row, |a| vec![&a.ruler, &a.reference, &a.aln, &a.query], b'\n', true)
+}
+fn op_aln_allq(m: &mut Machine, row: &Row, _: &Attached) {
+    aln_lines(m, row, |a| vec![&a.ruler, &a.reference, &a.aln, &a.query, &a.quality], b'\n', true)
+}
+fn op_aln_all_pack(m: &mut Machine, row: &Row, _: &Attached) {
+    aln_lines(m, row, |a| vec![&a.ruler, &a.reference, &a.aln, &a.query], 0x01, true)
+}
 
 // sam_get tag def: the tag was checked and normalised to XX:T: at compile time.
 fn op_sam_get(m: &mut Machine, row: &Row, attached: &Attached) {

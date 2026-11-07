@@ -40,6 +40,9 @@ pub struct Config {
     pub sam_seqmiss_exit: bool,         // --sam-seqmiss=exit (default skip; SAMSEQ.design.txt section 5)
     pub sam_seqmiss_set: bool,          // --sam-seqmiss given
     pub sam_nonf: bool,                 // --sam-nonf: no normal form (plan/SAMVIEW.design.txt section 3)
+    pub sam_aln_prefix: Option<Vec<u8>>, // --sam-aln-prefix=STR (plan/step18.txt decision 4)
+    pub sam_aln_mrk: bool,              // --sam-aln-mrk (decision 5)
+    pub sam_qlt_sim: bool,              // --sam-qlt-sim (decision 6)
     pub threads: Option<u32>,           // --threads=N
     pub pat_purge: Option<Vec<u8>>,     // -/PAT, %-decoded
     pub pat_pass: Option<Vec<u8>>,      // -//PAT, %-decoded
@@ -172,6 +175,12 @@ Options:
   --sam-seqmiss=skip|exit  a row with SEQ '*' whose sequence is not found in an
               earlier row of the read (needed by qry_seq qry_qual) is skipped
               (default) or ends pluk with an error
+  --sam-aln-prefix=STR  put STR before every line of aln_all aln_allq
+              aln_all_pack
+  --sam-aln-mrk  aln_ref and aln_qry end in markers and the lengths of the
+              5' trail, the matched part and the 3' trail
+  --sam-qlt-sim  simplify quality symbols, five values per symbol: .,aAbB..iI
+              (qry_qual aln_qlt)
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
   --idx-list  write the input indexes of the output columns (computed columns
@@ -390,6 +399,9 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
         b"sam"   => set_sam(config, false),
         b"sam-h" => set_sam(config, true),
         b"sam-nonf" => config.sam_nonf = true,
+        b"sam-aln-mrk" => config.sam_aln_mrk = true,
+        b"sam-qlt-sim" => config.sam_qlt_sim = true,
+        _ if long.starts_with(b"sam-aln-prefix=") => config.sam_aln_prefix = Some(long[15..].to_vec()),
         b"sam-seqmiss=skip" | b"sam-seqmiss=exit" => {
             config.sam_seqmiss_exit = long == b"sam-seqmiss=exit";
             config.sam_seqmiss_set = true;
@@ -727,6 +739,12 @@ fn check_combinations(config: &Config) -> Result<(), String> {
     }
     if config.sam_seqmiss_set && !(config.sam || config.sam_h) {
         return Err("--sam-seqmiss requires --sam or --sam-h".to_string());
+    }
+    for (given, name) in [(config.sam_aln_prefix.is_some(), "--sam-aln-prefix"), (config.sam_aln_mrk, "--sam-aln-mrk"),
+                          (config.sam_qlt_sim, "--sam-qlt-sim")] {
+        if given && !(config.sam || config.sam_h) {
+            return Err(format!("{} requires --sam or --sam-h", name));
+        }
     }
     if config.big_k && (config.sam || config.sam_h) {
         return Err("-K cannot be combined with --sam or --sam-h".to_string());

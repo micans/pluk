@@ -172,6 +172,12 @@
       in SAMFA ends the run only when an operator needs the reference (pick: whenever a
       sequence is needed). ref_ and qry_ parts that cannot be computed are NA (pick: '*'),
       including a matched part that ends past the reference (pick: partial substrings).
+      Alignment strings: an X operation is compared (| or x; pick draws '.'); P draws
+      nothing (pick stops the alignment there); a CIGAR past the reference end gives NA
+      (pick: a message and the partial strings); only QUAL '*' is replaced by '!' or '.'
+      (pick: any QUAL shorter than 2), another QUAL that does not fit SEQ is NA;
+      --sam-qlt-sim leaves a qry_qual of '*' as it is (pick: ','); --sam-aln-mrk,
+      --sam-qlt-sim and --sam-aln-prefix require --sam or --sam-h.
     - SAM sequence fill (SAMSEQ.design.txt): a SEQ '*' is filled from an earlier row of the
       same read and segment whose part of the read contains the needed part (hard clips
       respected), whatever the rows between; the cache is updated before every filter, so
