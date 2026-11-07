@@ -1,0 +1,67 @@
+1,4	w1	5	2S4M3D4M2I4M2S	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA w2	3	3=1X2N3M	3	4	2	0	1	2	2	2	0	0	0	0	AA w3	0	*	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA 
+1,6	w1	5	2S4M3D4M2I4M2S	5	6	4	0	3	4	2	2	0	0	0	0	AC w2	3	3=1X2N3M	3	6	2	0	1	4	4	4	1	0	0	1	AAAT w3	0	*	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA 
+7,9	w1	5	2S4M3D4M2I4M2S	7	9	0	0	5	6	2	2	0	1	0	1	CC w2	3	3=1X2N3M	7	9	0	0	5	5	1	1	0	0	0	0	C w3	0	*	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA 
+8,12	w1	5	2S4M3D4M2I4M2S	8	12	0	0	6	7	2	2	0	3	0	3	CG w2	3	3=1X2N3M	8	11	0	1	5	7	3	3	0	0	0	0	CCG w3	0	*	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA 
+9,11	w1	5	2S4M3D4M2I4M2S	9	11	0	0	7	6	0	0	0	3	0	3	 w2	3	3=1X2N3M	9	11	0	0	5	7	3	3	0	0	0	0	CCG w3	0	*	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA 
+12,13	w1	5	2S4M3D4M2I4M2S	12	13	0	0	7	8	2	2	0	0	0	0	GG w2	3	3=1X2N3M	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA w3	0	*	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA 
+14,15	w1	5	2S4M3D4M2I4M2S	14	15	0	0	9	10	2	2	1	0	0	1	GT w2	3	3=1X2N3M	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA w3	0	*	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA 
+15,16	w1	5	2S4M3D4M2I4M2S	15	16	0	0	10	13	4	2	1	0	2	3	TAAT w2	3	3=1X2N3M	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA w3	0	*	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA 
+15,30	w1	5	2S4M3D4M2I4M2S	15	19	0	11	10	16	7	5	1	0	2	3	TAATTTT w2	3	3=1X2N3M	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA w3	0	*	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA 
+30,40	w1	5	2S4M3D4M2I4M2S	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA w2	3	3=1X2N3M	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA w3	0	*	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA 
+3,9	w1	5	2S4M3D4M2I4M2S	5	9	2	0	3	6	4	4	0	1	0	1	ACCC w2	3	3=1X2N3M	3	9	0	0	1	5	5	5	1	0	0	1	AAATC w3	0	*	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA	NA 
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
+w1	3	1	14
+w2	0	NA	NA
+w3	NA	NA	NA
+pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+pluk: SAM values not available (NA) for 1 row: rbt region outside the matched part
+w1	5	12
+w2	3	11
+w3	NA	NA
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
+w1	5	NA	NA	NA	NA
+w2	3	NA	NA	NA	NA
+w3	NA	NA	NA	NA	NA
+pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+pluk: SAM values not available (NA) for 3 rows: rbt region not valid (sam_rbt x y: integers 1 <= x <= y)
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
+w1		8
+w2		8
+w3		NA
+pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
+w1
+w2
+w3
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
+pluk: [a::,rbt_refx]: operator rbt_refx needs an earlier sam_rbt or --sam-rbt=X,Y
+exit 1
+pluk: [a::,rbt_refx]: operator rbt_refx needs the reference sequence (--sam/FILE or --sam-h/FILE)
+exit 1
+--sam-rbt=X,Y: X and Y must be positive integers
+exit 1
+--sam-rbt=X,Y: X is larger than Y
+exit 1
+--sam-rbt=X,Y: X and Y must be positive integers
+exit 1
+--sam-rbt requires --sam or --sam-h
+exit 1
+Operator      Consumed    Produced            Description
+--------------------------------------------------------------------------------
+sam_rbt       x y         -                   Set the rbt region to reference positions x..y (for the rbt_ operators) [sam]
+rbt_refx      -           p                   rbt: first reference position (region clipped to the matched part) [sam]
+rbt_refy      -           p                   rbt: last reference position [sam]
+rbt_dx        -           n                   rbt: positions cut off at the start (rbt_refx - x) [sam]
+rbt_dy        -           n                   rbt: positions cut off at the end (y - rbt_refy) [sam]
+rbt_qryx      -           p                   rbt: first query position [sam]
+rbt_qryy      -           p                   rbt: last query position [sam]
+rbt_qrylen    -           n                   rbt: query length [sam]
+rbt_qry       -           seq                 rbt: query sequence [sam]
+rbt_nmatch    -           n                   rbt: aligned bases (| x) [sam]
+rbt_nmatchx   -           n                   rbt: mismatched aligned bases (x) [sam]
+rbt_ndel      -           n                   rbt: deleted bases (-) [sam]
+rbt_nins      -           n                   rbt: inserted bases (~) [sam]
+rbt_nedit     -           n                   rbt: edits (- ~ x) [sam]
+
+Use -l TERM.. for a category or the operators whose name contains TERM.
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam filter

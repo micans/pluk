@@ -1,0 +1,53 @@
+
+Notes for plan/step20.txt (SAM: region-bound tally).
+
+
+Planning
+
+  pick's ref_bounded_tally read and run on a hand-made record (2S4M3D4M2I4M2S at POS 5)
+  with regions at every kind of boundary: before the alignment, overlapping its start,
+  ending in and lying inside the deletion, around the insertion, past the end. Agreed:
+  decision 5 option (b) (no overlap: all NA), no stateless rbt_ form.
+
+
+Item 1: the rbt stage, sam_rbt, --sam-rbt, positions and counts
+
+  sam.rs: Region (Unset, Valid(x, y), Invalid) and Rbt (the clipped region, dx dy, the query
+  positions, the column range, the counts). region_tally(u, v, pos, ops, mx, my, aln_aln) is
+  a free function (unit-tested) following pick's walk: the reference, alignment-column and
+  query amounts consumed are kept; the first operation after which the reference amount
+  passes the clipped start gives the start column and query position (the next query
+  base if the operation consumes no query), likewise for the end (the previous query
+  base). Alignment columns are consumed by M = X I D N, the operations draw() draws, so
+  the column range indexes the step18 strings; query positions are 1-based in SEQ
+  orientation, soft clips counted, and kept without negatives (qryy = qryx - 1 for a
+  region with no query base). The counts come from the aln_aln columns.
+
+  View: rbt_default (from --sam-rbt, set by main.rs) gives the region at the start of each
+  row; set_region (sam_rbt) replaces it and drops the cached stage. aln() was split into
+  aln_stage (computes, no counting) and aln (counts), as counts() earlier, so that
+  compute_rbt can use the alignment without counting its NA twice. compute_rbt reads the
+  alignment through self.aln after aln_stage, to avoid holding the mutable borrow that
+  aln_stage returns while also reading the query sequence (rbt_qry).
+
+  ops.rs: sam_rbt pops y and x and pushes nothing; a new Shape::Consume describes that for
+  the compiler's stack tracking (the existing shapes covered pop 1 / push 0 only). The
+  rbt_ operators share rbt_value; rbt_qry goes through sam_sequence (NA, or the run ends
+  for an RNAME not in SAMFA with __EXIT__).
+
+  compute.rs: compile takes rbt_region (--sam-rbt given) and tracks whether a sam_rbt has
+  been seen, in compute order; an rbt_ operator before any is an error. sam::is_rbt adds
+  the rbt_ operators to needs_reference and needs_query (the alignment needs both).
+
+  Checked against pick: all positions and counts and rbt_qry on qry3mm.sam and qry3vs.sam
+  for regions 51..150, 1..100, 200..351, 330..351 and 1..10, plain, --sam-nonf and
+  --sam-aln-context=20: identical on every row that overlaps; the NA rows are exactly
+  those pick reports as zero overlap (its own count agrees). The boundary record:
+  identical for all overlapping regions. Several sam_rbt in one row: identical. A record
+  with = X N: identical apart from the X column (compared in pluk; pick's '.').
+
+  Tests: sam-rbt (md5 on both files for three regions in three settings, the first rows,
+  the NA report), sam-rbt-edge (the boundary records for eleven regions, sequential and
+  column sam_rbt, invalid operands, a visible sam_rbt compute, --sam-rbt without rbt_
+  operators, compile-time and option errors, -l rbt). Unit test region_tallies. help and
+  list-ops refs.

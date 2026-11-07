@@ -202,6 +202,12 @@
       is shifted, in effect against a-2 .. b-1); the dictionary's values are checked before
       input is read; an empty value means no intervals; unmapped records are not changed;
       the help text describes the dictionary (pick's says start,end).
+    - Region-bound tally (step20): a region that does not overlap the matched part gives NA
+      for every rbt_ value, counted (pick: '*' strings, rbt_refx 1, rbt_refy 0, counts 0
+      and rbt_nedit = the region length); sam_rbt operands that are not integers
+      1 <= x <= y give NA; an X operation is compared (pick: counted as neither match
+      nor mismatch); pick's self-check (exit status 1 on lower-case or IUPAC bases) is not
+      taken over.
     - SAM sequence fill (SAMSEQ.design.txt): a SEQ '*' is filled from an earlier row of the
       same read and segment whose part of the read contains the needed part (hard clips
       respected), whatever the rows between; the cache is updated before every filter, so

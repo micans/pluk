@@ -1,0 +1,103 @@
+
+- SAM: region-bound tally (rbt)
+
+  Fourth and last SAM step (order in SAM.notes.txt; design SAMVIEW.design.txt section 4,
+  the stage 'rbt'; pick's implementation in SAM.pick-survey.txt section 1 (d) and 3,
+  'survey', and pick's ref_bounded_tally). Builds on step18 (the alignment strings) and
+  step19 (the view options, which change the matched part the region is clipped to).
+
+  Operators (pick's names; category sam, need --sam or --sam-h, the reference sequence
+  (--sam/FILE) and the query sequence (the fill)):
+    region      sam_rbt x y           set the region to reference positions x..y (pops 2,
+                                      pushes nothing)
+    positions   rbt_refx rbt_refy rbt_dx rbt_dy rbt_qryx rbt_qryy rbt_qrylen
+    counts      rbt_nmatch rbt_nmatchx rbt_ndel rbt_nins rbt_nedit
+    strings     rbt_qry rbt_alnref rbt_alnaln rbt_alnqry rbt_alnrlr rbt_alnqlt rbt_alnall
+  Option: --sam-rbt=X,Y (the region for every row)
+
+
+  Outcome of the discussion
+
+  Decisions:
+   0. Interface as pick. The region of a row is the one set by the last sam_rbt executed
+      so far in that row (computes run in order), or else --sam-rbt=X,Y; the rbt_
+      operators read it. sam_rbt is typically used in a hidden compute
+      (r:=^51^150,sam_rbt); x and y may come from columns. An rbt_ operator with no
+      earlier sam_rbt (in compute order) and no --sam-rbt is a compile-time error (pick:
+      the same check at parse time). sam_rbt operands that are not integers with
+      1 <= x <= y make the region invalid for the row: the rbt_ values are NA (counted).
+      Rejected (agreed): rbt_ operators that also take x y themselves (a stateless form);
+      sam_rbt and --sam-rbt are the only ways to set the region.
+
+   1. The rbt stage (SAMVIEW.design.txt section 4), computed on first use for the current
+      region and recomputed when sam_rbt changes the region. It needs the alignment
+      stage (step18), so unmapped records, a missing reference, a CIGAR past the
+      reference end and a SEQ that does not fit give NA as there.
+
+   2. As pick's ref_bounded_tally: the region is clipped to the matched part,
+      ref_posx .. ref_posy (trails excluded: soft clips, exterior indels kept by
+      --sam-nonf, and context added by step19); rbt_refx rbt_refy are the clipped
+      region, rbt_dx = rbt_refx - x and rbt_dy = y - rbt_refy what was cut off. The
+      clipped region's ends are mapped to alignment columns (the columns of aln_ref
+      etc.: M = X I D N, not S H P) and to query positions (1-based, SEQ orientation,
+      soft clips counted): rbt_qryx rbt_qryy, rbt_qrylen = rbt_qryy - rbt_qryx + 1. An end
+      inside a D or N maps to the next (start) or previous (end) query base, so a region
+      entirely inside a deletion has rbt_qrylen 0 and an empty rbt_qry. An insertion is
+      inside the region only if it lies between two of its reference positions (one just
+      before x or just after y is not).
+
+   3. The strings rbt_alnref rbt_alnaln rbt_alnqry rbt_alnrlr rbt_alnqlt are the columns of
+      the alignment strings between the two mapped columns (with --sam-aln-mrk the
+      markers lie outside them); rbt_qry is the query sequence from rbt_qryx to rbt_qryy;
+      rbt_alnall joins rbt_alnrlr rbt_alnref rbt_alnaln rbt_alnqry rbt_alnqlt with
+      newlines, each prefixed by --sam-aln-prefix (pick; unlike aln_all it includes the
+      quality line).
+
+   4. The counts are taken from rbt_alnaln (pick): rbt_nmatchx the x columns, rbt_ndel the
+      -, rbt_nins the ~, rbt_nmatch the | and x, rbt_nedit = rbt_ndel + rbt_nins +
+      rbt_nmatchx; N (=) counts in none of them. As the region lies within the matched
+      part, the dangling symbols (` _ .) do not occur.
+
+   5. A region that does not overlap the matched part (agreed: option (b)). pick gives
+      fixed values:
+      the strings '*', rbt_refx 1 rbt_refy 0, rbt_qryx 1 rbt_qryy 0, rbt_qrylen 0, the
+      counts 0 except rbt_nedit = y - x + 1 (the whole region counted as edits), dx dy 0,
+      and counts the row. With partial overlap, however, rbt_nedit counts only the
+      covered part (the cut-off part is in dx dy, not in nedit), so the two cases are not
+      consistent. Options:
+        (a) as pick;
+        (b) all rbt_ values NA, counted ('region outside the matched part'); partial
+            overlap as pick. A filter such as @r/le/2 on rbt_nedit then rejects
+            non-covering reads, as pick's region-length value does (an NA fails a numeric
+            filter, step7), and the value is not a made-up position;
+        (c) rbt_nedit always counts the uncovered part as edits (+ dx + dy), which makes
+            no overlap = y - x + 1 a special case of the rule; positions as (b).
+      Agreed: (b).
+
+   6. pick's self-check (rbt_alnqry with all but ACGTN removed must equal rbt_qry, else
+      a message and exit status 1 at the end unless -f) is not taken over: it checks the
+      implementation, and fails on lower-case and IUPAC bases (survey 8.9). Unit tests
+      take its place.
+
+   7. --sam-rbt=X,Y: X,Y positive integers, X <= Y, comma (as --sam-aln-xy; pick's help
+      text shows X/Y); requires --sam or --sam-h. The stage is computed only when an rbt_
+      operator is used (pick computes it for every row); --sam-rbt without an rbt_
+      operator has no effect (accepted silently, as pick).
+
+   8. NA reasons added to the report: 'rbt region outside the matched part' (decision 5),
+      'rbt region not valid' (decision 0).
+
+  Tests: qry3mm, qry3vs with ref3.fa: all rbt_ values for a few regions (51..150 as in
+  pick's align/samdisplaymatches.sh, regions overlapping one end, regions outside),
+  with and without --sam-nonf and context, compared with pick where the behaviour is the
+  same; synthetic records for the boundaries (an end in a D or N, an insertion at and
+  inside the boundaries, X and = operations, lower case), sam_rbt from columns, several
+  sam_rbt in one row, invalid operands, the compile-time error.
+
+
+  Items
+
+  1   The rbt stage, sam_rbt, --sam-rbt, the positions and counts (rbt_refx .. rbt_nedit,
+      rbt_qry) (decisions 0-2, 4-8); SAMVIEW.design.txt section 4 updated. Commit.
+
+  2   The rbt strings and rbt_alnall (decision 3). Commit.

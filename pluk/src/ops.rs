@@ -39,6 +39,7 @@ pub enum Shape {
     Xch,
     Pop,
     Drop,           // save: the top operand goes, the one below stays as it was
+    Consume,        // sam_rbt: all operands go, nothing is pushed
 }
 
 // What an operator result is known to be.
@@ -280,6 +281,34 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "s d", result: "score", doc: "Largest penalty sum of runs in alignment string s within window d", fun: op_patchiness },
     OpDef { name: "patchiness2", pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
             operands: "s d", result: "score", doc: "As patchiness; the window counts aligned columns only", fun: op_patchiness2 },
+    OpDef { name: "sam_rbt", pops: Pops::N(2), pushes: 0, shape: Shape::Consume, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "x y", result: "-", doc: "Set the rbt region to reference positions x..y (for the rbt_ operators)", fun: op_sam_rbt },
+    OpDef { name: "rbt_refx", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "p", doc: "rbt: first reference position (region clipped to the matched part)", fun: op_rbt_refx },
+    OpDef { name: "rbt_refy", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "p", doc: "rbt: last reference position", fun: op_rbt_refy },
+    OpDef { name: "rbt_dx", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "rbt: positions cut off at the start (rbt_refx - x)", fun: op_rbt_dx },
+    OpDef { name: "rbt_dy", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "rbt: positions cut off at the end (y - rbt_refy)", fun: op_rbt_dy },
+    OpDef { name: "rbt_qryx", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "p", doc: "rbt: first query position", fun: op_rbt_qryx },
+    OpDef { name: "rbt_qryy", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "p", doc: "rbt: last query position", fun: op_rbt_qryy },
+    OpDef { name: "rbt_qrylen", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "rbt: query length", fun: op_rbt_qrylen },
+    OpDef { name: "rbt_qry", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "seq", doc: "rbt: query sequence", fun: op_rbt_qry },
+    OpDef { name: "rbt_nmatch", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "rbt: aligned bases (| x)", fun: op_rbt_nmatch },
+    OpDef { name: "rbt_nmatchx", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "rbt: mismatched aligned bases (x)", fun: op_rbt_nmatchx },
+    OpDef { name: "rbt_ndel", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "rbt: deleted bases (-)", fun: op_rbt_ndel },
+    OpDef { name: "rbt_nins", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "rbt: inserted bases (~)", fun: op_rbt_nins },
+    OpDef { name: "rbt_nedit", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "rbt: edits (- ~ x)", fun: op_rbt_nedit },
     OpDef { name: "ref_trail5p", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
             operands: "-", result: "seq", doc: "Reference before the matched part (needs --sam/FILE)", fun: op_ref_trail5p },
     OpDef { name: "ref_matched", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
@@ -1284,6 +1313,49 @@ fn patchiness(m: &mut Machine, row: &Row, columns_counted: bool) {
 fn op_patchiness(m: &mut Machine, row: &Row, _: &Attached) { patchiness(m, row, false) }
 fn op_patchiness2(m: &mut Machine, row: &Row, _: &Attached) { patchiness(m, row, true) }
 
+// The region-bound tally (plan/step20.txt). sam_rbt x y sets the region for this row;
+// operands that are not integers 1 <= x <= y make it invalid (the rbt_ values NA).
+fn op_sam_rbt(m: &mut Machine, row: &Row, _: &Attached) {
+    let y = m.pop();
+    let x = m.pop();
+    let int = |m: &mut Machine, v: &Value| match m.num(v, row) {
+        Some(Num::I(k)) if k >= 1 => u64::try_from(k).ok(),
+        _ => None,
+    };
+    let region = match (int(m, &x), int(m, &y)) {
+        (Some(x), Some(y)) if x <= y => sam::Region::Valid(x, y),
+        _ => sam::Region::Invalid,
+    };
+    m.sam.set_region(region);
+}
+
+fn rbt_value(m: &mut Machine, row: &Row, f: fn(&sam::Rbt) -> u64) {
+    let result = m.sam.rbt(row).map(f);
+    let value = match result {
+        Ok(n) => Value::Num(Num::I(n as num::Int)),
+        Err(reason) => sam_na(m, row, reason),
+    };
+    m.push(value);
+}
+
+fn op_rbt_refx(m: &mut Machine, row: &Row, _: &Attached) { rbt_value(m, row, |r| r.refx) }
+fn op_rbt_refy(m: &mut Machine, row: &Row, _: &Attached) { rbt_value(m, row, |r| r.refy) }
+fn op_rbt_dx(m: &mut Machine, row: &Row, _: &Attached) { rbt_value(m, row, |r| r.dx) }
+fn op_rbt_dy(m: &mut Machine, row: &Row, _: &Attached) { rbt_value(m, row, |r| r.dy) }
+fn op_rbt_qryx(m: &mut Machine, row: &Row, _: &Attached) { rbt_value(m, row, |r| r.qryx) }
+fn op_rbt_qryy(m: &mut Machine, row: &Row, _: &Attached) { rbt_value(m, row, |r| r.qryy) }
+fn op_rbt_qrylen(m: &mut Machine, row: &Row, _: &Attached) { rbt_value(m, row, |r| r.qrylen()) }
+fn op_rbt_nmatch(m: &mut Machine, row: &Row, _: &Attached) { rbt_value(m, row, |r| r.nmatch) }
+fn op_rbt_nmatchx(m: &mut Machine, row: &Row, _: &Attached) { rbt_value(m, row, |r| r.nmatchx) }
+fn op_rbt_ndel(m: &mut Machine, row: &Row, _: &Attached) { rbt_value(m, row, |r| r.ndel) }
+fn op_rbt_nins(m: &mut Machine, row: &Row, _: &Attached) { rbt_value(m, row, |r| r.nins) }
+fn op_rbt_nedit(m: &mut Machine, row: &Row, _: &Attached) { rbt_value(m, row, |r| r.nedit()) }
+
+fn op_rbt_qry(m: &mut Machine, row: &Row, _: &Attached) {
+    let result = m.sam.rbt_qry(row);
+    sam_sequence(m, row, result);
+}
+
 fn op_aln_ref(m: &mut Machine, row: &Row, _: &Attached) { aln_lines(m, row, |a| vec![&a.reference], 0, false) }
 fn op_aln_aln(m: &mut Machine, row: &Row, _: &Attached) { aln_lines(m, row, |a| vec![&a.aln], 0, false) }
 fn op_aln_qry(m: &mut Machine, row: &Row, _: &Attached) { aln_lines(m, row, |a| vec![&a.query], 0, false) }
@@ -1633,6 +1705,7 @@ mod tests {
                 Shape::Xch => op.pops == Pops::N(2) && op.pushes == 2,
                 Shape::Pop => op.pops == Pops::N(1) && op.pushes == 0,
                 Shape::Drop => op.pops == Pops::N(2) && op.pushes == 1,
+                Shape::Consume => op.pushes == 0,
             };
             assert!(ok, "{}", op.name);
         }

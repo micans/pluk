@@ -379,10 +379,13 @@ pub enum Na {
     SeqLength,
     RefSequence,
     RefEnd,
+    RbtOutside,
+    RbtInvalid,
 }
 
-const N_REASONS: usize = 6;
-const REASONS: [Na; N_REASONS] = [Na::Unmapped, Na::Cigar, Na::RefLength, Na::SeqLength, Na::RefSequence, Na::RefEnd];
+const N_REASONS: usize = 8;
+const REASONS: [Na; N_REASONS] = [Na::Unmapped, Na::Cigar, Na::RefLength, Na::SeqLength, Na::RefSequence, Na::RefEnd,
+                                  Na::RbtOutside, Na::RbtInvalid];
 
 impl Na {
     fn index(self) -> usize {
@@ -396,6 +399,8 @@ impl Na {
             Na::SeqLength => "SEQ or QUAL length differs from the CIGAR",
             Na::RefSequence => "RNAME not in the reference sequences (SAMFA)",
             Na::RefEnd => "CIGAR past the reference end",
+            Na::RbtOutside => "rbt region outside the matched part",
+            Na::RbtInvalid => "rbt region not valid (sam_rbt x y: integers 1 <= x <= y)",
         }
     }
 }
@@ -462,11 +467,90 @@ const NEEDS_REFERENCE: &[&str] = &["ref_trail5p", "ref_matched", "ref_trail3p"];
 const NEEDS_QUERY: &[&str] = &["qry_seq", "qry_qual", "qry_trail5p", "qry_matched", "qry_trail3p"];
 
 pub fn needs_reference(op: &str) -> bool {
-    NEEDS_REFERENCE.contains(&op) || ALIGNMENT.contains(&op)
+    NEEDS_REFERENCE.contains(&op) || ALIGNMENT.contains(&op) || is_rbt(op)
 }
 
 pub fn needs_query(op: &str) -> bool {
-    NEEDS_QUERY.contains(&op) || ALIGNMENT.contains(&op)
+    NEEDS_QUERY.contains(&op) || ALIGNMENT.contains(&op) || is_rbt(op)
+}
+
+// The rbt_ operators read the region set by sam_rbt or --sam-rbt (plan/step20.txt).
+pub fn is_rbt(op: &str) -> bool {
+    op.starts_with("rbt_")
+}
+
+// ---- Region-bound tally (plan/step20.txt) ----
+
+// The region of a row: from --sam-rbt, then from each sam_rbt executed.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Region {
+    Unset,
+    Valid(u64, u64),
+    Invalid,
+}
+
+// The rbt stage: the region clipped to the matched part, mapped to alignment columns
+// and query positions, and the counts over those columns.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Rbt {
+    pub refx:    u64,
+    pub refy:    u64,
+    pub dx:      u64,
+    pub dy:      u64,
+    pub qryx:    u64,       // 1-based, SEQ orientation; qryy = qryx - 1 for none
+    pub qryy:    u64,
+    pub cols:    std::ops::Range<usize>,    // columns of the alignment strings
+    pub nmatch:  u64,
+    pub nmatchx: u64,
+    pub ndel:    u64,
+    pub nins:    u64,
+}
+
+impl Rbt {
+    pub fn nedit(&self) -> u64 { self.ndel + self.nins + self.nmatchx }
+    pub fn qrylen(&self) -> u64 { self.qryy + 1 - self.qryx }
+}
+
+// The rbt of region u..v (1-based) for a record at POS pos with the given operations,
+// matched part mx..my and alignment line aln_aln (pick's ref_bounded_tally, decisions 2
+// and 4). Err(RbtOutside) if the region does not overlap the matched part.
+pub fn region_tally(u: u64, v: u64, pos: u64, ops: &[Op], mx: u64, my: u64, aln_aln: &[u8]) -> Result<Rbt, Na> {
+    let (uu, vv) = (u.max(mx), v.min(my));
+    if mx > my || uu > vv {
+        return Err(Na::RbtOutside);
+    }
+    // 0-based positions of the clipped ends; the walk keeps the amounts consumed so far.
+    let (cu, cv) = (uu - 1, vv - 1);
+    let (mut r, mut a, mut q) = (pos - 1, 0u64, 0u64);
+    let mut start: Option<(u64, u64)> = None;     // (column, qryx)
+    let mut end: Option<(u64, u64)> = None;       // (column, qryy)
+    for o in ops {
+        if o.consumes_reference() {
+            r += o.len;
+        }
+        if o.consumes_reference() || o.op == b'I' {
+            a += o.len;                     // the columns of the alignment strings
+        }
+        if o.consumes_query() {
+            q += o.len;
+        }
+        if start.is_none() && r > cu {
+            let back = r - cu;
+            start = Some((a - back, if o.consumes_query() { q - back + 1 } else { q + 1 }));
+        }
+        if r > cv {
+            let back = r - cv;
+            end = Some((a - back, if o.consumes_query() { q - back + 1 } else { q }));
+            break;
+        }
+    }
+    let (Some((ca, qryx)), Some((cb, qryy))) = (start, end) else { return Err(Na::RbtOutside) };
+    let cols = ca as usize..cb as usize + 1;
+    let seg = aln_aln.get(cols.clone()).ok_or(Na::RefEnd)?;
+    let count = |c: u8| seg.iter().filter(|&&b| b == c).count() as u64;
+    let nmatchx = count(b'x');
+    Ok(Rbt { refx: uu, refy: vv, dx: uu - u, dy: v - vv, qryx, qryy, cols, nmatch: count(b'|') + nmatchx, nmatchx,
+             ndel: count(b'-'), nins: count(b'~') })
 }
 
 // ---- The alignment display (plan/step18.txt decisions 3-6) ----
@@ -709,6 +793,9 @@ pub struct View<'d> {
     counts:  Option<Result<Counts, Na>>,
     reference: Option<Result<&'d [u8], Na>>,
     aln:     Option<Result<Aln, Na>>,
+    pub rbt_default: Option<(u64, u64)>,    // --sam-rbt=X,Y, set by main.rs
+    region:  Region,
+    rbt:     Option<Result<Rbt, Na>>,
     pub options: AlnOptions,                // set by main.rs
     pub context: (usize, usize),            // context operations at each end, set per row by main.rs
     pub query: Query,                       // set for every row while the fill is active
@@ -719,13 +806,16 @@ pub struct View<'d> {
 impl<'d> View<'d> {
     pub fn new(dicts: &'d Dicts) -> View<'d> {
         View { seqlen: dicts.get(dict::SEQ_LENGTHS), samfa: dicts.get(dict::SAM_REFERENCE), counts: None,
-               reference: None, aln: None, options: AlnOptions::default(), context: (0, 0), query: Query::Row, noted: [false; N_REASONS], n_na: [0; N_REASONS] }
+               reference: None, aln: None, rbt_default: None, region: Region::Unset,
+               rbt: None, options: AlnOptions::default(), context: (0, 0), query: Query::Row, noted: [false; N_REASONS], n_na: [0; N_REASONS] }
     }
 
     pub fn reset(&mut self) {
         self.counts = None;
         self.reference = None;
         self.aln = None;
+        self.region = self.rbt_default.map_or(Region::Unset, |(x, y)| Region::Valid(x, y));
+        self.rbt = None;
         self.noted = [false; N_REASONS];
     }
 
@@ -811,20 +901,69 @@ impl<'d> View<'d> {
         self.noted(result)
     }
 
-    // The alignment stage, computed once per row; an Err is counted.
-    pub fn aln(&mut self, row: &Row) -> Result<&Aln, Na> {
+    // The alignment stage, computed once per row.
+    fn aln_stage(&mut self, row: &Row) -> Result<&Aln, Na> {
         if self.aln.is_none() {
             let aln = self.compute_aln(row);
             self.aln = Some(aln);
         }
-        if let Some(Err(reason)) = self.aln {
+        match &self.aln {
+            Some(Ok(a)) => Ok(a),
+            Some(Err(reason)) => Err(*reason),
+            None => unreachable!("alignment computed above"),
+        }
+    }
+
+    // The alignment stage; an Err is counted.
+    pub fn aln(&mut self, row: &Row) -> Result<&Aln, Na> {
+        if let Err(reason) = self.aln_stage(row) {
             self.note(reason);
             return Err(reason);
         }
-        match &self.aln {
-            Some(Ok(a)) => Ok(a),
-            _ => unreachable!("alignment computed above"),
+        self.aln_stage(row)
+    }
+
+    // sam_rbt x y: the region for the rbt_ operators that follow in this row.
+    pub fn set_region(&mut self, region: Region) {
+        self.region = region;
+        self.rbt = None;
+    }
+
+    // The rbt stage for the current region, computed on first use; an Err is counted.
+    pub fn rbt(&mut self, row: &Row) -> Result<&Rbt, Na> {
+        if self.rbt.is_none() {
+            let rbt = self.compute_rbt(row);
+            self.rbt = Some(rbt);
         }
+        if let Some(Err(reason)) = self.rbt {
+            self.note(reason);
+            return Err(reason);
+        }
+        match &self.rbt {
+            Some(Ok(r)) => Ok(r),
+            _ => unreachable!("rbt computed above"),
+        }
+    }
+
+    fn compute_rbt(&mut self, row: &Row) -> Result<Rbt, Na> {
+        let Region::Valid(u, v) = self.region else { return Err(Na::RbtInvalid) };
+        let c = self.count_stage(row)?;
+        let (t5, m) = (c.ref_trail5p as u64, c.ref_matched as u64);
+        self.aln_stage(row)?;
+        let ops = parse_cigar(row.field(CIGAR)).ok_or(Na::Cigar)?;
+        let pos = number(row.field(POS)).ok_or(Na::Cigar)?;
+        let Some(Ok(aln)) = &self.aln else { unreachable!("alignment computed above") };
+        region_tally(u, v, pos, &ops, t5 + 1, t5 + m, &aln.aln)
+    }
+
+    // rbt_qry: the query sequence from rbt_qryx to rbt_qryy (empty if none).
+    pub fn rbt_qry(&mut self, row: &Row) -> Result<Vec<u8>, Na> {
+        let (x, y) = match self.rbt(row) {
+            Ok(r) => (r.qryx as usize, r.qryy as usize),
+            Err(reason) => return Err(reason),
+        };
+        let seq = self.query_seq(row)?;
+        Ok(seq.get(x - 1..y).unwrap_or_default().to_vec())
     }
 
     fn compute_aln(&mut self, row: &Row) -> Result<Aln, Na> {
@@ -1169,6 +1308,24 @@ mod tests {
 
     fn nar(pos: u64, cigar: &str, x: u64, y: u64) -> Narrowed {
         narrow(pos, cigar.as_bytes(), x, y)
+    }
+
+    #[test]
+    fn region_tallies() {
+        // 2S4M3D4M2I4M2S at POS 5: matched part 5..19, aln_aln ||||---|||x~~||||.
+        let ops = parse_cigar(b"2S4M3D4M2I4M2S").unwrap();
+        let aln = b"||||---|||x~~||||";
+        let t = |u, v| region_tally(u, v, 5, &ops, 5, 19, aln)
+            .map(|r| (r.refx, r.refy, r.dx, r.dy, r.qryx, r.qryy, r.cols, r.nmatch, r.nmatchx, r.ndel, r.nins));
+        assert_eq!(t(1, 6), Ok((5, 6, 4, 0, 3, 4, 0..2, 2, 0, 0, 0)));
+        // A region inside the deletion: no query bases (qryy = qryx - 1).
+        assert_eq!(t(9, 11), Ok((9, 11, 0, 0, 7, 6, 4..7, 0, 0, 3, 0)));
+        // The insertion after 15 is inside 15..16, not inside 14..15.
+        assert_eq!(t(14, 15), Ok((14, 15, 0, 0, 9, 10, 9..11, 2, 1, 0, 0)));
+        assert_eq!(t(15, 16), Ok((15, 16, 0, 0, 10, 13, 10..14, 2, 1, 0, 2)));
+        assert_eq!(t(15, 30), Ok((15, 19, 0, 11, 10, 16, 10..17, 5, 1, 0, 2)));
+        assert_eq!(t(1, 4), Err(Na::RbtOutside));
+        assert_eq!(t(20, 40), Err(Na::RbtOutside));
     }
 
     #[test]

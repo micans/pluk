@@ -114,7 +114,10 @@ plan/SAMSEQ.design.txt.
                nothing, NA past the reference end; --sam-aln-mrk appended after the
                ruler, --sam-qlt-sim applied to the quality); computed once per row and
                kept, as aln_all aln_allq aln_all_pack and later aln_nedit_pia/piu use it
-     rbt       [step20] the region-bound tally
+     rbt       the region-bound tally (step20): the region of sam_rbt or --sam-rbt clipped
+               to the matched part, its ends mapped to alignment columns and query
+               positions, the counts over aln_aln; computed for the current region and
+               recomputed when sam_rbt sets another one in the same row
 
    A stage that cannot be computed records why (section 6); every operator that needs it
    gives NA.
@@ -186,6 +189,10 @@ plan/SAMSEQ.design.txt.
                          reference parts and the alignment (step18)
      reference end       the matched part ends past the reference (also a POS beyond it):
                          the reference parts and the alignment (step18)
+     rbt outside         the rbt region does not overlap the matched part: all rbt_
+                         values (step20; pick: fixed stand-in values)
+     rbt not valid       sam_rbt operands that are not integers 1 <= x <= y: all rbt_
+                         values (step20)
    isforward and sam_get work for every record. With the fill active, a row whose SEQ '*'
    cannot be filled never reaches the computes (--sam-seqmiss).
 

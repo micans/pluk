@@ -156,7 +156,8 @@ fn run() -> std::io::Result<()> {
     let (computes, names) = if input.is_empty {
         (Vec::new(), input.names.clone())
     } else {
-        compute::compile(&config.computes, &input.names, config.inplace, config.sam || config.sam_h, &dicts)
+        compute::compile(&config.computes, &input.names, config.inplace, config.sam || config.sam_h,
+                         config.sam_rbt.is_some(), &dicts)
             .map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?
     };
     let computed: Vec<(usize, usize)> = computes.iter().filter(|c| c.output).map(|c| (c.position, c.index)).collect();
@@ -204,6 +205,7 @@ fn run() -> std::io::Result<()> {
     let mut machine = exec::Machine::new(config.num_perl, config.seed.unwrap_or_else(exec::clock_seed), &dicts);
     machine.sam.options = sam::AlnOptions { prefix: config.sam_aln_prefix.clone().unwrap_or_default(),
                                             markers: config.sam_aln_mrk, qlt_sim: config.sam_qlt_sim };
+    machine.sam.rbt_default = config.sam_rbt;
     machine.set_registers(&computes);
     let normal_form = (config.sam || config.sam_h) && !config.sam_nonf;
     // The fill is active when an operator needs the query sequence (step17 decision 8).

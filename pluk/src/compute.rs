@@ -203,9 +203,12 @@ pub struct Compute {
 //
 // inplace (-i): a compute may redefine a name; an input column at most once, a
 // computed name any number of times.
-pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, sam: bool, dicts: &Dicts)
+// rbt_region: --sam-rbt was given, so the rbt_ operators have a region from the start.
+pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, sam: bool, rbt_region: bool,
+               dicts: &Dicts)
     -> Result<(Vec<Compute>, ColumnNames), String>
 {
+    let mut rbt_region = rbt_region;
     let mut names = input.clone();
     let mut computes = Vec::with_capacity(specs.len());
     let mut redefined = vec![false; input.len()];  // input columns redefined so far
@@ -277,6 +280,13 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, sam: b
                             return Err(format!("[{}]: operator {} needs the reference sequence (--sam/FILE or \
                                                 --sam-h/FILE)", shown, op.name));
                         }
+                        // An rbt_ operator needs a region: an earlier sam_rbt, or --sam-rbt (step20).
+                        if op.name == "sam_rbt" {
+                            rbt_region = true;
+                        } else if crate::sam::is_rbt(op.name) && !rbt_region {
+                            return Err(format!("[{}]: operator {} needs an earlier sam_rbt or --sam-rbt=X,Y",
+                                               shown, op.name));
+                        }
                         let needed = match op.pops { Pops::N(n) | Pops::All(n) => n };
                         if stack.len() < needed {
                             return Err(format!("[{}]: stack underflow at operator {} (needs {}, has {})",
@@ -317,6 +327,10 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, sam: b
                             }
                             Shape::Pop | Shape::Drop => {
                                 stack.pop();
+                            }
+                            Shape::Consume => {
+                                let keep = match op.pops { Pops::N(n) => stack.len() - n, Pops::All(_) => 0 };
+                                stack.truncate(keep);
                             }
                         }
                     }
@@ -596,7 +610,7 @@ mod tests {
         let mut row = crate::row::Row::new();
         row.line.extend_from_slice(b"a\tn1\tn2\tb");
         row.split_fields();
-        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), false, false, &Dicts::new())
+        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), false, false, false, &Dicts::new())
     }
 
     #[test]
@@ -621,7 +635,7 @@ mod tests {
         let mut row = crate::row::Row::new();
         row.line.extend_from_slice(b"a\tb");
         row.split_fields();
-        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), true, false, &Dicts::new())
+        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), true, false, false, &Dicts::new())
     }
 
     #[test]
