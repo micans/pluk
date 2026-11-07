@@ -1,0 +1,123 @@
+
+- SAM: view options (context, region, narrowing, N/D adjustment)
+
+  Third SAM step (order in SAM.notes.txt; design SAMVIEW.design.txt, pick's implementation
+  in SAM.pick-survey.txt sections 3 and 8, 'survey'). Builds on step17 (the input rewrites:
+  normal form, Row::replace_field) and step18 (the alignment display, by which these
+  options are checked, as pick's align/run-test3.sh does).
+
+  Options (pick's names; all require --sam or --sam-h):
+    --sam-aln-context=N     extend the alignment by up to N bases of context at each end
+    --sam-aln-xy=X,Y        extend the alignment to include reference positions X..Y
+    --sam-narrow-xy=X,Y     reduce the alignment to reference positions X..Y
+    --sam-ND-adjust=NAME    N operations outside the intervals in dictionary NAME become D
+
+
+
+  Outcome of the discussion
+
+  Decisions:
+   0. Place and order (pick): ND-adjust, narrow, normal form, extend; after the @@ stage and
+      before the computes (SAMVIEW.design.txt section 2), on every record, whether SAM
+      operators are used or not; the rewritten POS, CIGAR (and FLAG, NM:i) are visible in
+      the output, as pick. Records that are unmapped (FLAG 0x4, RNAME or CIGAR '*') or whose
+      CIGAR or POS does not parse are not rewritten (pick: narrow + context on an unmapped
+      record gives the CIGAR *5D, survey 8.6). The query length is unchanged by every
+      rewrite (S absorbs what is cut, context X I S replace S), so the fill (before @@, on
+      the input CIGAR) is unaffected.
+
+   1. Representing the context (agreed). pick writes the added context into the CIGAR: nX
+      for reference and query shown side by side without alignment, nD for reference only,
+      nI for query only, the rest of the soft clip as S. As SAMVIEW.design.txt section 5 and
+      step17 decision 5: the visible CIGAR is pick's, and the view records how many
+      operations at each end are context; these belong to the trails. Consequence: the
+      output CIGAR uses X for context, while pluk (and SAM) read an input X as a mismatch;
+      re-reading pluk's output with context therefore shows those X as aligned. Rejected
+      alternative: the context kept in the view only and the visible CIGAR unchanged, which
+      departs from pick's -A output and from run-test3.sh (it prints the rewritten CIGAR).
+
+   2. Extension (pick's sam_adjust_view_extend, survey 3), per side a budget B of bases:
+      first min(B, reference clip, soft clip) bases become shared context (the S becomes X,
+      POS moves left), then what is left of the budget goes to the side that still has
+      bases: reference (D, POS moves left) or query (I, the rest stays S). The trail counts
+      are unchanged (pick's test 3 checks this); ref_trail5p_V and ref_trail3p_V, the
+      displayed parts, grow. Fixes:
+      - The budget (agreed): --sam-aln-context=N gives N at each end. --sam-aln-xy=X,Y gives
+        POS - X at the left if X < POS, Y - ref_posy at the right if Y > ref_posy, else 0
+        (the manual: 'never reduce'; pick's conditions are wrong at the right, survey 8.1,
+        and give the default 10000 at the left when X > POS, 8.2). Without
+        --sam-aln-context the context budget is 0 (pick: 10000). Both given (as pick's
+        utils/showalign does with -b and -e): the larger of the two per side, so that the
+        display covers at least X..Y and at least N bases of context (pick: the xy budget
+        replaces N when its condition holds, and the right-side condition is wrong).
+        Example: aligned to 100..150 with --sam-aln-xy=90,160 --sam-aln-context=5 extends
+        by 10 at each end (pick: 10 left, 5 right).
+      - A soft clip behind a hard clip is used, and H stays the outermost operation (pick
+        ignores the S behind H and writes nD before the H, which is not valid SAM).
+      - The right side needs the reference length (seqlen: @SQ or --sam/FILE). If it is not
+        known the right side is not extended and the record is counted (pick: a negative
+        clip, survey 8.11).
+
+   3. The context in the view and the display:
+      - Trails: the context operations recorded in decision 1 are trail operations (as X
+        was in pick); an X from the input remains aligned.
+      - aln strings: a context X is drawn as '.' in aln_aln, reference and query shown
+        (pick); context D and I are drawn as D and I, and the end rule of step18 makes them
+        ` and _ (pick).
+      - aln_posinfo: context operations give no items (pick stops at the first X with a
+        message and reports a context D as d=).
+      - aln_nedit_pia and aln_nedit_piu (agreed): dangling columns are never edits.
+        aln_nedit_pia counts the x - ~ columns of aln_aln, aln_nedit_piu also the =
+        columns; neither counts ` _ . (pick counts ` and . as edits, so context added
+        edits; step18 decision 7 deferred this). This changes step18's values for
+        --sam-nonf exterior D (pick: counted). Rejected: as pick; excluding only the
+        columns drawn from context.
+
+   4. Narrowing (pick's sam_narrow_view, survey 3): X is raised to POS and Y lowered to the
+      last reference position of the CIGAR; the operations before the one containing X are
+      replaced by nS (the query bases they consume, I included), POS becomes X, and alike
+      at the right with Y. A cut inside D or N leaves nS followed by the rest of the D or
+      N (pick; the reference from X is shown, as `). Fixes: no 0S is written when nothing
+      precedes the cut (pick: 10M becomes 0S10M); leading and trailing H are kept (pick
+      drops them: 2H3S10M becomes 5S4M4S); a record that is not changed is not rewritten.
+      X,Y apply to every reference (as pick).
+      A record whose alignment does not overlap X..Y (agreed): FLAG |= 0x4 and CIGAR '*',
+      RNAME and POS kept; the record is kept (SAM operators NA, unmapped) and counted (pick
+      sets FLAG to 4, POS to 1 and CIGAR to '*', losing the other FLAG bits, and then
+      discards the record silently if a sequence is needed). Rejected: dropping the record
+      (narrowing as a region filter).
+
+   5. --sam-ND-adjust=NAME (pick's sam_introns_only; undocumented, the help text says
+      start,end): NAME is a dictionary (any kind) whose value for an RNAME is a list of
+      intervals a-b,c-d (1-based, inclusive), checked once the dictionaries are loaded
+      (positive, a <= b; an error names the key; an unknown dictionary is an error, as pick).
+      An N operation covering reference positions p .. p+L-1 stays N if it overlaps an
+      interval, otherwise it becomes D, and NM:i is increased by L (MD:Z and AS:i are not
+      updated, as pick). A reference not in the dictionary is unchanged. Overlap is the
+      intended test (agreed): an N that overlaps an interval is plausibly an intron or a
+      cryptic intron. pick's test is shifted by one position (p+1 <= b and p+L+1 >= a,
+      survey 8.13); pluk uses the exact overlap p <= b and p+L-1 >= a.
+
+   6. Options: N a non-negative integer; X,Y positive integers separated by a comma (pick;
+      its help text shows X/Y), X <= Y; all four require --sam or --sam-h; a repeated option
+      replaces the earlier value. End-of-run counts (note!, silenced by -q): records whose
+      right side could not be extended (no reference length), records outside the narrowing
+      region, N operations turned into D.
+
+  Tests: pick's run-test3.sh and run-test4.sh configurations (qry3mm, qry3vs with ref3.fa,
+  --sam-aln-context=0,10,..,90, --sam-aln-mrk; the rewritten CIGAR, the part counts and
+  aln_all) compared with pick by md5; the part counts constant across contexts; synthetic
+  records for the fixes (H, X > POS and Y < ref_posy for xy, xy with context, narrowing
+  cuts in M D N I, 0S, outside the region, an unknown reference length, ND-adjust
+  intervals and NM:i, unmapped records untouched).
+
+
+  Items
+
+  1   Extension: --sam-aln-context, --sam-aln-xy; the context recorded in the view (trails,
+      '.' in aln_aln, aln_posinfo, aln_nedit_pia/piu); SAMVIEW.design.txt sections 3 and 5
+      updated (decisions 0-3, 6). Commit.
+
+  2   Narrowing: --sam-narrow-xy, alone and before the extension (decision 4). Commit.
+
+  3   --sam-ND-adjust (decision 5). Commit.

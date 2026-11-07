@@ -3,7 +3,7 @@ n1	2S4M3N5M1S	5	8	e=7,n=3,s=GTA:x=10,c=CT:x=11,c=GC:x=12,c=TA:x=13,c=TG:x=14,c=C
 n2	3=1X2=	1	1	x=8,c=TA	x=8,c=TA
 n3	2H3M2P3M	3	3	x=5,c=AC:x=6,c=CG:x=7,c=GT	x=5,c=AC:x=6,c=CG:x=7,c=GT
 n4	14M	0	0		
-n5	3S2D6M2D2S	10	10	d=1,n=2,s=AC:x=3,c=GT:x=4,c=TA:x=5,c=AC:x=6,c=CG:x=7,c=GT:x=8,c=TA:d=9,n=2,s=AC	d=1,n=2,s=AC:x=3,c=GT:x=4,c=TA:x=5,c=AC:x=6,c=CG:x=7,c=GT:x=8,c=TA:d=9,n=2,s=AC
+n5	3S2D6M2D2S	6	6	d=1,n=2,s=AC:x=3,c=GT:x=4,c=TA:x=5,c=AC:x=6,c=CG:x=7,c=GT:x=8,c=TA:d=9,n=2,s=AC	d=1,n=2,s=AC:x=3,c=GT:x=4,c=TA:x=5,c=AC:x=6,c=CG:x=7,c=GT:x=8,c=TA:d=9,n=2,s=AC
 n6	8M	NA	NA	NA	NA
 n7	2M2D3M	7	7	x=8,c=TA:x=9,c=AC:d=10,n=2,s=CG:x=12,c=TA:x=13,c=TG:x=14,c=CG	x=8,c=TA:x=9,c=AC:d=10,n=2,s=CG:x=12,c=TA:x=13,c=TG:x=14,c=CG
 n8	*	NA	NA	NA	NA
@@ -40,7 +40,7 @@ n1	5
 n2	1
 n3	3
 n4	0
-n5	10
+n5	6
 n6	NA
 n7	7
 n8	NA

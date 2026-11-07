@@ -184,6 +184,15 @@
       for an n that is not a non-negative integer. patchiness and patchiness2 give NA for a
       character outside their table, a newline included (pick dies, or skips a newline),
       and for a window that is not a non-negative integer.
+    - SAM context extension (step19, SAMVIEW.design.txt section 3): --sam-aln-xy extends
+      only as far as needed to include X..Y (pick: to the reference ends in most cases,
+      survey 8.1, 8.2); without --sam-aln-context the context is 0 (pick: 10000); with
+      both, the larger budget per side; a soft clip behind a hard clip is used and H stays
+      outermost (pick writes D before H); without a reference length the right side is not
+      extended (counted); unmapped records and invalid CIGARs or POS are not rewritten.
+      aln_nedit_pia and aln_nedit_piu count only x - ~ (and =) columns: dangling columns
+      ` _ . are never edits (pick counts ` and .); aln_posinfo skips context (pick stops at
+      the first X). X,Y are positive integers, X <= Y.
     - SAM sequence fill (SAMSEQ.design.txt): a SEQ '*' is filled from an earlier row of the
       same read and segment whose part of the read contains the needed part (hard clips
       respected), whatever the rows between; the cache is updated before every filter, so

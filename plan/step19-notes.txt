@@ -1,0 +1,61 @@
+
+Notes for plan/step19.txt (SAM view options).
+
+
+Planning
+
+  pick's code read (sam_adjust_view_extend, sam_narrow_view, sam_introns_only) and run on
+  synthetic records: confirmed survey 8.1 and 8.2 (xy budgets), H blocking the soft clip
+  and D written before H (invalid SAM), the 0S and H loss of narrowing, the narrowed-away
+  record discarded. pick's utils/showalign passes -b X,Y as --sam-aln-xy and -e N as
+  --sam-aln-context, which is why the combination of the two needed a rule (decision 2:
+  the larger budget per side).
+
+
+Item 1: extension (--sam-aln-context, --sam-aln-xy) and the context in the view
+
+  sam.rs: extend(pos, cigar, reflen, options) returns the new POS and CIGAR and the number
+  of operations written at each end (the context), or None if nothing changes. The clips
+  are found first: leading H, then S; trailing H, then S; the middle of the CIGAR is
+  copied as written (no re-serialisation, so its text stays exactly the input's). side()
+  computes one end: shared x = min(reference clip, soft clip, budget), then d from the
+  remaining reference clip or i from the remaining soft clip (only one of the two can be
+  non-zero: if both clips remain after x, the budget is used up), and the soft clip left.
+  Order of the written operations as pick: 5' [H] S I D X, 3' X D I S [H]. The reference
+  clip at the right uses the input POS and CIGAR (pick: computed before the left side
+  changes POS) and is clamped at 0 for an alignment past the reference end.
+
+  ContextOptions::budgets: N at each end; with xy, max(N, POS - X) at the left if X < POS
+  and max(N, Y - ref_posy) at the right if Y > ref_posy (ref_posy = POS + reference length
+  of the CIGAR - 1, trails included, as pick's narrow uses it).
+
+  The context is recorded as operation counts at each end, including the hard and soft
+  clips written there; they are trail operations anyway, so including them is harmless
+  and keeps the count a plain prefix length. trails(ops, context) takes the context
+  operations first and then continues with the trail letters; is_context(i, n, context)
+  tells draw (a context X is drawn as '.') and posinfo (skipped) which operations are
+  context. View::context is set by main.rs for every row while the extension is active
+  (as View::query); Machine::run's reset does not touch it.
+
+  main.rs: Stages::judge runs the extension after the normal form, on mapped records with a
+  POS; the reference length comes from View::reference_length (seqlen). Records whose right
+  side had a budget but no reference length are counted and reported at the end.
+
+  aln_nedit_pia and aln_nedit_piu now count the edit columns (x - ~, and = for piu) instead
+  of subtracting the good ones (decision 3). This changes step18's values where pick
+  counted ` (exterior D kept by --sam-nonf): o.sam-edits and o.sam-edits-edge refs updated.
+
+  Options: --sam-aln-context=N (digits only), --sam-aln-xy=X,Y (opt::parse_xy, also for
+  --sam-narrow-xy in item 2), both require --sam or --sam-h.
+
+  Checked against pick: run-test3/4-style output (the rewritten POS and CIGAR, all part
+  counts, ref_trail5p_V/3p_V, aln_allq, the matched and trail CIGARs) with --sam-aln-mrk and
+  --sam-aln-context=0,10,20,30,50,90 on qry3mm.sam and qry3vs.sam: identical; with
+  --sam-nonf and contexts 10 and 40: identical. Synthetic records (out/ctx.sam): identical
+  apart from the decided differences (H, xy budgets, nedit, posinfo).
+
+  Tests: sam-context (md5 for contexts 0 10 40 90 on both files, with --sam-nonf; the part
+  counts constant across contexts; the first alignments), sam-context-edge (the synthetic
+  records under six option settings, aln_all, -A with and without a reference length, @@
+  and @ filters on the input and rewritten POS, -c, option errors). Unit tests
+  context_extension, trails_with_context. help and list-ops refs.

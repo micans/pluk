@@ -271,9 +271,9 @@ pub static OPERATORS: &[OpDef] = &[
     OpDef { name: "aln_all_pack", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
             operands: "-", result: "aln", doc: "Alignment: as aln_all, lines joined by byte 0x01", fun: op_aln_all_pack },
     OpDef { name: "aln_nedit_pia", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
-            operands: "-", result: "n", doc: "Edits in aln_aln, intron aware (all but | = _)", fun: op_aln_nedit_pia },
+            operands: "-", result: "n", doc: "Edits in aln_aln, intron aware (x - ~)", fun: op_aln_nedit_pia },
     OpDef { name: "aln_nedit_piu", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
-            operands: "-", result: "n", doc: "Edits in aln_aln, intron unaware (all but | _)", fun: op_aln_nedit_piu },
+            operands: "-", result: "n", doc: "Edits in aln_aln, intron unaware (x - ~ =)", fun: op_aln_nedit_piu },
     OpDef { name: "aln_posinfo", pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
             operands: "n", result: "info", doc: "Mismatch and indel positions; indel sequences up to length n (0: all)", fun: op_aln_posinfo },
     OpDef { name: "patchiness", pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
@@ -1234,10 +1234,10 @@ fn aln_lines(m: &mut Machine, row: &Row, lines: fn(&sam::Aln) -> Vec<&[u8]>, sep
     sam_sequence(m, row, result);
 }
 
-// aln_nedit_pia and aln_nedit_piu (decision 7): the length of aln_aln minus the
-// columns that are not edits.
-fn aln_nedit(m: &mut Machine, row: &Row, good: &[u8]) {
-    let result = m.sam.aln(row).map(|a| a.aln.iter().filter(|b| !good.contains(b)).count());
+// aln_nedit_pia and aln_nedit_piu (step18 decision 7, step19 decision 3): the
+// columns of aln_aln that are edits; dangling columns (` _ .) never are.
+fn aln_nedit(m: &mut Machine, row: &Row, edits: &[u8]) {
+    let result = m.sam.aln(row).map(|a| a.aln.iter().filter(|b| edits.contains(b)).count());
     let value = match result {
         Ok(n) => Value::Num(Num::I(n as num::Int)),
         Err(reason) => sam_na(m, row, reason),
@@ -1245,8 +1245,8 @@ fn aln_nedit(m: &mut Machine, row: &Row, good: &[u8]) {
     m.push(value);
 }
 
-fn op_aln_nedit_pia(m: &mut Machine, row: &Row, _: &Attached) { aln_nedit(m, row, b"|=_") }
-fn op_aln_nedit_piu(m: &mut Machine, row: &Row, _: &Attached) { aln_nedit(m, row, b"|_") }
+fn op_aln_nedit_pia(m: &mut Machine, row: &Row, _: &Attached) { aln_nedit(m, row, b"x-~") }
+fn op_aln_nedit_piu(m: &mut Machine, row: &Row, _: &Attached) { aln_nedit(m, row, b"x-~=") }
 
 // aln_posinfo n (decision 8): n a non-negative integer, else NA.
 fn op_aln_posinfo(m: &mut Machine, row: &Row, _: &Attached) {

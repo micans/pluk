@@ -43,6 +43,8 @@ pub struct Config {
     pub sam_aln_prefix: Option<Vec<u8>>, // --sam-aln-prefix=STR (plan/step18.txt decision 4)
     pub sam_aln_mrk: bool,              // --sam-aln-mrk (decision 5)
     pub sam_qlt_sim: bool,              // --sam-qlt-sim (decision 6)
+    pub sam_aln_context: Option<u64>,   // --sam-aln-context=N (plan/step19.txt decision 2)
+    pub sam_aln_xy: Option<(u64, u64)>, // --sam-aln-xy=X,Y
     pub threads: Option<u32>,           // --threads=N
     pub pat_purge: Option<Vec<u8>>,     // -/PAT, %-decoded
     pub pat_pass: Option<Vec<u8>>,      // -//PAT, %-decoded
@@ -181,6 +183,11 @@ Options:
               5' trail, the matched part and the 3' trail
   --sam-qlt-sim  simplify quality symbols, five values per symbol: .,aAbB..iI
               (qry_qual aln_qlt)
+  --sam-aln-context=N  extend alignments by up to N bases of reference and
+              soft-clipped query at each end; changes POS and CIGAR (the
+              context is written as X, D, I)
+  --sam-aln-xy=X,Y  extend alignments to include reference positions X..Y
+              (never reduces; with --sam-aln-context the larger per side)
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
   --idx-list  write the input indexes of the output columns (computed columns
@@ -402,6 +409,11 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
         b"sam-aln-mrk" => config.sam_aln_mrk = true,
         b"sam-qlt-sim" => config.sam_qlt_sim = true,
         _ if long.starts_with(b"sam-aln-prefix=") => config.sam_aln_prefix = Some(long[15..].to_vec()),
+        _ if long.starts_with(b"sam-aln-context=") => match digits(&long[16..]) {
+            Some(n) => config.sam_aln_context = Some(n),
+            None => return Err("--sam-aln-context=N: N must be a non-negative integer".to_string()),
+        },
+        _ if long.starts_with(b"sam-aln-xy=") => config.sam_aln_xy = Some(parse_xy(&long[11..], "--sam-aln-xy")?),
         b"sam-seqmiss=skip" | b"sam-seqmiss=exit" => {
             config.sam_seqmiss_exit = long == b"sam-seqmiss=exit";
             config.sam_seqmiss_set = true;
@@ -741,7 +753,8 @@ fn check_combinations(config: &Config) -> Result<(), String> {
         return Err("--sam-seqmiss requires --sam or --sam-h".to_string());
     }
     for (given, name) in [(config.sam_aln_prefix.is_some(), "--sam-aln-prefix"), (config.sam_aln_mrk, "--sam-aln-mrk"),
-                          (config.sam_qlt_sim, "--sam-qlt-sim")] {
+                          (config.sam_qlt_sim, "--sam-qlt-sim"), (config.sam_aln_context.is_some(), "--sam-aln-context"),
+                          (config.sam_aln_xy.is_some(), "--sam-aln-xy")] {
         if given && !(config.sam || config.sam_h) {
             return Err(format!("{} requires --sam or --sam-h", name));
         }
@@ -786,6 +799,25 @@ fn number_len(s: &[u8], allow_minus: bool) -> usize {
 // Parses s (ASCII digits, optional '-') as a number; None if malformed or out of range.
 fn parse_number<T: std::str::FromStr>(s: &[u8]) -> Option<T> {
     std::str::from_utf8(s).ok()?.parse::<T>().ok()
+}
+
+// A non-negative integer written in digits only (no sign).
+fn digits(s: &[u8]) -> Option<u64> {
+    if s.is_empty() || !s.iter().all(u8::is_ascii_digit) {
+        return None;
+    }
+    parse_number(s)
+}
+
+// X,Y for --sam-aln-xy and --sam-narrow-xy: positive integers, X <= Y (plan/step19.txt
+// decision 6).
+fn parse_xy(s: &[u8], option: &str) -> Result<(u64, u64), String> {
+    let mut parts = s.splitn(2, |&b| b == b',');
+    match (parts.next().and_then(digits), parts.next().and_then(digits)) {
+        (Some(x), Some(y)) if x > 0 && x <= y => Ok((x, y)),
+        (Some(x), Some(y)) if x > 0 && y > 0 => Err(format!("{}=X,Y: X is larger than Y", option)),
+        _ => Err(format!("{}=X,Y: X and Y must be positive integers", option)),
+    }
 }
 
 // -z: %-encoding of the bytes that mean something in a pluk argument (% : ^ , / ~

@@ -204,7 +204,11 @@ fn run() -> std::io::Result<()> {
     } else {
         None
     };
-    let mut stages = Stages { filters, computes, machine, rowno: 0, normal_form, fill };
+    let extension = (config.sam_aln_context.is_some() || config.sam_aln_xy.is_some()).then(|| Extend {
+        options: sam::ContextOptions { n: config.sam_aln_context.unwrap_or(0), xy: config.sam_aln_xy },
+        n_no_reflen: 0,
+    });
+    let mut stages = Stages { filters, computes, machine, rowno: 0, normal_form, extension, fill };
 
     // --idx-list, --name-list, --idx-map: the output columns, without reading the data.
     if let Some(kind) = config.list {
@@ -345,6 +349,10 @@ fn run() -> std::io::Result<()> {
     }
     stages.filters.report_na();
     stages.machine.sam.report();
+    if let Some(ext) = stages.extension.as_ref().filter(|e| e.n_no_reflen > 0) {
+        note::note!("pluk: alignment not extended at the right (reference length not known): {} row{}",
+                    ext.n_no_reflen, if ext.n_no_reflen == 1 { "" } else { "s" });
+    }
     if let Some(fill) = &stages.fill {
         fill.report();
     }
@@ -426,7 +434,15 @@ struct Stages<'d> {
     machine:  exec::Machine<'d>,
     rowno:    u64,              // data rows seen (rowno, r0wno); rejected rows count too
     normal_form: bool,          // SAM input without --sam-nonf (plan/SAMVIEW.design.txt section 3)
+    extension: Option<Extend>,  // --sam-aln-context, --sam-aln-xy (plan/step19.txt decision 2)
     fill:     Option<Fill>,     // the sequence fill, when an operator needs the query (SAMSEQ.design.txt)
+}
+
+// The context extension: the options, and the records whose right side could not be
+// extended because the reference length is not known.
+struct Extend {
+    options:     sam::ContextOptions,
+    n_no_reflen: u64,
 }
 
 // Why a SEQ '*' could not be filled (SAMSEQ.design.txt sections 2-5).
@@ -518,6 +534,22 @@ impl Stages<'_> {
             if let Some((pos, cigar)) = sam::normal_form(row.field(sam::POS), row.field(sam::CIGAR)) {
                 row.replace_field(sam::POS, &pos);
                 row.replace_field(sam::CIGAR, &cigar);
+            }
+        }
+        // Context extension, after the normal form (pick's order); mapped records only.
+        if let Some(ext) = &mut self.extension {
+            self.machine.sam.context = (0, 0);
+            if row.n_fields() > sam::CIGAR && !sam::is_unmapped(row) {
+                if let Some(pos) = sam::number(row.field(sam::POS)) {
+                    let reflen = self.machine.sam.reference_length(row);
+                    let (extension, no_reflen) = sam::extend(pos, row.field(sam::CIGAR), reflen, &ext.options);
+                    ext.n_no_reflen += u64::from(no_reflen);
+                    if let Some(e) = extension {
+                        row.replace_field(sam::POS, e.pos.to_string().as_bytes());
+                        row.replace_field(sam::CIGAR, &e.cigar);
+                        self.machine.sam.context = e.context;
+                    }
+                }
             }
         }
         if !self.computes.is_empty() {

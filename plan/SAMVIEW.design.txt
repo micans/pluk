@@ -49,8 +49,8 @@ plan/SAMSEQ.design.txt.
    fields are split again, so that every consumer (output of whole lines, filters, computes,
    --demux) sees one consistent record. Only rows that change pay for this.
 
-   Order (pick's): ND-adjust [step19], narrow [step19], normal form, context extension
-   [step19].
+   Order (pick's): ND-adjust [step19 item 3], narrow [step19 item 2], normal form, context
+   extension.
 
    Normal form (default; off with --sam-nonf), as pick, each rule once and only on the first
    or last operation:
@@ -62,6 +62,19 @@ plan/SAMSEQ.design.txt.
    part of the 5' trail, section 5). Not applied behind S or H (5S3I.. is unchanged), and S
    and I are not merged. As pick, every record is rewritten, unmapped ones included (FLAG
    0x4 or RNAME '*'; CIGAR '*' never changes).
+
+   Context extension (--sam-aln-context=N, --sam-aln-xy=X,Y; plan/step19.txt decisions
+   2, 6), on mapped records with a valid CIGAR and POS. Per side a budget: N, or what is
+   needed to include X..Y (never a reduction), the larger of the two when both are given.
+   First as many bases as the budget, the reference clip and the soft clip allow become
+   shared context (the soft clip becomes nX, POS moves left), then the rest of the budget
+   goes to the side that still has bases: the reference (nD, POS moves left) or the query
+   (nI, the rest stays nS). 5S10M at POS 3 with N = 10 on a reference of 40 becomes
+   3I2X10M10D at POS 1. A soft clip behind a hard clip is used and H stays outermost (pick:
+   2D2H3S10M). The right side needs the reference length (seqlen); without it the right
+   side is not extended and the record is counted. The rewrite records the number of
+   operations at each end that it wrote (the view's context, section 5). The query length
+   does not change.
 
 
 4. Stages
@@ -108,8 +121,15 @@ plan/SAMSEQ.design.txt.
 
    X: pick also counts X as exterior, because its context extension writes the added
    context as X (survey 3, 8.7). In pluk an X from the input is aligned (a mismatch). The
-   context added by step19 is recorded in the view (the number of context operations at
-   each end) and belongs to the trails; the visible CIGAR is pick's.
+   context added by the extension (section 3) is recorded in the view (the number of
+   operations at each end that the extension wrote, View::context) and belongs to the
+   trails, whatever the letter; the visible CIGAR is pick's (X, D, I for context). So the
+   counts do not change with the context (pick's align/run-test3.sh checks this), apart
+   from ref_trail5p_V and ref_trail3p_V, the displayed parts. In the display a context X
+   is drawn as '.', context D and I as D and I (then ` and _ by the end rule);
+   aln_posinfo gives no items for context; aln_nedit_pia and aln_nedit_piu count only the
+   x - ~ (and =) columns, so dangling columns (` _ .) are never edits. Re-reading pluk's
+   output with context shows the context X as aligned (a deliberate consequence).
 
    With POS the 1-based position, reflen the reference length (section 7):
      aln_trail5p_cgr aln_matched_cgr aln_trail3p_cgr   the three parts as CIGAR strings

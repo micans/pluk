@@ -61,6 +61,11 @@ Options:
               5' trail, the matched part and the 3' trail
   --sam-qlt-sim  simplify quality symbols, five values per symbol: .,aAbB..iI
               (qry_qual aln_qlt)
+  --sam-aln-context=N  extend alignments by up to N bases of reference and
+              soft-clipped query at each end; changes POS and CIGAR (the
+              context is written as X, D, I)
+  --sam-aln-xy=X,Y  extend alignments to include reference positions X..Y
+              (never reduces; with --sam-aln-context the larger per side)
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
   --idx-list  write the input indexes of the output columns (computed columns

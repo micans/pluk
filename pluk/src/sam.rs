@@ -17,7 +17,7 @@ pub const OPTIONAL: usize = 11;     // the optional fields start here (with -O12
 const FLAG_UNMAPPED: u64 = 0x4;
 const FLAG_REVERSE: u64 = 0x10;
 
-fn number(field: &[u8]) -> Option<u64> {
+pub fn number(field: &[u8]) -> Option<u64> {
     if field.is_empty() || !field.iter().all(u8::is_ascii_digit) {
         return None;
     }
@@ -85,11 +85,140 @@ fn sum_of(ops: &[Op], letters: &[u8]) -> u64 {
 
 // The 5' trail, matched part and 3' trail as index ranges into ops (section 5): the
 // leading run of trail operations, the trailing run of what is left, the middle.
-pub fn trails(ops: &[Op]) -> (std::ops::Range<usize>, std::ops::Range<usize>, std::ops::Range<usize>) {
-    let t5 = ops.iter().take_while(|o| o.is_trail()).count();
-    let t3 = ops[t5..].iter().rev().take_while(|o| o.is_trail()).count();
-    let m = ops.len() - t3;
-    (0..t5, t5..m, m..ops.len())
+// context: the number of operations at each end added as context (plan/step19.txt
+// decision 1); they belong to the trails whatever their letter (X).
+pub fn trails(ops: &[Op], context: (usize, usize))
+    -> (std::ops::Range<usize>, std::ops::Range<usize>, std::ops::Range<usize>)
+{
+    let n = ops.len();
+    let mut t5 = context.0.min(n);
+    t5 += ops[t5..].iter().take_while(|o| o.is_trail()).count();
+    let mut m = n - context.1.min(n - t5);
+    m -= ops[t5..m].iter().rev().take_while(|o| o.is_trail()).count();
+    (0..t5, t5..m, m..n)
+}
+
+// Whether operation i of n is context (added at either end).
+fn is_context(i: usize, n: usize, context: (usize, usize)) -> bool {
+    i < context.0 || i + context.1 >= n
+}
+
+// ---- Context extension (plan/step19.txt decisions 2, 6) ----
+
+// --sam-aln-context=N and --sam-aln-xy=X,Y.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct ContextOptions {
+    pub n:  u64,
+    pub xy: Option<(u64, u64)>,
+}
+
+impl ContextOptions {
+    // The budgets at the left and the right: per side the larger of N and what is needed
+    // to include X..Y (never a reduction). ref_posy: the last reference position.
+    fn budgets(&self, pos: u64, ref_posy: u64) -> (u64, u64) {
+        let (mut left, mut right) = (self.n, self.n);
+        if let Some((x, y)) = self.xy {
+            if x < pos {
+                left = left.max(pos - x);
+            }
+            if y > ref_posy {
+                right = right.max(y - ref_posy);
+            }
+        }
+        (left, right)
+    }
+}
+
+// A record extended with context: the new POS and CIGAR, and the number of operations
+// at each end that are context (with the hard and soft clips there).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Extension {
+    pub pos:     u64,
+    pub cigar:   Vec<u8>,
+    pub context: (usize, usize),
+}
+
+// The extension of a record, as pick's sam_adjust_view_extend: per side, first as many
+// bases as the budget, the reference clip and the soft clip allow become shared context
+// (the S becomes nX, POS moves left), then the rest of the budget goes to the side that
+// still has bases: the reference (nD, POS moves left) or the query (nI, the rest stays
+// nS). A soft clip behind a hard clip is used; H stays outermost. reflen: the reference
+// length; without it the right side is not extended. Returns the extension (None if
+// nothing changes) and whether the right side needed the unknown reference length.
+pub fn extend(pos: u64, cigar: &[u8], reflen: Option<u64>, options: &ContextOptions) -> (Option<Extension>, bool) {
+    let Some(ops) = parse_cigar(cigar) else { return (None, false) };
+    if pos == 0 {
+        return (None, false);
+    }
+    let n = ops.len();
+    let refsum = ref_len(&ops);
+    let (left, right) = options.budgets(pos, pos + refsum - 1);
+
+    // The clips at each end: hard clips, then a soft clip; the middle is kept as written.
+    let h5 = ops.iter().take_while(|o| o.op == b'H').count();
+    let s5 = ops.get(h5).filter(|o| o.op == b'S').map_or(0, |o| o.len);
+    let a = h5 + usize::from(s5 > 0);
+    let h3 = ops[a..].iter().rev().take_while(|o| o.op == b'H').count();
+    let s3 = (n - h3 > a).then(|| ops[n - h3 - 1]).filter(|o| o.op == b'S').map_or(0, |o| o.len);
+    let b = n - h3 - usize::from(s3 > 0);
+
+    let mut prefix: Vec<(u64, u8)> = ops[..h5].iter().map(|o| (o.len, o.op)).collect();
+    let mut suffix: Vec<(u64, u8)> = Vec::new();
+    let mut new_pos = pos;
+    let mut changed = false;
+
+    // Left: shared (X), then reference (D) or query (I, the rest S).
+    let (x, d, i, rest) = side(pos - 1, s5, left);
+    new_pos -= x + d;
+    changed |= x + d + i > 0;
+    for (len, op) in [(rest, b'S'), (i, b'I'), (d, b'D'), (x, b'X')] {
+        if len > 0 {
+            prefix.push((len, op));
+        }
+    }
+
+    // Right: the reference after the alignment needs the reference length.
+    let mut no_reflen = false;
+    let (x, d, i, rest) = match reflen {
+        Some(l) => side(l.saturating_sub(pos - 1 + refsum), s3, right),
+        None => {
+            no_reflen = right > 0;
+            (0, 0, 0, s3)
+        }
+    };
+    changed |= x + d + i > 0;
+    for (len, op) in [(x, b'X'), (d, b'D'), (i, b'I'), (rest, b'S')] {
+        if len > 0 {
+            suffix.push((len, op));
+        }
+    }
+    suffix.extend(ops[n - h3..].iter().map(|o| (o.len, o.op)));
+
+    if !changed {
+        return (None, no_reflen);
+    }
+    let mut new = Vec::new();
+    for (len, op) in &prefix {
+        new.extend_from_slice(format!("{}{}", len, *op as char).as_bytes());
+    }
+    if a < b {
+        new.extend_from_slice(&cigar[ops[a].start..ops[b - 1].end]);
+    }
+    for (len, op) in &suffix {
+        new.extend_from_slice(format!("{}{}", len, *op as char).as_bytes());
+    }
+    let context = (prefix.len(), suffix.len());
+    (Some(Extension { pos: new_pos, cigar: new, context }), no_reflen)
+}
+
+// One side of the extension: the reference clip, the soft clip and the budget give the
+// shared context x, then d (reference) or i (query), and the soft clip that is left.
+fn side(ref_clip: u64, soft_clip: u64, budget: u64) -> (u64, u64, u64, u64) {
+    let x = ref_clip.min(soft_clip).min(budget);
+    let (ref_clip, soft_clip, budget) = (ref_clip - x, soft_clip - x, budget - x);
+    let d = ref_clip.min(budget);
+    let i = if d == 0 { soft_clip.min(budget) } else { 0 };
+    (x, d, i, soft_clip - i)
 }
 
 // ---- The view (SAMVIEW.design.txt sections 4-6) ----
@@ -254,13 +383,22 @@ fn t_for_u(b: u8) -> u8 {
 // The alignment strings from the reference, the query sequence and quality (SEQ
 // orientation; QUAL '*' already replaced), the CIGAR and POS, as pick's
 // sam_compute_aln. Err: the CIGAR runs past the end of the reference or the query.
-pub fn draw(reference: &[u8], seq: &[u8], qual: &[u8], ops: &[Op], pos: u64) -> Result<Aln, Na> {
+// A context X (plan/step19.txt decision 3) shows reference and query with '.' between.
+pub fn draw(reference: &[u8], seq: &[u8], qual: &[u8], ops: &[Op], pos: u64, context: (usize, usize))
+    -> Result<Aln, Na>
+{
     let reference: Vec<u8> = reference.iter().map(|&b| t_for_u(b)).collect();
     let seq: Vec<u8> = seq.iter().map(|&b| t_for_u(b)).collect();
     let mut a = Aln::default();
-    for Span { op, n, r, q } in spans(ops, pos, reference.len(), seq.len())? {
+    for (k, Span { op, n, r, q }) in spans(ops, pos, reference.len(), seq.len())?.into_iter().enumerate() {
         let (pr, r_end, pq, q_end) = (r.start, r.end, q.start, q.end);
         match op {
+            b'X' if is_context(k, ops.len(), context) => {
+                a.aln.resize(a.aln.len() + n, b'.');
+                a.reference.extend_from_slice(&reference[pr..r_end]);
+                a.query.extend_from_slice(&seq[pq..q_end]);
+                a.quality.extend_from_slice(&qual[pq..q_end]);
+            }
             b'M' | b'=' | b'X' => {
                 let (r, q) = (&reference[pr..r_end], &seq[pq..q_end]);
                 a.aln.extend(r.iter().zip(q).map(|(x, y)| if x.eq_ignore_ascii_case(y) { b'|' } else { b'x' }));
@@ -293,12 +431,17 @@ pub fn draw(reference: &[u8], seq: &[u8], qual: &[u8], ops: &[Op], pos: u64) -> 
 // reference position P; i=P,n=L for an insertion before position P; d=P,n=L and
 // e=P,n=L for a deletion and an N starting at P; the inserted or deleted sequence is
 // added as ,s=SEQ when limit is 0 or L <= limit. Both sequences are upper-cased (U
-// becomes T) first; M = X are compared alike.
-pub fn posinfo(reference: &[u8], seq: &[u8], ops: &[Op], pos: u64, limit: u64) -> Result<Vec<u8>, Na> {
+// becomes T) first; M = X are compared alike. Context operations give no items.
+pub fn posinfo(reference: &[u8], seq: &[u8], ops: &[Op], pos: u64, limit: u64, context: (usize, usize))
+    -> Result<Vec<u8>, Na>
+{
     let upper = |s: &[u8]| -> Vec<u8> { s.iter().map(|b| t_for_u(b.to_ascii_uppercase())).collect() };
     let (reference, seq) = (upper(reference), upper(seq));
     let mut items: Vec<String> = Vec::new();
-    for Span { op, n, r, q } in spans(ops, pos, reference.len(), seq.len())? {
+    for (k, Span { op, n, r, q }) in spans(ops, pos, reference.len(), seq.len())?.into_iter().enumerate() {
+        if is_context(k, ops.len(), context) {
+            continue;
+        }
         let p = r.start + 1;
         let shown = |s: &[u8]| -> String {
             if limit == 0 || n as u64 <= limit { format!(",s={}", String::from_utf8_lossy(s)) } else { String::new() }
@@ -420,6 +563,7 @@ pub struct View<'d> {
     reference: Option<Result<&'d [u8], Na>>,
     aln:     Option<Result<Aln, Na>>,
     pub options: AlnOptions,                // set by main.rs
+    pub context: (usize, usize),            // context operations at each end, set per row by main.rs
     pub query: Query,                       // set for every row while the fill is active
     noted:   [bool; N_REASONS],             // this row has been counted for the reason
     pub n_na: [u64; N_REASONS],             // rows per reason, for the report at the end
@@ -428,7 +572,7 @@ pub struct View<'d> {
 impl<'d> View<'d> {
     pub fn new(dicts: &'d Dicts) -> View<'d> {
         View { seqlen: dicts.get(dict::SEQ_LENGTHS), samfa: dicts.get(dict::SAM_REFERENCE), counts: None,
-               reference: None, aln: None, options: AlnOptions::default(), query: Query::Row, noted: [false; N_REASONS], n_na: [0; N_REASONS] }
+               reference: None, aln: None, options: AlnOptions::default(), context: (0, 0), query: Query::Row, noted: [false; N_REASONS], n_na: [0; N_REASONS] }
     }
 
     pub fn reset(&mut self) {
@@ -457,7 +601,7 @@ impl<'d> View<'d> {
     // The count stage, computed once per row.
     fn count_stage(&mut self, row: &Row) -> Result<&Counts, Na> {
         if self.counts.is_none() {
-            self.counts = Some(compute_counts(row, self.seqlen));
+            self.counts = Some(compute_counts(row, self.seqlen, self.context));
         }
         match &self.counts {
             Some(Ok(c)) => Ok(c),
@@ -554,7 +698,7 @@ impl<'d> View<'d> {
         } else {
             qual.to_vec()
         };
-        let mut aln = draw(reference, seq, &qual, &ops, pos)?;
+        let mut aln = draw(reference, seq, &qual, &ops, pos, self.context)?;
         // --sam-aln-mrk (decision 5): after the ruler, which keeps the unmarked length.
         if self.options.markers {
             let (r5, rm, r3, q5, qm, q3) = marks;
@@ -580,7 +724,12 @@ impl<'d> View<'d> {
         let ops = parse_cigar(row.field(CIGAR)).ok_or(Na::Cigar)?;
         let pos = number(row.field(POS)).ok_or(Na::Cigar)?;
         let seq = self.query_seq(row)?;
-        posinfo(reference, seq, &ops, pos, limit)
+        posinfo(reference, seq, &ops, pos, limit, self.context)
+    }
+
+    // The reference length of RNAME (seqlen), for the extension.
+    pub fn reference_length(&self, row: &Row) -> Option<u64> {
+        self.seqlen.and_then(|d| d.map.get(row.field(RNAME))).and_then(|v| number(v))
     }
 
     // A part of the reference (decision 2 of plan/step18.txt): before position
@@ -661,13 +810,13 @@ pub fn nm(row: &Row) -> Option<u64> {
     }
 }
 
-fn compute_counts(row: &Row, seqlen: Option<&dict::Dict>) -> Result<Counts, Na> {
+fn compute_counts(row: &Row, seqlen: Option<&dict::Dict>, context: (usize, usize)) -> Result<Counts, Na> {
     if is_unmapped(row) {
         return Err(Na::Unmapped);
     }
     let ops = parse_cigar(row.field(CIGAR)).ok_or(Na::Cigar)?;
     let pos = number(row.field(POS)).filter(|&p| p > 0).ok_or(Na::Cigar)?;
-    let (t5, m, t3) = trails(&ops);
+    let (t5, m, t3) = trails(&ops, context);
     let cigar = row.field(CIGAR);
     let part = |r: std::ops::Range<usize>| -> Vec<u8> {
         if r.is_empty() { Vec::new() } else { cigar[ops[r.start].start..ops[r.end - 1].end].to_vec() }
@@ -777,7 +926,7 @@ mod tests {
     fn drawn(reference: &str, seq: &str, cigar: &str, pos: u64) -> Result<[String; 5], Na> {
         let ops = parse_cigar(cigar.as_bytes()).unwrap();
         let qual = vec![b'!'; seq.len()];
-        let a = draw(reference.as_bytes(), seq.as_bytes(), &qual, &ops, pos)?;
+        let a = draw(reference.as_bytes(), seq.as_bytes(), &qual, &ops, pos, (0, 0))?;
         let s = |v: Vec<u8>| String::from_utf8(v).unwrap();
         Ok([s(a.ruler), s(a.reference), s(a.aln), s(a.query), s(a.quality)])
     }
@@ -806,7 +955,7 @@ mod tests {
 
     fn info(reference: &str, seq: &str, cigar: &str, pos: u64, limit: u64) -> Result<String, Na> {
         let ops = parse_cigar(cigar.as_bytes()).unwrap();
-        posinfo(reference.as_bytes(), seq.as_bytes(), &ops, pos, limit).map(|v| String::from_utf8(v).unwrap())
+        posinfo(reference.as_bytes(), seq.as_bytes(), &ops, pos, limit, (0, 0)).map(|v| String::from_utf8(v).unwrap())
     }
 
     #[test]
@@ -841,6 +990,46 @@ mod tests {
         // ( ) are |, a space is x; other characters have no penalty.
         assert_eq!(patchiness(b"(x) x", 10, false), Some(4));     // " x" is one run, as pick
         assert_eq!(patchiness(b"||a||", 10, false), None);
+    }
+
+    fn ext(pos: u64, cigar: &str, reflen: Option<u64>, n: u64, xy: Option<(u64, u64)>)
+        -> (Option<(u64, String, (usize, usize))>, bool)
+    {
+        let (e, no_reflen) = extend(pos, cigar.as_bytes(), reflen, &ContextOptions { n, xy });
+        (e.map(|e| (e.pos, String::from_utf8(e.cigar).unwrap(), e.context)), no_reflen)
+    }
+
+    #[test]
+    fn context_extension() {
+        let some = |p: u64, c: &str, k: (usize, usize)| (Some((p, c.to_string(), k)), false);
+        // Shared context first, then reference (D) or query (I, the rest S); as pick.
+        assert_eq!(ext(11, "3S10M4S", Some(40), 2, None), some(9, "1S2X10M2X2S", (2, 2)));
+        assert_eq!(ext(11, "3S10M4S", Some(40), 10, None), some(1, "7D3X10M4X6D", (2, 2)));
+        assert_eq!(ext(3, "5S10M", Some(40), 10, None), some(1, "3I2X10M10D", (2, 1)));
+        // A soft clip behind a hard clip is used; H stays outermost.
+        assert_eq!(ext(5, "2H3S10M1H", Some(40), 10, None), some(1, "2H1D3X10M10D1H", (3, 2)));
+        // xy: only what is needed to include X..Y; the larger budget per side with N.
+        assert_eq!(ext(11, "3S10M4S", Some(40), 0, Some((12, 18))), (None, false));
+        assert_eq!(ext(3, "5S10M", Some(40), 0, Some((8, 30))), some(3, "5S10M18D", (1, 1)));
+        assert_eq!(ext(3, "5S10M", Some(40), 1, Some((8, 30))), some(2, "4S1X10M18D", (2, 1)));
+        // Unknown reference length: the right side is not extended, and that is reported.
+        assert_eq!(ext(11, "3S10M4S", None, 2, None), (Some((9, "1S2X10M4S".to_string(), (2, 1))), true));
+        assert_eq!(ext(1, "10M", None, 2, None), (None, true));
+        // At the reference ends nothing can be added; the middle is kept as written.
+        assert_eq!(ext(1, "010M", Some(10), 5, None), (None, false));
+        assert_eq!(ext(2, "3S2I08M", Some(9), 5, None), some(1, "2I1X2I08M", (2, 0)));
+    }
+
+    #[test]
+    fn trails_with_context() {
+        let ops = parse_cigar(b"1S2X10M2X2S").unwrap();
+        assert_eq!(trails(&ops, (0, 0)), (0..1, 1..4, 4..5));
+        assert_eq!(trails(&ops, (2, 2)), (0..2, 2..3, 3..5));
+        let ops = parse_cigar(b"2H1D3X3I10M").unwrap();
+        assert_eq!(trails(&ops, (3, 0)), (0..4, 4..5, 5..5));
+        // Context never makes the trails overlap.
+        let ops = parse_cigar(b"2X3S").unwrap();
+        assert_eq!(trails(&ops, (1, 2)), (0..2, 2..2, 2..2));
     }
 
     #[test]

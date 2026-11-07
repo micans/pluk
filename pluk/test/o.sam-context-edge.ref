@@ -1,0 +1,107 @@
+== --sam-aln-context=2
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
+r1	0	9	1S2X10M2X2S	..xxxxxxxxxx..	10	10	x=11,c=GC:x=12,c=GC:x=13,c=GC:x=14,c=GC:x=15,c=GC:x=16,c=TG:x=17,c=TG:x=18,c=TG:x=19,c=TG:x=20,c=TG	10	10	2
+r2	0	1	3S2X10M2D	..||||||||||``	0	0		2	10	2
+r3	16	3	2H1S2X10M2D1H	..||||||||||``	0	0		4	10	2
+r4	0	1	1S2I5M2X3M2D	__|||||||xxx``	3	3	x=8,c=CT:x=9,c=CT:x=10,c=CT	0	10	0
+r5	4	9	3S10M	NA	NA	NA	NA	NA	NA	NA
+r6	0	20	*	NA	NA	NA	NA	NA	NA	NA
+r7	0	28	2X10M1D	..xxxxxxxxxx`	10	10	x=30,c=CA:x=31,c=GA:x=32,c=GA:x=33,c=GA:x=34,c=GA:x=35,c=GC:x=36,c=TC:x=37,c=TC:x=38,c=TC:x=39,c=TC	29	10	2
+pluk: SAM values not available (NA) for 2 rows: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+== --sam-aln-context=10
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
+r1	0	1	7D3X10M4X6D	```````...xxxxxxxxxx....``````	10	10	x=11,c=GC:x=12,c=GC:x=13,c=GC:x=14,c=GC:x=15,c=GC:x=16,c=TG:x=17,c=TG:x=18,c=TG:x=19,c=TG:x=20,c=TG	10	10	10
+r2	0	1	3I2X10M10D	___..||||||||||``````````	0	0		2	10	2
+r3	16	1	2H1D3X10M10D1H	`...||||||||||``````````	0	0		4	10	4
+r4	0	1	3I5M2X3M10D	___|||||||xxx``````````	3	3	x=8,c=CT:x=9,c=CT:x=10,c=CT	0	10	0
+r5	4	9	3S10M	NA	NA	NA	NA	NA	NA	NA
+r6	0	20	*	NA	NA	NA	NA	NA	NA	NA
+r7	0	20	8D2X10M1D	````````..xxxxxxxxxx`	10	10	x=30,c=CA:x=31,c=GA:x=32,c=GA:x=33,c=GA:x=34,c=GA:x=35,c=GC:x=36,c=TC:x=37,c=TC:x=38,c=TC:x=39,c=TC	29	10	10
+pluk: SAM values not available (NA) for 2 rows: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+== --sam-aln-xy=8,30
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
+r1	0	8	3X10M4X6D	...xxxxxxxxxx....``````	10	10	x=11,c=GC:x=12,c=GC:x=13,c=GC:x=14,c=GC:x=15,c=GC:x=16,c=TG:x=17,c=TG:x=18,c=TG:x=19,c=TG:x=20,c=TG	10	10	3
+r2	0	3	5S10M18D	||||||||||``````````````````	0	0		2	10	0
+r3	16	5	2H3S10M16D1H	||||||||||````````````````	0	0		4	10	0
+r4	0	1	3S5M2X3M20D	|||||||xxx````````````````````	3	3	x=8,c=CT:x=9,c=CT:x=10,c=CT	0	10	0
+r5	4	9	3S10M	NA	NA	NA	NA	NA	NA	NA
+r6	0	20	*	NA	NA	NA	NA	NA	NA	NA
+r7	0	8	20D2X10M	````````````````````..xxxxxxxxxx	10	10	x=30,c=CA:x=31,c=GA:x=32,c=GA:x=33,c=GA:x=34,c=GA:x=35,c=GC:x=36,c=TC:x=37,c=TC:x=38,c=TC:x=39,c=TC	29	10	22
+pluk: SAM values not available (NA) for 2 rows: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+== --sam-aln-xy=12,18
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
+r1	0	11	3S10M4S	xxxxxxxxxx	10	10	x=11,c=GC:x=12,c=GC:x=13,c=GC:x=14,c=GC:x=15,c=GC:x=16,c=TG:x=17,c=TG:x=18,c=TG:x=19,c=TG:x=20,c=TG	10	10	0
+r2	0	3	5S10M6D	||||||||||``````	0	0		2	10	0
+r3	16	5	2H3S10M4D1H	||||||||||````	0	0		4	10	0
+r4	0	1	3S5M2X3M8D	|||||||xxx````````	3	3	x=8,c=CT:x=9,c=CT:x=10,c=CT	0	10	0
+r5	4	9	3S10M	NA	NA	NA	NA	NA	NA	NA
+r6	0	20	*	NA	NA	NA	NA	NA	NA	NA
+r7	0	12	16D2X10M	````````````````..xxxxxxxxxx	10	10	x=30,c=CA:x=31,c=GA:x=32,c=GA:x=33,c=GA:x=34,c=GA:x=35,c=GC:x=36,c=TC:x=37,c=TC:x=38,c=TC:x=39,c=TC	29	10	18
+pluk: SAM values not available (NA) for 2 rows: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+== --sam-aln-xy=8,30 --sam-aln-context=1
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
+r1	0	8	3X10M4X6D	...xxxxxxxxxx....``````	10	10	x=11,c=GC:x=12,c=GC:x=13,c=GC:x=14,c=GC:x=15,c=GC:x=16,c=TG:x=17,c=TG:x=18,c=TG:x=19,c=TG:x=20,c=TG	10	10	3
+r2	0	2	4S1X10M18D	.||||||||||``````````````````	0	0		2	10	1
+r3	16	4	2H2S1X10M16D1H	.||||||||||````````````````	0	0		4	10	1
+r4	0	1	2S1I5M2X3M20D	_|||||||xxx````````````````````	3	3	x=8,c=CT:x=9,c=CT:x=10,c=CT	0	10	0
+r5	4	9	3S10M	NA	NA	NA	NA	NA	NA	NA
+r6	0	20	*	NA	NA	NA	NA	NA	NA	NA
+r7	0	8	20D2X10M1D	````````````````````..xxxxxxxxxx`	10	10	x=30,c=CA:x=31,c=GA:x=32,c=GA:x=33,c=GA:x=34,c=GA:x=35,c=GC:x=36,c=TC:x=37,c=TC:x=38,c=TC:x=39,c=TC	29	10	22
+pluk: SAM values not available (NA) for 2 rows: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+== --sam-aln-context=3 --sam-nonf
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
+r1	0	8	3X10M3X1S	...xxxxxxxxxx...	10	10	x=11,c=GC:x=12,c=GC:x=13,c=GC:x=14,c=GC:x=15,c=GC:x=16,c=TG:x=17,c=TG:x=18,c=TG:x=19,c=TG:x=20,c=TG	10	10	3
+r2	0	1	2S1I2X10M3D	_..||||||||||```	0	0		2	10	2
+r3	16	2	2H3X10M3D1H	...||||||||||```	0	0		4	10	3
+r4	0	1	3I5M2X3M3D	___|||||||xxx```	3	3	x=8,c=CT:x=9,c=CT:x=10,c=CT	0	10	0
+r5	4	9	3S10M	NA	NA	NA	NA	NA	NA	NA
+r6	0	20	*	NA	NA	NA	NA	NA	NA	NA
+r7	0	27	1D2X10M1D	`..xxxxxxxxxx`	10	10	x=30,c=CA:x=31,c=GA:x=32,c=GA:x=33,c=GA:x=34,c=GA:x=35,c=GC:x=36,c=TC:x=37,c=TC:x=38,c=TC:x=39,c=TC	29	10	3
+pluk: SAM values not available (NA) for 2 rows: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+r1	  10        20  
+CCCGGGGGTTTTTAAA
+...xxxxxxxxxx...
+TTTCCCCCGGGGGAAA
+r2	          10    
+-AAAAACCCCCGGGGG
+_..||||||||||```
+GGGAAACCCCCGG---
+r1	0	c1	8	60	3X10M4S	*	0	0	TTTCCCCCGGGGGAAAA	*	NM:i:0
+r2	0	c1	1	60	2S1I2X10M	*	0	0	GGGGGAAACCCCCGG	*	
+r3	16	c1	2	60	2H3X10M1H	*	0	0	TTTACCCCCGGGG	*	
+r4	0	c1	1	60	3I5M2X3M	*	0	0	AAAAAAAACCTTT	*	
+r5	4	c1	9	0	3S10M	*	0	0	ACGTACGTACGTA	*	
+r6	0	c1	20	60	*	*	0	0	ACGT	*	
+r7	0	c1	27	60	1D2X10M	*	0	0	TTAAAAACCCCC	*	
+pluk: alignment not extended at the right (reference length not known): 5 rows
+@SQ	SN:c1	LN:40
+r1	0	c1	8	60	3X10M3X1S	*	0	0	TTTCCCCCGGGGGAAAA	*	NM:i:0
+r2	0	c1	1	60	2S1I2X10M3D	*	0	0	GGGGGAAACCCCCGG	*	
+r3	16	c1	2	60	2H3X10M3D1H	*	0	0	TTTACCCCCGGGG	*	
+r4	0	c1	1	60	3I5M2X3M3D	*	0	0	AAAAAAAACCTTT	*	
+r5	4	c1	9	0	3S10M	*	0	0	ACGTACGTACGTA	*	
+r6	0	c1	20	60	*	*	0	0	ACGT	*	
+r7	0	c1	27	60	1D2X10M1D	*	0	0	TTAAAAACCCCC	*	
+r1	8	3X10M4S
+pluk: alignment not extended at the right (reference length not known): 1 row
+7
+--sam-aln-context=N: N must be a non-negative integer
+exit 1
+--sam-aln-context=N: N must be a non-negative integer
+exit 1
+--sam-aln-context=N: N must be a non-negative integer
+exit 1
+--sam-aln-xy=X,Y: X and Y must be positive integers
+exit 1
+--sam-aln-xy=X,Y: X and Y must be positive integers
+exit 1
+--sam-aln-xy=X,Y: X is larger than Y
+exit 1
+--sam-aln-xy=X,Y: X and Y must be positive integers
+exit 1
+--sam-aln-xy=X,Y: X and Y must be positive integers
+exit 1
+--sam-aln-context requires --sam or --sam-h
+exit 1
+--sam-aln-xy requires --sam or --sam-h
+exit 1
