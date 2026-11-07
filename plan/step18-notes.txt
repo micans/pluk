@@ -1,0 +1,59 @@
+
+Notes for plan/step18.txt (SAM: reference sequence and alignment display).
+
+
+Review before item 1
+
+  Agreed amendments, written into step18.txt: SAMVIEW section 7 corrected in item 1
+  (decision 0); a CIGAR past the reference end is its own NA reason, the query end cannot be
+  passed (decision 3); qry_qual keeps '*' with --sam-qlt-sim (decision 6); aln_posinfo: n a
+  non-negative integer, all ASCII letters upper-cased, past-end NA (decision 8); patchiness:
+  d a non-negative integer, empty s scores 0 (decision 9).
+
+
+Item 1: the reference stage and the parts
+
+  sam.rs: View now has a lifetime ('d, the dictionaries, as Machine<'d>) and holds the
+  seqlen and SAMFA dictionaries as references, found once when the machine is created;
+  counts() no longer takes the dictionaries. The reference stage is the value of RNAME in
+  SAMFA, a slice into the dictionary (no copy), cached per row as Option<Result<&[u8], Na>>.
+  It asks the count stage first, so unmapped records and invalid CIGARs or POS are never
+  looked up.
+
+  The parts stage stores nothing: ref_part and qry_part take the cut points from the count
+  stage (ref_trail5p_N, ref_matched_N; qry_trail5p_N, qry_matched_N) and cut the reference
+  or the query sequence. The query sequence is SEQ, or the filled one (Query::Filled); its
+  length is checked against qry_len (NA 'SEQ or QUAL length differs from the CIGAR'). A
+  matched part that ends past the reference is NA ('CIGAR past the reference end').
+
+  A Rust point: the step17 counts() handled the error case first because returning a
+  borrow from one match arm while noting (mutating) in the other is refused. The stages
+  are now split into count_stage (computes, no noting; its match only reads) and the public
+  functions, which note the reason of an Err after the borrow has ended. ref_part and
+  qry_part return owned bytes (Vec<u8>), which the operator pushes.
+
+  Two new NA reasons: 'RNAME not in the reference sequences (SAMFA)' (reached only with a
+  not-found value other than __EXIT__, which --sam/FILE cannot set: reserved, untested) and
+  'CIGAR past the reference end'. With __EXIT__ the operator calls Machine::fail, as map
+  does: 'RNAME [c9] not found in dictionary [SAMFA] (__EXIT__) at line N'.
+
+  The reference is looked up only when an operator needs it: with only qry_ parts an RNAME
+  missing from SAMFA does not end the run (pick looks it up whenever a sequence is needed).
+
+  The lists of operators that need the reference or the query are in sam.rs
+  (needs_reference, needs_query); compute::needs_query uses the latter, and compile checks
+  the former against the presence of SAMFA (error naming the operator and --sam/FILE).
+
+  Checked against pick: all six parts on qry3mm.sam and qry3vs.sam (mapped records,
+  @@2/none/4), with and without --sam-nonf: identical (329 and 309 rows), including the
+  filled secondaries. Synthetic records: identical where the behaviour is the same (soft
+  and hard clips, I, D, exterior D and I with and without normal form, reverse strand,
+  lower case); the differences are the decided ones (NA for unmapped, POS not a number, a
+  CIGAR past the reference end where pick gives partial substrings, a SEQ that does not fit
+  the CIGAR where pick computes the reference parts too, as pluk does, but discards the row).
+
+  Tests: sam-parts (md5 of the six parts on both files with and without --sam-nonf, the
+  first rows), sam-parts-edge (the synthetic records with and without --sam-nonf, -q,
+  --sam-h/FILE with an @SQ line, qry_ parts without a fasta, RNAME not in SAMFA with a
+  reference part (exit) and with only query parts (no exit), the compile-time errors).
+  list-ops ref updated.

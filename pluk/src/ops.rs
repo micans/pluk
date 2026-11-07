@@ -254,6 +254,18 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "-", result: "seq", doc: "Query sequence (SEQ, or filled for SEQ '*'; --sam-seqmiss)", fun: op_qry_seq },
     OpDef { name: "qry_qual", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
             operands: "-", result: "qual", doc: "Query quality (QUAL, or filled with the sequence)", fun: op_qry_qual },
+    OpDef { name: "ref_trail5p", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "seq", doc: "Reference before the matched part (needs --sam/FILE)", fun: op_ref_trail5p },
+    OpDef { name: "ref_matched", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "seq", doc: "Reference of the matched part (needs --sam/FILE)", fun: op_ref_matched },
+    OpDef { name: "ref_trail3p", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "seq", doc: "Reference after the matched part (needs --sam/FILE)", fun: op_ref_trail3p },
+    OpDef { name: "qry_trail5p", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "seq", doc: "Query sequence of the 5' trail", fun: op_qry_trail5p },
+    OpDef { name: "qry_matched", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "seq", doc: "Query sequence of the matched part", fun: op_qry_matched },
+    OpDef { name: "qry_trail3p", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "seq", doc: "Query sequence of the 3' trail", fun: op_qry_trail3p },
     OpDef { name: "sam_get", pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::SamTag, category: Category::Sam,
             operands: "tag def", result: "value", doc: "Value of optional field tag (XX:T, XX.T, XX-T), def if absent", fun: op_sam_get },
     OpDef { name: "map",    pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
@@ -1066,7 +1078,7 @@ fn op_octto(m: &mut Machine, row: &Row, _: &Attached) { from_radix(m, row, 8) }
 
 // Push a value of the count stage, or NA (counted by the view).
 fn sam_count(m: &mut Machine, row: &Row, f: impl Fn(&sam::Counts) -> Result<Value, sam::Na>) {
-    let result = match m.sam.counts(row, m.dicts) {
+    let result = match m.sam.counts(row) {
         Ok(c) => f(c),
         Err(reason) => Err(reason),
     };
@@ -1137,6 +1149,39 @@ fn query(m: &mut Machine, row: &Row, qual: bool) {
 
 fn op_qry_seq(m: &mut Machine, row: &Row, _: &Attached) { query(m, row, false) }
 fn op_qry_qual(m: &mut Machine, row: &Row, _: &Attached) { query(m, row, true) }
+
+// Push a sequence from the view, or NA (counted by the view). An RNAME that is not in
+// SAMFA ends the run when its not-found value is __EXIT__ (plan/step18.txt decision 0).
+fn sam_sequence(m: &mut Machine, row: &Row, result: Result<Vec<u8>, sam::Na>) {
+    let value = match result {
+        Ok(s) => Value::Bytes(s),
+        Err(sam::Na::RefSequence) if m.sam.reference_exits() => {
+            m.fail(format!("RNAME [{}] not found in dictionary [{}] (__EXIT__)",
+                           String::from_utf8_lossy(row.field(sam::RNAME)),
+                           String::from_utf8_lossy(crate::dict::SAM_REFERENCE)));
+            Value::Na
+        }
+        Err(_) => Value::Na,
+    };
+    m.push(value);
+}
+
+fn ref_part(m: &mut Machine, row: &Row, part: sam::Part) {
+    let result = m.sam.ref_part(row, part);
+    sam_sequence(m, row, result);
+}
+
+fn qry_part(m: &mut Machine, row: &Row, part: sam::Part) {
+    let result = m.sam.qry_part(row, part);
+    sam_sequence(m, row, result);
+}
+
+fn op_ref_trail5p(m: &mut Machine, row: &Row, _: &Attached) { ref_part(m, row, sam::Part::Trail5p) }
+fn op_ref_matched(m: &mut Machine, row: &Row, _: &Attached) { ref_part(m, row, sam::Part::Matched) }
+fn op_ref_trail3p(m: &mut Machine, row: &Row, _: &Attached) { ref_part(m, row, sam::Part::Trail3p) }
+fn op_qry_trail5p(m: &mut Machine, row: &Row, _: &Attached) { qry_part(m, row, sam::Part::Trail5p) }
+fn op_qry_matched(m: &mut Machine, row: &Row, _: &Attached) { qry_part(m, row, sam::Part::Matched) }
+fn op_qry_trail3p(m: &mut Machine, row: &Row, _: &Attached) { qry_part(m, row, sam::Part::Trail3p) }
 
 // sam_get tag def: the tag was checked and normalised to XX:T: at compile time.
 fn op_sam_get(m: &mut Machine, row: &Row, attached: &Attached) {

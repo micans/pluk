@@ -1,0 +1,108 @@
+
+- SAM: reference sequence and alignment display
+
+  Second SAM step (order in SAM.notes.txt; design SAMVIEW.design.txt, pick's implementation
+  in SAM.pick-survey.txt, 'survey'). Builds on step17: the view and its count stage, the
+  fill (query sequence), normal form.
+
+  Operators (pick's names; category sam, need --sam or --sam-h):
+    parts       ref_trail5p ref_matched ref_trail3p qry_trail5p qry_matched qry_trail3p
+    alignment   aln_ref aln_aln aln_qry aln_rlr aln_qlt aln_all aln_allq aln_all_pack
+    edits       aln_nedit_pia aln_nedit_piu aln_posinfo
+    patchiness  patchiness patchiness2
+  Options: --sam-aln-prefix=STR --sam-aln-mrk --sam-qlt-sim
+
+
+  Outcome of the discussion
+
+  Decisions:
+   0. The reference sequence is the value of RNAME in the dictionary SAMFA, which only
+      --sam/FILE and --sam-h/FILE fill (step4: unlike pick, a --fasta-dict never becomes
+      the SAM reference). An operator that needs the reference without --sam/FILE is a
+      compile-time error (pick: every row discarded silently). An RNAME not in SAMFA ends
+      the run with an error naming the line when the dictionary's not-found value is
+      __EXIT__ (the default of --sam/FILE, as pick and as map, step15); with another
+      not-found value (--sam/FILE cannot set one; reserved for later) the operators give
+      NA. Unmapped records are never looked up (NA, counted as in step17).
+      SAMVIEW.design.txt section 7 still says 'or else the first fasta dictionary given (as
+      pick)'; item 1 removes this.
+   1. New stages of the view (SAMVIEW.design.txt section 4): reference (the sequence, looked
+      up once per row), parts (the substrings), aln (the five strings). They are computed
+      on first use, as the count stage. The fill (step17 item 5) becomes active for every
+      operator that needs the query sequence: the qry_ parts, the alignment strings,
+      aln_nedit_pia/piu, aln_posinfo (a list in sam.rs, used by compute::needs_query).
+   2. Parts as pick (survey section 2): ref_trail5p is the reference before the matched
+      part (positions 1 .. ref_trail5p_N), ref_matched the matched part, ref_trail3p the
+      rest of the reference; qry_trail5p qry_matched qry_trail3p cut the query sequence (in
+      reference orientation, as SEQ) at qry_trail5p_N and qry_matched_N. pick writes '*'
+      when a sequence is missing; pluk gives NA (step17 decision 4).
+   3. The alignment strings as pick's sam_compute_aln (survey section 6), from POS and the
+      CIGAR (soft clips are not shown, hard clips ignored):
+        M = X   reference and query bases; aln | where they are equal ignoring case, x
+                otherwise (pick draws X as '.', its context marker; an X from the input
+                is a real alignment column, step17 decision 5)
+        I       reference '-', aln '~', query bases, quality copied
+        D       reference bases, aln '-', query '-', quality ' '
+        N       as D, aln '='
+        S       query skipped, nothing drawn;  H, P  nothing (pick stops at P)
+      U and u become T and t in both sequences first (pick). Then a leading run of '~' in
+      aln becomes '_', else a leading run of '-' becomes '`'; the same at the end, one class
+      per end (pick). aln_rlr: column i is reference position POS + i minus the number of
+      '-' in aln_ref before it; where that position is a multiple of 10 its number is
+      written from that column (pick); the ruler has the length of aln_ref. aln_qlt is the
+      quality along the query columns; QUAL '*' gives '!' (pick: any QUAL shorter than 2
+      characters). A CIGAR that runs past the end of the reference gives NA for the
+      alignment (counted as its own reason, 'CIGAR past the reference end', which also covers
+      a POS beyond the reference; pick prints a message and keeps the partial strings). The
+      query end cannot be passed: the query stage (step17) already requires SEQ and QUAL to
+      fit the CIGAR.
+   4. aln_all: aln_rlr aln_ref aln_aln aln_qry joined by newlines; aln_allq adds aln_qlt;
+      aln_all_pack joins with byte 0x01; each line is prefixed by --sam-aln-prefix=STR
+      (pick). The field then contains newlines, as pick.
+   5. --sam-aln-mrk (pick): aln_ref gets two spaces, '<' if ref_trail5p_N > 0 else '[', '>'
+      if ref_trail3p_N > 0 else ']', two spaces and 'ref_trail5p_N, ref_matched_N,
+      ref_trail3p_N'; aln_qry the same with the query counts. The ruler keeps the length
+      of the unmarked aln_ref. The reference length for ref_trail3p_N comes from seqlen,
+      which --sam/FILE fills from the fasta (step4).
+   6. --sam-qlt-sim (pick): QUAL is translated, '!' .. '~' to
+      .....,,,,,aaaaaAAAAAbbbbbBBBBBcccccCCCCCdddddDDDDDeeeeeEEEEEfffffFFFFFgggggGGGGG
+      hhhhhHHHHHiiii (five quality values per symbol), for qry_qual and aln_qlt; QUAL '*'
+      gives '.' in aln_qlt, and qry_qual keeps '*' (pick translates it to ',').
+   7. aln_nedit_pia: the length of aln_aln minus the number of | = _ ; aln_nedit_piu: minus
+      the number of | _ (pick; ` counts as an edit, as in pick; the view options of step19
+      revisit this with context).
+   8. aln_posinfo n (pick's getalnposx): the differences along the alignment, joined by ':'
+      in CIGAR order: x=P,c=RQ for a mismatch (P the reference position, R and Q the bases,
+      upper case), i=P,n=L[,s=SEQ] for an insertion before reference position P,
+      d=P,n=L[,s=SEQ] for a deletion and e=P,n=L[,s=SEQ] for an N, starting at P; s= is
+      given when n is 0 or L <= n; n must be a non-negative integer, else NA. = and X are
+      compared as M (pick stops with a message at = and X, survey 8.7). Empty string when
+      there is no difference. Both sequences are upper-cased (all ASCII letters, and U
+      becomes T) before the comparison, so that the x= items are exactly the x columns of
+      aln_aln (pick upper-cases only acgtu and compares case-sensitively: n against N is an
+      x= item but '|' in aln_aln). A CIGAR past the reference end gives NA as in decision 3
+      (pick checks the bounds for M only).
+   9. patchiness s d and patchiness2 s d: pick's sliding-window scores over an alignment
+      string s with window d (survey section 1; penalties . | ` _ = 0, + - ~ 1, x 2; ( and
+      ) count as |, a space as x). A character outside these gives NA (pick dies). d must be
+      a non-negative integer, else NA; an empty s scores 0. '.' and '+' have penalties in
+      pick's table but are not produced in step18 ('.' comes with step19's context).
+
+  Tests: pick/align data (qry3mm, qry3vs with ref3.fa; the run-test4.sh quantities without
+  context) compared with pick wherever the behaviour is the same, and synthetic records for
+  the edge cases (N, =, X, H, P, lower case, U, exterior indels with --sam-nonf, a CIGAR past
+  the reference end, a missing reference, unmapped records).
+
+
+  Items
+
+  1   The reference stage and the parts: SAMFA lookup, the compile-time check, __EXIT__,
+      the NA reasons; ref_ and qry_ parts; the fill active for them (decisions 0-2).
+      SAMVIEW.design.txt updated. Commit.
+
+  2   The alignment strings and aln_all aln_allq aln_all_pack; --sam-aln-prefix
+      --sam-aln-mrk --sam-qlt-sim (decisions 3-6). Commit.
+
+  3   aln_nedit_pia aln_nedit_piu aln_posinfo (decisions 7, 8). Commit.
+
+  4   patchiness patchiness2 (decision 9). Commit.

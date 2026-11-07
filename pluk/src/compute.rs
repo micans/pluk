@@ -272,6 +272,11 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, sam: b
                         if op.category == ops::Category::Sam && !sam {
                             return Err(format!("[{}]: operator {} needs --sam or --sam-h", shown, op.name));
                         }
+                        // The reference sequence comes only from --sam/FILE (plan/step18.txt decision 0).
+                        if crate::sam::needs_reference(op.name) && dicts.get(crate::dict::SAM_REFERENCE).is_none() {
+                            return Err(format!("[{}]: operator {} needs the reference sequence (--sam/FILE or \
+                                                --sam-h/FILE)", shown, op.name));
+                        }
                         let needed = match op.pops { Pops::N(n) | Pops::All(n) => n };
                         if stack.len() < needed {
                             return Err(format!("[{}]: stack underflow at operator {} (needs {}, has {})",
@@ -344,10 +349,10 @@ fn const_regex(instrs: &[Instr], stack: &[Slot], pos: usize, op: &OpDef, shown: 
 }
 
 // Whether a compute uses an operator that needs the query sequence: the fill is
-// then active (plan/step17.txt decision 8).
+// then active (plan/step17.txt decision 8; the list is in sam.rs).
 pub fn needs_query(computes: &[Compute]) -> bool {
     computes.iter().flat_map(|c| &c.instrs).any(|instr| match instr {
-        Instr::Op(op) | Instr::OpWith(op, _) => matches!(op.name, "qry_seq" | "qry_qual"),
+        Instr::Op(op) | Instr::OpWith(op, _) => crate::sam::needs_query(op.name),
         _ => false,
     })
 }

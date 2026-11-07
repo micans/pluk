@@ -166,6 +166,12 @@
       trails never overlap (pick: a CIGAR of only S H D N I counts twice). aln_nedit with a
       NM:i value that is not a non-negative integer is NA (pick: 0). suv and input_cigar are
       not taken over.
+    - SAM reference and parts (step18): the reference sequence comes only from --sam/FILE
+      or --sam-h/FILE (pick: also the first fasta dictionary given); an operator that needs
+      it without them is a compile-time error (pick: rows discarded silently); an RNAME not
+      in SAMFA ends the run only when an operator needs the reference (pick: whenever a
+      sequence is needed). ref_ and qry_ parts that cannot be computed are NA (pick: '*'),
+      including a matched part that ends past the reference (pick: partial substrings).
     - SAM sequence fill (SAMSEQ.design.txt): a SEQ '*' is filled from an earlier row of the
       same read and segment whose part of the read contains the needed part (hard clips
       respected), whatever the rows between; the cache is updated before every filter, so

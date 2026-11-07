@@ -1,0 +1,95 @@
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/2/0/0
+a	3	2S5M1I3M2S	AC	GTACGTAC	GTTCAGGTAA	TT	CCCCCGAAA	GG
+a	9	4S9M	ACGTACGT	ACGTTCAGG	TAA	TTCC	CCCGAAAGG	
+b	0	*	NA	NA	NA	NA	NA	NA
+c	18	5M	NA	NA	NA		AAAAA	
+e	5	2M1D2M2S	ACGT	ACGTA	CGTTCAGGTAA		GGCC	TT
+f	1	5M		ACGTA	CGTACGTTCAGGTAA	NA	NA	NA
+g	2	3H4M1S	a	cgtn	nnnuu		cgtn	A
+h	x	5M	NA	NA	NA	NA	NA	NA
+pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+pluk: SAM values not available (NA) for 1 row: CIGAR or POS not valid
+pluk: SAM values not available (NA) for 1 row: SEQ or QUAL length differs from the CIGAR
+pluk: SAM values not available (NA) for 1 row: CIGAR past the reference end
+pluk: SEQ '*' filled from another row of the read: 1 row
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/2/0/0
+a	3	2S5M1I3M2S	AC	GTACGTAC	GTTCAGGTAA	TT	CCCCCGAAA	GG
+a	9	4S9M	ACGTACGT	ACGTTCAGG	TAA	TTCC	CCCGAAAGG	
+b	0	*	NA	NA	NA	NA	NA	NA
+c	18	5M	NA	NA	NA		AAAAA	
+e	2	3D2M1D2M2I	ACGT	ACGTA	CGTTCAGGTAA		GGCC	TT
+f	1	5M		ACGTA	CGTACGTTCAGGTAA	NA	NA	NA
+g	2	3H4M1S	a	cgtn	nnnuu		cgtn	A
+h	x	5M	NA	NA	NA	NA	NA	NA
+pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+pluk: SAM values not available (NA) for 1 row: CIGAR or POS not valid
+pluk: SAM values not available (NA) for 1 row: SEQ or QUAL length differs from the CIGAR
+pluk: SAM values not available (NA) for 1 row: CIGAR past the reference end
+pluk: SEQ '*' filled from another row of the read: 1 row
+a	GTACGTAC
+a	ACGTTCAGG
+b	NA
+c	NA
+e	ACGTA
+f	ACGTA
+g	cgtn
+h	NA
+pluk: SAM reference lengths: header/fasta/shared/conflict 1/2/1/0
+@SQ	SN:c1	LN:20
+a	GTACGTAC	CCCCCGAAA
+a	ACGTTCAGG	CCCGAAAGG
+b	NA	NA
+c	NA	AAAAA
+e	ACGTA	GGCC
+f	ACGTA	NA
+g	cgtn	cgtn
+h	NA	NA
+pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+pluk: SAM values not available (NA) for 1 row: CIGAR or POS not valid
+pluk: SAM values not available (NA) for 1 row: SEQ or QUAL length differs from the CIGAR
+pluk: SAM values not available (NA) for 1 row: CIGAR past the reference end
+pluk: SEQ '*' filled from another row of the read: 1 row
+a	CCCCCGAAA
+a	CCCGAAAGG
+b	NA
+c	AAAAA
+e	GGCC
+f	NA
+g	cgtn
+h	NA
+pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+pluk: SAM values not available (NA) for 1 row: CIGAR or POS not valid
+pluk: SAM values not available (NA) for 1 row: SEQ or QUAL length differs from the CIGAR
+pluk: SEQ '*' filled from another row of the read: 1 row
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/2/0/0
+a	GTACGTAC
+a	ACGTTCAGG
+b	NA
+c	NA
+e	ACGTA
+f	ACGTA
+g	cgtn
+h	NA
+pluk: RNAME [c9] not found in dictionary [SAMFA] (__EXIT__) at line 9
+exit 1
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/2/0/0
+a	CCCCCGAAA
+a	CCCGAAAGG
+b	NA
+c	AAAAA
+e	GGCC
+f	NA
+g	cgtn
+h	NA
+d	ACGTA
+pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+pluk: SAM values not available (NA) for 1 row: CIGAR or POS not valid
+pluk: SAM values not available (NA) for 1 row: SEQ or QUAL length differs from the CIGAR
+pluk: SEQ '*' filled from another row of the read: 1 row
+exit 0
+pluk: [m::,ref_matched]: operator ref_matched needs the reference sequence (--sam/FILE or --sam-h/FILE)
+exit 1
+pluk: [t3::,ref_trail3p]: operator ref_trail3p needs the reference sequence (--sam/FILE or --sam-h/FILE)
+exit 1
+pluk: [t5::,qry_trail5p]: operator qry_trail5p needs --sam or --sam-h
+exit 1

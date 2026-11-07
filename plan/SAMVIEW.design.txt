@@ -71,7 +71,13 @@ plan/SAMSEQ.design.txt.
                ref_trail3p_N, the reference length
      query     the query sequence and quality: SEQ and QUAL, or the fill (SAMSEQ); checked
                against the CIGAR length
-     parts     [step18] reference and query substrings (ref_trail5p ref_matched ..)
+     reference the reference sequence: the value of RNAME in SAMFA, looked up once per row,
+               only for mapped records (step18)
+     parts     the reference and query substrings ref_trail5p ref_matched ref_trail3p
+               qry_trail5p qry_matched qry_trail3p (step18): cut from the reference at
+               ref_trail5p_N and ref_trail5p_N + ref_matched_N, from the query sequence (SEQ
+               orientation) at qry_trail5p_N and qry_trail5p_N + qry_matched_N; nothing is
+               stored, the cut points come from the count stage
      aln       [step18] the alignment strings (aln_ref aln_aln aln_qry aln_rlr aln_qlt)
      rbt       [step20] the region-bound tally
 
@@ -133,7 +139,11 @@ plan/SAMSEQ.design.txt.
      reference length    RNAME not in the seqlen dictionary: ref_len, ref_trail3p_N
      sequence length     SEQ (stored or filled) differs from qry_len: qry_seq, qry_qual and
                          the query parts
-     [step18] reference sequence not available
+     reference sequence  RNAME not in SAMFA, when its not-found value is not __EXIT__
+                         (--sam/FILE always sets __EXIT__, which ends the run instead): the
+                         reference parts and the alignment (step18)
+     reference end       the matched part ends past the reference (also a POS beyond it):
+                         the reference parts and the alignment (step18)
    isforward and sam_get work for every record. With the fill active, a row whose SEQ '*'
    cannot be filled never reaches the computes (--sam-seqmiss).
 
@@ -141,14 +151,20 @@ plan/SAMSEQ.design.txt.
 7. The reference length and sequence
 
    The reference length is the value of RNAME in the seqlen dictionary (step4: @SQ lines of
-   the header, or with --sam/FILE the fasta lengths, reported if they disagree). [step18]
-   The reference sequence comes from the dictionary SAMFA (--sam/FILE), or else the first
-   fasta dictionary given (as pick).
+   the header, or with --sam/FILE the fasta lengths, reported if they disagree). The
+   reference sequence comes only from the dictionary SAMFA, which --sam/FILE and
+   --sam-h/FILE fill (pick: also the first fasta dictionary given). An operator that needs
+   it without --sam/FILE is a compile-time error (pick: every row discarded silently). An
+   RNAME not in SAMFA ends the run with an error naming the line (__EXIT__, as map); it is
+   looked up only when an operator needs the reference (pick: whenever a sequence is
+   needed).
 
 
 8. Operators and availability
 
    SAM operators need --sam or --sam-h: elsewhere a compile-time error naming the option.
+   Those that need the reference sequence (sam::needs_reference) also need --sam/FILE or
+   --sam-h/FILE; those that need the query sequence (sam::needs_query) make the fill active.
    cgsum cgmax cgcount take a CIGAR string from the stack and work everywhere. -l sam lists
    the SAM operators. Not taken over: suv (the view's values are operators), input_cigar
    (withheld), sam_put (separate, SAM.notes.txt).

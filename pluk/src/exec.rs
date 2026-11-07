@@ -48,7 +48,7 @@ pub struct Machine<'d> {
     pub rowno:  u64,
     pub lineno: u64,
     time_zone:  Option<jiff::tz::TimeZone>,     // for todate, looked up on first use
-    pub sam:    crate::sam::View,               // the per-row SAM view (plan/SAMVIEW.design.txt)
+    pub sam:    crate::sam::View<'d>,             // the per-row SAM view (plan/SAMVIEW.design.txt)
 }
 
 // A small random number generator, splitmix64 (Steele, Lea and Flood, 2014): a

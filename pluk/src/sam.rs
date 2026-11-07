@@ -101,9 +101,12 @@ pub enum Na {
     Cigar,
     RefLength,
     SeqLength,
+    RefSequence,
+    RefEnd,
 }
 
-const N_REASONS: usize = 4;
+const N_REASONS: usize = 6;
+const REASONS: [Na; N_REASONS] = [Na::Unmapped, Na::Cigar, Na::RefLength, Na::SeqLength, Na::RefSequence, Na::RefEnd];
 
 impl Na {
     fn index(self) -> usize {
@@ -115,6 +118,8 @@ impl Na {
             Na::Cigar => "CIGAR or POS not valid",
             Na::RefLength => "reference length not known (no @SQ line or fasta for RNAME)",
             Na::SeqLength => "SEQ or QUAL length differs from the CIGAR",
+            Na::RefSequence => "RNAME not in the reference sequences (SAMFA)",
+            Na::RefEnd => "CIGAR past the reference end",
         }
     }
 }
@@ -156,24 +161,57 @@ pub enum Query {
     Mismatch,
 }
 
+// The three parts of a sequence: before, in and after the matched part.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum Part {
+    Trail5p,
+    Matched,
+    Trail3p,
+}
+
+// Part of seq, cut at a and b (a <= b <= seq.len()).
+fn cut(seq: &[u8], a: usize, b: usize, part: Part) -> &[u8] {
+    match part {
+        Part::Trail5p => &seq[..a],
+        Part::Matched => &seq[a..b],
+        Part::Trail3p => &seq[b..],
+    }
+}
+
+// Operators that need the reference sequence (SAMFA, from --sam/FILE; a compile-time
+// error without it) and those that need the query sequence (the fill is active).
+const NEEDS_REFERENCE: &[&str] = &["ref_trail5p", "ref_matched", "ref_trail3p"];
+const NEEDS_QUERY: &[&str] = &["qry_seq", "qry_qual", "qry_trail5p", "qry_matched", "qry_trail3p"];
+
+pub fn needs_reference(op: &str) -> bool {
+    NEEDS_REFERENCE.contains(&op)
+}
+
+pub fn needs_query(op: &str) -> bool {
+    NEEDS_QUERY.contains(&op)
+}
+
 // The per-row SAM view, held by the machine; reset for every row. A stage is
-// computed when an operator first asks for it (section 1).
-pub struct View {
-    seqlen:  Option<usize>,                 // the seqlen dictionary, if any
+// computed when an operator first asks for it (section 1). 'd: the dictionaries.
+pub struct View<'d> {
+    seqlen:  Option<&'d dict::Dict>,        // the seqlen dictionary, if any
+    samfa:   Option<&'d dict::Dict>,        // the reference sequences (--sam/FILE), if any
     counts:  Option<Result<Counts, Na>>,
+    reference: Option<Result<&'d [u8], Na>>,
     pub query: Query,                       // set for every row while the fill is active
     noted:   [bool; N_REASONS],             // this row has been counted for the reason
     pub n_na: [u64; N_REASONS],             // rows per reason, for the report at the end
 }
 
-impl View {
-    pub fn new(dicts: &Dicts) -> View {
-        View { seqlen: dicts.index_of(dict::SEQ_LENGTHS), counts: None, query: Query::Row, noted: [false; N_REASONS],
-               n_na: [0; N_REASONS] }
+impl<'d> View<'d> {
+    pub fn new(dicts: &'d Dicts) -> View<'d> {
+        View { seqlen: dicts.get(dict::SEQ_LENGTHS), samfa: dicts.get(dict::SAM_REFERENCE), counts: None,
+               reference: None, query: Query::Row, noted: [false; N_REASONS], n_na: [0; N_REASONS] }
     }
 
     pub fn reset(&mut self) {
         self.counts = None;
+        self.reference = None;
         self.noted = [false; N_REASONS];
     }
 
@@ -185,27 +223,100 @@ impl View {
         }
     }
 
-    // The count stage; an Err is counted.
-    pub fn counts(&mut self, row: &Row, dicts: &Dicts) -> Result<&Counts, Na> {
-        if self.counts.is_none() {
-            self.counts = Some(compute_counts(row, self.seqlen.map(|i| dicts.at(i))));
-        }
-        // The error case first: a borrow of self.counts returned from one arm would
-        // keep self borrowed in the other (a limit of the borrow checker).
-        if let Some(Err(reason)) = &self.counts {
-            let reason = *reason;
+    // Count the reason of an Err, and pass the result on.
+    fn noted<T>(&mut self, result: Result<T, Na>) -> Result<T, Na> {
+        if let Err(reason) = result {
             self.note(reason);
-            return Err(reason);
+        }
+        result
+    }
+
+    // The count stage, computed once per row.
+    fn count_stage(&mut self, row: &Row) -> Result<&Counts, Na> {
+        if self.counts.is_none() {
+            self.counts = Some(compute_counts(row, self.seqlen));
         }
         match &self.counts {
             Some(Ok(c)) => Ok(c),
-            _ => unreachable!("counts computed above"),
+            Some(Err(reason)) => Err(*reason),
+            None => unreachable!("counts computed above"),
         }
+    }
+
+    // The count stage; an Err is counted.
+    pub fn counts(&mut self, row: &Row) -> Result<&Counts, Na> {
+        if let Err(reason) = self.count_stage(row) {
+            self.note(reason);
+            return Err(reason);
+        }
+        self.count_stage(row)
+    }
+
+    // The reference stage: the value of RNAME in SAMFA, looked up once per row.
+    // Unmapped records are not looked up (the count stage fails first).
+    fn reference_stage(&mut self, row: &Row) -> Result<&'d [u8], Na> {
+        self.count_stage(row)?;
+        if self.reference.is_none() {
+            let found = self.samfa.and_then(|d| d.map.get(row.field(RNAME)));
+            self.reference = Some(found.map(|v| v.as_slice()).ok_or(Na::RefSequence));
+        }
+        self.reference.expect("reference looked up above")
+    }
+
+    // Whether an RNAME that is not in SAMFA ends the run (its not-found value is
+    // __EXIT__, the default of --sam/FILE) rather than giving NA.
+    pub fn reference_exits(&self) -> bool {
+        self.samfa.is_some_and(|d| d.not_found == dict::NotFound::Exit)
+    }
+
+    // The query sequence: SEQ, or the filled one.
+    fn query_seq<'a>(&'a self, row: &'a Row) -> Result<&'a [u8], Na> {
+        match &self.query {
+            Query::Row => Ok(row.field(SEQ)),
+            Query::Filled { seq, .. } => Ok(seq),
+            Query::Mismatch => Err(Na::SeqLength),
+        }
+    }
+
+    // A part of the reference (decision 2 of plan/step18.txt): before position
+    // ref_trail5p_N + 1, the matched part, the rest. An Err is counted.
+    pub fn ref_part(&mut self, row: &Row, part: Part) -> Result<Vec<u8>, Na> {
+        let result = self.ref_cut(row, part);
+        self.noted(result)
+    }
+
+    fn ref_cut(&mut self, row: &Row, part: Part) -> Result<Vec<u8>, Na> {
+        let c = self.count_stage(row)?;
+        let (a, m) = (c.ref_trail5p, c.ref_matched);
+        let reference = self.reference_stage(row)?;
+        let a = usize::try_from(a).map_err(|_| Na::RefEnd)?;
+        let b = usize::try_from(m).ok().and_then(|m| a.checked_add(m)).ok_or(Na::RefEnd)?;
+        if b > reference.len() {
+            return Err(Na::RefEnd);
+        }
+        Ok(cut(reference, a, b, part).to_vec())
+    }
+
+    // A part of the query sequence (SEQ orientation), cut at qry_trail5p_N and
+    // qry_trail5p_N + qry_matched_N. An Err is counted.
+    pub fn qry_part(&mut self, row: &Row, part: Part) -> Result<Vec<u8>, Na> {
+        let result = self.qry_cut(row, part);
+        self.noted(result)
+    }
+
+    fn qry_cut(&mut self, row: &Row, part: Part) -> Result<Vec<u8>, Na> {
+        let c = self.count_stage(row)?;
+        let (a, m, total) = (c.qry_trail5p as usize, c.qry_matched as usize, c.qry_len() as usize);
+        let seq = self.query_seq(row)?;
+        if seq.len() != total {
+            return Err(Na::SeqLength);
+        }
+        Ok(cut(seq, a, a + m, part).to_vec())
     }
 
     // The end-of-run report (silenced by -q).
     pub fn report(&self) {
-        for reason in [Na::Unmapped, Na::Cigar, Na::RefLength, Na::SeqLength] {
+        for reason in REASONS {
             let n = self.n_na[reason.index()];
             if n > 0 {
                 crate::note::note!("pluk: SAM values not available (NA) for {} row{}: {}", n,
