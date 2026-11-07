@@ -154,11 +154,21 @@ impl ColSpec {
     // select at least one column. label and kind make pick's messages, e.g.
     // "(Output) handle [x] in output does not reference ...".
     pub fn expand(&self, names: &ColumnNames, label: &str, kind: &str) -> Result<Vec<usize>, String> {
-        let mut offsets = Vec::new();
+        Ok(self.expand_bases(names, label, kind)?.into_iter().map(|(i, _)| i).collect())
+    }
+
+    // As expand, with capture group 1 of the '+' regex element that selected each
+    // column, if the regex has a capturing group (plan/step26.txt decision 3: it names
+    // the new column of a compute). A group that does not take part in the match, or
+    // matches the empty string, is an error: a column cannot be named by nothing.
+    pub fn expand_bases(&self, names: &ColumnNames, label: &str, kind: &str)
+        -> Result<Vec<(usize, Option<Vec<u8>>)>, String>
+    {
+        let mut offsets: Vec<(usize, Option<Vec<u8>>)> = Vec::new();
         for element in &self.elements {
             match element {
                 Element::Name(name) => match names.index_of(name) {
-                    Some(i) => offsets.push(i),
+                    Some(i) => offsets.push((i, None)),
                     None => return Err(unknown_name(name, names, label, kind)),
                 },
                 Element::Range(range) => {
@@ -173,11 +183,25 @@ impl ColSpec {
                         return Err(format!("({}) range [{}] in {} selects no column (there are {})",
                                            label, String::from_utf8_lossy(&range.text), kind, names.len()));
                     }
-                    offsets.extend(found);
+                    offsets.extend(found.into_iter().map(|i| (i, None)));
                 }
                 Element::Regex { text, re } => {
                     let before = offsets.len();
-                    offsets.extend((0..names.len()).filter(|&i| names.is_current(i) && re.is_match(names.name(i))));
+                    for i in (0..names.len()).filter(|&i| names.is_current(i)) {
+                        let Some(caps) = re.captures(names.name(i)) else { continue };
+                        let base = if re.captures_len() > 1 {
+                            match caps.get(1).map(|g| g.as_bytes()).filter(|g| !g.is_empty()) {
+                                Some(g) => Some(g.to_vec()),
+                                None => return Err(format!("({}) regex [{}] in {}: group 1 is empty or does not \
+                                                            take part in the match for column [{}]", label,
+                                                           String::from_utf8_lossy(text), kind,
+                                                           String::from_utf8_lossy(names.name(i)))),
+                            }
+                        } else {
+                            None
+                        };
+                        offsets.push((i, base));
+                    }
                     if offsets.len() == before {
                         return Err(format!("({}) regex [{}] in {} matches no column among {}",
                                            label, String::from_utf8_lossy(text), kind, names.joined()));

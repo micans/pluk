@@ -43,3 +43,32 @@ Item 1: NAME shapes, prefix/suffix renaming, keep-original
   a %2F prefix, the warning, the errors, --test-compute). compute-parse-errors: the
   former 'not yet supported' case p/x/s is now valid; p/x//s takes its place. Unit test
   rename_shapes; errors extended. help refs.
+
+
+Item 2: capture group 1 naming
+
+  colspec.rs: expand_bases returns each selected column with capture group 1 of the '+'
+  regex element that selected it, when the regex has a capturing group (the anchored
+  wrapper \A(?:..)\z is non-capturing, so group 1 is the user's); a group that does not
+  take part in the match or matches empty is an error naming the column. expand is now
+  expand_bases without the groups.
+
+  compute.rs: in the per-column loop the base of the new name is group 1 if there is
+  one, else the column name; a column named by a group is renamed even without P and S
+  (an empty Rename stands in), so the renaming rules apply: equal generated names and a
+  generated name that exists are errors; a group equal to the column's own name
+  (+(fib)) is the in-place case and needs -i. Duplicates merged keep the first element's
+  group. A non-capturing group ((?:..), written (?%3A..) in a NAME, as ':' separates list
+  elements) leaves the plain map.
+
+  Behaviour change, as decided: -i '+num(\d)::..' now creates columns 1 2 4 instead of
+  redefining num1 num2 num4; no existing test depended on it.
+
+  Checked against pick: +num(\d) (columns 1 2 4), with a prefix and suffix, the collision
+  of n(u)m\d (pick also refuses, with another message), keep-original with a group
+  against pick's P/SPEC//S: identical.
+
+  Tests: rename-group (the cases above, a list mixing a grouped regex and a name, -A, -k,
+  the errors). help refs.
+
+  step26 complete with this item.

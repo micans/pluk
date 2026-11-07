@@ -137,7 +137,9 @@ Computes (given among the columns; a stack language, as pick):
               name, list, +REGEX or range), __ being that column, and gives a new
               column named P + name + S (P or S may be empty: P/SPEC/, SPEC/S);
               P//SPEC//S also outputs each original before its new column. A
-              literal / in a name is written %2F.
+              literal / in a name is written %2F. Capture group 1 of a +REGEX
+              names the new column instead of the whole name, also without P and
+              S: +num(\d)::__^10,add creates columns 1 2 4.
 
 Filters (given among the columns; VALUE is %-decoded, e.g. %2F for '/'):
   @NAME/op/VALUE  numeric comparison of column NAME with VALUE, op one of

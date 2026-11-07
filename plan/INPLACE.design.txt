@@ -77,7 +77,8 @@ Renaming forms are deferred (section 6).
 
    - Renaming forms: done in step26 (plan/step26.txt): SPEC/S, P/SPEC/S, and P//SPEC//S
      for keeping the original (pick: P/SPEC//S); a literal '/' in a NAME is %2F.
-   - Capture group 1 naming the new columns of a map ('num(\d)'::__^10,add -> 1 2 4).
+   - Capture group 1 naming the new columns of a map: done in step26 ('+num(\d)'::__^10,add
+     -> 1 2 4).
    - A per-compute in-place marker instead of (or next to) the global -i (section 1).
    - --A=NAME (pick: -A with the new columns after column NAME).
    - Chaining redefinitions of an input column (pick allows fib::fib^1,add fib::fib^10,add;

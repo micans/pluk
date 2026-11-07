@@ -286,20 +286,26 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, context: Context, dic
         let targets: Vec<(Vec<u8>, Option<usize>)> = match &spec.map {
             None => vec![(spec.name.clone(), None)],
             Some(cs) => {
-                let mut columns: Vec<usize> = Vec::new();
-                for i in cs.expand(&names, "Compute", &format!("compute {}", String::from_utf8_lossy(&spec.name)))? {
-                    if !columns.contains(&i) {
-                        columns.push(i);
+                // Capture group 1 of a '+' regex element names the column (decision 3).
+                let mut columns: Vec<(usize, Option<Vec<u8>>)> = Vec::new();
+                for (i, base) in cs.expand_bases(&names, "Compute", &format!("compute {}",
+                                                 String::from_utf8_lossy(&spec.name)))? {
+                    if !columns.iter().any(|(c, _)| *c == i) {
+                        columns.push((i, base));
                     }
                 }
                 let mut targets: Vec<(Vec<u8>, Option<usize>)> = Vec::with_capacity(columns.len());
-                for &i in &columns {
+                let no_rename = Rename { prefix: Vec::new(), suffix: Vec::new(), keep: false };
+                for (i, group) in &columns {
+                    let i = *i;
                     let source = names.name(i);
-                    let target = match &spec.rename {
+                    let base = group.as_deref().unwrap_or(source);
+                    let renaming = spec.rename.as_ref().or(group.as_ref().map(|_| &no_rename));
+                    let target = match renaming {
                         None => source.to_vec(),
-                        Some(r) => [&r.prefix[..], source, &r.suffix[..]].concat(),
+                        Some(r) => [&r.prefix[..], base, &r.suffix[..]].concat(),
                     };
-                    if let Some(r) = &spec.rename {
+                    if let Some(r) = renaming {
                         let t = String::from_utf8_lossy(&target);
                         if let Some((_, other)) = targets.iter().find(|(n, _)| *n == target) {
                             return Err(format!("[{}]: columns [{}] and [{}] both get the name [{}]", shown,

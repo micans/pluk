@@ -26,6 +26,7 @@ Computes ('::', ':=') are still rejected with a "not yet supported" error.
      'num(\d)'::__ creates columns 1 2 4). In output selection and filter handles the name is
      not changed (pick: 'num(\d)' outputs num1 num2 num4). [Corrected in step8 item 1; earlier
      text said the output column was renamed.]
+     Implemented in step26 (ColSpec::expand_bases gives group 1 per selected column).
    - Applies wherever a column name is accepted: output list, compute handles (x::...), column
      references within computes, selection handles (@...). It does not apply to regexes given as
      values (e.g. the ~ match operators, -/PAT); those are always regexes.

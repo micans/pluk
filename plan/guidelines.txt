@@ -96,7 +96,9 @@
       P/SPEC//S, which is refused with a hint); exactly the shapes SPEC/S, P/SPEC/S and
       P//SPEC//S are accepted; a generated name that equals an existing column is an
       error even with -i (pick: allowed with -i), as are two equal generated names;
-      P//SPEC//S with ':=' is an error.
+      P//SPEC//S with ':=' is an error. Capture group 1 of a '+' regex names the new
+      column (as pick); a group that does not take part or matches empty is an error;
+      -i +num(\d)::.. creates new columns (until step26 it redefined in place).
     - -K cannot be combined with --sam or --sam-h (step11-notes.txt item 5).
     - Arithmetic (step12.txt): division by zero gives inf or nan (div) or NA (idiv, mod)
       where pick dies; a float given to idiv, mod or ipow is NA (pick truncates); ipow

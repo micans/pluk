@@ -1,0 +1,54 @@
+== name +num(\d)::__^10,add
+name	1	2	4
+Ann	11	12	11
+Bob	12	13	12
+== name x/+num(\d)/y::__
+name	x1y	x2y	x4y
+Ann	1	2	1
+Bob	2	3	2
+== name x//+num(\d)//y::__^10,add
+name	num1	x1y	num2	x2y	num4	x4y
+Ann	1	11	2	12	1	11
+Bob	2	12	3	13	2	12
+== name p/+num(\d):fib/::__
+name	p1	p2	p4	pfib
+Ann	1	2	1	1
+Bob	2	3	2	1
+== -i name +num(?%3A\d)::__^10,add
+name	num1	num2	num4
+Ann	11	12	11
+Bob	12	13	12
+== -i name +(fib)::__^1,add
+name	fib
+Ann	2
+Bob	2
+== -i name +n(um)1::__
+name	um
+Ann	1
+Bob	2
+== -A +num(\d)::__^10,add
+name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna	1	2	4
+Ann	1	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA	11	12	11
+Bob	1	1	4	cat	-2	0.285714	2	3	2	b_o_b	bc	CCGGTTAA	12	13	12
+== -k 1 x/+(1)/::__
+name	name
+Ann	Ann
+Bob	Bob
+== name +n(u)m\d::__^10,add
+pluk: [+n(u)m\d::__^10,add]: columns [num1] and [num2] both get the name [u]
+exit 1
+== name +(fib)::__^1,add
+pluk: [+(fib)::__^1,add]: name [fib] already exists (use -i for in-place change)
+exit 1
+== name +n(x)?um1::__
+pluk: (Compute) regex [+n(x)?um1] in compute +n(x)?um1: group 1 is empty or does not take part in the match for column [num1]
+exit 1
+== name +(n)u.*::__
+pluk: [+(n)u.*::__]: columns [num1] and [num2] both get the name [n]
+exit 1
+== name +f(i)b2?::__
+pluk: [+f(i)b2?::__]: columns [fib] and [fib2] both get the name [i]
+exit 1
+== name +(na)me::__ na::^1
+pluk: [na::^1]: name [na] already exists (use -i for in-place change)
+exit 1
