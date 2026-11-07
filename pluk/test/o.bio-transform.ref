@@ -17,6 +17,10 @@ forward       B seq       forward             seq if B is true, else rc(seq) [bi
 todna         x           x'                  DNA letters: uU to tT, other letters n N, other bytes N [bio]
 dnatl         x f         protein             DNA (or RNA) x translated from offset f (stop *, unknown ?, rest {..}) [bio]
 dnagc         x N         gc(x)               Percentage G C among the A C G T U of x, N decimals (none: NA) [bio]
+fasta         i s         fasta               FASTA record: >i newline s [bio]
+fastq         i s         fastq               FASTQ record of i and s, quality Z for every base [bio]
+fastQ         i s q       fastq               FASTQ record of i, s and quality q (q * gives Z; other length: NA) [bio]
+strpair       x y         pair(x,y)           Per position | where x and y are equal, x where not (shorter length) [bio]
 
 Use -l TERM.. for a category or the operators whose name contains TERM.
 Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam bio filter

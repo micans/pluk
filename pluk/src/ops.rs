@@ -346,6 +346,14 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x f", result: "protein", doc: "DNA (or RNA) x translated from offset f (stop *, unknown ?, rest {..})", fun: op_dnatl },
     OpDef { name: "dnagc",  pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Bio,
             operands: "x N", result: "gc(x)", doc: "Percentage G C among the A C G T U of x, N decimals (none: NA)", fun: op_dnagc },
+    OpDef { name: "fasta",  pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Bio,
+            operands: "i s", result: "fasta", doc: "FASTA record: >i newline s", fun: op_fasta },
+    OpDef { name: "fastq",  pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Bio,
+            operands: "i s", result: "fastq", doc: "FASTQ record of i and s, quality Z for every base", fun: op_fastq },
+    OpDef { name: "fastQ",  pops: Pops::N(3), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Bio,
+            operands: "i s q", result: "fastq", doc: "FASTQ record of i, s and quality q (q * gives Z; other length: NA)", fun: op_fastq_q },
+    OpDef { name: "strpair", pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Bio,
+            operands: "x y", result: "pair(x,y)", doc: "Per position | where x and y are equal, x where not (shorter length)", fun: op_strpair },
     OpDef { name: "map",    pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
             operands: "x D", result: "map-of-x", doc: "Value of x in dictionary D (not found: as D's default)", fun: op_map },
     OpDef { name: "dord",   pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
@@ -1490,6 +1498,43 @@ fn op_dnagc(m: &mut Machine, row: &Row, _: &Attached) {
             Value::Bytes(text)
         }
         _ => Value::Na,
+    };
+    m.push(value);
+}
+
+// fasta fastq fastQ strpair (decisions 6, 7): an NA operand gives NA.
+fn bio_binary(m: &mut Machine, row: &Row, f: fn(&[u8], &[u8]) -> Vec<u8>) {
+    let y = m.pop();
+    let x = m.pop();
+    let value = match (&x, &y) {
+        (Value::Na, _) | (_, Value::Na) => Value::Na,
+        (x, y) => Value::Bytes(f(&m.bytes(x, row), &m.bytes(y, row))),
+    };
+    m.push(value);
+}
+
+fn op_fasta(m: &mut Machine, row: &Row, _: &Attached) { bio_binary(m, row, crate::bio::fasta) }
+fn op_strpair(m: &mut Machine, row: &Row, _: &Attached) { bio_binary(m, row, crate::bio::strpair) }
+fn op_fastq(m: &mut Machine, row: &Row, _: &Attached) {
+    bio_binary(m, row, |i, s| crate::bio::fastq(i, s, None).expect("the placeholder fits"))
+}
+
+// fastQ i s q: a q of another length than s (other than '*') is NA, counted for the
+// report at the end.
+fn op_fastq_q(m: &mut Machine, row: &Row, _: &Attached) {
+    let q = m.pop();
+    let s = m.pop();
+    let i = m.pop();
+    let value = if [&i, &s, &q].iter().any(|v| matches!(v, Value::Na)) {
+        Value::Na
+    } else {
+        match crate::bio::fastq(&m.bytes(&i, row), &m.bytes(&s, row), Some(&m.bytes(&q, row))) {
+            Some(record) => Value::Bytes(record),
+            None => {
+                m.n_quality_mismatch += 1;
+                Value::Na
+            }
+        }
     };
     m.push(value);
 }

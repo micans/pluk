@@ -77,6 +77,32 @@ pub fn gc_counts(seq: &[u8]) -> (usize, usize) {
     (gc, all)
 }
 
+// fasta i s: '>' i newline s.
+pub fn fasta(id: &[u8], seq: &[u8]) -> Vec<u8> {
+    [&b">"[..], id, b"\n", seq].concat()
+}
+
+// fastq i s q: '@' i newline s newline '+' newline q. Without q, or with q '*' (SAM's
+// absent QUAL) for an s that is not one byte long, the quality is a 'Z' per base
+// (pick's placeholder: no reason to mistrust the data). None: q has another length
+// than s.
+pub fn fastq(id: &[u8], seq: &[u8], qual: Option<&[u8]>) -> Option<Vec<u8>> {
+    let placeholder;
+    let qual = match qual {
+        Some(q) if q != b"*" || seq.len() == 1 => q,
+        _ => {
+            placeholder = vec![b'Z'; seq.len()];
+            &placeholder[..]
+        }
+    };
+    (qual.len() == seq.len()).then(|| [&b"@"[..], id, b"\n", seq, b"\n+\n", qual].concat())
+}
+
+// strpair x y: per position up to the shorter length '|' for equal bytes, 'x' else.
+pub fn strpair(x: &[u8], y: &[u8]) -> Vec<u8> {
+    x.iter().zip(y).map(|(a, b)| if a == b { b'|' } else { b'x' }).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -109,6 +135,20 @@ mod tests {
         assert_eq!(gc_counts(b"ACGTacgt"), (4, 8));
         assert_eq!(gc_counts(b"GGNN--u"), (2, 3));
         assert_eq!(gc_counts(b"NNN"), (0, 0));
+    }
+
+    #[test]
+    fn records() {
+        assert_eq!(fasta(b"r1", b"ACGT"), b">r1\nACGT".to_vec());
+        assert_eq!(fastq(b"r1", b"ACG", None), Some(b"@r1\nACG\n+\nZZZ".to_vec()));
+        assert_eq!(fastq(b"r1", b"ACG", Some(b"!#%")), Some(b"@r1\nACG\n+\n!#%".to_vec()));
+        assert_eq!(fastq(b"r1", b"ACG", Some(b"*")), Some(b"@r1\nACG\n+\nZZZ".to_vec()));
+        assert_eq!(fastq(b"r1", b"A", Some(b"*")), Some(b"@r1\nA\n+\n*".to_vec()));
+        assert_eq!(fastq(b"r1", b"", Some(b"*")), Some(b"@r1\n\n+\n".to_vec()));
+        assert_eq!(fastq(b"r1", b"ACG", Some(b"!!")), None);
+        assert_eq!(strpair(b"ACGTA", b"ACCT"), b"||x|".to_vec());
+        assert_eq!(strpair(b"a", b"A"), b"x".to_vec());
+        assert_eq!(strpair(b"", b"ACG"), b"".to_vec());
     }
 
     #[test]

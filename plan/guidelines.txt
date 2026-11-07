@@ -225,7 +225,10 @@
       operand gives NA. dnatl reads U as T (pick: '?') and takes f as a non-negative
       integer (else NA); dnagc divides by the A C G T U bases only (pick: by the whole
       length, N and gaps included), gives NA without any (pick: 0, or NA for the empty
-      string), and takes N 0..1000 as pct.
+      string), and takes N 0..1000 as pct. fastQ writes a 'Z' per base for q '*' (SAM's
+      absent QUAL) on a sequence that is not one base long, the same record as fastq (pick:
+      the '*'), and gives NA, counted, for a q of another length (pick: writes it);
+      _strpair is taken over as strpair.
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

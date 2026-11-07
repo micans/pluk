@@ -365,6 +365,11 @@ fn run() -> std::io::Result<()> {
     }
     stages.filters.report_na();
     stages.machine.sam.report();
+    let n = stages.machine.n_quality_mismatch;
+    if n > 0 {
+        note::note!("pluk: fastQ: quality of another length than the sequence (NA): {} value{}", n,
+                    if n == 1 { "" } else { "s" });
+    }
     if let Some(nd) = stages.nd_adjust.as_ref().filter(|n| n.n_rows > 0) {
         note::note!("pluk: --sam-ND-adjust: N turned into D in {} row{} ({} bases)", nd.n_rows,
                     if nd.n_rows == 1 { "" } else { "s" }, nd.n_switched);

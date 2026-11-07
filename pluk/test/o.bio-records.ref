@@ -1,0 +1,62 @@
+>r1
+ACGT	@r1
+ACGT
++
+ZZZZ	@r1
+ACGT
++
+!#%&	||x|
+>r2
+A	@r2
+A
++
+Z	@r2
+A
++
+*	x
+>r3
+ACG	@r3
+ACG
++
+ZZZ	@r3
+ACG
++
+ZZZ	|||
+>r4
+ACG	@r4
+ACG
++
+ZZZ	NA	
+>r5
+	@r5
+
++
+	@r5
+
++
+	
+pluk: fastQ: quality of another length than the sequence (NA): 1 value
++
+
+NA	NA	NA	NA
+e89b8233d614c81e393a3c30a1f6f325  -
+e89b8233d614c81e393a3c30a1f6f325  -
+|||||||||||||||||||||x||||||||||||||||||xx|||||xxx||||x|x|||
+|||||||||||||||||xx|||||||||||||x|||||x|x||||||x||||||||||||
+6
+6
+4
+Operator      Consumed    Produced            Description
+--------------------------------------------------------------------------------
+rc            x           rc(x)               Reverse complement (IUPAC codes complemented, U as A) [bio]
+forward       B seq       forward             seq if B is true, else rc(seq) [bio]
+todna         x           x'                  DNA letters: uU to tT, other letters n N, other bytes N [bio]
+dnatl         x f         protein             DNA (or RNA) x translated from offset f (stop *, unknown ?, rest {..}) [bio]
+dnagc         x N         gc(x)               Percentage G C among the A C G T U of x, N decimals (none: NA) [bio]
+fasta         i s         fasta               FASTA record: >i newline s [bio]
+fastq         i s         fastq               FASTQ record of i and s, quality Z for every base [bio]
+fastQ         i s q       fastq               FASTQ record of i, s and quality q (q * gives Z; other length: NA) [bio]
+strpair       x y         pair(x,y)           Per position | where x and y are equal, x where not (shorter length) [bio]
+
+Use -l TERM.. for a category or the operators whose name contains TERM.
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam bio filter

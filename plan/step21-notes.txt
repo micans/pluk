@@ -60,3 +60,27 @@ Item 2: dnatl dnagc
   Tests: bio-stats (synthetic sequences in several frames and digits, operand errors and
   NA operands, the ref3.fa sequences, the SAM query sequences with forward). Unit tests
   translation, gc. list-ops and bio-transform refs.
+
+
+Item 3: fasta fastq fastQ strpair
+
+  bio.rs: fasta, fastq(id, seq, Option<qual>) (None and q '*' on a sequence that is not one
+  byte long give the 'Z' placeholder; a q of another length gives None), strpair. fastq
+  and fastQ share the one function, so q '*' gives exactly the fastq record.
+
+  ops.rs: fasta, fastq, strpair share bio_binary (NA operands give NA); fastQ pops three.
+  Its NA for a quality of another length is counted in Machine.n_quality_mismatch and
+  reported by main at the end (a note!, silenced by -q), next to the SAM report. It is a
+  count of values, not rows (fastQ is normally used once per row).
+
+  Checked against pick: fasta, fastq and strpair (pick: _strpair) on constants and columns:
+  identical; fastQ identical apart from the decided cases (q '*' on a sequence of more than
+  one base: Z; another length: NA). On qry3mm.sam (all QUAL '*'), 1,qry_seq,qry_qual,fastQ
+  gives exactly the output of 1,qry_seq,fastq, while pick writes '*' as the quality line.
+
+  Tests: bio-records (the four operators on records with qualities, '*' on one and on
+  several bases, a wrong length, an empty sequence, the count and -q, NA operands, fastq
+  and fastQ on qry3mm.sam, strpair of aln_ref and aln_qry with patchiness, -l bio). Unit
+  test records. list-ops and bio-transform refs.
+
+  step21 complete with this item.
