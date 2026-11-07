@@ -69,7 +69,8 @@ Computes (given among the columns; a stack language, as pick):
   stack, concatenated. Operators so far:
     stack       dup pop xch
     string      cat len lc uc rev rot13 substr head tail skip shed strim ppl
-                ppr zp nchar catall joinall join uie urlec urldc md5 fmtall
+                ppr zp nchar catall joinall join uie urlec urldc md5 fmtall cgsum
+                cgmax cgcount
                 (on bytes)
     arithmetic  add sub mul div idiv mod pow ipow max min neg abs sign sq incr
                 decr rand addall mulall maxall minall meanall hmeanall gmeanall

@@ -152,6 +152,12 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "x", result: "urlec(x)", doc: "URL encoding of x (all but A-Z a-z 0-9 _ as %XX)", fun: op_urlec },
     OpDef { name: "urldc",  pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
             operands: "x", result: "urldc(x)", doc: "URL decoding of x (%XX)", fun: op_urldc },
+    OpDef { name: "cgsum",  pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::String,
+            operands: "c s", result: "Sum of s in c", doc: "Sum of the lengths of the s operations in CIGAR c", fun: op_cgsum },
+    OpDef { name: "cgmax",  pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::String,
+            operands: "c s", result: "Max of s in c", doc: "Largest length of an s operation in CIGAR c", fun: op_cgmax },
+    OpDef { name: "cgcount", pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::String,
+            operands: "c s", result: "Count of s in c", doc: "Number of s operations in CIGAR c", fun: op_cgcount },
     OpDef { name: "md5",    pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::String,
             operands: "x", result: "md5(x)", doc: "MD5 sum of x (hexadecimal)", fun: op_md5 },
     OpDef { name: "fmtall", pops: Pops::All(1), pushes: 1, shape: STR, prepare: Prepare::FormatCount, category: Category::String,
@@ -554,6 +560,35 @@ fn op_urlec(m: &mut Machine, row: &Row, _: &Attached) {
 fn op_urldc(m: &mut Machine, row: &Row, _: &Attached) {
     string1(m, row, |s| *s = pct_decode(s))
 }
+
+// cgsum cgmax cgcount c s (plan/step17.txt decision 7): over the operations of CIGAR
+// c whose letter is in s. '*' gives 0 (pick); a CIGAR that does not parse is NA.
+fn cigar_tally(m: &mut Machine, row: &Row, f: fn(&[sam::Op]) -> u64) {
+    let s = m.pop();
+    let c = m.pop();
+    let result = if matches!(s, Value::Na) || matches!(c, Value::Na) {
+        Value::Na
+    } else {
+        let letters = m.bytes(&s, row).into_owned();
+        let cigar = m.bytes(&c, row);
+        if &cigar[..] == b"*" {
+            Value::Num(Num::I(0))
+        } else {
+            match sam::parse_cigar(&cigar) {
+                Some(ops) => {
+                    let chosen: Vec<sam::Op> = ops.into_iter().filter(|o| letters.contains(&o.op)).collect();
+                    Value::Num(Num::I(f(&chosen) as num::Int))
+                }
+                None => Value::Na,
+            }
+        }
+    };
+    m.push(result);
+}
+
+fn op_cgsum(m: &mut Machine, row: &Row, _: &Attached) { cigar_tally(m, row, |ops| ops.iter().map(|o| o.len).sum()) }
+fn op_cgmax(m: &mut Machine, row: &Row, _: &Attached) { cigar_tally(m, row, |ops| ops.iter().map(|o| o.len).max().unwrap_or(0)) }
+fn op_cgcount(m: &mut Machine, row: &Row, _: &Attached) { cigar_tally(m, row, |ops| ops.len() as u64) }
 
 fn op_md5(m: &mut Machine, row: &Row, _: &Attached) {
     string1(m, row, |s| {

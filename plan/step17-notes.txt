@@ -103,3 +103,23 @@ Item 3: the SAM view and its count stage
   first rows in full, -q), sam-counts-edge (the synthetic records incl. POS 0 and a FLAG
   that is not a number, the NA report, sam_get tag errors and a non-constant tag, a SAM
   operator without --sam, -l sam). list-ops and help refs updated.
+
+
+Item 4: cgsum cgmax cgcount
+
+  ops.rs: cigar_tally pops c and s, parses c with sam::parse_cigar (item 3) and applies a
+  function to the operations whose letter is in s: the sum of the lengths, the largest
+  length (0 if none), the number. '*' gives 0, as pick; a CIGAR that does not parse is NA
+  (decision 7). Category string (pick: string/sam): they take the CIGAR from the stack and
+  work without --sam; -l cg finds them.
+
+  pick matches the operations case-insensitively (m//ig), so 10m counts as M there; SAM has
+  upper-case operations only, and pluk's parser accepts those only. Letters in s that are
+  not operations count nothing (pick also, with a Perl warning).
+
+  Checked against pick: valid CIGARs with single and several letters, a letter that is no
+  operation, '*', an empty letter set, H P = X, and all records of qry3mm.sam (cgmax I,
+  cgsum D, cgcount ID): identical. Differences: 10Q, the empty string, 10m, fox (NA; pick 0
+  or 10 for 10m).
+
+  Tests: cigar-ops. list-ops and help refs updated.
