@@ -270,6 +270,12 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "-", result: "aln", doc: "Alignment: as aln_all, with the quality line", fun: op_aln_allq },
     OpDef { name: "aln_all_pack", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
             operands: "-", result: "aln", doc: "Alignment: as aln_all, lines joined by byte 0x01", fun: op_aln_all_pack },
+    OpDef { name: "aln_nedit_pia", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "Edits in aln_aln, intron aware (all but | = _)", fun: op_aln_nedit_pia },
+    OpDef { name: "aln_nedit_piu", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "n", doc: "Edits in aln_aln, intron unaware (all but | _)", fun: op_aln_nedit_piu },
+    OpDef { name: "aln_posinfo", pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "n", result: "info", doc: "Mismatch and indel positions; indel sequences up to length n (0: all)", fun: op_aln_posinfo },
     OpDef { name: "ref_trail5p", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
             operands: "-", result: "seq", doc: "Reference before the matched part (needs --sam/FILE)", fun: op_ref_trail5p },
     OpDef { name: "ref_matched", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
@@ -1174,15 +1180,20 @@ fn op_qry_qual(m: &mut Machine, row: &Row, _: &Attached) {
 fn sam_sequence(m: &mut Machine, row: &Row, result: Result<Vec<u8>, sam::Na>) {
     let value = match result {
         Ok(s) => Value::Bytes(s),
-        Err(sam::Na::RefSequence) if m.sam.reference_exits() => {
-            m.fail(format!("RNAME [{}] not found in dictionary [{}] (__EXIT__)",
-                           String::from_utf8_lossy(row.field(sam::RNAME)),
-                           String::from_utf8_lossy(crate::dict::SAM_REFERENCE)));
-            Value::Na
-        }
-        Err(_) => Value::Na,
+        Err(reason) => sam_na(m, row, reason),
     };
     m.push(value);
+}
+
+// NA for a value that needs the reference; the run ends instead if RNAME is not
+// in SAMFA and its not-found value is __EXIT__.
+fn sam_na(m: &mut Machine, row: &Row, reason: sam::Na) -> Value {
+    if reason == sam::Na::RefSequence && m.sam.reference_exits() {
+        m.fail(format!("RNAME [{}] not found in dictionary [{}] (__EXIT__)",
+                       String::from_utf8_lossy(row.field(sam::RNAME)),
+                       String::from_utf8_lossy(crate::dict::SAM_REFERENCE)));
+    }
+    Value::Na
 }
 
 fn ref_part(m: &mut Machine, row: &Row, part: sam::Part) {
@@ -1217,6 +1228,36 @@ fn aln_lines(m: &mut Machine, row: &Row, lines: fn(&sam::Aln) -> Vec<&[u8]>, sep
         out
     });
     sam_sequence(m, row, result);
+}
+
+// aln_nedit_pia and aln_nedit_piu (decision 7): the length of aln_aln minus the
+// columns that are not edits.
+fn aln_nedit(m: &mut Machine, row: &Row, good: &[u8]) {
+    let result = m.sam.aln(row).map(|a| a.aln.iter().filter(|b| !good.contains(b)).count());
+    let value = match result {
+        Ok(n) => Value::Num(Num::I(n as num::Int)),
+        Err(reason) => sam_na(m, row, reason),
+    };
+    m.push(value);
+}
+
+fn op_aln_nedit_pia(m: &mut Machine, row: &Row, _: &Attached) { aln_nedit(m, row, b"|=_") }
+fn op_aln_nedit_piu(m: &mut Machine, row: &Row, _: &Attached) { aln_nedit(m, row, b"|_") }
+
+// aln_posinfo n (decision 8): n a non-negative integer, else NA.
+fn op_aln_posinfo(m: &mut Machine, row: &Row, _: &Attached) {
+    let n = m.pop();
+    let limit = match m.num(&n, row) {
+        Some(Num::I(k)) if k >= 0 => u64::try_from(k).ok(),
+        _ => None,
+    };
+    match limit {
+        Some(limit) => {
+            let result = m.sam.posinfo(row, limit);
+            sam_sequence(m, row, result);
+        }
+        None => m.push(Value::Na),
+    }
 }
 
 fn op_aln_ref(m: &mut Machine, row: &Row, _: &Attached) { aln_lines(m, row, |a| vec![&a.reference], 0, false) }

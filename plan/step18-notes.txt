@@ -103,3 +103,39 @@ Item 2: the alignment strings, aln_all aln_allq aln_all_pack, the three options
   without --sam-nonf and with --sam-aln-mrk --sam-qlt-sim, aln_all_pack through od, the
   prefix, qry_qual with --sam-qlt-sim, the compile-time error, the option errors). Unit
   tests: alignment_strings, alignment_ruler, quality_simplified. help and list-ops refs.
+
+
+Item 3: aln_nedit_pia aln_nedit_piu aln_posinfo
+
+  sam.rs: the walk over the CIGAR (positions on the reference and the query, and the
+  bounds checks) moved out of draw into spans(), which returns one Span per operation
+  (letter, length, the reference and query ranges it covers). draw and posinfo both
+  iterate over the spans, so the NA rules past the end are shared.
+
+  posinfo(reference, seq, ops, pos, limit) is pick's getalnposx (decision 8): x=P,c=RQ per
+  mismatch in M = X, i=P,n=L before reference position P, d= and e= from P; ,s=SEQ when
+  limit is 0 or L <= limit. Both sequences are upper-cased with U as T first. View::posinfo
+  is not cached (the limit can differ between calls).
+
+  aln_nedit_pia and aln_nedit_piu count the columns of aln_aln outside | = _ and | _
+  (decision 7), from the alignment stage of item 2.
+
+  ops.rs: the NA path of the reference operators is now sam_na (NA, or the run ends for an
+  RNAME not in SAMFA with __EXIT__), used by sam_sequence and by aln_nedit. aln_posinfo
+  pops n first; n that is not a non-negative integer gives NA without a SAM count (an
+  operand error, as elsewhere).
+
+  A SEQ or QUAL that does not fit the CIGAR makes the query unavailable (step17, the
+  fill's LengthMismatch), so aln_posinfo is NA also when only QUAL is wrong, though it
+  does not use QUAL.
+
+  Checked against pick: aln_nedit_pia aln_nedit_piu, aln_posinfo with n 0 and 3 on qry3mm.sam
+  and qry3vs.sam (mapped records), with and without --sam-nonf: identical. Synthetic records
+  (out/aln.sam of item 2 and a record with lower-case n and U): identical apart from the
+  decided differences (= and X compared, P not stopping, case ignored, NA past the end,
+  for unmapped records and for a SEQ or QUAL not fitting the CIGAR, where pick gives 0 and
+  '').
+
+  Tests: sam-edits (md5 on both files with and without --sam-nonf, first rows), sam-edits-edge
+  (the synthetic records, n not valid, n from a column, RNAME not in SAMFA, the
+  compile-time error). Unit test alignment_posinfo. list-ops ref.

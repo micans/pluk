@@ -1,0 +1,52 @@
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/2/0/0
+n1	2S4M3N5M1S	5	8	e=7,n=3,s=GTA:x=10,c=CT:x=11,c=GC:x=12,c=TA:x=13,c=TG:x=14,c=CG	e=7,n=3,s=GTA:x=10,c=CT:x=11,c=GC:x=12,c=TA:x=13,c=TG:x=14,c=CG
+n2	3=1X2=	1	1	x=8,c=TA	x=8,c=TA
+n3	2H3M2P3M	3	3	x=5,c=AC:x=6,c=CG:x=7,c=GT	x=5,c=AC:x=6,c=CG:x=7,c=GT
+n4	14M	0	0		
+n5	3S2D6M2D2S	10	10	d=1,n=2,s=AC:x=3,c=GT:x=4,c=TA:x=5,c=AC:x=6,c=CG:x=7,c=GT:x=8,c=TA:d=9,n=2,s=AC	d=1,n=2,s=AC:x=3,c=GT:x=4,c=TA:x=5,c=AC:x=6,c=CG:x=7,c=GT:x=8,c=TA:d=9,n=2,s=AC
+n6	8M	NA	NA	NA	NA
+n7	2M2D3M	7	7	x=8,c=TA:x=9,c=AC:d=10,n=2,s=CG:x=12,c=TA:x=13,c=TG:x=14,c=CG	x=8,c=TA:x=9,c=AC:d=10,n=2,s=CG:x=12,c=TA:x=13,c=TG:x=14,c=CG
+n8	*	NA	NA	NA	NA
+n9	5M	NA	NA	NA	NA
+m1	14M	0	0		
+pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+pluk: SAM values not available (NA) for 1 row: SEQ or QUAL length differs from the CIGAR
+pluk: SAM values not available (NA) for 1 row: CIGAR past the reference end
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/2/0/0
+n1	2S4M3N5M1S	5	8	e=7,n=3,s=GTA:x=10,c=CT:x=11,c=GC:x=12,c=TA:x=13,c=TG:x=14,c=CG	e=7,n=3,s=GTA:x=10,c=CT:x=11,c=GC:x=12,c=TA:x=13,c=TG:x=14,c=CG
+n2	3=1X2=	1	1	x=8,c=TA	x=8,c=TA
+n3	2H3M2P3M	3	3	x=5,c=AC:x=6,c=CG:x=7,c=GT	x=5,c=AC:x=6,c=CG:x=7,c=GT
+n4	14M	0	0		
+n5	3I2D6M2D2I	10	10	i=1,n=3,s=GGG:d=1,n=2,s=AC:x=3,c=GT:x=4,c=TA:x=5,c=AC:x=6,c=CG:x=7,c=GT:x=8,c=TA:d=9,n=2,s=AC:i=11,n=2,s=TT	i=1,n=3,s=GGG:d=1,n=2,s=AC:x=3,c=GT:x=4,c=TA:x=5,c=AC:x=6,c=CG:x=7,c=GT:x=8,c=TA:d=9,n=2,s=AC:i=11,n=2,s=TT
+n6	8M	NA	NA	NA	NA
+n7	2M2D3M	7	7	x=8,c=TA:x=9,c=AC:d=10,n=2,s=CG:x=12,c=TA:x=13,c=TG:x=14,c=CG	x=8,c=TA:x=9,c=AC:d=10,n=2,s=CG:x=12,c=TA:x=13,c=TG:x=14,c=CG
+n8	*	NA	NA	NA	NA
+n9	5M	NA	NA	NA	NA
+m1	14M	0	0		
+pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+pluk: SAM values not available (NA) for 1 row: SEQ or QUAL length differs from the CIGAR
+pluk: SAM values not available (NA) for 1 row: CIGAR past the reference end
+n1	NA	NA	NA	e=7,n=3,s=GTA:x=10,c=CT:x=11,c=GC:x=12,c=TA:x=13,c=TG:x=14,c=CG
+n2	NA	NA	NA	x=8,c=TA
+n3	NA	NA	NA	x=5,c=AC:x=6,c=CG:x=7,c=GT
+n4	NA	NA	NA	
+n5	NA	NA	NA	d=1,n=2:x=3,c=GT:x=4,c=TA:x=5,c=AC:x=6,c=CG:x=7,c=GT:x=8,c=TA:d=9,n=2
+n6	NA	NA	NA	NA
+n7	NA	NA	NA	x=8,c=TA:x=9,c=AC:d=10,n=2,s=CG:x=12,c=TA:x=13,c=TG:x=14,c=CG
+n8	NA	NA	NA	NA
+n9	NA	NA	NA	NA
+m1	NA	NA	NA	
+n1	5
+n2	1
+n3	3
+n4	0
+n5	10
+n6	NA
+n7	7
+n8	NA
+n9	NA
+m1	0
+pluk: RNAME [c9] not found in dictionary [SAMFA] (__EXIT__) at line 11
+exit 1
+pluk: [p::^0,aln_posinfo]: operator aln_posinfo needs the reference sequence (--sam/FILE or --sam-h/FILE)
+exit 1

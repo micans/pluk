@@ -180,7 +180,8 @@ fn cut(seq: &[u8], a: usize, b: usize, part: Part) -> &[u8] {
 
 // Operators that need the reference sequence (SAMFA, from --sam/FILE; a compile-time
 // error without it) and those that need the query sequence (the fill is active).
-const ALIGNMENT: [&str; 8] = ["aln_ref", "aln_aln", "aln_qry", "aln_rlr", "aln_qlt", "aln_all", "aln_allq", "aln_all_pack"];
+const ALIGNMENT: [&str; 11] = ["aln_ref", "aln_aln", "aln_qry", "aln_rlr", "aln_qlt", "aln_all", "aln_allq", "aln_all_pack",
+                               "aln_nedit_pia", "aln_nedit_piu", "aln_posinfo"];
 const NEEDS_REFERENCE: &[&str] = &["ref_trail5p", "ref_matched", "ref_trail3p"];
 const NEEDS_QUERY: &[&str] = &["qry_seq", "qry_qual", "qry_trail5p", "qry_matched", "qry_trail3p"];
 
@@ -220,21 +221,46 @@ pub struct Aln {
     pub quality:   Vec<u8>,     // aln_qlt
 }
 
+// One CIGAR operation placed on the reference and the query: the ranges it
+// covers (empty for what it does not consume).
+struct Span {
+    op: u8,
+    n:  usize,
+    r:  std::ops::Range<usize>,
+    q:  std::ops::Range<usize>,
+}
+
+// The operations of a CIGAR placed from POS on, as pick walks them in
+// sam_compute_aln and getalnposx. Err: the CIGAR runs past the end of the reference
+// (RefEnd) or the query (SeqLength).
+fn spans(ops: &[Op], pos: u64, ref_len: usize, qry_len: usize) -> Result<Vec<Span>, Na> {
+    let mut pr = usize::try_from(pos - 1).map_err(|_| Na::RefEnd)?;
+    let mut pq = 0usize;
+    let mut spans = Vec::with_capacity(ops.len());
+    for op in ops {
+        let n = usize::try_from(op.len).map_err(|_| Na::RefEnd)?;
+        let r_end = if op.consumes_reference() { pr.checked_add(n).filter(|&e| e <= ref_len).ok_or(Na::RefEnd)? } else { pr };
+        let q_end = if op.consumes_query() { pq.checked_add(n).filter(|&e| e <= qry_len).ok_or(Na::SeqLength)? } else { pq };
+        spans.push(Span { op: op.op, n, r: pr..r_end, q: pq..q_end });
+        (pr, pq) = (r_end, q_end);
+    }
+    Ok(spans)
+}
+
+fn t_for_u(b: u8) -> u8 {
+    match b { b'u' => b't', b'U' => b'T', _ => b }
+}
+
 // The alignment strings from the reference, the query sequence and quality (SEQ
 // orientation; QUAL '*' already replaced), the CIGAR and POS, as pick's
 // sam_compute_aln. Err: the CIGAR runs past the end of the reference or the query.
 pub fn draw(reference: &[u8], seq: &[u8], qual: &[u8], ops: &[Op], pos: u64) -> Result<Aln, Na> {
-    let t_for_u = |b: u8| match b { b'u' => b't', b'U' => b'T', _ => b };
     let reference: Vec<u8> = reference.iter().map(|&b| t_for_u(b)).collect();
     let seq: Vec<u8> = seq.iter().map(|&b| t_for_u(b)).collect();
     let mut a = Aln::default();
-    let mut pr = usize::try_from(pos - 1).map_err(|_| Na::RefEnd)?;
-    let mut pq = 0usize;
-    for op in ops {
-        let n = usize::try_from(op.len).map_err(|_| Na::RefEnd)?;
-        let r_end = if op.consumes_reference() { pr.checked_add(n).filter(|&e| e <= reference.len()).ok_or(Na::RefEnd)? } else { pr };
-        let q_end = if op.consumes_query() { pq.checked_add(n).filter(|&e| e <= seq.len()).ok_or(Na::SeqLength)? } else { pq };
-        match op.op {
+    for Span { op, n, r, q } in spans(ops, pos, reference.len(), seq.len())? {
+        let (pr, r_end, pq, q_end) = (r.start, r.end, q.start, q.end);
+        match op {
             b'M' | b'=' | b'X' => {
                 let (r, q) = (&reference[pr..r_end], &seq[pq..q_end]);
                 a.aln.extend(r.iter().zip(q).map(|(x, y)| if x.eq_ignore_ascii_case(y) { b'|' } else { b'x' }));
@@ -250,17 +276,50 @@ pub fn draw(reference: &[u8], seq: &[u8], qual: &[u8], ops: &[Op], pos: u64) -> 
             }
             b'D' | b'N' => {
                 a.reference.extend_from_slice(&reference[pr..r_end]);
-                a.aln.resize(a.aln.len() + n, if op.op == b'D' { b'-' } else { b'=' });
+                a.aln.resize(a.aln.len() + n, if op == b'D' { b'-' } else { b'=' });
                 a.query.resize(a.query.len() + n, b'-');
                 a.quality.resize(a.quality.len() + n, b' ');
             }
             _ => {}     // S: the query advances, nothing drawn; H P: nothing
         }
-        (pr, pq) = (r_end, q_end);
     }
     mark_ends(&mut a.aln);
     a.ruler = ruler(&a.reference, pos);
     Ok(a)
+}
+
+// aln_posinfo (plan/step18.txt decision 8), as pick's getalnposx: the differences
+// along the alignment in CIGAR order, joined by ':'. x=P,c=RQ for a mismatch at
+// reference position P; i=P,n=L for an insertion before position P; d=P,n=L and
+// e=P,n=L for a deletion and an N starting at P; the inserted or deleted sequence is
+// added as ,s=SEQ when limit is 0 or L <= limit. Both sequences are upper-cased (U
+// becomes T) first; M = X are compared alike.
+pub fn posinfo(reference: &[u8], seq: &[u8], ops: &[Op], pos: u64, limit: u64) -> Result<Vec<u8>, Na> {
+    let upper = |s: &[u8]| -> Vec<u8> { s.iter().map(|b| t_for_u(b.to_ascii_uppercase())).collect() };
+    let (reference, seq) = (upper(reference), upper(seq));
+    let mut items: Vec<String> = Vec::new();
+    for Span { op, n, r, q } in spans(ops, pos, reference.len(), seq.len())? {
+        let p = r.start + 1;
+        let shown = |s: &[u8]| -> String {
+            if limit == 0 || n as u64 <= limit { format!(",s={}", String::from_utf8_lossy(s)) } else { String::new() }
+        };
+        match op {
+            b'M' | b'=' | b'X' => {
+                for (k, (x, y)) in reference[r.clone()].iter().zip(&seq[q]).enumerate() {
+                    if x != y {
+                        items.push(format!("x={},c={}{}", p + k, *x as char, *y as char));
+                    }
+                }
+            }
+            b'I' => items.push(format!("i={},n={}{}", p, n, shown(&seq[q]))),
+            b'D' | b'N' => {
+                let kind = if op == b'D' { 'd' } else { 'e' };
+                items.push(format!("{}={},n={}{}", kind, p, n, shown(&reference[r])));
+            }
+            _ => {}     // S H P
+        }
+    }
+    Ok(items.join(":").into_bytes())
 }
 
 // A leading run of ~ (insertion) becomes _, else a leading run of - (deletion)
@@ -459,6 +518,21 @@ impl<'d> View<'d> {
             aln.query.extend_from_slice(mark(q5, qm, q3).as_bytes());
         }
         Ok(aln)
+    }
+
+    // aln_posinfo with the given limit (0: always show the sequence); an Err is counted.
+    pub fn posinfo(&mut self, row: &Row, limit: u64) -> Result<Vec<u8>, Na> {
+        let result = self.compute_posinfo(row, limit);
+        self.noted(result)
+    }
+
+    fn compute_posinfo(&mut self, row: &Row, limit: u64) -> Result<Vec<u8>, Na> {
+        self.count_stage(row)?;
+        let reference = self.reference_stage(row)?;
+        let ops = parse_cigar(row.field(CIGAR)).ok_or(Na::Cigar)?;
+        let pos = number(row.field(POS)).ok_or(Na::Cigar)?;
+        let seq = self.query_seq(row)?;
+        posinfo(reference, seq, &ops, pos, limit)
     }
 
     // A part of the reference (decision 2 of plan/step18.txt): before position
@@ -680,6 +754,27 @@ mod tests {
         assert_eq!(drawn("ACGT", "CG", "3M", 2), Err(Na::SeqLength));
         // H and P draw nothing.
         assert_eq!(drawn("ACGTAC", "ACGTAC", "2H3M1P3M", 1).unwrap()[2], "||||||");
+    }
+
+    fn info(reference: &str, seq: &str, cigar: &str, pos: u64, limit: u64) -> Result<String, Na> {
+        let ops = parse_cigar(cigar.as_bytes()).unwrap();
+        posinfo(reference.as_bytes(), seq.as_bytes(), &ops, pos, limit).map(|v| String::from_utf8(v).unwrap())
+    }
+
+    #[test]
+    fn alignment_posinfo() {
+        assert_eq!(info("ACGTACGTAC", "ACGTACGTAC", "10M", 1, 0).unwrap(), "");
+        // Mismatches at reference positions, upper case; U is T; = and X compared as M.
+        assert_eq!(info("ACGTACGU", "TCgTAAGT", "2=1X5M", 1, 0).unwrap(), "x=1,c=AT:x=6,c=CA");
+        // Insertion before position P, deletion and N from P; s= up to the limit; S skipped.
+        assert_eq!(info("ACGTACGTAC", "TTACGGGTAC", "2S3M2I3M", 1, 2).unwrap(), "i=4,n=2,s=GG");
+        assert_eq!(info("ACGTACGTAC", "TTACGGGTAC", "2S3M2I3M", 1, 1).unwrap(), "i=4,n=2");
+        assert_eq!(info("ACGTACGTAC", "CGGTA", "2M3D3M", 2, 0).unwrap(), "d=4,n=3,s=TAC");
+        assert_eq!(info("ACGTACGTAC", "CGGTA", "2M3N3M", 2, 3).unwrap(), "e=4,n=3,s=TAC");
+        assert_eq!(info("ACGTACGTAC", "CGGTA", "2M3N3M", 2, 2).unwrap(), "e=4,n=3");
+        // H and P skipped; past the reference end.
+        assert_eq!(info("ACGTAC", "ACGTAC", "2H3M1P3M", 1, 0).unwrap(), "");
+        assert_eq!(info("ACGT", "CGTA", "4M", 2, 0), Err(Na::RefEnd));
     }
 
     #[test]
