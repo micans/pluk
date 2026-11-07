@@ -101,3 +101,36 @@ Item 2: narrowing (--sam-narrow-xy)
   without xy, the records made unmapped), sam-narrow-edge (synthetic records in seven
   settings, the earlier ctx.sam records, -A, @@ and @ filters, option errors). Unit test
   narrowing. help refs.
+
+
+Item 3: --sam-ND-adjust
+
+  sam.rs: parse_intervals (a-b,c-d; positive, a <= b; the empty value is no intervals, as
+  pick's split gives an empty list), nd_adjust(pos, cigar, intervals) (walks the
+  operations with the reference position; an N that overlaps no interval has its letter
+  replaced in the CIGAR text, so the rest stays as written; returns the bases turned into
+  D), bump_nm(field, add) (the first NM:i in a field of TAB-separated optional fields; a
+  value that is not a non-negative integer is left alone, as there is nothing sensible to
+  add to).
+
+  main.rs: NdAdjust is built right after the dictionaries are loaded: the dictionary must
+  exist and every value must parse (error naming the key), so a bad interval is reported
+  before input is read (pick: also at startup). Stages::judge applies it first among the
+  rewrites, to mapped records whose RNAME is a key; the NM:i field is looked up in columns
+  12 on (one field with -O12) and replaced with Row::replace_field. Rows changed and bases
+  turned into D are reported at the end.
+
+  pick's test, with p the N's first reference position, is p+1 <= b and p+L+1 >= a, in
+  effect an overlap with a-2 .. b-1. Checked against pick on records at the interval
+  boundaries: identical where the shift does not matter (an N overlapping well inside, a
+  reference not in the dictionary, an unmapped record, NM:i with other tags around it);
+  different as decided for an N ending one or two positions before a (pick keeps it) and
+  an N starting at b (pick turns it into D). pick's test data have no N operations.
+
+  Tests: sam-nd-adjust (the boundary records with a file dictionary and an inline one, NM:i
+  missing, not a number and among other tags, the alignment display (= against -) and
+  aln_nedit_pia/piu, before narrowing, @@ and @ filters on the input and rewritten CIGAR,
+  errors: unknown dictionary, a bad interval, an empty name, without --sam). Unit tests
+  nd_adjustment, nm_increase. help refs.
+
+  step19 complete with this item.

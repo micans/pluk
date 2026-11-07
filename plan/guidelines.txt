@@ -198,6 +198,10 @@
       an exterior deletion cut by X or Y); a record outside X..Y, or keeping no aligned
       operation, gets FLAG |= 0x4 and CIGAR '*' with RNAME and POS kept, and is kept and
       counted (pick: FLAG 4, POS 1, CIGAR '*', the record then often discarded silently).
+    - --sam-ND-adjust (step19): an N stays when it overlaps an interval exactly (pick's test
+      is shifted, in effect against a-2 .. b-1); the dictionary's values are checked before
+      input is read; an empty value means no intervals; unmapped records are not changed;
+      the help text describes the dictionary (pick's says start,end).
     - SAM sequence fill (SAMSEQ.design.txt): a SEQ '*' is filled from an earlier row of the
       same read and segment whose part of the read contains the needed part (hard clips
       respected), whatever the rows between; the cache is updated before every filter, so

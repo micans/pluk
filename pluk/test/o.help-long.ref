@@ -68,6 +68,9 @@ Options:
               (never reduces; with --sam-aln-context the larger per side)
   --sam-narrow-xy=X,Y  reduce alignments to reference positions X..Y (before
               the extension); a record outside X..Y gets FLAG 0x4 and CIGAR *
+  --sam-ND-adjust=NAME  dictionary NAME gives per reference intervals a-b,c-d;
+              an N operation that overlaps none of them becomes D, and NM:i is
+              increased by its length (first of the rewrites)
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
   --idx-list  write the input indexes of the output columns (computed columns

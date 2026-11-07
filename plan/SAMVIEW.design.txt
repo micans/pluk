@@ -2,7 +2,8 @@
 SAMVIEW design: the per-row SAM view, the input rewrites, and the values the SAM operators read.
 
 Status: DECIDED in step17 (plan/step17.txt decisions 0-8); the step18 parts (reference,
-parts, aln) implemented in step18 (plan/step18.txt decisions 0-9). Written for the SAM steps 17-20;
+parts, aln) implemented in step18 (plan/step18.txt decisions 0-9), the input rewrites of
+step19 (plan/step19.txt decisions 0-6) in step19. Written for the SAM steps 17-20;
 sections marked [step18] [step19] [step20] are the frame for later steps and are filled in
 there. pick's implementation: plan/SAM.pick-survey.txt ('survey'). The sequence fill:
 plan/SAMSEQ.design.txt.
@@ -49,7 +50,14 @@ plan/SAMSEQ.design.txt.
    fields are split again, so that every consumer (output of whole lines, filters, computes,
    --demux) sees one consistent record. Only rows that change pay for this.
 
-   Order (pick's): ND-adjust [step19 item 3], narrow, normal form, context extension.
+   Order (pick's): ND-adjust, narrow, normal form, context extension.
+
+   N/D adjustment (--sam-ND-adjust=NAME; plan/step19.txt decision 5), on mapped records
+   whose RNAME is a key of dictionary NAME: its value lists intervals a-b,c-d (checked
+   before input is read). An N operation covering p .. p+L-1 that overlaps no interval
+   (p <= b and p+L-1 >= a) becomes D, in place in the CIGAR text, and the first NM:i value
+   is increased by L (MD:Z and AS:i are not updated). An N that overlaps an interval is
+   plausibly an intron or a cryptic intron.
 
    Normal form (default; off with --sam-nonf), as pick, each rule once and only on the first
    or last operation:

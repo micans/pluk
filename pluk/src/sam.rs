@@ -211,6 +211,63 @@ pub fn extend(pos: u64, cigar: &[u8], reflen: Option<u64>, options: &ContextOpti
     (Some(Extension { pos: new_pos, cigar: new, context }), no_reflen)
 }
 
+// ---- N/D adjustment (plan/step19.txt decision 5) ----
+
+// The intervals a-b,c-d of a --sam-ND-adjust dictionary value: 1-based, inclusive,
+// positive, a <= b. An empty value has none.
+pub fn parse_intervals(value: &[u8]) -> Result<Vec<(u64, u64)>, String> {
+    let mut out = Vec::new();
+    if value.is_empty() {
+        return Ok(out);
+    }
+    for part in value.split(|&b| b == b',') {
+        let mut ends = part.splitn(2, |&b| b == b'-');
+        let ab = (ends.next().and_then(number), ends.next().and_then(number));
+        match ab {
+            (Some(a), Some(b)) if a > 0 && a <= b => out.push((a, b)),
+            _ => return Err(format!("[{}] is not an interval a-b (1 <= a <= b)", String::from_utf8_lossy(part))),
+        }
+    }
+    Ok(out)
+}
+
+// The N operations that overlap no interval become D (pick's sam_introns_only, with the
+// exact overlap: an N covering p .. p+L-1 stays if p <= b and p+L-1 >= a for an interval
+// a-b). Returns the new CIGAR (the letters changed in place) and the total length turned
+// into D, or None if nothing changes.
+pub fn nd_adjust(pos: u64, cigar: &[u8], intervals: &[(u64, u64)]) -> Option<(Vec<u8>, u64)> {
+    let ops = parse_cigar(cigar)?;
+    let mut new = cigar.to_vec();
+    let (mut r, mut switched) = (pos, 0u64);
+    for o in &ops {
+        if o.op == b'N' && !intervals.iter().any(|&(a, b)| r <= b && r + o.len - 1 >= a) {
+            new[o.end - 1] = b'D';
+            switched += o.len;
+        }
+        if o.consumes_reference() {
+            r += o.len;
+        }
+    }
+    (switched > 0).then_some((new, switched))
+}
+
+// A field of optional fields (TAB-separated with -O12) with the first NM:i value
+// increased by add; None if it has no NM:i with a non-negative integer.
+pub fn bump_nm(field: &[u8], add: u64) -> Option<Vec<u8>> {
+    let mut start = 0;
+    for part in field.split(|&b| b == b'\t') {
+        if let Some(v) = part.strip_prefix(b"NM:i:") {
+            let n = number(v)?;
+            let mut out = field[..start + 5].to_vec();
+            out.extend_from_slice((n + add).to_string().as_bytes());
+            out.extend_from_slice(&field[start + part.len()..]);
+            return Some(out);
+        }
+        start += part.len() + 1;
+    }
+    None
+}
+
 // ---- Narrowing (plan/step19.txt decision 4) ----
 
 // The outcome of --sam-narrow-xy for a record.
@@ -1112,6 +1169,34 @@ mod tests {
 
     fn nar(pos: u64, cigar: &str, x: u64, y: u64) -> Narrowed {
         narrow(pos, cigar.as_bytes(), x, y)
+    }
+
+    #[test]
+    fn nd_adjustment() {
+        assert_eq!(parse_intervals(b"100-200,300-300"), Ok(vec![(100, 200), (300, 300)]));
+        assert_eq!(parse_intervals(b""), Ok(vec![]));
+        for bad in [&b"0-5"[..], b"5-4", b"5", b"a-b", b"1-2,", b"-3"] {
+            assert!(parse_intervals(bad).is_err(), "{:?}", bad);
+        }
+        let iv = [(20, 30)];
+        let adj = |pos: u64, c: &str| nd_adjust(pos, c.as_bytes(), &iv).map(|(c, n)| (String::from_utf8(c).unwrap(), n));
+        // N at 11..19 ends just before 20: becomes D; at 11..20 it overlaps and stays.
+        assert_eq!(adj(1, "10M9N5M"), Some(("10M9D5M".to_string(), 9)));
+        assert_eq!(adj(1, "10M10N5M"), None);
+        // N at 31..: after the interval; N starting at 30 overlaps.
+        assert_eq!(adj(21, "10M4N5M"), Some(("10M4D5M".to_string(), 4)));
+        assert_eq!(adj(20, "10M4N5M"), None);
+        // Several N; D before an N moves its position; no intervals: every N.
+        assert_eq!(adj(4, "5M3N2D5M2N3M"), Some(("5M3D2D5M2N3M".to_string(), 3)));
+        assert_eq!(nd_adjust(1, b"5M3N5M", &[]).map(|x| x.1), Some(3));
+    }
+
+    #[test]
+    fn nm_increase() {
+        assert_eq!(bump_nm(b"NM:i:3", 4), Some(b"NM:i:7".to_vec()));
+        assert_eq!(bump_nm(b"AS:i:50\tNM:i:0\tMD:Z:10", 2), Some(b"AS:i:50\tNM:i:2\tMD:Z:10".to_vec()));
+        assert_eq!(bump_nm(b"XNM:i:3\tAS:i:1", 2), None);
+        assert_eq!(bump_nm(b"NM:i:x", 2), None);
     }
 
     #[test]

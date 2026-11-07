@@ -64,6 +64,18 @@ fn run() -> std::io::Result<()> {
         }
     };
 
+    // --sam-ND-adjust: the intervals per reference, checked before input is read.
+    let nd_adjust = match &config.sam_nd_adjust {
+        None => None,
+        Some(name) => match NdAdjust::new(&dicts, name) {
+            Ok(nd) => Some(nd),
+            Err(msg) => {
+                eprintln!("pluk: --sam-ND-adjust={}: {}", String::from_utf8_lossy(name), msg);
+                process::exit(1);
+            }
+        },
+    };
+
     // --other and --assert-other are created before input is read, so that a bad
     // path is reported early.
     let mut other = config.other.as_deref().map(|n| sink::SideFile::create("--other", n)).transpose()?;
@@ -209,7 +221,7 @@ fn run() -> std::io::Result<()> {
         n_no_reflen: 0,
     });
     let narrow = config.sam_narrow_xy.map(|xy| Narrow { xy, n_outside: 0 });
-    let mut stages = Stages { filters, computes, machine, rowno: 0, normal_form, narrow, extension, fill };
+    let mut stages = Stages { filters, computes, machine, rowno: 0, normal_form, nd_adjust, narrow, extension, fill };
 
     // --idx-list, --name-list, --idx-map: the output columns, without reading the data.
     if let Some(kind) = config.list {
@@ -350,6 +362,10 @@ fn run() -> std::io::Result<()> {
     }
     stages.filters.report_na();
     stages.machine.sam.report();
+    if let Some(nd) = stages.nd_adjust.as_ref().filter(|n| n.n_rows > 0) {
+        note::note!("pluk: --sam-ND-adjust: N turned into D in {} row{} ({} bases)", nd.n_rows,
+                    if nd.n_rows == 1 { "" } else { "s" }, nd.n_switched);
+    }
     if let Some(nar) = stages.narrow.as_ref().filter(|n| n.n_outside > 0) {
         note::note!("pluk: alignment outside the --sam-narrow-xy region, made unmapped (FLAG 0x4, CIGAR '*'): {} row{}",
                     nar.n_outside, if nar.n_outside == 1 { "" } else { "s" });
@@ -439,9 +455,45 @@ struct Stages<'d> {
     machine:  exec::Machine<'d>,
     rowno:    u64,              // data rows seen (rowno, r0wno); rejected rows count too
     normal_form: bool,          // SAM input without --sam-nonf (plan/SAMVIEW.design.txt section 3)
+    nd_adjust: Option<NdAdjust>, // --sam-ND-adjust (plan/step19.txt decision 5)
     narrow:   Option<Narrow>,   // --sam-narrow-xy (plan/step19.txt decision 4)
     extension: Option<Extend>,  // --sam-aln-context, --sam-aln-xy (plan/step19.txt decision 2)
     fill:     Option<Fill>,     // the sequence fill, when an operator needs the query (SAMSEQ.design.txt)
+}
+
+// --sam-ND-adjust: the intervals per reference, and what was changed.
+struct NdAdjust {
+    intervals:  std::collections::HashMap<Vec<u8>, Vec<(u64, u64)>>,
+    n_rows:     u64,
+    n_switched: u64,
+}
+
+impl NdAdjust {
+    // The dictionary must exist; each value is a list of intervals.
+    fn new(dicts: &dict::Dicts, name: &[u8]) -> Result<NdAdjust, String> {
+        let d = dicts.get(name).ok_or("no dictionary of that name")?;
+        let mut intervals = std::collections::HashMap::new();
+        for (key, value) in &d.map {
+            let list = sam::parse_intervals(value)
+                .map_err(|e| format!("key [{}]: {}", String::from_utf8_lossy(key), e))?;
+            intervals.insert(key.clone(), list);
+        }
+        Ok(NdAdjust { intervals, n_rows: 0, n_switched: 0 })
+    }
+
+    // Turn the N operations outside the intervals of RNAME into D; NM:i follows.
+    fn apply(&mut self, row: &mut row::Row) {
+        let Some(list) = self.intervals.get(row.field(sam::RNAME)) else { return };
+        let Some(pos) = sam::number(row.field(sam::POS)) else { return };
+        let Some((cigar, switched)) = sam::nd_adjust(pos, row.field(sam::CIGAR), list) else { return };
+        row.replace_field(sam::CIGAR, &cigar);
+        let nm = (sam::OPTIONAL..row.n_fields()).find_map(|i| sam::bump_nm(row.field(i), switched).map(|f| (i, f)));
+        if let Some((i, field)) = nm {
+            row.replace_field(i, &field);
+        }
+        self.n_rows += 1;
+        self.n_switched += switched;
+    }
 }
 
 // Narrowing: the region, and the records outside it (made unmapped).
@@ -541,7 +593,13 @@ impl Stages<'_> {
             return Ok(filter::Verdict::RejectPre);
         }
         // SAM input rewrites: after the @@ stage, before the computes; pick's order:
-        // narrow, normal form, extension. Narrowing: mapped records only; a record
+        // ND-adjust, narrow, normal form, extension.
+        if let Some(nd) = &mut self.nd_adjust {
+            if row.n_fields() > sam::CIGAR && !sam::is_unmapped(row) {
+                nd.apply(row);
+            }
+        }
+        // Narrowing: mapped records only; a record
         // outside the region gets FLAG 0x4 and CIGAR '*' (RNAME and POS kept).
         if let Some(nar) = &mut self.narrow {
             if row.n_fields() > sam::CIGAR && !sam::is_unmapped(row) {

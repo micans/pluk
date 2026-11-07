@@ -1,0 +1,43 @@
+m1	0	c1	1	60	10M9D5M	*	0	0	AAAAACCCCCTTTTT	*	NM:i:10
+m2	0	c1	1	60	10M10N5M	*	0	0	AAAAACCCCCTTTTT	*	NM:i:1
+m3	0	c1	21	60	10M4D5M	*	0	0	AAAAACCCCCTTTTT	*	AS:i:5	NM:i:4	MD:Z:x
+m4	0	c1	20	60	10M4N5M	*	0	0	AAAAACCCCCTTTTT	*	
+m5	0	c2	1	60	10M9N5M	*	0	0	AAAAACCCCCTTTTT	*	NM:i:1
+m6	4	c1	1	0	10M9N5M	*	0	0	AAAAACCCCCTTTTT	*	NM:i:1
+m7	0	c1	1	60	2M2D3M2D3M	*	0	0	AAAAACCCCC	*	NM:i:x
+pluk: --sam-ND-adjust: N turned into D in 3 rows (17 bases)
+m1	10M9D5M	NM:i:10
+m2	10M10D5M	NM:i:11
+m3	10M4D5M	AS:i:5	NM:i:4	MD:Z:x
+m4	10M4D5M	
+m5	10M9N5M	NM:i:1
+m6	10M9N5M	NM:i:1
+m7	2M2D3M2D3M	NM:i:x
+pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
+m1	10M9D5M	||||||||||---------|xxxx	13	13
+m2	10M10N5M	||||||||||==========xxxxx	5	15
+m3	10M4D5M	||||||||||----x||||	5	5
+m4	10M4N5M	x||||x||||====xx|||	4	8
+m6	10M9N5M	NA	NA	NA
+m7	2M2D3M2D3M	NA	NA	NA
+pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
+pluk: SAM values not available (NA) for 1 row: SEQ or QUAL length differs from the CIGAR
+pluk: --sam-ND-adjust: N turned into D in 3 rows (17 bases)
+m1	8	7S3M9D5M	NM:i:10
+m2	8	7S3M10N5M	NM:i:1
+m3	21	5M10S	AS:i:5	NM:i:4	MD:Z:x
+m4	20	6M9S	
+m5	8	7S3M9N5M	NM:i:1
+m6	1	10M9N5M	NM:i:1
+m7	8	5S2D3M	NM:i:x
+m1	10M9D5M
+m3	10M4D5M
+m7	2M2D3M2D3M
+pluk: --sam-ND-adjust=IV: no dictionary of that name
+exit 1
+pluk: --sam-ND-adjust=IV: key [c1]: [0-4] is not an interval a-b (1 <= a <= b)
+exit 1
+--sam-ND-adjust=NAME: expected a dictionary name
+exit 1
+--sam-ND-adjust requires --sam or --sam-h
+exit 1
