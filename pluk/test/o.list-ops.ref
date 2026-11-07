@@ -169,6 +169,9 @@ qry_trail5p   -           seq                 Query sequence of the 5' trail [sa
 qry_matched   -           seq                 Query sequence of the matched part [sam]
 qry_trail3p   -           seq                 Query sequence of the 3' trail [sam]
 sam_get       tag def     value               Value of optional field tag (XX:T, XX.T, XX-T), def if absent [sam]
+rc            x           rc(x)               Reverse complement (IUPAC codes complemented, U as A) [bio]
+forward       B seq       forward             seq if B is true, else rc(seq) [bio]
+todna         x           x'                  DNA letters: uU to tT, other letters n N, other bytes N [bio]
 /lt/          x y         x < y               Numeric less than [filter]
 /le/          x y         x <= y              Numeric less than or equal [filter]
 /eq/          x y         x == y              Numeric equal [filter]
@@ -203,7 +206,7 @@ sam_get       tag def     value               Value of optional field tag (XX:T,
 /NOTNUM       x           B                   x is not a number (not in test) [filter]
 
 Use -l TERM.. for a category or the operators whose name contains TERM.
-Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam filter
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam bio filter
 Operator      Consumed    Produced            Description
 --------------------------------------------------------------------------------
 md5           x           md5(x)              MD5 sum of x (hexadecimal) [string]
@@ -219,7 +222,7 @@ bitlsh        x y         x << y              Shift |x| left by |y| (overflow: N
 bitrsh        x y         x >> y              Shift |x| right by |y| [bit]
 
 Use -l TERM.. for a category or the operators whose name contains TERM.
-Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam filter
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam bio filter
 Operator      Consumed    Produced            Description
 --------------------------------------------------------------------------------
 /lt/          x y         x < y               Numeric less than [filter]
@@ -256,7 +259,7 @@ Operator      Consumed    Produced            Description
 /NOTNUM       x           B                   x is not a number (not in test) [filter]
 
 Use -l TERM.. for a category or the operators whose name contains TERM.
-Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam filter
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam bio filter
 Operator      Consumed    Produced            Description
 --------------------------------------------------------------------------------
 qry_seq       -           seq                 Query sequence (SEQ, or filled for SEQ '*'; --sam-seqmiss) [sam]
@@ -265,11 +268,11 @@ qry_seq       -           seq                 Query sequence (SEQ, or filled for
 ~isin~        x D         x in D              x is a key of dictionary D [filter]
 
 Use -l TERM.. for a category or the operators whose name contains TERM.
-Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam filter
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam bio filter
 pluk: no operator or category matches -h
-Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam filter
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam bio filter
 exit 1
 pluk: no operator or category matches nosuch,zz
-Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam filter
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam bio filter
 exit 1
 Operator      Consumed    Produced            Description

@@ -29,3 +29,9 @@
 - reqm (step14 decision 2): pick's quotemeta, which makes a column value usable as a
   literal pattern. pluk's regex operators require constant patterns; if column patterns
   are wanted, match them as fixed strings (as the ~:NAME filters), which needs no reqm.
+- A small, non-exhaustive overview of what happens when NAs are introduced during SAM
+  processing (requested during the step21 discussion): which values become NA and why
+  (the reasons of SAMVIEW.design.txt section 6, the rbt reasons, fastQ), how an NA flows
+  on (operators give NA, numeric filters fail, test and ifelse give NA, output writes NA),
+  what is counted and reported at the end, and where pick discarded the row or computed
+  from missing data instead. For the pluk documentation.

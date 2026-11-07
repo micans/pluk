@@ -112,23 +112,8 @@ pub fn parse_cigar(cigar: &[u8]) -> Option<Clips> {
     Some(clips)
 }
 
-// Complement of a base, IUPAC codes included, case kept. Other bytes are
-// returned unchanged.
-fn complement(b: u8) -> u8 {
-    match b {
-        b'A' => b'T', b'T' => b'A', b'C' => b'G', b'G' => b'C', b'U' => b'A',
-        b'R' => b'Y', b'Y' => b'R', b'K' => b'M', b'M' => b'K',
-        b'B' => b'V', b'V' => b'B', b'D' => b'H', b'H' => b'D',
-        b'a' => b't', b't' => b'a', b'c' => b'g', b'g' => b'c', b'u' => b'a',
-        b'r' => b'y', b'y' => b'r', b'k' => b'm', b'm' => b'k',
-        b'b' => b'v', b'v' => b'b', b'd' => b'h', b'h' => b'd',
-        _ => b,                     // N, S, W and anything else
-    }
-}
-
-pub fn reverse_complement(seq: &[u8]) -> Vec<u8> {
-    seq.iter().rev().map(|&b| complement(b)).collect()
-}
+// The complement (IUPAC codes included) is in bio.rs, shared with the rc operator.
+use crate::bio::reverse_complement;
 
 // A cached row that stores a sequence. SEQ and QUAL are kept as in the row
 // (reference orientation); they are turned around only when a target is filled.
@@ -312,12 +297,6 @@ mod tests {
         assert_eq!(c.read_length(), 10);
         assert_eq!(c.piece(false), (3, 8));
         assert_eq!(c.piece(true), (2, 7));
-    }
-
-    #[test]
-    fn revcomp() {
-        assert_eq!(reverse_complement(b"AACGTN"), b"NACGTT");
-        assert_eq!(reverse_complement(b"acgRYkm"), b"kmRYcgt");
     }
 
     #[test]

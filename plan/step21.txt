@@ -1,0 +1,90 @@
+
+- Bio operators
+
+  The sequence operators of pick (its 'bio' tag, and rc forward todna filed under string
+  and format), and its experimental _strpair. None needs --sam or --sam-h: they take
+  their operands from the stack and work on any input.
+
+    transforms  rc forward todna dnatl
+    statistic   dnagc
+    records     fasta fastq fastQ
+    comparison  strpair (pick: _strpair, EXPERIMENTAL)
+
+
+
+  Outcome of the discussion
+
+  Decisions:
+   0. Category bio for all of them (-l bio lists them; pick files rc and forward under
+      string and _strpair under string/EXPERIMENTAL; -l rc etc. still finds them by
+      name). They work on bytes (step13 decision 1); an NA operand gives NA (step13).
+      The code goes into a new src/bio.rs, which also takes over samseq's complement
+      table so that rc and the SAM fill agree (decision 1).
+
+   1. rc x: reverse complement (agreed). pick complements acgtuACGTU only (u and U become
+      a and A) and leaves every other byte unchanged, IUPAC codes included. The SAM fill
+      (step5, samseq.rs) already complements the IUPAC codes too: R<->Y K<->M B<->V D<->H,
+      N S W and every other byte unchanged, case kept. rc uses that table (one complement
+      in pluk), a difference from pick for the IUPAC letters; U becomes A as in pick (the
+      reverse complement of RNA is written as DNA).
+
+   2. forward B seq: seq if B is true, else rc(seq) (pick). B is true as for ifelse (step15
+      decision 2): a number is true if it is not zero, anything else if it is not empty;
+      an NA B gives NA. forward itself needs no SAM input; its main partner isforward
+      (step17) does, as it reads FLAG 0x10: r::,isforward,qry_seq,forward gives the read
+      as sequenced (SEQ is stored reverse-complemented for a reverse-strand alignment).
+      B may come from anywhere else too; a +/- strand column is true for both values (two
+      non-empty strings) and has to be converted first, e.g. with test (agreed).
+
+   3. todna x (pick): u U become t T; other letters become n or N (case kept); every byte
+      that is not then one of acgntACGNT becomes N (digits, '-', '.', '*', spaces). The
+      empty string stays empty.
+
+   4. dnatl x f: translation in frame f with the standard genetic code (pick's table; stop
+      codons TAA TAG TGA give '*'). f is a non-negative integer, else NA (pick: Perl's
+      conversion). x is upper-cased first; a codon that is not in the table (N, IUPAC
+      codes, gaps) gives '?'; the 1 or 2 bases left at the end are written as {..}; an x
+      no longer than f gives the empty string (pick). U is read as T (agreed; pick: a codon
+      with U is '?'), so that RNA translates too.
+
+   5. dnagc x N: the percentage of G and C (either case) among the A C G T bases of x
+      (either case; agreed: N runs, IUPAC codes and gaps do not lower the GC content; pick
+      divides by the whole length), written with N decimals as pct (step12: N an integer
+      0..1000, else NA; rounding as pct). No A C G T at all (also the empty string) gives
+      NA (pick: NA for the empty string). U counts with A C G T (agreed), as dnatl reads U
+      as T, so RNA has a GC content too.
+
+   6. fasta i s: '>' i newline s; fastq i s: '@' i newline s newline '+' newline and a 'Z'
+      for every byte of s (pick's placeholder quality, kept (agreed): it says there is no
+      reason to mistrust the data); fastQ i s q: '@' i newline s
+      newline '+' newline q (pick). The field then contains newlines, as aln_all (step18).
+      fastQ with a q whose length differs from s (pick writes it anyway, not valid FASTQ):
+      - q is '*' (SAM's absent QUAL, as qry_qual gives it) and s is not one byte long
+        (agreed): a 'Z' for every byte of s, the same record as fastq i s (no quality
+        stored: no reason to mistrust the data; a '!' would make trimmers and read
+        filters discard the read). For a one-byte s, '*' is a valid quality and is kept.
+        aln_qlt keeps '!' for QUAL '*' (step18): a display convention, not data;
+      - any other length (agreed): NA, counted at the end. Malformed data, expected to be
+        rare; pluk does not stop on it, and the count makes it visible.
+      Within SAM data qry_seq and qry_qual otherwise always fit each other (the query
+      check of step17 gives NA for a SEQ or QUAL that does not fit the CIGAR).
+
+   7. strpair x y (agreed; pick's _strpair, whose leading underscore marked it
+      experimental): for each position up to the shorter length, '|' where the bytes are
+      equal and 'x' where they differ (pick; exact, case-sensitive). Its output uses the
+      aln_aln symbols, so patchiness can read it.
+
+  Tests: each operator compared with pick on data.txt-style constants and on sequences
+  from test/ref3.fa and the SAM files (qry_seq with forward and isforward, rc of rc,
+  dnatl in frames 0..2, dnagc with N decimals); the decided differences (IUPAC in rc, U in
+  dnatl, fastQ lengths, NA rules); -l bio.
+
+
+  Items
+
+  1   src/bio.rs with the shared complement (samseq.rs uses it); rc forward todna
+      (decisions 0-3). Commit.
+
+  2   dnatl dnagc (decisions 4, 5). Commit.
+
+  3   fasta fastq fastQ strpair (decisions 6, 7). Commit.

@@ -218,6 +218,11 @@
     - cgsum cgmax cgcount: a CIGAR that does not parse (also the empty string and lower-case
       operations, which pick's case-insensitive match accepts) is NA (pick: a message and the
       partial result, 0 for nothing).
+    - Bio operators (step21) are in category bio (pick: rc and forward under string): rc
+      complements the IUPAC codes too (R<->Y K<->M B<->V D<->H; pick only ACGTU), with
+      the same table as the SAM fill; forward decides B as ifelse (a number is true if
+      not zero: 0.0 is false; pick: Perl's truth, where the string 0.0 is true); an NA
+      operand gives NA.
     - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).

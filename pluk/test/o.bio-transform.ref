@@ -1,0 +1,20 @@
+NACGT	nacgt	ACGTN	acgtn	ACGTN
+NBDHVWSKMRY	CTAA	NNNNNNNNNNN	TTAG	RYKMSWBDHVN
+	x*.-		NNNn	
+NACGT	nacgt	nacgt	acgtn	NACGT	ACGTN
+RYKMSWBDHVN	CTAA	CTAA	UUAG	NBDHVWSKMRY	RYKMSWBDHVN
+	x*.-	x*.-	-.*x		
+NA	NA	NA	NA
+278a09879149185ddbcaeb29159ab2a0  -
+0
+ee2a67d9a4f74745e3cb3f71670c941b  -
+0
+readGBW2-1	16	TTCTCTGAAATAGCGGATGCTGGAATGGAGATGTCACGCGTCGTTCACGCGGATACAGCAAGTGTC
+Operator      Consumed    Produced            Description
+--------------------------------------------------------------------------------
+rc            x           rc(x)               Reverse complement (IUPAC codes complemented, U as A) [bio]
+forward       B seq       forward             seq if B is true, else rc(seq) [bio]
+todna         x           x'                  DNA letters: uU to tT, other letters n N, other bytes N [bio]
+
+Use -l TERM.. for a category or the operators whose name contains TERM.
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam bio filter

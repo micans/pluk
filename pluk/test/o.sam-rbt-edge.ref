@@ -70,4 +70,4 @@ rbt_alnqlt    -           aln                 rbt: the region's columns of aln_q
 rbt_alnall    -           aln                 rbt: ruler, reference, match, query, quality lines of the region [sam]
 
 Use -l TERM.. for a category or the operators whose name contains TERM.
-Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam filter
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam bio filter

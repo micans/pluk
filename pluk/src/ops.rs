@@ -81,6 +81,7 @@ pub enum Category {
     Radix,
     Regex,
     Sam,
+    Bio,
 }
 
 #[derive(Debug)]
@@ -335,6 +336,12 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "-", result: "seq", doc: "Query sequence of the 3' trail", fun: op_qry_trail3p },
     OpDef { name: "sam_get", pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::SamTag, category: Category::Sam,
             operands: "tag def", result: "value", doc: "Value of optional field tag (XX:T, XX.T, XX-T), def if absent", fun: op_sam_get },
+    OpDef { name: "rc",     pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Bio,
+            operands: "x", result: "rc(x)", doc: "Reverse complement (IUPAC codes complemented, U as A)", fun: op_rc },
+    OpDef { name: "forward", pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Bio,
+            operands: "B seq", result: "forward", doc: "seq if B is true, else rc(seq)", fun: op_forward },
+    OpDef { name: "todna",  pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Bio,
+            operands: "x", result: "x'", doc: "DNA letters: uU to tT, other letters n N, other bytes N", fun: op_todna },
     OpDef { name: "map",    pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
             operands: "x D", result: "map-of-x", doc: "Value of x in dictionary D (not found: as D's default)", fun: op_map },
     OpDef { name: "dord",   pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
@@ -1023,19 +1030,26 @@ fn choose_all(m: &mut Machine, row: &Row, max: bool) {
 // ifelse B x y (plan/step15.txt decision 2): x if B is true, otherwise y, passed on
 // as they are. B is true if it is a number other than 0, or else if it is not
 // empty (pick's do_ifelse); an NA condition gives NA.
+// The truth of a condition (pick's do_ifelse): a number is true if it is not zero,
+// anything else if it is not empty; None for NA. Used by ifelse and forward.
+fn truth(m: &mut Machine, b: &Value, row: &Row) -> Option<bool> {
+    match b {
+        Value::Na => None,
+        b => Some(match m.num(b, row) {
+            Some(n) => compare(n, Num::I(0)) != Some(Ordering::Equal),
+            None => !m.bytes(b, row).is_empty(),
+        }),
+    }
+}
+
 fn op_ifelse(m: &mut Machine, row: &Row, _: &Attached) {
     let y = m.pop();
     let x = m.pop();
     let b = m.pop();
-    let result = match b {
-        Value::Na => Value::Na,
-        b => {
-            let truth = match m.num(&b, row) {
-                Some(n) => compare(n, Num::I(0)) != Some(Ordering::Equal),
-                None => !m.bytes(&b, row).is_empty(),
-            };
-            if truth { x } else { y }
-        }
+    let result = match truth(m, &b, row) {
+        None => Value::Na,
+        Some(true) => x,
+        Some(false) => y,
     };
     m.push(result);
 }
@@ -1419,6 +1433,32 @@ fn op_sam_get(m: &mut Machine, row: &Row, attached: &Attached) {
     let value = match sam::optional_field(row, tt) {
         Some(v) => Value::Bytes(v.to_vec()),
         None => def,
+    };
+    m.push(value);
+}
+
+// Bio operators (plan/step21.txt). An NA operand gives NA.
+
+fn bio_unary(m: &mut Machine, row: &Row, f: fn(&[u8]) -> Vec<u8>) {
+    let x = m.pop();
+    let value = match x {
+        Value::Na => Value::Na,
+        x => Value::Bytes(f(&m.bytes(&x, row))),
+    };
+    m.push(value);
+}
+
+fn op_rc(m: &mut Machine, row: &Row, _: &Attached) { bio_unary(m, row, crate::bio::reverse_complement) }
+fn op_todna(m: &mut Machine, row: &Row, _: &Attached) { bio_unary(m, row, crate::bio::todna) }
+
+// forward B seq: seq if B is true (as ifelse), else its reverse complement.
+fn op_forward(m: &mut Machine, row: &Row, _: &Attached) {
+    let seq = m.pop();
+    let b = m.pop();
+    let value = match (truth(m, &b, row), seq) {
+        (_, Value::Na) | (None, _) => Value::Na,
+        (Some(true), seq) => seq,
+        (Some(false), seq) => Value::Bytes(crate::bio::reverse_complement(&m.bytes(&seq, row))),
     };
     m.push(value);
 }

@@ -1,0 +1,40 @@
+
+Notes for plan/step21.txt (bio operators).
+
+
+Planning
+
+  The operator list was drawn from pick's -l (its bio tag and the sequence operators filed
+  under string and format) and the experimental _strpair. Agreed in discussion: rc with
+  IUPAC codes, U as T in dnatl, dnagc over A C G T (and U) only, fastq keeps its Z
+  placeholder and fastQ uses it for q '*', other fastQ length mismatches NA (counted),
+  the name strpair. The overview of NA introduction during SAM processing was put in
+  deferred.txt.
+
+
+Item 1: src/bio.rs, rc forward todna
+
+  bio.rs (new): complement and reverse_complement, moved from samseq.rs (the step5 table:
+  IUPAC codes, case kept, U to A), and todna. samseq.rs now imports reverse_complement
+  from bio.rs, so the fill and rc use one table; its unit test moved along and was
+  extended (U, S W, the other IUPAC pairs, gaps, the empty string).
+
+  ops.rs: Category::Bio (list.rs: 'bio' after 'sam' in the -l order). rc and todna share
+  bio_unary (NA gives NA, otherwise the bytes of the operand). The truth test of ifelse
+  is now a function, truth(), used by ifelse and forward (step15 decision 2), so the two
+  cannot drift apart.
+
+  Checked against pick: rc and todna on DNA, RNA, lower case, IUPAC codes, gaps and other
+  bytes: identical apart from the IUPAC complements (decided); forward with B from a
+  column, 0, the empty string, a word, -1: identical; B 0.0 differs (pluk: zero, false;
+  Perl: the string "0.0" is true). On qry3mm.sam and qry3vs.sam,
+  isforward,qry_seq,forward: identical; rc,rc of every qry_seq gives the sequence back.
+
+  A test pitfall met on the way: a test invocation without an input redirect (pluk -k ...
+  -l rc) waits for stdin and hangs make; every invocation in test/Makefile must read a
+  file or /dev/null. Also: a computed column holding NA is read by later computes as the
+  text NA; the NA tests therefore produce NA inside one compute (^x,sqrt).
+
+  Tests: bio-transform (rc todna forward on constants and columns, NA operands within a
+  compute, isforward,qry_seq,forward on both SAM files, rc,rc identity, -l bio). Unit tests
+  in bio.rs (revcomp, dna). list-ops and sam-rbt-edge refs (the category list).

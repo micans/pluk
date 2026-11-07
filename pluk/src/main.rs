@@ -1,4 +1,5 @@
 mod bam;
+mod bio;
 mod colspec;
 mod compute;
 mod demux;

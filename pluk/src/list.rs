@@ -11,7 +11,7 @@ use std::io::Write;
 use crate::ops::{self, Category};
 
 // The categories in --help order, with their names; "filter" follows.
-const CATEGORIES: [(Category, &str); 13] = [
+const CATEGORIES: [(Category, &str); 14] = [
     (Category::Stack, "stack"),
     (Category::String, "string"),
     (Category::Arithmetic, "arithmetic"),
@@ -25,6 +25,7 @@ const CATEGORIES: [(Category, &str); 13] = [
     (Category::Radix, "radix"),
     (Category::Regex, "regex"),
     (Category::Sam, "sam"),
+    (Category::Bio, "bio"),
 ];
 
 const FILTER: &str = "filter";
