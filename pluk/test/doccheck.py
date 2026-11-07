@@ -13,6 +13,12 @@ document's directory, with PLUK's directory first on the PATH.
 Expected lines starting with 'pluk:' are compared with stderr: each must occur, in order.
 The other lines are compared with stdout, all of them; a line '...' stands for any number
 of lines. Runs of white space count as one separator. The exit status is not compared.
+
+Outside the code blocks two references are checked as well (plan/step31.txt decision 5):
+a relative link [text](FILE) must name a file of the document's directory, and in a
+document with numbered sections (## N. Title, ### N.M ...) 'section N' and 'sections N,
+M and K' must name one of them; a reference preceded by a file name (plan/X.txt section
+6) is to that file and is not checked.
 """
 
 import os
@@ -76,6 +82,47 @@ def examples(path):
     return found
 
 
+LINK = re.compile(r'\]\(([^)\s]+)\)')
+NUM = r'\d+(?:\.\d+)?'
+SECTION = re.compile(r'(\S+\.(?:txt|md)\s+)?\b[Ss]ections?\s+(' + NUM + r'(?:(?:,\s*|\s+and\s+|\s+to\s+)' + NUM + r')*)')
+HEADING = re.compile(r'^#{2,4}\s+(' + NUM + r')\.?\s')
+
+
+def references(path):
+    """Failures of the link and section references of one document (text)."""
+    lines = open(path, encoding='utf-8').read().split('\n')
+    here = os.path.dirname(os.path.abspath(path))
+    prose, inside, fence = [], False, None
+    for i, line in enumerate(lines):
+        m = FENCE.match(line)
+        if m and not inside:
+            inside, fence = True, m.group(2)
+            continue
+        if inside:
+            if re.match(r'^ {0,3}' + fence + r'`*\s*$', line):
+                inside = False
+            continue
+        prose.append((i + 1, line))
+    sections = {m.group(1) for _, line in prose for m in [HEADING.match(line)] if m}
+    failures = []
+    for lineno, line in prose:
+        for target in LINK.findall(line):
+            if re.match(r'^[a-z]+:', target) or target.startswith('#'):
+                continue
+            if not os.path.exists(os.path.join(here, target.split('#')[0])):
+                failures.append('%s:%d: link to [%s], which is not a file of %s' % (path, lineno, target, here))
+        if not sections:
+            continue
+        for m in SECTION.finditer(line):
+            if m.group(1):
+                continue
+            for n in re.findall(NUM, m.group(2)):
+                if n not in sections:
+                    failures.append('%s:%d: reference to section %s, which the document does not have' % (
+                        path, lineno, n))
+    return failures
+
+
 def norm(line):
     return ' '.join(line.split())
 
@@ -130,6 +177,7 @@ def main():
     pluk, documents = sys.argv[1], sys.argv[2:]
     total, failed = 0, []
     for document in documents:
+        failed.extend(references(document))
         n, failures = check(pluk, document)
         total += n
         failed.extend(failures)

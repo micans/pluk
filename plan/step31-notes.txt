@@ -83,3 +83,30 @@ Item 4: section 14.3 part 2 and 14.4
   read1 into POS 1 5D3X22M3I8M3D9M3D (pluk: unchanged); ref_posx of an unmapped read is
   0. In pluk: a repeated --quant, rc of IUPAC codes, dnagc without ACGTU, forward with
   0.0, groupi without --group, --group with --group-first-ref, -c with --demux.
+
+
+Item 5: section 12, the reference check, closing
+
+  Section 12: an index of the recipes already in the sections (with their section
+  numbers), and three that combine sections: join, compute, split (--fd with a default,
+  --td, a hidden := compute naming the --demux files by season); new SAM tags XE and XL
+  from aln_nedit_pia and aln_nmatch (read3, unmapped, gets none: NA is not put); every
+  primary read in one region (rbt_alnall with --sam-aln-prefix, joined to the read's
+  name by %0A with catall). The region is 25..44 rather than 25..40 so that the ruler's
+  label 40 is not cut off.
+
+  doccheck.py (decision 5) checks, outside code blocks, that a relative link names a file
+  of the document's directory and, in a document with numbered sections, that 'section
+  N' and 'sections N, M and K' name one of them; a reference preceded by a file name
+  ('plan/SAMVIEW.design.txt section 6') is to that file and skipped. Checked on a copy of
+  the manual with a renamed data file and two wrong numbers: all three caught (each
+  occurrence reported). The manual has 94 section references; all name the right section
+  (read one by one).
+
+  Closing: the note 'This manual is being written' is removed; the cross-references
+  were read against the section contents. Found and not changed (code): pluk --help
+  still says '@@NAME... as @, applied before computes (computes are not yet supported)',
+  a remnant of an early step; @@ cannot see computed columns, which is what it should
+  say. Together with the message prefixes of item 1, a candidate for a small code step.
+
+  Step31 complete with this item; the manual has no outlines left.

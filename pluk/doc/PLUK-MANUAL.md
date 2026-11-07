@@ -9,9 +9,6 @@ by Stijn over a period of about three days. The `plan/` directory retains that h
 Many corner/edge cases in pick were settled and sometimes fixed.*
 
 
-*This manual is being written. Section 12 is an outline; sections 1 to 11, 13, 14 and the operator reference (section 15) are complete.*
-
-
 ## 1. Introduction
 
 pluk works on tables: files with a header line that names the columns, and rows of
@@ -1599,7 +1596,86 @@ read2	GCTAAGGTTCCA	GCTAAAGTTCCA	|||||x||||||
 
 ## 12. Recipes
 
-Complex useful patterns, collected as they turn up.
+Recipes are collected here as they turn up. Many are in the sections already; this is an
+index of them, followed by a few that combine several sections.
+
+### Recipes in the sections
+
+- A few common tasks, one line each: section 2.
+- Every column but a few (`-x`), all columns with a computed one inserted (`-A<N>`,
+  `--A=NAME`): sections 4 and 6.
+- Rows where any of several conditions holds (`-o`): section 5.
+- Converting a family of columns at once, keeping or replacing the originals (renaming,
+  `-i`): section 6.
+- A label from a test (`test` and `ifelse`): section 6.
+- Joining a table with a lookup file (`--fd`, `--td`, `map`): section 7.
+- The difference with the previous row, a running counter (`--pstore`): section 8.
+- Intron coordinates from exon coordinates, the span of a gene (`--group`,
+  `--group-first-ref`): section 8.
+- Skipping comment lines, splitting a file by a column (`-/PAT`, `--demux`), insisting
+  on exactly N matches (`-E<N>`): section 9.
+- Strand and span of each read, soft-clipped sequence, the reads that cover a position,
+  a new SAM tag: section 10.
+- Reads as sequenced, unmapped reads as FASTA, all reads as FASTQ: section 11.
+
+### Join, compute, split
+
+The harvest priced by fruit, split into one file per season. The season comes from the
+table, the price from the price list (0 where there is none), and the file name is a
+hidden compute:
+
+```console
+$ pluk --fd-PRICE/0=prices.txt --td=fruits.txt -q --demux=f 'f:=fruit^season,map^.txt,cat' picker fruit kg 'value::kg:fruit^PRICE,map,mul^2,dd' < harvest.txt
+$ cat summer.txt
+picker	fruit	kg	value
+Dora	plum	6.4	0.00
+Eamon	cherry	3.2	28.80
+Hilde	plum	7.9	0.00
+$ cat autumn.txt
+picker	fruit	kg	value
+Annie	apple	14.5	30.45
+Bert	pear	9.0	22.50
+Chen	apple	22.1	46.41
+...
+```
+
+### Annotating alignments with new tags
+
+The edit count from the alignment and the number of aligned bases, written into every
+record as the tags XE and XL; the output is SAM again. Where a value is NA (the
+unmapped read3) the tag is not put:
+
+```console
+$ pluk -q --sam-h/transgene.fa -A 'e:=,aln_nedit_pia^XE.i,xch,sam_put' 'l:=,aln_nmatch^XL.i,xch,sam_put' < align.sam
+@SQ	SN:transgene	LN:53
+read1	0	transgene	9	60	3S22M3I8M3D9M	*	0	0	CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG	*	NM:i:7	AS:i:30	XE:i:7	XL:i:39
+read1	256	transgene	20	0	20S25M	*	0	0	*	*	NM:i:12	XE:i:22	XL:i:25
+read2	16	transgene	30	60	2H4S12M3S	*	0	0	GGTTGCTAAAGTTCCACCC	IIIIIIIIIIIIIIIIIII	NM:i:1	XE:i:1	XL:i:12
+read3	4	*	0	0	*	*	0	0	ACGTTGCAAGGT	*	
+```
+
+### Every read in one region
+
+The alignments of the mapped primary reads within reference positions 25 to 44, each
+under a line with the read's name and position. The region's lines are indented by
+`--sam-aln-prefix`; a newline (`%0A`) joins them to the name:
+
+```console
+$ pluk -q --sam/transgene.fa --sam-rbt=25,44 --sam-aln-prefix='  ' 'aln::1^%20:4^%0A,rbt_alnall,catall' @2/none/260 < align.sam
+read1 9
+       30           40   
+  AGCTAG---CTAAGGTTCCATGC
+  ||||||~~~||||||||---|||
+  AGCTAGTTTCTAAGGTT---TGC
+  !!!!!!!!!!!!!!!!!   !!!
+read2 30
+  30        40
+  GCTAAGGTTCCA
+  |||||x||||||
+  GCTAAAGTTCCA
+  IIIIIIIIIIII
+```
+
 
 
 ## 13. Messages and reports
