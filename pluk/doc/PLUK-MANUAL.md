@@ -309,13 +309,27 @@ Every operator, by category, in the order of `pluk -l`. The line under each name
 <!-- op dup -->
 `x` → `x x` — Duplicate top entry x
 
+Pushes a second copy of the top value. `pop` removes the top value and `xch` exchanges the top two; with them a value can be reused or put in place without computing it again.
+
+```console
+$ pluk picker 'd::fruit,dup,cat' 'p::^a^b,pop' 'x::^a^b,xch' < harvest.txt
+picker	d	p	x
+Annie	appleapple	a	ba
+Bert	pearpear	a	ba
+...
+```
+
 #### `pop`
 <!-- op pop -->
 `x` → `-` — Remove top entry x from stack
 
+Removes the top value of the stack. Example under `dup`.
+
 #### `xch`
 <!-- op xch -->
 `x y` → `y x` — Exchange x and y
+
+Exchanges the top two values of the stack. Example under `dup`.
 
 ### string
 
@@ -323,109 +337,261 @@ Every operator, by category, in the order of `pluk -l`. The line under each name
 <!-- op cat -->
 `x y` → `xy` — Concatenation of x and y
 
+Concatenates x and y. A number is written as text first, as it would be in the output (with `--num-perl` as Perl writes it). `len` gives the length in bytes, so the length of a computed number depends on how it is written: 0.1 + 0.2 is written 0.30000000000000004.
+
+```console
+$ pluk picker 'c::picker:fruit,cat' 'n::picker,len' 'l::^0.1^0.2,add,len' < harvest.txt
+picker	c	n	l
+Annie	Annieapple	5	19
+Bert	Bertpear	4	19
+...
+```
+
 #### `len`
 <!-- op len -->
 `x` → `len(x)` — Length of string x (bytes)
+
+The length of x in bytes (a multi-byte character counts all its bytes). Example under `cat`.
 
 #### `lc`
 <!-- op lc -->
 `x` → `lc(x)` — Lower case of x (ASCII)
 
+Changes the ASCII letters of x to lower case (`lc`) or upper case (`uc`); other bytes are unchanged. `rev` reverses x byte by byte; `rot13` rotates the ASCII letters by 13 places (applied twice it gives x back).
+
+```console
+$ pluk picker 'l::picker,lc' 'u::picker,uc' 'r::picker,rev' 't::picker,rot13' < harvest.txt
+picker	l	u	r	t
+Annie	annie	ANNIE	einnA	Naavr
+Bert	bert	BERT	treB	Oreg
+...
+```
+
 #### `uc`
 <!-- op uc -->
 `x` → `uc(x)` — Upper case of x (ASCII)
+
+Upper case of the ASCII letters of x. Example under `lc`.
 
 #### `rev`
 <!-- op rev -->
 `x` → `rev(x)` — String reverse of x (bytes)
 
+Reverses x byte by byte (a multi-byte character is reversed too, and no longer valid). Example under `lc`.
+
 #### `rot13`
 <!-- op rot13 -->
 `x` → `rot13(x)` — Rot13 encoding of x
+
+Rotates the ASCII letters of x by 13 places. Example under `lc`.
 
 #### `substr`
 <!-- op substr -->
 `x i k` → `x[i:i+k-1]` — Substring of x starting at i (zero-based) of length k (as Perl)
 
+The part of x that starts at offset i (counting from 0) and is k bytes long, as Perl's substr: a negative i counts from the end of x, a negative k leaves that many bytes off the end. A part that lies outside x is empty. i and k must be integers, otherwise the result is NA.
+
+```console
+$ pluk tree 'a::tree^1^2,substr' 'b::tree^-2^9,substr' 'c::tree^0^-1,substr' 'd::tree^7^1,substr' < harvest.txt
+tree	a	b	c	d
+A12	12	12	A1	
+P03	03	03	P0	
+...
+```
+
 #### `head`
 <!-- op head -->
 `x k` → `x[0:k-1]` — Initial part of string x, of length k [head,tail,skip,shed]
+
+`head` keeps the first k bytes of x, `tail` the last k; `skip` drops the first k, `shed` the last k. k is clamped to the length of x (a k beyond it takes or drops everything, a negative k counts as 0); a k that is not an integer gives NA.
+
+```console
+$ pluk picker 'h::picker^2,head' 't::picker^2,tail' 's::picker^2,skip' 'd::picker^2,shed' 'a::picker^99,head' < harvest.txt
+picker	h	t	s	d	a
+Annie	An	ie	nie	Ann	Annie
+Bert	Be	rt	rt	Be	Bert
+...
+```
 
 #### `tail`
 <!-- op tail -->
 `x k` → `x[#x-k:#x-1]` — Trailing part of string x, of length k [head,tail,skip,shed]
 
+The last k bytes of x. Example under `head`.
+
 #### `skip`
 <!-- op skip -->
 `x k` → `x[k:#x-1]` — Trailing part of string x, skipping first k [head,tail,skip,shed]
+
+x without its first k bytes. Example under `head`.
 
 #### `shed`
 <!-- op shed -->
 `x k` → `x[0:#x-k-1]` — Leading part of string x, shedding last k [head,tail,skip,shed]
 
+x without its last k bytes. Example under `head`.
+
 #### `strim`
 <!-- op strim -->
 `s nx ny` → `s'` — Trim nx bytes from the start and ny from the end of s
+
+Removes nx bytes from the start and ny bytes from the end of s. A negative count is 0; a count that is not an integer gives NA.
+
+```console
+$ pluk tree 's::tree^1^1,strim' 'p::picker^0^2,strim' < harvest.txt
+tree	s	p
+A12	1	Ann
+P03	0	Be
+...
+```
 
 #### `ppl`
 <!-- op ppl -->
 `x N` → `x'` — x right-padded with blanks to width N (left-aligned)
 
+Pads x with spaces to a width of N bytes: `ppl` adds them on the right (left-aligned), `ppr` on the left (right-aligned); `zp` pads on the left with zeroes. An x that is already N bytes or longer is unchanged. A negative width, or one that is not an integer, gives NA. `zp` pads the text as it is, so -2 to width 4 is 00-2. (Below the padded values are put between brackets, to show the spaces.)
+
+```console
+$ pluk picker 'l::^[:fruit^7,ppl,cat^],cat' 'r::^[:fruit^7,ppr,cat^],cat' 'z::bruised^3,zp' 'n::^-2^4,zp' < harvest.txt
+picker	l	r	z	n
+Annie	[apple  ]	[  apple]	002	00-2
+Bert	[pear   ]	[   pear]	000	00-2
+...
+```
+
 #### `ppr`
 <!-- op ppr -->
 `x N` → `x'` — x left-padded with blanks to width N (right-aligned)
+
+x left-padded with spaces to width N (right-aligned). Example under `ppl`.
 
 #### `zp`
 <!-- op zp -->
 `x N` → `x'` — x left zero-padded to width N
 
+x left-padded with zeroes to width N. Example under `ppl`.
+
 #### `nchar`
 <!-- op nchar -->
 `x c` → `nc` — Number of occurrences of c in x (non-overlapping)
+
+The number of non-overlapping occurrences of the string c in x; c may be longer than one byte. An empty c counts 0.
+
+```console
+$ pluk picker 'n::picker^n,nchar' 'e::fruit^pp,nchar' < harvest.txt
+picker	n	e
+Annie	2	1
+Bert	0	0
+...
+```
 
 #### `catall`
 <!-- op catall -->
 `*` → `Stack-joined` — Stringified stack
 
+Concatenates all values on the stack, from the bottom up; `joinall` joins them with the top value as separator; `join` joins just x and y with j. An empty stack gives an empty string; joining an NA gives NA.
+
+```console
+$ pluk 'a::picker:fruit:tree,catall' 'j::picker:fruit:tree^-,joinall' 'k::picker:fruit^%20&%20,join' < harvest.txt
+a	j	k
+AnnieappleA12	Annie-apple-A12	Annie & apple
+BertpearP03	Bert-pear-P03	Bert & pear
+...
+```
+
 #### `joinall`
 <!-- op joinall -->
 `* s` → `Stack-joined-by-s` — Stringified stack with s as separator
+
+All values on the stack below the top, joined with the top value as separator. Example under `catall`.
 
 #### `join`
 <!-- op join -->
 `x y j` → `xjy` — Join two elements with string separator
 
+x and y joined with separator j. Example under `catall`.
+
 #### `uie`
 <!-- op uie -->
 `x y` → `x-or-y` — Use x if not empty (and not NA), otherwise use y
+
+x, unless x is empty or NA; then y. Useful for a default value.
+
+```console
+$ pluk id x 'v::x^none,uie' '@id~[EFG]' < numbers.txt
+id	x	v
+E	nan	nan
+F		none
+G	fox	fox
+```
 
 #### `urlec`
 <!-- op urlec -->
 `x` → `urlec(x)` — URL encoding of x (all but A-Z a-z 0-9 _ as %XX)
 
+`urlec` encodes every byte of x except A-Z a-z 0-9 and _ as %XX (upper-case hexadecimal); `urldc` decodes %XX (either case) and leaves everything else, including +, as it is.
+
+```console
+$ echo 'Annie & Bert' | pluk -k 1 'e::1,urlec' 'd::1,urlec,urldc'
+Annie & Bert	Annie%20%26%20Bert	Annie & Bert
+```
+
 #### `urldc`
 <!-- op urldc -->
 `x` → `urldc(x)` — URL decoding of x (%XX)
+
+Decodes %XX in x. Example under `urlec`.
 
 #### `cgsum`
 <!-- op cgsum -->
 `c s` → `Sum of s in c` — Sum of the lengths of the s operations in CIGAR c
 
+Take a CIGAR string c (a value, not necessarily from SAM input) and a set of operation letters s: `cgsum` adds up the lengths of the operations in s, `cgmax` gives the largest length (0 if there is none), `cgcount` the number of such operations. A CIGAR `*` gives 0; a CIGAR that does not parse (also the empty string and lower-case operations) gives NA. Letters in s that are not CIGAR operations count nothing.
+
+```console
+$ pluk -q --sam 1 6 'm::6^M,cgsum' 'i::6^ID,cgsum' 'x::6^MID,cgmax' 'n::6^ID,cgcount' < reads.sam
+read1	3S22M3I8M3D9M	39	6	22	2
+```
+
 #### `cgmax`
 <!-- op cgmax -->
 `c s` → `Max of s in c` — Largest length of an s operation in CIGAR c
+
+The largest length of an operation of s in the CIGAR c. Example under `cgsum`.
 
 #### `cgcount`
 <!-- op cgcount -->
 `c s` → `Count of s in c` — Number of s operations in CIGAR c
 
+The number of operations of s in the CIGAR c. Example under `cgsum`.
+
 #### `md5`
 <!-- op md5 -->
 `x` → `md5(x)` — MD5 sum of x (hexadecimal)
 
+The MD5 digest of the bytes of x, as 32 lower-case hexadecimal digits.
+
+```console
+$ pluk picker 'm::picker,md5' < harvest.txt
+picker	m
+Annie	0a420beb77b963b9a14066f08b7865e8
+Bert	bddfdb28870c5800d938fa0993c46d65
+...
+```
+
 #### `fmtall`
 <!-- op fmtall -->
 `f *` → `Map-*-into-f` — In f replace # instances by stack (\# is a literal #)
+
+Fills in a format: f is the bottom value of the stack, and each # in it is replaced by the next value, in order (\# is a literal #). The number of # must equal the number of values: for a constant f a mismatch is an error before input is read, for an f from a column it gives NA for that row.
+
+```console
+$ pluk 'f::^#%20picked%20#%20kg:picker:kg,fmtall' < harvest.txt
+f
+Annie picked 14.5 kg
+Bert picked 9.0 kg
+...
+```
 
 ### arithmetic
 
@@ -743,33 +909,81 @@ Every operator, by category, in the order of `pluk -l`. The line under each name
 <!-- op del -->
 `x p` → `x =~ s/p//` — Delete pattern p in x
 
+`del` deletes the first match of the pattern p in x, `delg` every match. As for all regex operators, p must be a constant (`^PATTERN`), written in the syntax of Rust's regex crate (no backreferences or look-around), matched on bytes; `\Q...\E` quotes literal text; an empty pattern is an error.
+
+```console
+$ pluk picker 'd::picker^[aeiou],del' 'g::picker^[aeiou],delg' < harvest.txt
+picker	d	g
+Annie	Anne	Ann
+Bert	Brt	Brt
+...
+```
+
 #### `delg`
 <!-- op delg -->
 `x p` → `x =~ s/p//g` — Globally delete pattern p in x
+
+Deletes every match of p in x. Example under `del`.
 
 #### `ed`
 <!-- op ed -->
 `x p s` → `x =~ s/p/s/` — Substitute pattern p by s in x (s literal)
 
+`ed` replaces the first match of p in x by s, `edg` every match. s is literal text: `$` has no special meaning here (see `edbr` for groups).
+
+```console
+$ pluk picker 'e::picker^n^N,ed' 'g::picker^n^N,edg' < harvest.txt
+picker	e	g
+Annie	ANnie	ANNie
+Bert	Bert	Bert
+...
+```
+
 #### `edg`
 <!-- op edg -->
 `x p s` → `x =~ s/p/s/g` — Globally substitute pattern p by s in x (s literal)
+
+Replaces every match of p in x by the literal s. Example under `ed`.
 
 #### `get`
 <!-- op get -->
 `x p` → `p-match-of-x` — Group 1 of the match of p in x, or the entire match; empty if no match
 
+`get` gives group 1 of the first match of p in x if p has a group, otherwise the whole match; empty if p does not match. `npat` counts the non-overlapping matches of p in x.
+
+```console
+$ pluk tree 'n::tree^\d+,get' 'l::tree^([A-Z])\d,get' 'v::picker^[aeiou],npat' < harvest.txt
+tree	n	l	v
+A12	12	A	2
+P03	03	P	1
+...
+```
+
 #### `npat`
 <!-- op npat -->
 `x p` → `np` — Number of (non-overlapping) matches of p in x
+
+The number of non-overlapping matches of p in x. Example under `get`.
 
 #### `edbr`
 <!-- op edbr -->
 `x p s` → `x =~ s/p/s/` — As ed, $1 $2 .. (groups) and $0 (match) in s
 
+As `ed` and `edg`, but in s `$1`, `$2`, ... stand for the groups of the match and `$0` for the whole match; a `$` that is not followed by a digit is a literal `$`.
+
+```console
+$ pluk tree 'b::tree^([A-Z])(\d+)^$2-$1,edbr' 'g::picker^([aeiou])^<$1>,edgbr' < harvest.txt
+tree	b	g
+A12	12-A	Ann<i><e>
+P03	03-P	B<e>rt
+...
+```
+
 #### `edgbr`
 <!-- op edgbr -->
 `x p s` → `x =~ s/p/s/g` — As edg, $1 $2 .. (groups) and $0 (match) in s
+
+As `edg`, with `$1` `$2` .. and `$0` in s. Example under `edbr`.
 
 ### sam
 

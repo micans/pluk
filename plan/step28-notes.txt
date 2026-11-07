@@ -37,3 +37,19 @@ Item 1: sections 1-3
   example shows the 64-bit overflow to float); this is as intended.
 
   Tests: the 17 examples of sections 2 and 3 pass doccheck.py (make test: 37 examples).
+
+
+Item 2: reference for stack, string, regex (38 operators)
+
+  Descriptions from the operator decisions (step13 for the string operators, step14 for
+  the regex operators, step17 for cgsum cgmax cgcount): what the operator does, then NA,
+  non-integer counts, edge cases, constant patterns. Sibling operators share one example
+  (dup pop xch; cat len; lc uc rev rot13; head tail skip shed; ppl ppr zp; catall joinall
+  join; urlec urldc; cgsum cgmax cgcount; del delg; ed edg; get npat; edbr edgbr): 19
+  examples, on harvest.txt, numbers.txt and reads.sam.
+
+  Method: the examples were written as commands and their output was produced by running
+  them (an authoring script, not part of the repository), then read against the text.
+  This caught one wrong claim in the draft: '$$' is not an escape in edbr's replacement;
+  a '$' not followed by a digit is literal ('$$1' gives '$' and group 1). One example was
+  changed to show the row that matters (uie on the empty field).
