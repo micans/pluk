@@ -139,3 +139,34 @@ Item 3: aln_nedit_pia aln_nedit_piu aln_posinfo
   Tests: sam-edits (md5 on both files with and without --sam-nonf, first rows), sam-edits-edge
   (the synthetic records, n not valid, n from a column, RNAME not in SAMFA, the
   compile-time error). Unit test alignment_posinfo. list-ops ref.
+
+
+Item 4: patchiness patchiness2
+
+  sam.rs: patchiness(s, window, columns_counted) is pick's aln_patchiness and
+  aln_patchiness2 in one function. pick first replaces ( ) by | and a space by x, then
+  reads s as runs of one character (/((.)\2{0,})/g); pluk compares the runs through the
+  same mapping (class()), so ' x' is one run, as in pick. Each run adds its penalty once
+  (. | ` _ = 0, + - ~ 1, x 2), placed at its first column (patchiness) or at a counter
+  advanced by the length of every run except _ . ` ~ - and read after the run
+  (patchiness2). Runs whose position is more than the window before the latest run's are
+  dropped from the front (a VecDeque); the result is the largest sum seen, 0 for an empty
+  string. A character without a penalty is None, so NA (pick dies; a newline, which Perl's
+  '.' does not match, pick skips silently).
+
+  ops.rs: category sam as in step18.txt (pick defines them with the SAM operators), so they
+  need --sam or --sam-h although they only read their operands. The window d must be a
+  non-negative integer (a value beyond Int or u64 included: NA); an NA s gives NA. These
+  NAs are operand errors and not counted in the SAM report.
+
+  Checked against pick: patchiness and patchiness2 of aln_aln with windows 0, 10 and 50 on
+  qry3mm.sam and qry3vs.sam (mapped records), with and without --sam-nonf: identical.
+  Constant strings (empty, one x, ( ) and a space, every symbol, mixed runs, the
+  dangling symbols) with windows 0, 1 and 3: identical; differences: a newline and a
+  letter outside the table (NA).
+
+  Tests: sam-patchiness (md5 on both files with and without --sam-nonf, first rows),
+  sam-patchiness-edge (the constant strings, d not valid, without --sam). Unit test
+  patchiness_scores. list-ops ref.
+
+  step18 complete with this item.

@@ -322,6 +322,54 @@ pub fn posinfo(reference: &[u8], seq: &[u8], ops: &[Op], pos: u64, limit: u64) -
     Ok(items.join(":").into_bytes())
 }
 
+// patchiness and patchiness2 (plan/step18.txt decision 9), pick's sliding-window
+// scores over an alignment string s. s is read as runs of one character; each run
+// has a penalty (below) and a position, and the result is the largest sum of the
+// penalties of runs whose positions lie within window of the latest run's.
+// patchiness: a run's position is its first column. patchiness2: a counter that
+// advances by the length of every run except _ . ` ~ - (columns without a
+// reference-and-query pair), taken after the run. ( and ) count as |, a space as x.
+// None: a character without a penalty.
+pub fn patchiness(s: &[u8], window: u64, columns_counted: bool) -> Option<u64> {
+    fn penalty(b: u8) -> Option<u64> {
+        match b {
+            b'.' | b'|' | b'`' | b'_' | b'=' | b'(' | b')' => Some(0),
+            b'+' | b'-' | b'~' => Some(1),
+            b'x' | b' ' => Some(2),
+            _ => None,
+        }
+    }
+    let class = |b: u8| match b { b'(' | b')' => b'|', b' ' => b'x', _ => b };
+    let mut runs: std::collections::VecDeque<(u64, u64)> = std::collections::VecDeque::new();
+    let (mut score, mut best, mut counter) = (0u64, 0u64, 0u64);
+    let mut i = 0;
+    while i < s.len() {
+        let c = class(s[i]);
+        let len = s[i..].iter().take_while(|&&b| class(b) == c).count();
+        let fine = penalty(c)?;
+        let p = if columns_counted {
+            if !b"_.`~-".contains(&c) {
+                counter += len as u64;
+            }
+            counter
+        } else {
+            i as u64
+        };
+        runs.push_back((p, fine));
+        score += fine;
+        while let Some(&(first, out)) = runs.front() {
+            if p - first <= window {
+                break;
+            }
+            runs.pop_front();
+            score -= out;
+        }
+        best = best.max(score);
+        i += len;
+    }
+    Some(best)
+}
+
 // A leading run of ~ (insertion) becomes _, else a leading run of - (deletion)
 // becomes `; the same at the end (pick).
 fn mark_ends(aln: &mut [u8]) {
@@ -775,6 +823,24 @@ mod tests {
         // H and P skipped; past the reference end.
         assert_eq!(info("ACGTAC", "ACGTAC", "2H3M1P3M", 1, 0).unwrap(), "");
         assert_eq!(info("ACGT", "CGTA", "4M", 2, 0), Err(Na::RefEnd));
+    }
+
+    #[test]
+    fn patchiness_scores() {
+        assert_eq!(patchiness(b"", 10, false), Some(0));
+        assert_eq!(patchiness(b"||||||||", 10, false), Some(0));
+        // One penalty per run: xx is 2, x|x is 4.
+        assert_eq!(patchiness(b"||xx||", 10, false), Some(2));
+        assert_eq!(patchiness(b"||x|x||", 10, false), Some(4));
+        // Runs further apart than the window do not add up.
+        assert_eq!(patchiness(b"x|||||x", 5, false), Some(2));
+        assert_eq!(patchiness(b"x|||||x", 6, false), Some(4));
+        // patchiness2 does not count - ~ _ ` . columns.
+        assert_eq!(patchiness(b"x-----|x", 3, false), Some(3));
+        assert_eq!(patchiness(b"x-----|x", 3, true), Some(5));
+        // ( ) are |, a space is x; other characters have no penalty.
+        assert_eq!(patchiness(b"(x) x", 10, false), Some(4));     // " x" is one run, as pick
+        assert_eq!(patchiness(b"||a||", 10, false), None);
     }
 
     #[test]

@@ -1,0 +1,27 @@
+ 0	0	0
+ 1	0	0
+ 3	0	0
+x 0	2	2
+x 1	2	2
+x 3	2	2
+(x)%20x 0	2	2
+(x)%20x 1	2	2
+(x)%20x 3	4	4
+|.+~-_`=x 0	2	3
+|.+~-_`=x 1	2	3
+|.+~-_`=x 3	3	5
+xx|x||||||x-x 0	2	3
+xx|x||||||x-x 1	3	5
+xx|x||||||x-x 3	5	5
+~~~x---x___x 0	2	3
+~~~x---x___x 1	3	5
+~~~x---x___x 3	3	8
+x%0Ax 0	NA	NA
+x%0Ax 1	NA	NA
+x%0Ax 3	NA	NA
+ab 0	NA	NA
+ab 1	NA	NA
+ab 3	NA	NA
+NA	NA	NA	NA
+pluk: [a::^x^3,patchiness]: operator patchiness needs --sam or --sam-h
+exit 1

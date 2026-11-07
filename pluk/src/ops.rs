@@ -276,6 +276,10 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "-", result: "n", doc: "Edits in aln_aln, intron unaware (all but | _)", fun: op_aln_nedit_piu },
     OpDef { name: "aln_posinfo", pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
             operands: "n", result: "info", doc: "Mismatch and indel positions; indel sequences up to length n (0: all)", fun: op_aln_posinfo },
+    OpDef { name: "patchiness", pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "s d", result: "score", doc: "Largest penalty sum of runs in alignment string s within window d", fun: op_patchiness },
+    OpDef { name: "patchiness2", pops: Pops::N(2), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "s d", result: "score", doc: "As patchiness; the window counts aligned columns only", fun: op_patchiness2 },
     OpDef { name: "ref_trail5p", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
             operands: "-", result: "seq", doc: "Reference before the matched part (needs --sam/FILE)", fun: op_ref_trail5p },
     OpDef { name: "ref_matched", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
@@ -1259,6 +1263,26 @@ fn op_aln_posinfo(m: &mut Machine, row: &Row, _: &Attached) {
         None => m.push(Value::Na),
     }
 }
+
+// patchiness s d (decision 9): d a non-negative integer, s of alignment symbols,
+// else NA.
+fn patchiness(m: &mut Machine, row: &Row, columns_counted: bool) {
+    let d = m.pop();
+    let s = m.pop();
+    let window = match m.num(&d, row) {
+        Some(Num::I(k)) if k >= 0 => u64::try_from(k).ok(),
+        _ => None,
+    };
+    let value = match (window, &s) {
+        (Some(w), s) if !matches!(s, Value::Na) => sam::patchiness(&m.bytes(s, row), w, columns_counted)
+            .map_or(Value::Na, |p| Value::Num(Num::I(p as num::Int))),
+        _ => Value::Na,
+    };
+    m.push(value);
+}
+
+fn op_patchiness(m: &mut Machine, row: &Row, _: &Attached) { patchiness(m, row, false) }
+fn op_patchiness2(m: &mut Machine, row: &Row, _: &Attached) { patchiness(m, row, true) }
 
 fn op_aln_ref(m: &mut Machine, row: &Row, _: &Attached) { aln_lines(m, row, |a| vec![&a.reference], 0, false) }
 fn op_aln_aln(m: &mut Machine, row: &Row, _: &Attached) { aln_lines(m, row, |a| vec![&a.aln], 0, false) }

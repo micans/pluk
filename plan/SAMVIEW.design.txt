@@ -1,7 +1,8 @@
 
 SAMVIEW design: the per-row SAM view, the input rewrites, and the values the SAM operators read.
 
-Status: DECIDED in step17 (plan/step17.txt decisions 0-8). Written for the SAM steps 17-20;
+Status: DECIDED in step17 (plan/step17.txt decisions 0-8); the step18 parts (reference,
+parts, aln) implemented in step18 (plan/step18.txt decisions 0-9). Written for the SAM steps 17-20;
 sections marked [step18] [step19] [step20] are the frame for later steps and are filled in
 there. pick's implementation: plan/SAM.pick-survey.txt ('survey'). The sequence fill:
 plan/SAMSEQ.design.txt.

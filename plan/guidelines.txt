@@ -181,7 +181,9 @@
       aln_posinfo compares = and X as M (pick stops at them with a message), ignores case
       (all letters upper-cased, U as T; pick upper-cases only acgtu and reports n against N),
       walks past P (pick stops), gives NA past the reference end (pick checks M only) and
-      for an n that is not a non-negative integer.
+      for an n that is not a non-negative integer. patchiness and patchiness2 give NA for a
+      character outside their table, a newline included (pick dies, or skips a newline),
+      and for a window that is not a non-negative integer.
     - SAM sequence fill (SAMSEQ.design.txt): a SEQ '*' is filled from an earlier row of the
       same read and segment whose part of the read contains the needed part (hard clips
       respected), whatever the rows between; the cache is updated before every filter, so

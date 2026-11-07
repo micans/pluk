@@ -140,6 +140,8 @@ aln_all_pack  -           aln                 Alignment: as aln_all, lines joine
 aln_nedit_pia -           n                   Edits in aln_aln, intron aware (all but | = _) [sam]
 aln_nedit_piu -           n                   Edits in aln_aln, intron unaware (all but | _) [sam]
 aln_posinfo   n           info                Mismatch and indel positions; indel sequences up to length n (0: all) [sam]
+patchiness    s d         score               Largest penalty sum of runs in alignment string s within window d [sam]
+patchiness2   s d         score               As patchiness; the window counts aligned columns only [sam]
 ref_trail5p   -           seq                 Reference before the matched part (needs --sam/FILE) [sam]
 ref_matched   -           seq                 Reference of the matched part (needs --sam/FILE) [sam]
 ref_trail3p   -           seq                 Reference after the matched part (needs --sam/FILE) [sam]
