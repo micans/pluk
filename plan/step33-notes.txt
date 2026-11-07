@@ -24,3 +24,24 @@ Item 1: quotes
   \, (, $ or a space does need them.' (Claude's draft; for the user to revise.)
   Manual section 3, 'Writing names and values': a paragraph on the shell, with the
   characters that need quotes and zsh's extendedglob (^ and ~).
+
+
+Item 2: output shown aligned
+
+  New script test/docalign.py (not part of make test; run by hand or by the authoring
+  script): in every console block, the output lines of each command that contain a TAB
+  are padded into columns, each field but the last to the widest value of its column
+  plus two spaces, trailing spaces removed. Left as they are: lines without a TAB, 'pluk:'
+  messages, and lines starting with '@' (SAM header lines: aligned with the records they
+  made the first record's columns as wide as '@SQ' fields, seen in a first run and
+  undone). Idempotent: a second run aligns 0 lines. 627 lines of the manual were aligned;
+  INTRODUCTION.md and SAM-NA.md had no TABs left (already aligned by hand). All examples
+  still pass, as doccheck.py counts a run of white space as one separator; an empty field
+  becomes blank space in its column, which doccheck.py reads the same way.
+
+  Section 3 says that fields are TAB-separated and that the manual shows output aligned
+  with spaces. The authoring script (outside the repository) runs docalign.py after
+  putting a section in place; regenerating section 12 gave a manual identical to the
+  aligned one.
+
+  Step33 complete with this item.
