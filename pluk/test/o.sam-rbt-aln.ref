@@ -1,0 +1,115 @@
+3af6fda3c4aaa5b58583559b6886539d  -
+f926ebea7cd004a6537fbe7dbc6f5860  -
+daecb5f018e3bca6349012696741e5b0  -
+1bc5eb4590e792a24aaacdab2c9b7938  -
+51627702e49e389c3a28f02507e78774  -
+263efa04ff0e9e895cabdcb6260b270a  -
+3e0b0b3a35d27cf118bf040cf032eed9  -
+64a2127728a15dd47b36c52b113da0be  -
+e5d9841100db1eca11f590f09efd4e88  -
+220cd6f43125670c38fd4f8c5a3ebe22  -
+c864c06665ed2cc9c6413acc61ef8a5f  -
+b6bd6129a941d59056b96f017840487f  -
+readGBW1-1	++ 00        110       120       1
+++ A-CACGGAAACGCCAATGTCTGCCCTAGAGG
+++ |~||||||||||||||||||--|||||---|
+++ ACCACGGAAACGCCAATGTC--CCCTA---G
+++ !!!!!!!!!!!!!!!!!!!!  !!!!!   !
+readGBW2-1	++ 00       110         120        1
+++ CCCCTGAACGCTTATC--GCGTGAGCGATTT-G
+++ ||||||||||||||||~~|||||||||||||~|
+++ CCCCTGAACGCTTATCCAGCGTGAGCGATTTGG
+++ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+readGBW1-1-rc	++ 00       110        120       1
+++ ACACGGAAACG-CCAATGTCTGCCCTAGAGG
+== 1,6
+w1	5	2S4M3D4M2I4M2S	AC	||	AC	  	!!	  
+AC
+||
+AC
+!!
+w2	3	3=1X2N3M	AAAC	|||x	AAAT	    	!!!!	    
+AAAC
+|||x
+AAAT
+!!!!
+w3	0	*	NA	NA	NA	NA	NA	NA
+== 8,12
+w1	5	2S4M3D4M2I4M2S	CCCGG	|---|	C---G	  10 	!   !	  10 
+CCCGG
+|---|
+C---G
+!   !
+w2	3	3=1X2N3M	CCCG	=|||	-CCG	  10	 !!!	  10
+CCCG
+=|||
+-CCG
+ !!!
+w3	0	*	NA	NA	NA	NA	NA	NA
+== 9,11
+w1	5	2S4M3D4M2I4M2S	CCG	---	---	 10	   	 10
+CCG
+---
+---
+   
+w2	3	3=1X2N3M	CCG	|||	CCG	 10	!!!	 10
+CCG
+|||
+CCG
+!!!
+w3	0	*	NA	NA	NA	NA	NA	NA
+== 14,15
+w1	5	2S4M3D4M2I4M2S	GG	|x	GT	  	!!	  
+GG
+|x
+GT
+!!
+w2	3	3=1X2N3M	NA	NA	NA	NA	NA	NA
+w3	0	*	NA	NA	NA	NA	NA	NA
+== 15,16
+w1	5	2S4M3D4M2I4M2S	G--T	x~~|	TAAT	    	!!!!	    
+G--T
+x~~|
+TAAT
+!!!!
+w2	3	3=1X2N3M	NA	NA	NA	NA	NA	NA
+w3	0	*	NA	NA	NA	NA	NA	NA
+== 15,30
+w1	5	2S4M3D4M2I4M2S	G--TTTT	x~~||||	TAATTTT	       	!!!!!!!	       
+G--TTTT
+x~~||||
+TAATTTT
+!!!!!!!
+w2	3	3=1X2N3M	NA	NA	NA	NA	NA	NA
+w3	0	*	NA	NA	NA	NA	NA	NA
+== 30,40
+w1	5	2S4M3D4M2I4M2S	NA	NA	NA	NA	NA	NA
+w2	3	3=1X2N3M	NA	NA	NA	NA	NA	NA
+w3	0	*	NA	NA	NA	NA	NA	NA
+== 3,9
+w1	5	2S4M3D4M2I4M2S	ACCCC	||||-	ACCC-	     	!!!! 	     
+ACCCC
+||||-
+ACCC-
+!!!! 
+w2	3	3=1X2N3M	AAACCCC	|||x==|	AAAT--C	       	!!!!  !	       
+AAACCCC
+|||x==|
+AAAT--C
+!!!!  !
+w3	0	*	NA	NA	NA	NA	NA	NA
+== 7,8
+w1	5	2S4M3D4M2I4M2S	CC	||	CC	  	!!	  
+CC
+||
+CC
+!!
+w2	3	3=1X2N3M	CC	==	--	  	  	  
+CC
+==
+--
+  
+w3	0	*	NA	NA	NA	NA	NA	NA
+w1	|---|	|x~~|	||||---|||x~~||||
+w2	=|||	NA	|||x==|||
+w3	NA	NA	NA

@@ -51,3 +51,23 @@ Item 1: the rbt stage, sam_rbt, --sam-rbt, positions and counts
   column sam_rbt, invalid operands, a visible sam_rbt compute, --sam-rbt without rbt_
   operators, compile-time and option errors, -l rbt). Unit test region_tallies. help and
   list-ops refs.
+
+
+Item 2: the rbt strings and rbt_alnall
+
+  ops.rs: rbt_lines takes the rbt stage's column range and cuts each selected alignment
+  string with it (View::alignment gives the step18 strings, which the rbt stage has
+  computed); joined as aln_lines does, with the prefix for rbt_alnall. With --sam-aln-mrk
+  the markers lie after the last column of aln_ref and aln_qry, so they never appear in
+  a region. The ruler is cut like the other lines: a position number that starts before
+  the region shows only its last digits (00 for 100), as pick.
+
+  Checked against pick: the five strings and rbt_alnall on qry3mm.sam and qry3vs.sam for
+  regions 51..150, 1..100, 200..351 and 330..351, plain, --sam-nonf, with context and
+  markers, and with --sam-qlt-sim and a prefix: identical line for line (the multi-line
+  rbt_alnall included), apart from the rows outside the region (NA; pick '*').
+
+  Tests: sam-rbt-aln (md5 on both files for two regions in three settings, rbt_alnall with
+  a prefix, the boundary records with markers, sequential sam_rbt). list-ops ref.
+
+  step20 complete with this item, and with it the SAM steps (17-20).

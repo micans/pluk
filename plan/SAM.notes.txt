@@ -78,3 +78,8 @@ sam_put (separate from the SAM steps; used by the author)
    b. Sugar for the workaround: an operator that formats TAG:VALUE (handling XX.T), used in
       an -i compute on column 12; leaves the in-place rules untouched but needs -i and the
       column name.
+
+
+SAM steps completed (2026-11-07): step17 groundwork, step18 reference and alignment
+display, step19 view options, step20 region-bound tally. Not taken over: suv, input_cigar
+(withheld). Still open: sam_put (above), --remind-me, BAM output (BAMOUT.notes.txt).

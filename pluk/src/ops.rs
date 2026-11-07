@@ -309,6 +309,18 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "-", result: "n", doc: "rbt: inserted bases (~)", fun: op_rbt_nins },
     OpDef { name: "rbt_nedit", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
             operands: "-", result: "n", doc: "rbt: edits (- ~ x)", fun: op_rbt_nedit },
+    OpDef { name: "rbt_alnref", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "aln", doc: "rbt: the region's columns of aln_ref", fun: op_rbt_alnref },
+    OpDef { name: "rbt_alnaln", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "aln", doc: "rbt: the region's columns of aln_aln", fun: op_rbt_alnaln },
+    OpDef { name: "rbt_alnqry", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "aln", doc: "rbt: the region's columns of aln_qry", fun: op_rbt_alnqry },
+    OpDef { name: "rbt_alnrlr", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "aln", doc: "rbt: the region's columns of aln_rlr", fun: op_rbt_alnrlr },
+    OpDef { name: "rbt_alnqlt", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "aln", doc: "rbt: the region's columns of aln_qlt", fun: op_rbt_alnqlt },
+    OpDef { name: "rbt_alnall", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "aln", doc: "rbt: ruler, reference, match, query, quality lines of the region", fun: op_rbt_alnall },
     OpDef { name: "ref_trail5p", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
             operands: "-", result: "seq", doc: "Reference before the matched part (needs --sam/FILE)", fun: op_ref_trail5p },
     OpDef { name: "ref_matched", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
@@ -1350,6 +1362,34 @@ fn op_rbt_nmatchx(m: &mut Machine, row: &Row, _: &Attached) { rbt_value(m, row, 
 fn op_rbt_ndel(m: &mut Machine, row: &Row, _: &Attached) { rbt_value(m, row, |r| r.ndel) }
 fn op_rbt_nins(m: &mut Machine, row: &Row, _: &Attached) { rbt_value(m, row, |r| r.nins) }
 fn op_rbt_nedit(m: &mut Machine, row: &Row, _: &Attached) { rbt_value(m, row, |r| r.nedit()) }
+
+// The rbt strings (plan/step20.txt decision 3): the region's columns of the alignment
+// strings, joined as aln_lines does.
+fn rbt_lines(m: &mut Machine, row: &Row, lines: fn(&sam::Aln) -> Vec<&[u8]>, sep: u8, prefix: bool) {
+    let prefix = if prefix { m.sam.options.prefix.clone() } else { Vec::new() };
+    let result = m.sam.rbt(row).map(|r| r.cols.clone()).map(|cols| {
+        let aln = m.sam.alignment().expect("the rbt stage computes the alignment");
+        let mut out = Vec::new();
+        for (i, line) in lines(aln).into_iter().enumerate() {
+            if i > 0 {
+                out.push(sep);
+            }
+            out.extend_from_slice(&prefix);
+            out.extend_from_slice(line.get(cols.clone()).unwrap_or_default());
+        }
+        out
+    });
+    sam_sequence(m, row, result);
+}
+
+fn op_rbt_alnref(m: &mut Machine, row: &Row, _: &Attached) { rbt_lines(m, row, |a| vec![&a.reference], 0, false) }
+fn op_rbt_alnaln(m: &mut Machine, row: &Row, _: &Attached) { rbt_lines(m, row, |a| vec![&a.aln], 0, false) }
+fn op_rbt_alnqry(m: &mut Machine, row: &Row, _: &Attached) { rbt_lines(m, row, |a| vec![&a.query], 0, false) }
+fn op_rbt_alnrlr(m: &mut Machine, row: &Row, _: &Attached) { rbt_lines(m, row, |a| vec![&a.ruler], 0, false) }
+fn op_rbt_alnqlt(m: &mut Machine, row: &Row, _: &Attached) { rbt_lines(m, row, |a| vec![&a.quality], 0, false) }
+fn op_rbt_alnall(m: &mut Machine, row: &Row, _: &Attached) {
+    rbt_lines(m, row, |a| vec![&a.ruler, &a.reference, &a.aln, &a.query, &a.quality], b'\n', true)
+}
 
 fn op_rbt_qry(m: &mut Machine, row: &Row, _: &Attached) {
     let result = m.sam.rbt_qry(row);

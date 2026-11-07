@@ -956,6 +956,14 @@ impl<'d> View<'d> {
         region_tally(u, v, pos, &ops, t5 + 1, t5 + m, &aln.aln)
     }
 
+    // The alignment strings, once the alignment stage has succeeded in this row.
+    pub fn alignment(&self) -> Option<&Aln> {
+        match &self.aln {
+            Some(Ok(a)) => Some(a),
+            _ => None,
+        }
+    }
+
     // rbt_qry: the query sequence from rbt_qryx to rbt_qryy (empty if none).
     pub fn rbt_qry(&mut self, row: &Row) -> Result<Vec<u8>, Na> {
         let (x, y) = match self.rbt(row) {
