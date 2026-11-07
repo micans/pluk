@@ -600,97 +600,199 @@ Bert picked 9.0 kg
 <!-- op add -->
 `x y` → `x+y` — Add x and y
 
+The four arithmetic operations and integer division. Integers stay integers as long as the result fits; otherwise the result is a floating-point number. `div` always gives a float (written 3.5, or 2 for 6/3); division by zero gives inf, -inf or nan. `idiv` and `mod` are floored, so that x = y·idiv(x,y) + mod(x,y) and `mod` has the sign of y; they need integers, and give NA for a float or a divisor of 0. A value that is not a number gives NA.
+
+```console
+$ pluk id x y 'a::x:y,add' 's::x:y,sub' 'm::x:y,mul' 'd::x:y,div' 'i::x:y,idiv' 'r::x:y,mod' '@id~[ABD]' < numbers.txt
+id	x	y	a	s	m	d	i	r
+A	7	2	9	5	14	3.5	3	1
+B	-3	4	1	-7	-12	-0.75	-1	1
+D	0.1	0.2	0.30000000000000004	-0.1	0.020000000000000004	0.5	NA	NA
+$ pluk 'd::^7^0,div' 'n::^-7^0,div' 'z::^0^0,div' 'i::^7^0,idiv' '@picker=Annie' < harvest.txt
+d	n	z	i
+inf	-inf	nan	NA
+```
+
 #### `sub`
 <!-- op sub -->
 `x y` → `x-y` — Subtract y from x
+
+x minus y. Example under `add`.
 
 #### `mul`
 <!-- op mul -->
 `x y` → `x*y` — Multiply x and y
 
+x times y. Example under `add`.
+
 #### `div`
 <!-- op div -->
 `x y` → `x/y` — Division (a float; by zero: inf or nan)
+
+x divided by y, always a float; by zero inf, -inf or nan. Examples under `add`.
 
 #### `idiv`
 <!-- op idiv -->
 `x y` → `x // y` — Integer division, floored (by zero: NA)
 
+x divided by y, rounded down (floored); integers only, NA by zero. Examples under `add`.
+
 #### `mod`
 <!-- op mod -->
 `x y` → `x mod y` — x modulo y, sign of y (by zero: NA)
+
+x modulo y, with the sign of y; integers only, NA by zero. Example under `add`.
 
 #### `pow`
 <!-- op pow -->
 `x y` → `x**y` — x raised to power y
 
+`pow` raises x to the power y and always gives a float. `ipow` works in integers: it gives an integer, NA when the result does not fit or when x or y is a float, and a negative y behaves as with `pow`.
+
+```console
+$ pluk 'p::^2^10,pow' 'q::^2^10,ipow' 'r::^2^-1,ipow' 's::^2^70,ipow' 't::^2.5^2,ipow' '@picker=Annie' < harvest.txt
+p	q	r	s	t
+1024	1024	0.5	NA	NA
+```
+
 #### `ipow`
 <!-- op ipow -->
 `x y` → `x**y` — x raised to power y in integers (negative y as pow; overflow: NA)
+
+x to the power y in integers (overflow or a float: NA). Example under `pow`.
 
 #### `max`
 <!-- op max -->
 `x y` → `max(x,y)` — Maximum of x and y
 
+The larger (`max`) or smaller (`min`) of x and y, as it is: an integer stays an integer.
+
+```console
+$ pluk id x y 'a::x:y,max' 'b::x:y,min' '@id~[ABG]' < numbers.txt
+id	x	y	a	b
+A	7	2	7	2
+B	-3	4	4	-3
+G	fox	5	NA	NA
+```
+
 #### `min`
 <!-- op min -->
 `x y` → `min(x,y)` — Minimum of x and y
+
+The smaller of x and y. Example under `max`.
 
 #### `neg`
 <!-- op neg -->
 `x` → `-x` — The sign-reversed value of x
 
+Operations on one number: `neg` changes the sign, `abs` takes the absolute value, `sign` gives -1, 0 or 1, `sq` squares, `incr` and `decr` add or subtract 1. Integers stay integers while the result fits.
+
+```console
+$ pluk id x 'n::x,neg' 'a::x,abs' 's::x,sign' 'q::x,sq' 'i::x,incr' 'd::x,decr' '@id~[ABD]' < numbers.txt
+id	x	n	a	s	q	i	d
+A	7	-7	7	1	49	8	6
+B	-3	3	3	-1	9	-2	-4
+D	0.1	-0.1	0.1	1	0.010000000000000002	1.1	-0.9
+```
+
 #### `abs`
 <!-- op abs -->
 `x` → `abs(x)` — Absolute value of x
+
+The absolute value of x. Example under `neg`.
 
 #### `sign`
 <!-- op sign -->
 `x` → `sign(x)` — The sign of x (-1, 0 or 1)
 
+-1, 0 or 1, as x is negative, zero or positive (nan for nan). Example under `neg`.
+
 #### `sq`
 <!-- op sq -->
 `x` → `x^2` — Square of x
+
+x squared. Example under `neg`.
 
 #### `incr`
 <!-- op incr -->
 `x` → `x++` — x incremented by one
 
+x plus 1. Example under `neg`.
+
 #### `decr`
 <!-- op decr -->
 `x` → `x--` — x decremented by one
+
+x minus 1. Example under `neg`.
 
 #### `rand`
 <!-- op rand -->
 `x` → `rand(x)` — Random real in range [0, x) (x 0: [0, 1); see --seed)
 
+A random number in [0, x); for x = 0 in [0, 1). The generator is seeded from the clock, or with `--seed=N`, which makes the output reproducible.
+
+```console
+$ pluk --seed=42 picker 'r::^10,rand^2,dd' < harvest.txt
+picker	r
+Annie	7.42
+Bert	1.60
+...
+```
+
 #### `addall`
 <!-- op addall -->
 `*` → `sum(Stack)` — Sum of all entries in stack
+
+Operators that take every value on the stack. `addall` adds them, `mulall` multiplies, `maxall` and `minall` give the largest and smallest (the value itself, as `max`), `meanall` the mean, `hmeanall` the harmonic and `gmeanall` the geometric mean of the absolute values (the latter computed from logarithms, so it cannot overflow). NA among the values gives NA. On an empty stack `addall` gives 0 and `mulall` 1; the others give NA.
+
+```console
+$ pluk picker 'a::kg:bruised:ripeness,addall' 'm::kg:bruised:ripeness,mulall' 'x::kg:bruised:ripeness,maxall' 'n::kg:bruised:ripeness,minall' < harvest.txt
+picker	a	m	x	n
+Annie	17.42	26.68	14.5	0.92
+Bert	9.75	0	9.0	0
+...
+$ pluk picker 'm::kg:ripeness,meanall^2,dd' 'h::kg:ripeness,hmeanall^2,dd' 'g::kg:ripeness,gmeanall^2,dd' < harvest.txt
+picker	m	h	g
+Annie	7.71	1.73	3.65
+Bert	4.88	1.38	2.60
+...
+```
 
 #### `mulall`
 <!-- op mulall -->
 `*` → `product(Stack)` — Product of all entries in stack
 
+The product of all values on the stack (1 for an empty stack). Example under `addall`.
+
 #### `maxall`
 <!-- op maxall -->
 `*` → `max(Stack)` — Max over all entries in stack
+
+The largest value on the stack (NA for an empty stack). Example under `addall`.
 
 #### `minall`
 <!-- op minall -->
 `*` → `min(Stack)` — Min over all entries in stack
 
+The smallest value on the stack (NA for an empty stack). Example under `addall`.
+
 #### `meanall`
 <!-- op meanall -->
 `*` → `mean(Stack)` — Mean of all entries in stack
+
+The mean of the values on the stack (NA for an empty stack). Example under `addall`.
 
 #### `hmeanall`
 <!-- op hmeanall -->
 `*` → `hmean(Stack)` — Harmonic mean of the absolute values in stack
 
+The harmonic mean of the absolute values on the stack. Example under `addall`.
+
 #### `gmeanall`
 <!-- op gmeanall -->
 `*` → `gmean(Stack)` — Geometric mean of the absolute values in stack
+
+The geometric mean of the absolute values on the stack. Example under `addall`.
 
 ### math
 
@@ -698,65 +800,128 @@ Bert picked 9.0 kg
 <!-- op int -->
 `x` → `int(x)` — x truncated towards zero (do not use for rounding)
 
+Conversions to a whole number: `int` cuts off the fraction (towards zero), `floor` rounds down, `ceil` rounds up, `round` rounds to the nearest integer with halves to the even neighbour (2.5 becomes 2, 3.5 becomes 4). An integer is returned unchanged; a float beyond the integer range stays the whole float it is.
+
+```console
+$ printf '2.5\n3.5\n-2.5\n-1.7\n' | pluk -k 1 'i::1,int' 'f::1,floor' 'c::1,ceil' 'r::1,round'
+2.5	2	2	3	2
+3.5	3	3	4	4
+-2.5	-2	-3	-2	-2
+-1.7	-1	-2	-1	-2
+```
+
 #### `floor`
 <!-- op floor -->
 `x` → `floor(x)` — The floor of x
+
+x rounded down. Example under `int`.
 
 #### `ceil`
 <!-- op ceil -->
 `x` → `ceil(x)` — The ceil of x
 
+x rounded up. Example under `int`.
+
 #### `round`
 <!-- op round -->
 `x` → `round(x)` — The integer nearest to x, halves to even (2.5 -> 2, 3.5 -> 4)
+
+x rounded to the nearest integer, halves to even. Example under `int`.
 
 #### `qnl`
 <!-- op qnl -->
 `x Q` → `q(x)` — Normalised quantile of x, lower tail: (#steps <= x, plus 1)/(n+1) (--quant-Q)
 
+Where x falls among the quantile steps of `--quant-Q=FILE` (a file of numbers in non-decreasing order, one per line), normalised to (0, 1]: with n steps, `qnl` is (the number of steps <= x, plus 1)/(n+1) and `qnu` (the number of steps >= x, plus 1)/(n+1). Q must be a constant naming a `--quant`; x that is not a number gives NA.
+
+```console
+$ printf '5\n10\n15\n' > steps.txt
+$ pluk --quant-Q=steps.txt picker kg 'l::kg^Q,qnl' 'u::kg^Q,qnu' < harvest.txt
+picker	kg	l	u
+Annie	14.5	0.75	0.5
+Bert	9.0	0.5	0.75
+...
+```
+
 #### `qnu`
 <!-- op qnu -->
 `x Q` → `q(x)` — Normalised quantile of x, upper tail: (#steps >= x, plus 1)/(n+1)
+
+The normalised quantile of x, upper tail. Example under `qnl`.
 
 #### `sqrt`
 <!-- op sqrt -->
 `x` → `sqrt(x)` — Square root of x
 
+Square root, exponentials and logarithms. They give floats; outside their domain the result follows IEEE: the logarithm of 0 is -inf, of a negative number nan, as is the square root of a negative number. `log10` and `log2` are computed directly (not as log(x)/log(10)).
+
+```console
+$ printf '1\n100\n0\n-1\n' | pluk -k 1 's::1,sqrt' 'e::1,log10' 'l::1,log2' 'x::1,exp10'
+1	1	0	0	10
+100	10	2	6.643856189774724	1e+100
+0	0	-inf	-inf	1
+-1	nan	nan	nan	0.1
+```
+
 #### `exp`
 <!-- op exp -->
 `x` → `e**x` — Exponential function applied to x
+
+e to the power x. Example under `sqrt`.
 
 #### `exp2`
 <!-- op exp2 -->
 `x` → `2^x` — 2 to the power of x
 
+2 to the power x. Example under `sqrt`.
+
 #### `exp10`
 <!-- op exp10 -->
 `x` → `10^x` — 10 to the power of x
+
+10 to the power x. Example under `sqrt`.
 
 #### `log`
 <!-- op log -->
 `x` → `log(x)` — Natural logarithm of x
 
+The natural logarithm of x. Example under `sqrt`.
+
 #### `log2`
 <!-- op log2 -->
 `x` → `log2(x)` — Logarithm of x in base 2
+
+The logarithm of x in base 2. Example under `sqrt`.
 
 #### `log10`
 <!-- op log10 -->
 `x` → `log10(x)` — Logarithm of x in base 10
 
+The logarithm of x in base 10. Example under `sqrt`.
+
 #### `sin`
 <!-- op sin -->
 `x` → `sin(x)` — Sine of x
+
+Sine, cosine and tangent of x, in radians.
+
+```console
+$ printf '0\n1\n' | pluk -k 1 's::1,sin^3,dd' 'c::1,cos^3,dd' 't::1,tan^3,dd'
+0	0.000	1.000	0.000
+1	0.841	0.540	1.557
+```
 
 #### `cos`
 <!-- op cos -->
 `x` → `cos(x)` — Cosine of x
 
+The cosine of x (radians). Example under `sin`.
+
 #### `tan`
 <!-- op tan -->
 `x` → `tan(x)` — Tangent of x
+
+The tangent of x (radians). Example under `sin`.
 
 ### precision
 
@@ -764,21 +929,39 @@ Bert picked 9.0 kg
 <!-- op dd -->
 `x N` → `x'` — x written with N decimal digits
 
+Numbers written with a fixed number of decimals N (an integer from 0 to 1000, otherwise NA): `dd` writes x, `sn` writes x in scientific notation; `frac`, `pct` and `pml` write x/y, 100·x/y and 1000·x/y. A division by zero gives inf or nan.
+
+```console
+$ pluk picker 'd::ripeness^1,dd' 's::kg^2,sn' 'f::bruised:kg^3,frac' 'p::bruised:kg^1,pct' 'm::bruised:kg^0,pml' < harvest.txt
+picker	d	s	f	p	m
+Annie	0.9	1.45e+01	0.138	13.8	138
+Bert	0.8	9.00e+00	0.000	0.0	0
+...
+```
+
 #### `sn`
 <!-- op sn -->
 `x N` → `x'` — x in scientific notation with N decimal digits
+
+x in scientific notation with N decimals. Example under `dd`.
 
 #### `frac`
 <!-- op frac -->
 `x y N` → `x/y` — Fraction x/y with N decimal digits
 
+x/y with N decimals. Example under `dd`.
+
 #### `pct`
 <!-- op pct -->
 `x y N` → `pct(x/y)` — Percentage of x relative to y with N decimal digits
 
+x/y as a percentage, with N decimals. Example under `dd`.
+
 #### `pml`
 <!-- op pml -->
 `x y N` → `pml(x/y)` — Per mille of x relative to y with N decimal digits
+
+x/y per mille, with N decimals. Example under `dd`.
 
 ### dictionary
 
@@ -858,25 +1041,44 @@ Bert picked 9.0 kg
 <!-- op bitand -->
 `x y` → `x and y` — Bitwise and of |x| and |y|
 
+Bitwise operations on the absolute values of integers: `bitand`, `bitor`, `bitxor`, `bitoff` (the bits of |x| without those of |y|), `bitlsh` and `bitrsh` (shift |x| left or right by |y| bits). A float, even 3.0, or a value that is not a number gives NA. A left shift whose result does not fit gives NA; a right shift by the integer width or more gives 0.
+
+```console
+$ printf '12\t10\n-12\t3\n5\t1.5\n' | pluk -k 1 2 'a::1:2,bitand' 'o::1:2,bitor' 'x::1:2,bitxor' 'f::1:2,bitoff' 'l::1:2,bitlsh' 'r::1:2,bitrsh'
+12	10	8	14	6	4	12288	0
+-12	3	0	15	15	12	96	1
+5	1.5	NA	NA	NA	NA	NA	NA
+```
+
 #### `bitor`
 <!-- op bitor -->
 `x y` → `x or y` — Bitwise or of |x| and |y|
+
+Bitwise or of |x| and |y|. Example under `bitand`.
 
 #### `bitxor`
 <!-- op bitxor -->
 `x y` → `x xor y` — Bitwise exclusive or of |x| and |y|
 
+Bitwise exclusive or of |x| and |y|. Example under `bitand`.
+
 #### `bitoff`
 <!-- op bitoff -->
 `x y` → `x rm y` — Remove the bits of |y| from |x|
+
+The bits of |x| without those of |y|. Example under `bitand`.
 
 #### `bitlsh`
 <!-- op bitlsh -->
 `x y` → `x << y` — Shift |x| left by |y| (overflow: NA)
 
+|x| shifted left by |y| bits (NA if the result does not fit). Example under `bitand`.
+
 #### `bitrsh`
 <!-- op bitrsh -->
 `x y` → `x >> y` — Shift |x| right by |y|
+
+|x| shifted right by |y| bits. Example under `bitand`.
 
 ### radix
 
@@ -884,25 +1086,49 @@ Bert picked 9.0 kg
 <!-- op tobin -->
 `x` → `x'` — Binary representation of x (negative: -101)
 
+`tobin`, `tohex` and `tooct` write an integer in base 2, 16 or 8; a negative integer as a minus sign and its magnitude (-ff). A float gives NA. `binto`, `hexto` and `octto` read such a representation back: an optional minus, an optional prefix matching the base (0b, 0x, 0o, either case), and digits with at most single underscores between them. Anything else (a plus, spaces, other characters, an empty value, a number beyond the integer range) gives NA.
+
+```console
+$ printf '255\n-255\n2.5\n' | pluk -k 1 'b::1,tobin' 'h::1,tohex' 'o::1,tooct'
+255	11111111	ff	377
+-255	-11111111	-ff	-377
+2.5	NA	NA	NA
+$ printf '0xff\n-FF\n1_000\nff \n' | pluk -k 1 'h::1,hexto'
+0xff	255
+-FF	-255
+1_000	4096
+ff 	NA
+```
+
 #### `tohex`
 <!-- op tohex -->
 `x` → `x'` — Hex representation of x (negative: -ff)
+
+x in hexadecimal (negative: -ff). Example under `tobin`.
 
 #### `tooct`
 <!-- op tooct -->
 `x` → `x'` — Octal representation of x (negative: -17)
 
+x in octal (negative: -17). Example under `tobin`.
+
 #### `binto`
 <!-- op binto -->
 `x` → `x'` — Read binary representation x (optional - and 0b)
+
+Reads a binary representation (optional - and 0b). Example under `tobin`.
 
 #### `hexto`
 <!-- op hexto -->
 `x` → `x'` — Read hex representation x (optional - and 0x)
 
+Reads a hexadecimal representation (optional - and 0x). Example under `tobin`.
+
 #### `octto`
 <!-- op octto -->
 `x` → `x'` — Read octal representation x (optional - and 0o)
+
+Reads an octal representation (optional - and 0o). Example under `tobin`.
 
 ### regex
 

@@ -53,3 +53,17 @@ Item 2: reference for stack, string, regex (38 operators)
   This caught one wrong claim in the draft: '$$' is not an escape in edbr's replacement;
   a '$' not followed by a digit is literal ('$$1' gives '$' and group 1). One example was
   changed to show the row that matters (uie on the empty field).
+
+
+Item 3: reference for arithmetic, math, precision, bit, radix (57 operators)
+
+  Rules from step12 (division by zero, floored idiv and mod, floats to integer operators
+  NA, overflow to float, ipow NA on overflow, halves to even, whole-stack operators and the
+  empty stack, rand and --seed), step15 (bit operators on absolute values, float NA, shift
+  limits; radix with sign and magnitude, the strict reading rules) and step24 (qnl qnu,
+  which are in the math category). 16 examples, on numbers.txt, harvest.txt and small
+  printf inputs; the qnl example writes its step file in the example itself (the
+  documentation examples run in a copy of doc/).
+
+  A first trig example used pi/2, where the tangent is a meaningless 1.6e16 from floating
+  point; replaced by 0 and 1.
