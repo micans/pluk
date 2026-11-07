@@ -54,7 +54,8 @@ Status: DECIDED (discussions after step26; seed plan/MANUAL.notes.txt).
    it a generated signature line (operands, result, category, the short description of
    the operator table), kept in sync by a script, then hand-written text and examples.
    The script reports operators without a description and descriptions of operators that
-   no longer exist.
+   no longer exist; since step28 item 7 (every operator described) both are errors, so a
+   new operator cannot be added without a description.
 
    The form in the manual (step27 item 3): a heading #### `NAME`, a marker line
    <!-- op NAME -->, the signature line `OPERANDS` → `RESULT` — DESCRIPTION, then the

@@ -115,3 +115,26 @@ Item 6: reference for SAM, part 2 (33 operators)
   so the example produced nothing; it now gives the string as a constant on align.sam.
   The authoring script now warns about a command without output (it had shown only
   stdout); a scan of the manual found no other empty example.
+
+
+Item 7: reference for the filter operators (34); missing descriptions an error
+
+  The numeric, string, regex, dictionary, band, bit and predicate filters, with the rules
+  of step7 (a non-number fails and is counted; a non-numeric VALUE is an error; :OTHER;
+  the regex dialect and :OTHER as a fixed string; dictionary defaults play no part; bands
+  and their defaults; bit masks on |x|), step8 (predicates) and step22 (synonyms).
+  12 examples; where the point is the count of values that were not numbers, the
+  expected output includes the 'pluk:' line (matched against stderr by doccheck.py). A
+  first string example compared a column with itself (@tree=:tree), always true; :OTHER is
+  now shown numerically (@x/lt/:y).
+
+  test/opscheck.py: an operator missing from the manual and one without a description are
+  now errors (decision 5), so a new operator needs a description before the suite passes.
+  Checked by removing a text-only description (sub) and a marker (xch). The manual's
+  opening note says that sections 1-3 and the reference are complete.
+
+  step28 complete with this item: all 218 operators are described; make test runs 126
+  documentation examples (the manual's, INTRODUCTION.md's and SAM-NA.md's).
+
+  doc/align.sam (new in item 5) was not in item 5's commit; it is added with this one (the
+  SAM examples need it, so a fresh checkout fails make test without it).

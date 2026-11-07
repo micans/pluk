@@ -13,9 +13,9 @@ marker). The signature line is
     `OPERANDS` → `RESULT` — DESCRIPTION
 
 taken from pluk --list-ops-tsv. Check mode fails (exit 1) on a signature line that
-differs from pluk's, and on a marker for an operator pluk does not have; operators that
-are missing from the manual or have no description yet are reported, not errors (until
-the reference is written).
+differs from pluk's, on a marker for an operator pluk does not have, on an operator that
+is missing from the manual, and on one without a description (since step28: every
+operator is described).
 """
 
 import subprocess
@@ -106,6 +106,10 @@ def main():
         if not described:
             undescribed.append(name)
     missing = [op for op in ops if op[0] not in seen]
+    if not update:
+        errors += ['%s: operator [%s] is missing from the manual (opscheck.py --update prints its entry)'
+                   % (manual, op[0]) for op in missing]
+        errors += ['%s: operator [%s] has no description' % (manual, name) for name in undescribed]
     if update:
         open(manual, 'w', encoding='utf-8').write('\n'.join(lines))
         for op in missing:

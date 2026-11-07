@@ -9,7 +9,7 @@ by Stijn over a period of about three days. The `plan/` directory retains that h
 Many corner/edge cases in pick were settled and sometimes fixed.*
 
 
-*This manual is being written. Sections 4 to 14 are outlines; section 15 lists every operator, with descriptions to follow.*
+*This manual is being written. Sections 4 to 14 are outlines; sections 1 to 3 and the operator reference (section 15) are complete.*
 
 
 ## 1. Introduction
@@ -1938,134 +1938,297 @@ acgt	ACGT	xxxx
 <!-- op /lt/ -->
 `x y` → `x < y` — Numeric less than
 
+Numeric comparisons, written `@NAME/lt/VALUE` (`@@` before the computes, section 5). VALUE is a number, or `:OTHER` for the value of column OTHER. A field that is not a number (empty, a word, `0x10`, ` 4`) fails the test, so the row is not kept, and such values are counted and reported at the end; a VALUE that is not a number is an error. Integers are compared exactly, also against floats.
+
+```console
+$ pluk -A @kg/ge/12.7 < harvest.txt
+picker	fruit	tree	kg	bruised	ripeness
+Annie	apple	A12	14.5	2	0.92
+Chen	apple	A07	22.1	5	0.88
+...
+$ pluk id x @x/lt/1 < numbers.txt
+id	x
+B	-3
+D	0.1
+pluk: @x/lt/1: 2 values not a number (rows not kept)
+$ pluk id x y @x/lt/:y < numbers.txt
+id	x	y
+B	-3	4
+D	0.1	0.2
+pluk: @x/lt/:y: 2 values not a number (rows not kept)
+```
+
 #### `/le/`
 <!-- op /le/ -->
 `x y` → `x <= y` — Numeric less than or equal
+
+Numeric less than or equal. Examples under `/lt/`.
 
 #### `/eq/`
 <!-- op /eq/ -->
 `x y` → `x == y` — Numeric equal
 
+Numeric equal (1 and 1.0 are equal). Examples under `/lt/`.
+
 #### `/ge/`
 <!-- op /ge/ -->
 `x y` → `x >= y` — Numeric greater than or equal
+
+Numeric greater than or equal. Examples under `/lt/`.
 
 #### `/gt/`
 <!-- op /gt/ -->
 `x y` → `x > y` — Numeric greater than
 
+Numeric greater than. Examples under `/lt/`.
+
 #### `/ne/`
 <!-- op /ne/ -->
 `x y` → `x != y` — Numeric not equal
+
+Numeric not equal (a value that is not a number fails, as for the others). Examples under `/lt/`.
 
 #### `~lt~`
 <!-- op ~lt~ -->
 `x y` → `x lt y` — String (byte) less than
 
+String comparisons, byte by byte (as `sort` in the C locale): `@NAME~lt~VALUE` and the others. `=` and `/=` are short for `~eq~` and `~ne~`. VALUE is text, or `:OTHER` for the value of column OTHER.
+
+```console
+$ pluk picker fruit '@fruit~lt~d' < harvest.txt
+picker	fruit
+Annie	apple
+Chen	apple
+...
+$ pluk picker fruit @fruit/=apple < harvest.txt
+picker	fruit
+Bert	pear
+Dora	plum
+...
+```
+
 #### `~le~`
 <!-- op ~le~ -->
 `x y` → `x le y` — String (byte) less than or equal
+
+String less than or equal. Examples under `~lt~`.
 
 #### `~eq~`
 <!-- op ~eq~ -->
 `x y` → `x eq y` — String equal
 
+String equal. Examples under `~lt~`.
+
 #### `~ge~`
 <!-- op ~ge~ -->
 `x y` → `x ge y` — String (byte) greater than or equal
+
+String greater than or equal. Examples under `~lt~`.
 
 #### `~gt~`
 <!-- op ~gt~ -->
 `x y` → `x gt y` — String (byte) greater than
 
+String greater than. Examples under `~lt~`.
+
 #### `~ne~`
 <!-- op ~ne~ -->
 `x y` → `x ne y` — String not equal
+
+String not equal. Examples under `~lt~`.
 
 #### `=`
 <!-- op = -->
 `x y` → `x eq y` — String equal
 
+String equal, short for `~eq~`. Examples under `~lt~`.
+
 #### `/=`
 <!-- op /= -->
 `x y` → `x ne y` — String not equal
+
+String not equal, short for `~ne~`. Examples under `~lt~`.
 
 #### `~`
 <!-- op ~ -->
 `x p` → `x =~ p` — Regex p matches x (:NAME: a fixed string)
 
+`@NAME~PATTERN` keeps the rows whose value matches the regular expression (anywhere in the value; anchor with `^` and `$`), `@NAME/~PATTERN` those whose value does not. The pattern uses the syntax of Rust's regex crate, on bytes; `\Q...\E` quotes literal text; an empty pattern is an error. With `:OTHER` the value of column OTHER is looked for as a fixed string, not as a pattern.
+
+```console
+$ pluk picker tree '@picker~^[A-C]' < harvest.txt
+picker	tree
+Annie	A12
+Bert	P03
+Chen	A07
+$ pluk picker tree '@tree/~^A' '@picker~e$' < harvest.txt
+picker	tree
+Hilde	U02
+```
+
 #### `/~`
 <!-- op /~ -->
 `x p` → `x !~ p` — Regex p does not match x
+
+The regular expression does not match. Examples under `~`.
 
 #### `~isin~`
 <!-- op ~isin~ -->
 `x D` → `x in D` — x is a key of dictionary D
 
+Dictionary tests (section 7): `@NAME~isin~DICT` keeps the rows whose value is a key of dictionary DICT, `~isnotin~` (or `~notin~`) those whose value is not; `@NAME~hasval~DICT~v` those whose value is a key with value v, `~hasnotval~` (or `~notval~`) the others, a missing key included. The defaults of a dictionary play no part. An unknown dictionary is an error.
+
+```console
+$ pluk --cd-PRICE=apple:2.10,pear:2.50 picker fruit @fruit~isin~PRICE < harvest.txt
+picker	fruit
+Annie	apple
+Bert	pear
+...
+$ pluk --cd-PRICE=apple:2.10,pear:2.50 picker fruit @fruit~hasval~PRICE~2.50 < harvest.txt
+picker	fruit
+Bert	pear
+Gus	pear
+$ pluk --cd-PRICE=apple:2.10,pear:2.50 picker fruit @fruit~notin~PRICE < harvest.txt
+picker	fruit
+Dora	plum
+Eamon	cherry
+Hilde	plum
+```
+
 #### `~isnotin~`
 <!-- op ~isnotin~ -->
 `x D` → `x not in D` — x is not a key of dictionary D
+
+The value is not a key of the dictionary. Examples under `~isin~`.
 
 #### `~hasval~`
 <!-- op ~hasval~ -->
 `x D~v` → `D{x} eq v` — x is a key of D with value v (not in test)
 
+The value is a key of the dictionary with value v. Examples under `~isin~`.
+
 #### `~hasnotval~`
 <!-- op ~hasnotval~ -->
 `x D~v` → `D{x} ne v` — x is not a key of D with value v (not in test)
+
+The value is not a key with value v. Examples under `~isin~`.
 
 #### `~notin~`
 <!-- op ~notin~ -->
 `x D` → `x not in D` — Synonym of ~isnotin~
 
+Synonym of `~isnotin~`. Examples under `~isin~`.
+
 #### `~notval~`
 <!-- op ~notval~ -->
 `x D~v` → `D{x} ne v` — Synonym of ~hasnotval~ (not in test)
+
+Synonym of `~hasnotval~`. Examples under `~isin~`.
 
 #### `/ep/`
 <!-- op /ep/ -->
 `x y/e` → `|x-y| <= e` — x within e of y (default e 0.0001)
 
+Bands: `@NAME/ep/VALUE/E` keeps the rows whose value is within E of VALUE (|x - VALUE| <= E; E defaults to 0.0001 and must be >= 0; 0 means exact equality); `@NAME/om/VALUE/K` those whose absolute value is within a factor K of |VALUE| (K defaults to 2 and must be >= 1). `/epx/` and `/omx/` keep the others. A value that is not a number fails all four; integers are compared exactly.
+
+```console
+$ pluk picker kg @kg/ep/9/0.5 < harvest.txt
+picker	kg
+Bert	9.0
+$ pluk picker kg @kg/om/10/1.5 < harvest.txt
+picker	kg
+Annie	14.5
+Bert	9.0
+...
+```
+
 #### `/epx/`
 <!-- op /epx/ -->
 `x y/e` → `|x-y| > e` — x not within e of y
+
+The value is not within E of VALUE. Examples under `/ep/`.
 
 #### `/om/`
 <!-- op /om/ -->
 `x y/k` → `x ~ y` — |x| within a factor k of |y| (default k 2)
 
+The absolute value is within a factor K of |VALUE|. Examples under `/ep/`.
+
 #### `/omx/`
 <!-- op /omx/ -->
 `x y/k` → `x !~ y` — |x| not within a factor k of |y|
+
+The absolute value is not within a factor K of |VALUE|. Examples under `/ep/`.
 
 #### `/all/`
 <!-- op /all/ -->
 `x m` → `all m in |x|` — All bits of mask m set in |x|
 
+Bit masks: `@NAME/all/MASK` keeps the rows whose value (as an absolute value) has all bits of MASK set, `/any/` at least one of them, `/notall/` not all, `/none/` none. The value must be an integer: a float or a value that is not a number fails, and is counted separately; a negative constant MASK is an error, a mask from a column is used as its absolute value.
+
+```console
+$ pluk picker bruised @bruised/all/3 < harvest.txt
+picker	bruised
+Dora	11
+Gus	3
+$ pluk picker bruised @bruised/none/1 < harvest.txt
+picker	bruised
+Annie	2
+Bert	0
+...
+```
+
 #### `/any/`
 <!-- op /any/ -->
 `x m` → `any m in |x|` — At least one bit of mask m set in |x|
+
+At least one bit of the mask is set. Examples under `/all/`.
 
 #### `/notall/`
 <!-- op /notall/ -->
 `x m` → `!all m in |x|` — Not all bits of mask m set in |x|
 
+Not all bits of the mask are set. Examples under `/all/`.
+
 #### `/none/`
 <!-- op /none/ -->
 `x m` → `!any m in |x|` — No bit of mask m set in |x|
+
+No bit of the mask is set. Examples under `/all/`.
 
 #### `/ISINT`
 <!-- op /ISINT -->
 `x` → `B` — x is an integer (no VALUE; not in test)
 
+Predicates, written without a VALUE: `@NAME/ISINT` keeps the rows whose value is an integer, `/NOTINT` the others; `/ISNUM` keeps the rows whose value is a number other than nan, `/NOTNUM` the others (nan included). They cannot be used in `test`.
+
+```console
+$ pluk id x @x/ISINT < numbers.txt
+id	x
+A	7
+B	-3
+C	9223372036854775807
+$ pluk id x @x/NOTNUM < numbers.txt
+id	x
+E	nan
+F	
+G	fox
+```
+
 #### `/NOTINT`
 <!-- op /NOTINT -->
 `x` → `B` — x is not an integer (not in test)
+
+The value is not an integer. Examples under `/ISINT`.
 
 #### `/ISNUM`
 <!-- op /ISNUM -->
 `x` → `B` — x is a number, not nan (not in test)
 
+The value is a number, not nan. Examples under `/ISINT`.
+
 #### `/NOTNUM`
 <!-- op /NOTNUM -->
 `x` → `B` — x is not a number (not in test)
+
+The value is not a number (nan included). Examples under `/ISINT`.
