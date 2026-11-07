@@ -1,0 +1,29 @@
+
+step31 notes: the manual, sections 12-14.
+
+
+Planning
+
+  All proposals agreed as written.
+
+
+Item 1: section 13, messages and reports
+
+  Drawn from the source: every eprintln! and note! site (main.rs opt.rs list.rs; note!
+  in stages.rs filter.rs sam.rs samrows.rs dict.rs io.rs demux.rs compute.rs colspec.rs
+  select.rs). The section: stdout data only; errors (exit 1; most before input is read,
+  four kinds during the run, listed); warnings (when they occur); the end-of-run reports
+  as a table (report, what it counts, section); -q (everything but errors).
+
+  Found while surveying, listed in the section as they are and not changed (decision 1):
+  - errors found while reading options and arguments are written without the 'pluk:'
+    prefix ('--sam-nonf requires --sam or --sam-h', '[s::kg,nosuch]: unknown operator',
+    'Unrecognised long option --bogus', the -/PAT regex error); errors found later have
+    it;
+  - warnings without the prefix: '-- You used X (a column handle) as a constant ..',
+    '-- range expansion produced some indexes out of range', '-- Identical output column
+    names exist' (spurious with -i, step29 item 3), 'Line N does not look like SAM', and
+    the --demux tally;
+  - pluk without column arguments writes its usage note and exits with status 0.
+  Candidates for a small code step: give every message the prefix (the doc examples then
+  need no 2>&1), and decide on the exit status without arguments.

@@ -9,7 +9,7 @@ by Stijn over a period of about three days. The `plan/` directory retains that h
 Many corner/edge cases in pick were settled and sometimes fixed.*
 
 
-*This manual is being written. Sections 12 to 14 are outlines; sections 1 to 11 and the operator reference (section 15) are complete.*
+*This manual is being written. Sections 12 and 14 are outlines; sections 1 to 11, 13 and the operator reference (section 15) are complete.*
 
 
 ## 1. Introduction
@@ -1604,7 +1604,137 @@ Complex useful patterns, collected as they turn up.
 
 ## 13. Messages and reports
 
-The counts pluk reports at the end of a run, `-q`, exit status.
+Standard output carries only data. Everything else goes to standard error: errors,
+warnings, and the reports pluk writes at the end of a run. Most messages start with
+`pluk:`.
+
+```console
+$ pluk id x @x/gt/0 < numbers.txt
+id	x
+A	7
+C	9223372036854775807
+D	0.1
+H	1e300
+pluk: @x/gt/0: 2 values not a number (rows not kept)
+$ pluk -q id x @x/gt/0 < numbers.txt 2>&1
+id	x
+A	7
+C	9223372036854775807
+D	0.1
+H	1e300
+$ pluk picker nosuch < harvest.txt; echo "exit $?"
+exit 1
+pluk: (Output) handle [nosuch] in output does not reference a known entity among picker,fruit,tree,kg,bruised,ripeness
+```
+
+### Errors and exit status
+
+An error ends the run with exit status 1; otherwise the exit status is 0. Most errors are
+found before any input is read: in the options and arguments, in a constant operand
+(section 15 says which are checked), in a dictionary or quantile file. Some can only
+happen while rows are read, and then the rows before have been written:
+
+- a failed assertion (section 5), unless `--assert-other` is given;
+- a key not found in a dictionary with default `__EXIT__` (section 7);
+- a SEQ `*` that cannot be filled, with `--sam-seqmiss=exit` (section 10);
+- `-E<N>` when the number of output rows differs, checked at the end (section 9).
+
+```console
+$ pluk -E1 picker @kg/gt/20 < harvest.txt; echo "exit $?"
+picker
+Chen
+exit 0
+$ pluk -E2 picker @kg/gt/20 < harvest.txt; echo "exit $?"
+picker
+Chen
+exit 1
+pluk: -E2: expected 2 output rows, found 1
+```
+
+The errors found while the options and arguments are read are at present written
+without the `pluk:` prefix:
+
+```console
+$ pluk --sam-nonf 1 < reads.sam 2>&1; echo "exit $?"
+--sam-nonf requires --sam or --sam-h
+exit 1
+$ pluk picker 's::kg,nosuch' < harvest.txt 2>&1; echo "exit $?"
+[s::kg,nosuch]: unknown operator [nosuch]
+exit 1
+```
+
+pluk without column arguments writes a short usage note and exits with status 0.
+
+### Warnings
+
+A warning points at something that is allowed but probably not meant; the run goes on.
+Some are written when they occur, before or during the reading of the input:
+
+- a filter constant that is the name of a column (`@fruit=tree`: did you want `:tree`?);
+- a renaming suffix that looks like a column specification (section 6);
+- a `-k` range with indexes beyond the last column (they are dropped);
+- in SAM input: an `@SQ` line after the first alignment, or without a valid SN: or LN:;
+  an `@HD` field that is not recognised; a reference whose length differs between the
+  `@SQ` line and the fasta file (the header's is used); input that is not grouped by
+  read when a SEQ `*` must be filled; a line that does not look like SAM.
+
+The warnings that start with `--` or `Line`, rather than `pluk:`, are older forms:
+
+```console
+$ pluk picker @fruit=tree < harvest.txt 2>&1
+-- You used tree (a column handle) as a constant in @fruit=tree test, did you want :tree? --
+picker
+```
+
+### Reports at the end of a run
+
+When the input has been read, pluk reports what it counted, each line only when its
+count is not zero:
+
+| Report | Counts | Section |
+|---|---|---|
+| `FILTER: N values not a number` | values a numeric or bit filter could not test; the rows are not kept | 5 |
+| `N rows failed an assertion (written to FILE)` | rows diverted by `--assert-other` | 5 |
+| `merging into existing dictionary NAME` | a dictionary given more than once (written when it is loaded) | 7 |
+| `--group: N groups` | groups of `--group` and `--group-first-ref` | 8 |
+| `File Written Filtered` | the `--demux` tally: rows written to each file, rows rejected by `@` filters (no `pluk:` prefix) | 9 |
+| `the list contains computed columns` | `--idx-list`, `--idx-map` with computes | 9 |
+| `SAM reference lengths: header/fasta/shared/conflict` | references in the `@SQ` lines, in the fasta, in both, and with lengths that differ (written when the fasta is loaded) | 10 |
+| `SAM values not available (NA) for N rows: REASON` | rows for which SAM operators gave NA, per reason | 10, [SAM-NA.md](SAM-NA.md) |
+| `SEQ '*' filled from another row of the read` | rows whose sequence was filled | 10 |
+| `SEQ '*' not filled, row skipped: N rows: REASON` | rows skipped by `--sam-seqmiss=skip`, per reason (each also reported when it occurs) | 10 |
+| `--sam-ND-adjust: N turned into D` | rows and bases changed | 10 |
+| `alignment outside the --sam-narrow-xy region` | records made unmapped | 10 |
+| `alignment not extended at the right` | `--sam-aln-context` or `--sam-aln-xy` without a known reference length | 10 |
+| `sam_put replaced a tag of the input` | fields replaced (the first few also when they occur) | 10 |
+| `sam_put: tag not put` | values that were NA, contained a TAB or newline, or did not fit the type | 10 |
+| `fastQ: quality of another length than the sequence` | fastQ results that were NA for that reason | 11 |
+
+```console
+$ pluk --group=gene gene 'start::^exon_end,pload,incr' < exons.txt
+gene	start
+foo	181
+foo	391
+bar	1121
+pluk: --group: 3 groups (the first row of each not output)
+$ printf 'i\ts\tq\nr\tACGT\tII\n' | pluk 'f::i:s:q,fastQ'
+f
+NA
+pluk: fastQ: quality of another length than the sequence (NA): 1 value
+```
+
+### Quiet: -q
+
+`-q` leaves out everything except errors: warnings and reports alike. An error is always
+written, with or without `-q`.
+
+```console
+$ pluk -q picker @fruit=tree < harvest.txt 2>&1
+picker
+$ pluk -q nosuch < harvest.txt
+pluk: (Output) handle [nosuch] in output does not reference a known entity among picker,fruit,tree,kg,bruised,ripeness
+```
+
 
 
 ## 14. Differences from pick

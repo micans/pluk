@@ -1,0 +1,84 @@
+
+- The manual: sections 12-14 (recipes, messages and reports, differences from pick)
+
+  Fifth and last manual step (plan/MANUAL.design.txt; writing order of MANUAL.notes.txt
+  d). As before: Claude drafts, the user revises later at his own pace; every example is
+  tested by doccheck.py. At the end of the step the manual has no outlines left.
+
+    12  Recipes
+    13  Messages and reports
+    14  Differences from pick
+
+  Sources: section 14 is regrouped from the difference list of plan/guidelines.txt
+  (about 260 lines, grouped by step), plan/remaining.txt (A.4, not taken over),
+  deferred.txt, and SAM.pick-survey.txt section 8 (pick's SAM corner cases). Section 13
+  from the messages pluk writes (src/: the end-of-run reports in stages.rs, sam.rs,
+  samrows.rs, note.rs, main.rs).
+
+
+  Outcome of the discussion
+
+  All proposals agreed as written.
+
+  Decisions:
+
+   1. Section 13, messages and reports: the three kinds of message (errors, which end the
+      run with exit status 1; warnings; end-of-run reports), the 'pluk:' prefix, -q, exit
+      status. The end-of-run reports listed by topic (values not a number per filter, NA
+      reasons in SAM, the sequence fill, --group, sam_put, --sam-ND-adjust, demux tally,
+      reference lengths), each with what the count means and a pointer to its section.
+      Tested examples for a few; the list itself drawn up from the source so that it is
+      complete. Messages without the 'pluk:' prefix (the demux tally, the 'does not look
+      like SAM' lines, the '--' notice of step29 item 3) are listed as found; whether to
+      give them the prefix is a code question for later, not for this step.
+
+   2. Section 14 as designed (MANUAL.design.txt section 2):
+        14.1 Not taken over (suv, input_cigar, sprintf, reqm, tmap, the names options for
+             now, BAM output, ...), one line each, with the reason where there is one.
+        14.2 Additions without a pick counterpart, one line each with a link.
+        14.3 Changed behaviour: one flat list per topic in manual order (selection,
+             filters, computes and numbers, operators by category, dictionaries, state,
+             input and output, SAM, bio); each entry 'pick: ... / pluk: ...' with a link
+             into the body.
+        14.4 pick's corner cases settled (from SAM.pick-survey.txt section 8 and the step
+             notes), in a neutral voice ('pick does X; pluk does Y'), briefly.
+      Prose only, no console blocks (doccheck runs pluk, not pick). Each entry is checked
+      against pluk by running it; against pick (pick/pick runs here) where the list is in
+      doubt. An entry that turns out stale is corrected in guidelines.txt as well.
+
+   3. guidelines.txt keeps its difference list as the development record (where a new
+      difference is recorded first). From this step on, a new difference is recorded in
+      both places; a sentence saying so is added to guidelines.txt.
+
+   4. Section 12, recipes: 'collected as they turn up, not hunted for' (MANUAL.design.txt).
+      Proposal: a short index of the recipes already in the body (intron coordinates,
+      FASTQ from SAM, reads covering a position, demux by a computed name, counter with
+      --pstore//0, renaming a family of columns, ...) with links, plus a few longer ones
+      that combine sections: an alignment view of a region for every read (rbt with
+      --sam-aln-prefix), a per-read edit tally written back as a SAM tag, a table joined
+      with a dictionary and split with --demux. New ones are added as they turn up.
+
+   5. A light consistency check in doccheck.py: every relative link [text](FILE) of the
+      documents names a file that exists in doc/, and every 'section N' reference names a
+      section of the manual. Cheap, catches renumbering and renamed data files.
+
+   6. Closing: the opening note 'This manual is being written...' is removed; a read
+      through the whole manual for cross-references and for terms used before they are
+      introduced.
+
+
+  Items (each: draft, all examples passing, commit)
+
+  1   Section 13, messages and reports. Commit.
+
+  2   Section 14.1 and 14.2 (not taken over; additions); the sentence in guidelines.txt
+      (proposal 3). Commit.
+
+  3   Section 14.3 part 1: selection, filters, computes and numbers, the non-SAM operators.
+      Commit.
+
+  4   Section 14.3 part 2 and 14.4: dictionaries, state, input and output, SAM, bio; the
+      SAM corner cases. Commit.
+
+  5   Section 12, recipes; the consistency check (proposal 5); closing (proposal 6).
+      Commit.
