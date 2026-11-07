@@ -15,8 +15,6 @@ mod opt;
 mod output;
 mod row;
 mod sam;
-// Not yet called; wired in with the first SAM operator step (plan/step5.txt item 3).
-#[allow(dead_code)]
 mod samseq;
 mod select;
 mod sink;
@@ -194,7 +192,17 @@ fn run() -> std::io::Result<()> {
     let mut machine = exec::Machine::new(config.num_perl, config.seed.unwrap_or_else(exec::clock_seed), &dicts);
     machine.set_registers(&computes);
     let normal_form = (config.sam || config.sam_h) && !config.sam_nonf;
-    let mut stages = Stages { filters, computes, machine, rowno: 0, normal_form };
+    // The fill is active when an operator needs the query sequence (step17 decision 8).
+    let fill = if (config.sam || config.sam_h) && compute::needs_query(&computes) {
+        if !input.sam_order.grouped_by_read() {
+            note::note!("pluk: the SAM input is not grouped by read (@HD SO:{} GO:{}); a SEQ '*' is filled only \
+                         from earlier rows of the same read", input.sam_order.sort_name(), input.sam_order.group_name());
+        }
+        Some(Fill::new(config.sam_seqmiss_exit))
+    } else {
+        None
+    };
+    let mut stages = Stages { filters, computes, machine, rowno: 0, normal_form, fill };
 
     // --idx-list, --name-list, --idx-map: the output columns, without reading the data.
     if let Some(kind) = config.list {
@@ -335,6 +343,9 @@ fn run() -> std::io::Result<()> {
     }
     stages.filters.report_na();
     stages.machine.sam.report();
+    if let Some(fill) = &stages.fill {
+        fill.report();
+    }
 
     // -E<N>: checked at the end; the rows have been written (as pick).
     if let Some(n) = config.expect {
@@ -413,6 +424,74 @@ struct Stages<'d> {
     machine:  exec::Machine<'d>,
     rowno:    u64,              // data rows seen (rowno, r0wno); rejected rows count too
     normal_form: bool,          // SAM input without --sam-nonf (plan/SAMVIEW.design.txt section 3)
+    fill:     Option<Fill>,     // the sequence fill, when an operator needs the query (SAMSEQ.design.txt)
+}
+
+// Why a SEQ '*' could not be filled (SAMSEQ.design.txt sections 2-5).
+const FILL_REASONS: [&str; 4] = [
+    "segment ambiguous (FLAG 0x1 with 0x40 and 0x80 both set or both unset)",
+    "CIGAR '*' or not valid, so the part of the read is not known",
+    "the stored sequences of the read have another length",
+    "no earlier row of the read holds the sequence",
+];
+const FILL_MESSAGES: u64 = 5;   // per-row messages, then only the counts
+
+// The sequence fill: the cache of the current read, the mode and the counts.
+struct Fill {
+    cache:  samseq::GroupCache,
+    exit:   bool,               // --sam-seqmiss=exit
+    filled: u64,
+    missed: [u64; 4],           // per reason in FILL_REASONS
+}
+
+impl Fill {
+    fn new(exit: bool) -> Fill {
+        Fill { cache: samseq::GroupCache::new(), exit, filled: 0, missed: [0; 4] }
+    }
+
+    // The query for this row, or why the row cannot go on: Ok(None) skip, Err exit.
+    fn process(&mut self, row: &row::Row, lineno: u64) -> Result<Option<sam::Query>, String> {
+        let flag = sam::flag(row).and_then(|f| u16::try_from(f).ok()).unwrap_or(0);
+        let outcome = self.cache.process(row.field(0), flag, row.field(sam::CIGAR), row.field(sam::SEQ),
+                                         row.field(sam::QUAL));
+        let reason = match outcome {
+            samseq::Fill::Present | samseq::Fill::NotSource => return Ok(Some(sam::Query::Row)),
+            samseq::Fill::LengthMismatch => return Ok(Some(sam::Query::Mismatch)),
+            samseq::Fill::Filled { seq, qual } => {
+                self.filled += 1;
+                return Ok(Some(sam::Query::Filled { seq, qual }));
+            }
+            samseq::Fill::Ambiguous => 0,
+            samseq::Fill::NoCigar => 1,
+            samseq::Fill::LengthConflict { .. } => 2,
+            samseq::Fill::NotFound { .. } => 3,
+        };
+        let qname = String::from_utf8_lossy(row.field(0));
+        // An ambiguous segment is skipped whatever the mode (SAMSEQ.design.txt section 2).
+        if self.exit && reason != 0 {
+            return Err(format!("SEQ '*' of read {} cannot be filled: {} (--sam-seqmiss=exit)",
+                               qname, FILL_REASONS[reason]));
+        }
+        self.missed[reason] += 1;
+        if self.missed.iter().sum::<u64>() <= FILL_MESSAGES {
+            note::note!("pluk: line {}: SEQ '*' of read {} cannot be filled: {}; row skipped",
+                        lineno, qname, FILL_REASONS[reason]);
+        }
+        Ok(None)
+    }
+
+    fn report(&self) {
+        if self.filled > 0 {
+            note::note!("pluk: SEQ '*' filled from another row of the read: {} row{}", self.filled,
+                        if self.filled == 1 { "" } else { "s" });
+        }
+        for (n, reason) in self.missed.iter().zip(FILL_REASONS) {
+            if *n > 0 {
+                note::note!("pluk: SEQ '*' not filled, row skipped: {} row{}: {}", n, if *n == 1 { "" } else { "s" },
+                            reason);
+            }
+        }
+    }
 }
 
 impl Stages<'_> {
@@ -421,6 +500,13 @@ impl Stages<'_> {
     fn judge(&mut self, row: &mut row::Row, lineno: u64) -> Result<filter::Verdict, Failure> {
         row.clear_computed();
         self.rowno += 1;
+        // The fill comes before every filter (SAMVIEW.design.txt section 2).
+        if let Some(fill) = &mut self.fill {
+            match fill.process(row, lineno).map_err(Failure::Fatal)? {
+                Some(query) => self.machine.sam.query = query,
+                None => return Err(Failure::Skipped),
+            }
+        }
         if !self.filters.pre(row).map_err(Failure::Assertion)? {
             return Ok(filter::Verdict::RejectPre);
         }
@@ -445,6 +531,7 @@ impl Stages<'_> {
 enum Failure {
     Assertion(String),
     Fatal(String),
+    Skipped,        // a SEQ '*' that cannot be filled, with --sam-seqmiss=skip
 }
 
 // Whether the current data row is kept. A row rejected by a filter is written to
@@ -475,6 +562,8 @@ fn route(stages: &mut Stages, row: &mut row::Row, lineno: u64,
             None => Err(std::io::Error::new(ErrorKind::InvalidData, format!("{} at line {}", msg, lineno))),
         },
         Err(Failure::Fatal(msg)) => Err(std::io::Error::new(ErrorKind::InvalidData, format!("{} at line {}", msg, lineno))),
+        // Not a filter rejection: not written to --other (SAMSEQ.design.txt section 5).
+        Err(Failure::Skipped) => Ok(false),
     }
 }
 

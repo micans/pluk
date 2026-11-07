@@ -130,12 +130,6 @@ pub fn reverse_complement(seq: &[u8]) -> Vec<u8> {
     seq.iter().rev().map(|&b| complement(b)).collect()
 }
 
-// SEQ and QUAL for a target that cannot be filled, in mode N: Q times 'N' and
-// Q times '!' (Phred 0), design section 5.
-pub fn unknown_sequence(q: usize) -> (Vec<u8>, Vec<u8>) {
-    (vec![b'N'; q], vec![b'!'; q])
-}
-
 // A cached row that stores a sequence. SEQ and QUAL are kept as in the row
 // (reference orientation); they are turned around only when a target is filled.
 struct Source {
@@ -324,7 +318,6 @@ mod tests {
     fn revcomp() {
         assert_eq!(reverse_complement(b"AACGTN"), b"NACGTT");
         assert_eq!(reverse_complement(b"acgRYkm"), b"kmRYcgt");
-        assert_eq!(unknown_sequence(3), (b"NNN".to_vec(), b"!!!".to_vec()));
     }
 
     #[test]

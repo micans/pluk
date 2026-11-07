@@ -1,0 +1,59 @@
+pluk: line 4: SEQ '*' of read b cannot be filled: no earlier row of the read holds the sequence; row skipped
+pluk: line 11: SEQ '*' of read e cannot be filled: segment ambiguous (FLAG 0x1 with 0x40 and 0x80 both set or both unset); row skipped
+a	0	10M	AACCGGTTAC	ABCDEFGHIJ
+a	272	10M	GTAACCGGTT	JIHGFEDCBA
+a	2048	4H6M	GGTTAC	EFGHIJ
+b	0	10M	AAAAACCCCC	*
+c	0	10M	NA	NA
+d	65	5M	ACGTA	IIIII
+d	129	5M	TTTTT	*
+d	385	5M	TTTTT	*
+d	321	5M	ACGTA	IIIII
+pluk: SAM values not available (NA) for 1 row: SEQ or QUAL length differs from the CIGAR
+pluk: SEQ '*' filled from another row of the read: 4 rows
+pluk: SEQ '*' not filled, row skipped: 1 row: segment ambiguous (FLAG 0x1 with 0x40 and 0x80 both set or both unset)
+pluk: SEQ '*' not filled, row skipped: 1 row: no earlier row of the read holds the sequence
+exit 0
+a	AACCGGTTAC
+a	GTAACCGGTT
+a	GGTTAC
+pluk: SEQ '*' of read b cannot be filled: no earlier row of the read holds the sequence (--sam-seqmiss=exit) at line 4
+exit 1
+pluk: line 4: SEQ '*' of read b cannot be filled: no earlier row of the read holds the sequence; row skipped
+pluk: line 11: SEQ '*' of read e cannot be filled: segment ambiguous (FLAG 0x1 with 0x40 and 0x80 both set or both unset); row skipped
+9
+pluk: SAM values not available (NA) for 1 row: SEQ or QUAL length differs from the CIGAR
+pluk: SEQ '*' filled from another row of the read: 4 rows
+pluk: SEQ '*' not filled, row skipped: 1 row: segment ambiguous (FLAG 0x1 with 0x40 and 0x80 both set or both unset)
+pluk: SEQ '*' not filled, row skipped: 1 row: no earlier row of the read holds the sequence
+pluk: line 4: SEQ '*' of read b cannot be filled: no earlier row of the read holds the sequence; row skipped
+pluk: line 11: SEQ '*' of read e cannot be filled: segment ambiguous (FLAG 0x1 with 0x40 and 0x80 both set or both unset); row skipped
+a	AACCGGTTAC
+a	GTAACCGGTT
+a	GGTTAC
+pluk: SAM values not available (NA) for 1 row: SEQ or QUAL length differs from the CIGAR
+pluk: SEQ '*' filled from another row of the read: 4 rows
+pluk: SEQ '*' not filled, row skipped: 1 row: segment ambiguous (FLAG 0x1 with 0x40 and 0x80 both set or both unset)
+pluk: SEQ '*' not filled, row skipped: 1 row: no earlier row of the read holds the sequence
+b	AAAAACCCCC
+c	NA
+d	ACGTA
+d	TTTTT
+d	TTTTT
+d	ACGTA
+a	272	GTAACCGGTT
+a	2048	GGTTAC
+d	385	TTTTT
+d	321	ACGTA
+a	0	c1	1	60	10M	*	0	0	AACCGGTTAC	ABCDEFGHIJ	
+a	272	c1	50	0	10M	*	0	0	*	*	
+pluk: the SAM input is not grouped by read (@HD SO:coordinate GO:none); a SEQ '*' is filled only from earlier rows of the same read
+pluk: line 5: SEQ '*' of read b cannot be filled: no earlier row of the read holds the sequence; row skipped
+pluk: line 12: SEQ '*' of read e cannot be filled: segment ambiguous (FLAG 0x1 with 0x40 and 0x80 both set or both unset); row skipped
+a	AACCGGTTAC
+--sam-seqmiss requires --sam or --sam-h
+exit 1
+--sam-seqmiss=skip|exit
+exit 1
+pluk: [s::,qry_seq]: operator qry_seq needs --sam or --sam-h
+exit 1

@@ -166,6 +166,13 @@
       trails never overlap (pick: a CIGAR of only S H D N I counts twice). aln_nedit with a
       NM:i value that is not a non-negative integer is NA (pick: 0). suv and input_cigar are
       not taken over.
+    - SAM sequence fill (SAMSEQ.design.txt): a SEQ '*' is filled from an earlier row of the
+      same read and segment whose part of the read contains the needed part (hard clips
+      respected), whatever the rows between; the cache is updated before every filter, so
+      a primary removed by @@ still supplies its secondaries (pick: the previous row only,
+      only rows that pass @@, no hard clips, no segments). A row that cannot be filled is
+      skipped (default) or ends the run (--sam-seqmiss=exit) (pick: discarded silently); a
+      SEQ that does not fit its CIGAR gives NA for qry_seq qry_qual (pick: the SEQ).
     - cgsum cgmax cgcount: a CIGAR that does not parse (also the empty string and lower-case
       operations, which pick's case-insensitive match accepts) is NA (pick: a message and the
       partial result, 0 for nothing).

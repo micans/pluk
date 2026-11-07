@@ -37,6 +37,8 @@ pub struct Config {
     pub make_unique: bool,              // -u
     pub sam: bool,                      // --sam
     pub sam_h: bool,                    // --sam-h
+    pub sam_seqmiss_exit: bool,         // --sam-seqmiss=exit (default skip; SAMSEQ.design.txt section 5)
+    pub sam_seqmiss_set: bool,          // --sam-seqmiss given
     pub sam_nonf: bool,                 // --sam-nonf: no normal form (plan/SAMVIEW.design.txt section 3)
     pub threads: Option<u32>,           // --threads=N
     pub pat_purge: Option<Vec<u8>>,     // -/PAT, %-decoded
@@ -167,6 +169,9 @@ Options:
   --sam-nonf  keep exterior deletions and insertions; by default a leading or
               trailing nD is removed (POS adjusted) and a leading or trailing nI
               becomes nS, as pick (vsearch writes such alignments)
+  --sam-seqmiss=skip|exit  a row with SEQ '*' whose sequence is not found in an
+              earlier row of the read (needed by qry_seq qry_qual) is skipped
+              (default) or ends pluk with an error
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
   --idx-list  write the input indexes of the output columns (computed columns
@@ -385,6 +390,11 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
         b"sam"   => set_sam(config, false),
         b"sam-h" => set_sam(config, true),
         b"sam-nonf" => config.sam_nonf = true,
+        b"sam-seqmiss=skip" | b"sam-seqmiss=exit" => {
+            config.sam_seqmiss_exit = long == b"sam-seqmiss=exit";
+            config.sam_seqmiss_set = true;
+        }
+        _ if long.starts_with(b"sam-seqmiss") => return Err("--sam-seqmiss=skip|exit".to_string()),
         b"test-lineno"          => config.test_lineno = true,
         b"test-counts"          => config.test_counts = true,
         b"test-names"           => config.test_names = true,
@@ -714,6 +724,9 @@ fn check_combinations(config: &Config) -> Result<(), String> {
     }
     if config.sam_nonf && !(config.sam || config.sam_h) {
         return Err("--sam-nonf requires --sam or --sam-h".to_string());
+    }
+    if config.sam_seqmiss_set && !(config.sam || config.sam_h) {
+        return Err("--sam-seqmiss requires --sam or --sam-h".to_string());
     }
     if config.big_k && (config.sam || config.sam_h) {
         return Err("-K cannot be combined with --sam or --sam-h".to_string());

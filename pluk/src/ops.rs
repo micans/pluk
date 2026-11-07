@@ -250,6 +250,10 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "-", result: "n", doc: "Edit distance from NM:i (0 without NM)", fun: op_aln_nedit },
     OpDef { name: "aln_nmatchx", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Sam,
             operands: "-", result: "n", doc: "NM minus the D and I of the matched part (mismatches)", fun: op_aln_nmatchx },
+    OpDef { name: "qry_seq", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "seq", doc: "Query sequence (SEQ, or filled for SEQ '*'; --sam-seqmiss)", fun: op_qry_seq },
+    OpDef { name: "qry_qual", pops: Pops::N(0), pushes: 1, shape: STR, prepare: Prepare::Nothing, category: Category::Sam,
+            operands: "-", result: "qual", doc: "Query quality (QUAL, or filled with the sequence)", fun: op_qry_qual },
     OpDef { name: "sam_get", pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::SamTag, category: Category::Sam,
             operands: "tag def", result: "value", doc: "Value of optional field tag (XX:T, XX.T, XX-T), def if absent", fun: op_sam_get },
     OpDef { name: "map",    pops: Pops::N(2), pushes: 1, shape: STR, prepare: Prepare::ConstDict(0), category: Category::Dictionary,
@@ -1116,6 +1120,23 @@ fn op_aln_nmatchx(m: &mut Machine, row: &Row, _: &Attached) {
         None => Ok(Value::Na),
     })
 }
+
+// qry_seq and qry_qual: the row's SEQ and QUAL, or those the fill found (main.rs
+// sets the view's query before the computes); NA if SEQ or QUAL do not fit the CIGAR.
+fn query(m: &mut Machine, row: &Row, qual: bool) {
+    let value = match &m.sam.query {
+        sam::Query::Row => Value::Bytes(row.field(if qual { sam::QUAL } else { sam::SEQ }).to_vec()),
+        sam::Query::Filled { seq, qual: q } => Value::Bytes(if qual { q.clone() } else { seq.clone() }),
+        sam::Query::Mismatch => {
+            m.sam.note(sam::Na::SeqLength);
+            Value::Na
+        }
+    };
+    m.push(value);
+}
+
+fn op_qry_seq(m: &mut Machine, row: &Row, _: &Attached) { query(m, row, false) }
+fn op_qry_qual(m: &mut Machine, row: &Row, _: &Attached) { query(m, row, true) }
 
 // sam_get tag def: the tag was checked and normalised to XX:T: at compile time.
 fn op_sam_get(m: &mut Machine, row: &Row, attached: &Attached) {

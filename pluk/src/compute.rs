@@ -343,6 +343,15 @@ fn const_regex(instrs: &[Instr], stack: &[Slot], pos: usize, op: &OpDef, shown: 
     compile_pattern(pattern, &format!("[{}]", shown))
 }
 
+// Whether a compute uses an operator that needs the query sequence: the fill is
+// then active (plan/step17.txt decision 8).
+pub fn needs_query(computes: &[Compute]) -> bool {
+    computes.iter().flat_map(|c| &c.instrs).any(|instr| match instr {
+        Instr::Op(op) | Instr::OpWith(op, _) => matches!(op.name, "qry_seq" | "qry_qual"),
+        _ => false,
+    })
+}
+
 // sam_get tag def: the tag must be a constant XX:T, with XX.T and XX-T accepted for
 // it (as pick, to avoid writing %3A); T one of A i f Z H B. Attached as XX:T:, the
 // prefix of the optional field.

@@ -127,6 +127,8 @@ aln_trail3p_cgr -           c                   The 3' trail of the CIGAR [sam]
 aln_nmatch    -           n                   M = X length of the matched part [sam]
 aln_nedit     -           n                   Edit distance from NM:i (0 without NM) [sam]
 aln_nmatchx   -           n                   NM minus the D and I of the matched part (mismatches) [sam]
+qry_seq       -           seq                 Query sequence (SEQ, or filled for SEQ '*'; --sam-seqmiss) [sam]
+qry_qual      -           qual                Query quality (QUAL, or filled with the sequence) [sam]
 sam_get       tag def     value               Value of optional field tag (XX:T, XX.T, XX-T), def if absent [sam]
 /lt/          x y         x < y               Numeric less than [filter]
 /le/          x y         x <= y              Numeric less than or equal [filter]
@@ -218,6 +220,7 @@ Use -l TERM.. for a category or the operators whose name contains TERM.
 Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam filter
 Operator      Consumed    Produced            Description
 --------------------------------------------------------------------------------
+qry_seq       -           seq                 Query sequence (SEQ, or filled for SEQ '*'; --sam-seqmiss) [sam]
 /eq/          x y         x == y              Numeric equal [filter]
 ~eq~          x y         x eq y              String equal [filter]
 ~isin~        x D         x in D              x is a key of dictionary D [filter]

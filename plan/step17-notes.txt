@@ -123,3 +123,49 @@ Item 4: cgsum cgmax cgcount
   or 10 for 10m).
 
   Tests: cigar-ops. list-ops and help refs updated.
+
+
+Item 5: the fill, qry_seq qry_qual, --sam-seqmiss
+
+  The fill is active when a compute uses qry_seq or qry_qual (compute::needs_query; later
+  steps add the operators that need the query sequence). main.rs: a Fill struct (the
+  samseq::GroupCache of step5, the mode, counts) in Stages; Stages::judge calls it first,
+  before the @@ stage (SAMVIEW.design.txt section 2), and sets the view's query: the row's
+  SEQ and QUAL (sam::Query::Row), the filled ones (Query::Filled), or Query::Mismatch when
+  SEQ or QUAL do not fit the CIGAR (samseq's LengthMismatch; qry_seq and qry_qual give NA,
+  counted as 'SEQ or QUAL length differs from the CIGAR'). The fill sees the input CIGAR
+  (normal form comes later; it does not change the query length or the hard clips).
+
+  A target that cannot be filled: Failure::Skipped (new), which route() turns into 'not
+  kept' without writing the row to --other; with --sam-seqmiss=exit a Failure::Fatal naming
+  the read and the reason (route() adds the line number). An ambiguous segment is skipped
+  in both modes (SAMSEQ.design.txt section 2). The first five such rows get a message with
+  the line number; the counts per reason, and the number of rows filled, are reported at
+  the end (all note!, silenced by -q). When the fill is active and the @HD line says the
+  input is not grouped by read (SamOrder::grouped_by_read), a warning is given once before
+  the data.
+
+  --sam-seqmiss=skip|exit; requires --sam or --sam-h; any other value is an error. The N
+  mode and samseq::unknown_sequence are gone; samseq is now called, so main.rs no longer
+  needs #[allow(dead_code)] on it.
+
+  Checked against pick: qry_seq on all four pick/align SAM files (2, 10, 9 and 0
+  secondaries filled; strands differ between primary and secondary throughout, so the
+  reverse-complement path is used): identical. Synthetic records show the decided
+  differences: a hard-clipped supplementary gets its part of the read (pick: the whole
+  read), a read1 secondary after a read2 row is filled from read1 (pick: from the previous
+  row), a primary removed by @@ still supplies its secondaries (pick: they are discarded),
+  a SEQ not fitting its CIGAR is NA (pick: the SEQ). QUAL is filled with the sequence
+  (reversed where the strands differ), '*' stays '*'.
+
+  Test fixes: two tests piped pluk into head while pluk's stderr went to the same file as
+  head's output; the order of the two writers is not fixed. o.quiet (step16) failed once in
+  the int128 run for this reason: its pipes are now a file and head. In sam-fill-edge the
+  pipe carries pluk's stderr as well (2>&1 before the pipe), which fixes the order.
+
+  list.rs unit test: -l eq now also lists qry_seq (a name containing eq).
+
+  Tests: sam-fill (md5 of qry_seq and qry_qual on qry3mm and qry3vs, the filled secondaries
+  of qry3mm), sam-fill-edge (the synthetic records: fills with QUAL, hard clips, segments,
+  missing source, ambiguous segment, length mismatch; exit mode; -c; --other; @@; the
+  coordinate-sorted warning; option errors; qry_seq without --sam). Help and list-ops refs.

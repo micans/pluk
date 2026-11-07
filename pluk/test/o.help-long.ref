@@ -52,6 +52,9 @@ Options:
   --sam-nonf  keep exterior deletions and insertions; by default a leading or
               trailing nD is removed (POS adjusted) and a leading or trailing nI
               becomes nS, as pick (vsearch writes such alignments)
+  --sam-seqmiss=skip|exit  a row with SEQ '*' whose sequence is not found in an
+              earlier row of the read (needed by qry_seq qry_qual) is skipped
+              (default) or ends pluk with an error
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
   --idx-list  write the input indexes of the output columns (computed columns

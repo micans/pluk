@@ -163,7 +163,7 @@ mod tests {
         assert_eq!(names(&["bit"]), ["bitand", "bitor", "bitxor", "bitoff", "bitlsh", "bitrsh"]);
         assert_eq!(names(&["time", "md5"]), ["md5", "now", "ttu", "rttu", "todate"]);
         assert_eq!(names(&["isin"]), ["~isin~"]);
-        assert_eq!(names(&["eq"]), ["/eq/", "~eq~"]);
+        assert_eq!(names(&["eq"]), ["qry_seq", "/eq/", "~eq~"]);
         assert!(names(&["nosuch"]).is_empty());
         assert_eq!(names(&["filter"]).len(), FILTERS.len());
     }

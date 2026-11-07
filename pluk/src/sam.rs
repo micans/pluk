@@ -10,6 +10,8 @@ pub const FLAG: usize = 1;
 pub const RNAME: usize = 2;
 pub const POS: usize = 3;
 pub const CIGAR: usize = 5;
+pub const SEQ: usize = 9;
+pub const QUAL: usize = 10;
 pub const OPTIONAL: usize = 11;     // the optional fields start here (with -O12: all in this one)
 
 const FLAG_UNMAPPED: u64 = 0x4;
@@ -98,9 +100,10 @@ pub enum Na {
     Unmapped,
     Cigar,
     RefLength,
+    SeqLength,
 }
 
-const N_REASONS: usize = 3;
+const N_REASONS: usize = 4;
 
 impl Na {
     fn index(self) -> usize {
@@ -111,6 +114,7 @@ impl Na {
             Na::Unmapped => "unmapped (FLAG 0x4, RNAME or CIGAR '*')",
             Na::Cigar => "CIGAR or POS not valid",
             Na::RefLength => "reference length not known (no @SQ line or fasta for RNAME)",
+            Na::SeqLength => "SEQ or QUAL length differs from the CIGAR",
         }
     }
 }
@@ -142,18 +146,29 @@ impl Counts {
     pub fn qry_posy(&self) -> Int { self.qry_trail5p + self.qry_matched }
 }
 
+// The query sequence of a row, set by the fill (main.rs) before the computes:
+// SEQ and QUAL of the row, the filled ones, or a SEQ that does not fit the CIGAR.
+#[derive(Clone, Debug, Default)]
+pub enum Query {
+    #[default]
+    Row,
+    Filled { seq: Vec<u8>, qual: Vec<u8> },
+    Mismatch,
+}
+
 // The per-row SAM view, held by the machine; reset for every row. A stage is
 // computed when an operator first asks for it (section 1).
 pub struct View {
     seqlen:  Option<usize>,                 // the seqlen dictionary, if any
     counts:  Option<Result<Counts, Na>>,
+    pub query: Query,                       // set for every row while the fill is active
     noted:   [bool; N_REASONS],             // this row has been counted for the reason
     pub n_na: [u64; N_REASONS],             // rows per reason, for the report at the end
 }
 
 impl View {
     pub fn new(dicts: &Dicts) -> View {
-        View { seqlen: dicts.index_of(dict::SEQ_LENGTHS), counts: None, noted: [false; N_REASONS],
+        View { seqlen: dicts.index_of(dict::SEQ_LENGTHS), counts: None, query: Query::Row, noted: [false; N_REASONS],
                n_na: [0; N_REASONS] }
     }
 
@@ -190,7 +205,7 @@ impl View {
 
     // The end-of-run report (silenced by -q).
     pub fn report(&self) {
-        for reason in [Na::Unmapped, Na::Cigar, Na::RefLength] {
+        for reason in [Na::Unmapped, Na::Cigar, Na::RefLength, Na::SeqLength] {
             let n = self.n_na[reason.index()];
             if n > 0 {
                 crate::note::note!("pluk: SAM values not available (NA) for {} row{}: {}", n,
