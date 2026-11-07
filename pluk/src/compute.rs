@@ -202,14 +202,21 @@ pub struct Compute {
 // plan/INPLACE.design.txt), bound to that new index. Returns the computes and the
 // extended names (input names followed by the compute names).
 //
-// inplace (-i): a compute may redefine a name; an input column at most once, a
-// computed name any number of times.
-// rbt_region: --sam-rbt was given, so the rbt_ operators have a region from the start.
-// pstore: --pstore or --group was given, so pload can be used.
-pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, sam: bool, rbt_region: bool,
-               pstore: bool, dicts: &Dicts)
+// The options that decide what the computes may use.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Context {
+    pub inplace:    bool,   // -i: a compute may redefine a name; an input column at most
+                            // once, a computed name any number of times
+    pub sam:        bool,   // --sam or --sam-h: the SAM operators
+    pub rbt_region: bool,   // --sam-rbt: the rbt_ operators have a region from the start
+    pub pstore:     bool,   // --pstore or --group: pload
+    pub group:      bool,   // --group or --group-first-ref: groupi groupno
+}
+
+pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, context: Context, dicts: &Dicts)
     -> Result<(Vec<Compute>, ColumnNames), String>
 {
+    let Context { inplace, sam, rbt_region, pstore, group } = context;
     let mut kept: HashMap<Vec<u8>, usize> = HashMap::new();
     let mut rbt_region = rbt_region;
     let mut names = input.clone();
@@ -275,6 +282,10 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, inplace: bool, sam: b
                     }
                     Token::Op(op) => {
                         // SAM operators need SAM input (plan/step17.txt decision 2).
+                        // groupi and groupno need groups (plan/step23.txt decision 4).
+                        if matches!(op.name, "groupi" | "groupno") && !group {
+                            return Err(format!("[{}]: {} needs --group or --group-first-ref", shown, op.name));
+                        }
                         if op.category == ops::Category::Sam && !sam {
                             return Err(format!("[{}]: operator {} needs --sam or --sam-h", shown, op.name));
                         }
@@ -647,7 +658,7 @@ mod tests {
         let mut row = crate::row::Row::new();
         row.line.extend_from_slice(b"a\tn1\tn2\tb");
         row.split_fields();
-        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), false, false, false, false, &Dicts::new())
+        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), Context::default(), &Dicts::new())
     }
 
     #[test]
@@ -672,7 +683,7 @@ mod tests {
         let mut row = crate::row::Row::new();
         row.line.extend_from_slice(b"a\tb");
         row.split_fields();
-        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), true, false, false, false, &Dicts::new())
+        compile(&specs, &ColumnNames::from_header(&row, false, false).unwrap(), Context { inplace: true, ..Context::default() }, &Dicts::new())
     }
 
     #[test]

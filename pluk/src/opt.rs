@@ -49,6 +49,7 @@ pub struct Config {
     pub sam_nd_adjust: Option<Vec<u8>>, // --sam-ND-adjust=NAME, a dictionary name (decision 5)
     pub sam_rbt: Option<(u64, u64)>,    // --sam-rbt=X,Y (plan/step20.txt decision 7)
     pub pstore: Option<Pstore>,         // --pstore[/LIST[/DEFAULT]] (plan/step23.txt decision 2)
+    pub group: Option<(Vec<u8>, bool)>, // --group=COL (false), --group-first-ref=COL (true) (decision 3)
     pub threads: Option<u32>,           // --threads=N
     pub pat_purge: Option<Vec<u8>>,     // -/PAT, %-decoded
     pub pat_pass: Option<Vec<u8>>,      // -//PAT, %-decoded
@@ -208,6 +209,11 @@ Options:
               the previous row (also computed columns, as computed);
               --pstore/LIST/DEFAULT: LIST k:v,k:v and DEFAULT give the values
               before the first row (else NA); counting: --pstore//0 n::^n,pload,incr
+  --group=COL groups of consecutive rows with the same value in COL (input or
+              computed); the first row of each group is not output, pload reads
+              the previous row; groupi groupno give the position and the group;
+              --group-first-ref=COL: pload reads the group's first row (implies
+              --pstore, whose LIST/DEFAULT apply before the first group)
   --progress  a dot on stderr every 1000000 input rows; --progress=K/N: every
               K rows, and the row count after every N dots
 
@@ -459,6 +465,17 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
                 b"name-list" => ListKind::Names,
                 _ => ListKind::Map,
             });
+        }
+        _ if long.starts_with(b"group=") || long.starts_with(b"group-first-ref=") => {
+            let first = long.starts_with(b"group-first-ref=");
+            let col = &long[if first { 16 } else { 6 }..];
+            if col.is_empty() {
+                return Err(format!("--{}: expected a column name", String::from_utf8_lossy(long)));
+            }
+            if config.group.as_ref().is_some_and(|(_, f)| *f != first) {
+                return Err("--group and --group-first-ref cannot be combined".to_string());
+            }
+            config.group = Some((pct_decode(col), first));
         }
         b"pstore" => config.pstore = Some(Pstore::default()),
         _ if long.starts_with(b"pstore/") => config.pstore = Some(parse_pstore(&long[7..])?),

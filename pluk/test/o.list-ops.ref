@@ -80,6 +80,8 @@ test          x y T       B                   Test T applied to x y: 1 or 0 (T a
 save          x n         x                   Store x in register n (per row), x stays [state]
 fetch         n           reg(n)              Value in register n (stored earlier in this row) [state]
 pload         c           prev(c)             Column c of the previous row (--pstore; c a constant name) [state]
+groupi        -           i                   Position of the row in its group (2 for the first output; --group) [state]
+groupno       -           g                   Number of the row's group (1-based; --group) [state]
 rowno         -           x                   Current table row number (start one) [state]
 r0wno         -           x                   Current table row number (start zero) [state]
 lineno        -           x                   Current input line number [state]

@@ -82,6 +82,11 @@ Options:
               the previous row (also computed columns, as computed);
               --pstore/LIST/DEFAULT: LIST k:v,k:v and DEFAULT give the values
               before the first row (else NA); counting: --pstore//0 n::^n,pload,incr
+  --group=COL groups of consecutive rows with the same value in COL (input or
+              computed); the first row of each group is not output, pload reads
+              the previous row; groupi groupno give the position and the group;
+              --group-first-ref=COL: pload reads the group's first row (implies
+              --pstore, whose LIST/DEFAULT apply before the first group)
   --progress  a dot on stderr every 1000000 input rows; --progress=K/N: every
               K rows, and the row count after every N dots
 

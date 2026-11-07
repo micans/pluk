@@ -51,6 +51,8 @@ pub struct Machine<'d> {
     pub sam:    crate::sam::View<'d>,             // the per-row SAM view (plan/SAMVIEW.design.txt)
     pub n_quality_mismatch: u64,                  // fastQ with a quality of another length (NA)
     pub kept:   Vec<Option<Vec<u8>>>,             // --pstore: the kept columns of the previous row (None: NA)
+    pub groupi: u64,                              // --group: position of the row in its group
+    pub groupno: u64,                             // --group: number of the group
 }
 
 // A small random number generator, splitmix64 (Steele, Lea and Flood, 2014): a
@@ -92,7 +94,8 @@ impl<'d> Machine<'d> {
                   text: Vec::new(), rng: SplitMix64::new(seed), registers: Vec::new(),
                   register_slots: HashMap::new(), other_registers: HashMap::new(), rowno: 0, lineno: 0,
                   time_zone: None, sam: crate::sam::View::new(dicts),
-                  n_quality_mismatch: 0, kept: Vec::new() }
+                  n_quality_mismatch: 0, kept: Vec::new(),
+                  groupi: 0, groupno: 0 }
     }
 
     // The register slots of the compiled computes (constant names of save and fetch).

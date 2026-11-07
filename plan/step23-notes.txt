@@ -44,3 +44,34 @@ Item 1: --pstore and pload
 
   Tests: pstore (the examples above, the NA default, %-decoding of LIST and DEFAULT, -c,
   --other, errors, -l pload). Unit test pstore_spec. help, list-ops refs.
+
+
+Item 2: --group --group-first-ref, groupi groupno
+
+  compute.rs: compile's growing list of flags (inplace, sam, rbt_region, pstore and now
+  group) became a struct, compute::Context, with named fields; the call in main.rs names
+  each, the unit tests use Context::default() and struct update syntax
+  (Context { inplace: true, ..Context::default() }). groupi and groupno without groups
+  are a compile-time error.
+
+  main.rs: Pstore holds an optional Group (column, first_ref, the current group value,
+  the number of groups, the position of the next row). Pstore::keep follows pick's
+  do_cache: a row whose group value differs from the previous row's starts a group (n+1,
+  position 2 for the next row) and is skipped; the kept columns are taken from it. In a
+  group the position increases, and the kept columns are taken from every row (--group)
+  or left as they are (--group-first-ref, the first row stays the reference). groupi and
+  groupno are stored in the machine for the next row's computes (pick sets them in
+  do_cache too). Stages::judge turns the skip into Failure::Skipped, the fill's skip: not
+  output, not written to --other, not counted by -c, -E or --demux. The group column is
+  resolved after compile (its last binding; a computed column works). --group implies
+  --pstore with an empty spec; with --pstore/LIST/DEFAULT the LIST and DEFAULT apply
+  before the first group.
+
+  Checked against pick: the intron example on a small exon table, --group-first-ref
+  with pload, groupi and groupno with both options, @ and @@ filters, a computed group
+  column, --pstore//0 with --group, -c: identical.
+
+  Tests: group (the cases above, a LIST value before the first group, -q, --other and
+  --demux with skipped rows, errors). help, list-ops refs.
+
+  step23 complete with this item.

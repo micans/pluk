@@ -175,6 +175,10 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "n", result: "reg(n)", doc: "Value in register n (stored earlier in this row)", fun: op_fetch },
     OpDef { name: "pload",  pops: Pops::N(1), pushes: 1, shape: STR, prepare: Prepare::Pload, category: Category::State,
             operands: "c", result: "prev(c)", doc: "Column c of the previous row (--pstore; c a constant name)", fun: op_pload },
+    OpDef { name: "groupi", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::State,
+            operands: "-", result: "i", doc: "Position of the row in its group (2 for the first output; --group)", fun: op_groupi },
+    OpDef { name: "groupno", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::State,
+            operands: "-", result: "g", doc: "Number of the row's group (1-based; --group)", fun: op_groupno },
     OpDef { name: "rowno",  pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::State,
             operands: "-", result: "x", doc: "Current table row number (start one)", fun: op_rowno },
     OpDef { name: "r0wno",  pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::State,
@@ -1140,6 +1144,8 @@ fn op_fetch(m: &mut Machine, row: &Row, a: &Attached) {
 // Positions (decision 4): the data row number (header not counted; with -k the
 // first line is row 1; rows later rejected by filters count) and the physical line
 // number.
+fn op_groupi(m: &mut Machine, _: &Row, _: &Attached) { let n = m.groupi; m.push(Value::Num(Num::I(n as num::Int))) }
+fn op_groupno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.groupno; m.push(Value::Num(Num::I(n as num::Int))) }
 fn op_rowno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.rowno; m.push(Value::Num(Num::I(n as num::Int))) }
 fn op_r0wno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.rowno; m.push(Value::Num(Num::I(n as num::Int - 1))) }
 fn op_lineno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.lineno; m.push(Value::Num(Num::I(n as num::Int))) }

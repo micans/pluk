@@ -1,0 +1,83 @@
+== --group=gene gene intron_start::^exon_end,pload,incr intron_end::exon_start,decr
+gene	intron_start	intron_end
+A	201	299
+A	401	499
+C	21	39
+pluk: --group: 3 groups (the first row of each not output)
+== --group-first-ref=gene gene exon_start first::^exon_start,pload
+gene	exon_start	first
+A	300	100
+A	500	100
+C	40	10
+pluk: --group: 3 groups (the first row of each not output)
+== --group=gene gene exon_start i::,groupi g::,groupno
+gene	exon_start	i	g
+A	300	2	1
+A	500	3	1
+C	40	2	3
+pluk: --group: 3 groups (the first row of each not output)
+== --group-first-ref=gene gene i::,groupi g::,groupno
+gene	i	g
+A	2	1
+A	3	1
+C	2	3
+pluk: --group: 3 groups (the first row of each not output)
+== --group=gene -A @exon_start/gt/400
+gene	exon_start	exon_end
+A	500	600
+pluk: --group: 3 groups (the first row of each not output)
+== --group=gene -A @@exon_start/gt/40
+gene	exon_start	exon_end
+A	300	400
+A	500	600
+pluk: --group: 2 groups (the first row of each not output)
+== --group=k gene k::exon_start^100,idiv i::,groupi
+gene	k	i
+C	0	2
+C	0	3
+pluk: --group: 4 groups (the first row of each not output)
+== --pstore//0 --group=gene gene n::^n,pload,incr
+gene	n
+A	2
+A	3
+C	6
+pluk: --group: 3 groups (the first row of each not output)
+== --pstore/exon_end:0 --group=gene gene p::^exon_end,pload
+gene	p
+A	200
+A	400
+C	20
+pluk: --group: 3 groups (the first row of each not output)
+== --group=gene -c gene
+3
+pluk: --group: 3 groups (the first row of each not output)
+== -q --group=gene gene
+gene
+A
+A
+C
+gene	exon_start	exon_end
+C	40	60
+pluk: --group: 3 groups (the first row of each not output)
+gene	exon_start	exon_end
+A	300	400
+A	500	600
+File	Written	Filtered
+out/A	2	0
+out/C	1	0
+pluk: --group: 3 groups (the first row of each not output)
+gene	exon_start	exon_end
+A	300	400
+A	500	600
+gene	exon_start	exon_end
+C	40	60
+pluk: [i::,groupi]: groupi needs --group or --group-first-ref
+exit 1
+pluk: [g::,groupno]: groupno needs --group or --group-first-ref
+exit 1
+pluk: --group: [nope] is not a column name among gene,exon_start,exon_end
+exit 1
+--group and --group-first-ref cannot be combined
+exit 1
+--group=: expected a column name
+exit 1
