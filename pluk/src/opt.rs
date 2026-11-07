@@ -45,6 +45,7 @@ pub struct Config {
     pub sam_qlt_sim: bool,              // --sam-qlt-sim (decision 6)
     pub sam_aln_context: Option<u64>,   // --sam-aln-context=N (plan/step19.txt decision 2)
     pub sam_aln_xy: Option<(u64, u64)>, // --sam-aln-xy=X,Y
+    pub sam_narrow_xy: Option<(u64, u64)>, // --sam-narrow-xy=X,Y (plan/step19.txt decision 4)
     pub threads: Option<u32>,           // --threads=N
     pub pat_purge: Option<Vec<u8>>,     // -/PAT, %-decoded
     pub pat_pass: Option<Vec<u8>>,      // -//PAT, %-decoded
@@ -188,6 +189,8 @@ Options:
               context is written as X, D, I)
   --sam-aln-xy=X,Y  extend alignments to include reference positions X..Y
               (never reduces; with --sam-aln-context the larger per side)
+  --sam-narrow-xy=X,Y  reduce alignments to reference positions X..Y (before
+              the extension); a record outside X..Y gets FLAG 0x4 and CIGAR *
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
   --idx-list  write the input indexes of the output columns (computed columns
@@ -414,6 +417,8 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
             None => return Err("--sam-aln-context=N: N must be a non-negative integer".to_string()),
         },
         _ if long.starts_with(b"sam-aln-xy=") => config.sam_aln_xy = Some(parse_xy(&long[11..], "--sam-aln-xy")?),
+        _ if long.starts_with(b"sam-narrow-xy=") =>
+            config.sam_narrow_xy = Some(parse_xy(&long[14..], "--sam-narrow-xy")?),
         b"sam-seqmiss=skip" | b"sam-seqmiss=exit" => {
             config.sam_seqmiss_exit = long == b"sam-seqmiss=exit";
             config.sam_seqmiss_set = true;
@@ -754,7 +759,8 @@ fn check_combinations(config: &Config) -> Result<(), String> {
     }
     for (given, name) in [(config.sam_aln_prefix.is_some(), "--sam-aln-prefix"), (config.sam_aln_mrk, "--sam-aln-mrk"),
                           (config.sam_qlt_sim, "--sam-qlt-sim"), (config.sam_aln_context.is_some(), "--sam-aln-context"),
-                          (config.sam_aln_xy.is_some(), "--sam-aln-xy")] {
+                          (config.sam_aln_xy.is_some(), "--sam-aln-xy"),
+                          (config.sam_narrow_xy.is_some(), "--sam-narrow-xy")] {
         if given && !(config.sam || config.sam_h) {
             return Err(format!("{} requires --sam or --sam-h", name));
         }

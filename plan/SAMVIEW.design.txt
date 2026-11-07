@@ -49,8 +49,7 @@ plan/SAMSEQ.design.txt.
    fields are split again, so that every consumer (output of whole lines, filters, computes,
    --demux) sees one consistent record. Only rows that change pay for this.
 
-   Order (pick's): ND-adjust [step19 item 3], narrow [step19 item 2], normal form, context
-   extension.
+   Order (pick's): ND-adjust [step19 item 3], narrow, normal form, context extension.
 
    Normal form (default; off with --sam-nonf), as pick, each rule once and only on the first
    or last operation:
@@ -62,6 +61,16 @@ plan/SAMSEQ.design.txt.
    part of the 5' trail, section 5). Not applied behind S or H (5S3I.. is unchanged), and S
    and I are not merged. As pick, every record is rewritten, unmapped ones included (FLAG
    0x4 or RNAME '*'; CIGAR '*' never changes).
+
+   Narrowing (--sam-narrow-xy=X,Y; plan/step19.txt decision 4), on mapped records with a
+   valid CIGAR and POS. X is raised to POS and Y lowered to the last reference position
+   of the CIGAR (trailing D included); the operations before the one containing X become
+   nS (the query bases they consume, I included), the rest of that operation stays and
+   POS becomes X; alike after Y. A cut inside D or N leaves the rest of it next to the S
+   (5M3D5M narrowed to 7..20 becomes 5S2D5M at POS 7). H stays outermost, no 0S is
+   written. A record that does not overlap X..Y, or keeps no aligned operation, gets
+   FLAG |= 0x4 and CIGAR '*' (RNAME and POS kept) and is counted. The query length does not
+   change.
 
    Context extension (--sam-aln-context=N, --sam-aln-xy=X,Y; plan/step19.txt decisions
    2, 6), on mapped records with a valid CIGAR and POS. Per side a budget: N, or what is

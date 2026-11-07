@@ -59,3 +59,45 @@ Item 1: extension (--sam-aln-context, --sam-aln-xy) and the context in the view
   records under six option settings, aln_all, -A with and without a reference length, @@
   and @ filters on the input and rewritten POS, -c, option errors). Unit tests
   context_extension, trails_with_context. help and list-ops refs.
+
+
+Item 2: narrowing (--sam-narrow-xy)
+
+  sam.rs: narrow(pos, cigar, x, y) returns Unchanged, Changed { pos, cigar } or Outside.
+  Overlap is tested against POS .. POS + reference length - 1 (trailing D included, as
+  pick); then x and y are clamped and narrow_cut is applied at the left (if x > POS) and
+  at the right (if y < ref_posy, on the result of the left cut, placed from x). narrow_cut
+  walks the operations between the hard clips, keeping the reference position and the
+  query bases consumed; at the operation that contains the cut position it splices: left,
+  the soft clip of what came before (only if non-zero) and the rest of the operation;
+  right, the kept part of the operation and a soft clip of the query bases left (only if
+  non-zero). The hard clips are put back outside. The CIGAR is written anew from the
+  operations (unlike the extension, which keeps the middle as written; narrowing changes
+  operations throughout, and the input's leading zeros are not worth keeping).
+
+  The rule agreed during the item: a result without an aligned operation (M = X) is
+  Outside. Discussion with the user on how pick's default normal form shapes this: see
+  step19.txt decision 4. On qry3vs.sam (vsearch, POS 1, exterior D at both ends) the
+  region 50..330 gives pick 0S38D12M..19M33D0S at POS 50 and pluk 12M..19M at POS 88; with
+  --sam-nonf both give 38D12M..19M33D at POS 50; --sam-narrow-xy=50,330 --sam-aln-xy=50,330
+  gives pluk 38D..33D at POS 50 again (as context), pick 38D..33D18D (its xy right-side bug
+  extends past Y).
+
+  main.rs: Stages::judge narrows first (before the normal form), on mapped records with a
+  POS; Outside sets FLAG |= 0x4 (if FLAG is a number) and CIGAR '*', and is counted and
+  reported at the end. The extension then skips the record (unmapped).
+
+  A quirk kept as pick: a cut inside a D followed by context leaves the D behind the
+  context X (2S3X3D2M3X); the end rule only rewrites the outermost run, so these columns
+  are drawn '-' and count as edits.
+
+  Checked against pick: both files with regions 100,200 150,160 1,40 300,400 50,200, with
+  context, --sam-nonf and --sam-aln-mrk: identical apart from the decided differences (0S,
+  the records outside or without an aligned operation, the exterior deletions above).
+  Synthetic records: cuts in M, I, D, N, H kept, outside with FLAG bits kept, D-only
+  overlap, FLAG not a number.
+
+  Tests: sam-narrow (md5 on both files in six settings, the vsearch records with and
+  without xy, the records made unmapped), sam-narrow-edge (synthetic records in seven
+  settings, the earlier ctx.sam records, -A, @@ and @ filters, option errors). Unit test
+  narrowing. help refs.

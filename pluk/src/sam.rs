@@ -211,6 +211,96 @@ pub fn extend(pos: u64, cigar: &[u8], reflen: Option<u64>, options: &ContextOpti
     (Some(Extension { pos: new_pos, cigar: new, context }), no_reflen)
 }
 
+// ---- Narrowing (plan/step19.txt decision 4) ----
+
+// The outcome of --sam-narrow-xy for a record.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Narrowed {
+    Unchanged,
+    Changed { pos: u64, cigar: Vec<u8> },
+    Outside,        // the alignment does not overlap X..Y
+}
+
+// Narrowing to reference positions x..y, as pick's sam_narrow_view: x is raised to POS
+// and y lowered to the last reference position of the CIGAR; the operations before
+// the one containing x become nS (the query bases they consume), the rest of that
+// operation stays, and POS becomes x; alike after y. A cut inside D or N leaves the rest
+// of it next to the S. Hard clips stay outermost, and no 0S is written. A record that
+// does not overlap x..y, or keeps no aligned operation, is Outside.
+pub fn narrow(pos: u64, cigar: &[u8], x: u64, y: u64) -> Narrowed {
+    let Some(parsed) = parse_cigar(cigar) else { return Narrowed::Unchanged };
+    if pos == 0 {
+        return Narrowed::Unchanged;
+    }
+    let ref_posy = pos + ref_len(&parsed) - 1;
+    if x > ref_posy || y < pos {
+        return Narrowed::Outside;
+    }
+    let (x, y) = (x.max(pos), y.min(ref_posy));
+    if x == pos && y == ref_posy {
+        return Narrowed::Unchanged;
+    }
+    let mut ops: Vec<(u64, u8)> = parsed.iter().map(|o| (o.len, o.op)).collect();
+    if x > pos {
+        ops = narrow_cut(&ops, pos, x, true);
+    }
+    if y < ref_posy {
+        ops = narrow_cut(&ops, x, y, false);
+    }
+    // A region that overlaps no aligned base (only D or N, e.g. an exterior deletion)
+    // leaves nothing aligned: treated as outside (plan/step19.txt decision 4).
+    if !ops.iter().any(|o| matches!(o.1, b'M' | b'=' | b'X')) {
+        return Narrowed::Outside;
+    }
+    let mut new = Vec::new();
+    for (len, op) in ops {
+        new.extend_from_slice(format!("{}{}", len, op as char).as_bytes());
+    }
+    Narrowed::Changed { pos: x, cigar: new }
+}
+
+// ops placed from reference position pos; the cut at reference position at: the
+// operations before at (left) or after it (right) become a soft clip.
+fn narrow_cut(ops: &[(u64, u8)], pos: u64, at: u64, left: bool) -> Vec<(u64, u8)> {
+    let consumes_ref = |op: u8| matches!(op, b'M' | b'D' | b'N' | b'=' | b'X');
+    let consumes_qry = |op: u8| matches!(op, b'M' | b'I' | b'S' | b'=' | b'X');
+    let h5 = ops.iter().take_while(|o| o.1 == b'H').count();
+    let h3 = ops[h5..].iter().rev().take_while(|o| o.1 == b'H').count();
+    let total_q: u64 = ops.iter().filter(|o| consumes_qry(o.1)).map(|o| o.0).sum();
+    let (mut r, mut q) = (pos, 0u64);
+    for (i, &(len, op)) in ops.iter().enumerate().take(ops.len() - h3).skip(h5) {
+        if consumes_ref(op) && r + len - 1 >= at {
+            let mut out: Vec<(u64, u8)> = ops[..h5].to_vec();
+            if left {
+                let before = at - r;
+                let soft = q + if consumes_qry(op) { before } else { 0 };
+                if soft > 0 {
+                    out.push((soft, b'S'));
+                }
+                out.push((len - before, op));
+                out.extend_from_slice(&ops[i + 1..]);
+            } else {
+                let keep = at - r + 1;
+                let used = q + if consumes_qry(op) { keep } else { 0 };
+                out = ops[..i].to_vec();
+                out.push((keep, op));
+                if total_q > used {
+                    out.push((total_q - used, b'S'));
+                }
+                out.extend_from_slice(&ops[ops.len() - h3..]);
+            }
+            return out;
+        }
+        if consumes_ref(op) {
+            r += len;
+        }
+        if consumes_qry(op) {
+            q += len;
+        }
+    }
+    ops.to_vec()
+}
+
 // One side of the extension: the reference clip, the soft clip and the budget give the
 // shared context x, then d (reference) or i (query), and the soft clip that is left.
 fn side(ref_clip: u64, soft_clip: u64, budget: u64) -> (u64, u64, u64, u64) {
@@ -1018,6 +1108,31 @@ mod tests {
         // At the reference ends nothing can be added; the middle is kept as written.
         assert_eq!(ext(1, "010M", Some(10), 5, None), (None, false));
         assert_eq!(ext(2, "3S2I08M", Some(9), 5, None), some(1, "2I1X2I08M", (2, 0)));
+    }
+
+    fn nar(pos: u64, cigar: &str, x: u64, y: u64) -> Narrowed {
+        narrow(pos, cigar.as_bytes(), x, y)
+    }
+
+    #[test]
+    fn narrowing() {
+        let changed = |pos: u64, c: &str| Narrowed::Changed { pos, cigar: c.as_bytes().to_vec() };
+        assert_eq!(nar(11, "3S10M4S", 14, 18), changed(14, "6S5M6S"));
+        assert_eq!(nar(11, "3S10M4S", 1, 12), changed(11, "3S2M12S"));
+        // No 0S; H stays outermost; an unchanged record is not rewritten.
+        assert_eq!(nar(1, "10M", 1, 5), changed(1, "5M5S"));
+        assert_eq!(nar(5, "2H3S10M1H", 14, 18), changed(14, "2H12S1M1H"));
+        assert_eq!(nar(5, "2H3S10M1H", 1, 40), Narrowed::Unchanged);
+        // I before the cut goes into the S; a cut in a D or N leaves the rest of it.
+        assert_eq!(nar(1, "5M2I5M", 6, 10), changed(6, "7S5M"));
+        assert_eq!(nar(1, "5M2I5M", 1, 5), changed(1, "5M7S"));
+        assert_eq!(nar(1, "5M3D5M", 7, 20), changed(7, "5S2D5M"));
+        assert_eq!(nar(1, "5M3N5M", 1, 6), changed(1, "5M1N5S"));
+        // Outside: no overlap, or only a deletion overlaps (exterior D of vsearch).
+        assert_eq!(nar(11, "3S10M4S", 30, 35), Narrowed::Outside);
+        assert_eq!(nar(1, "87D12M51D", 300, 400), Narrowed::Outside);
+        assert_eq!(nar(1, "40D12M", 1, 30), Narrowed::Outside);
+        assert_eq!(nar(1, "40D12M", 30, 45), changed(30, "11D5M7S"));
     }
 
     #[test]

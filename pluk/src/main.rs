@@ -208,7 +208,8 @@ fn run() -> std::io::Result<()> {
         options: sam::ContextOptions { n: config.sam_aln_context.unwrap_or(0), xy: config.sam_aln_xy },
         n_no_reflen: 0,
     });
-    let mut stages = Stages { filters, computes, machine, rowno: 0, normal_form, extension, fill };
+    let narrow = config.sam_narrow_xy.map(|xy| Narrow { xy, n_outside: 0 });
+    let mut stages = Stages { filters, computes, machine, rowno: 0, normal_form, narrow, extension, fill };
 
     // --idx-list, --name-list, --idx-map: the output columns, without reading the data.
     if let Some(kind) = config.list {
@@ -349,6 +350,10 @@ fn run() -> std::io::Result<()> {
     }
     stages.filters.report_na();
     stages.machine.sam.report();
+    if let Some(nar) = stages.narrow.as_ref().filter(|n| n.n_outside > 0) {
+        note::note!("pluk: alignment outside the --sam-narrow-xy region, made unmapped (FLAG 0x4, CIGAR '*'): {} row{}",
+                    nar.n_outside, if nar.n_outside == 1 { "" } else { "s" });
+    }
     if let Some(ext) = stages.extension.as_ref().filter(|e| e.n_no_reflen > 0) {
         note::note!("pluk: alignment not extended at the right (reference length not known): {} row{}",
                     ext.n_no_reflen, if ext.n_no_reflen == 1 { "" } else { "s" });
@@ -434,8 +439,15 @@ struct Stages<'d> {
     machine:  exec::Machine<'d>,
     rowno:    u64,              // data rows seen (rowno, r0wno); rejected rows count too
     normal_form: bool,          // SAM input without --sam-nonf (plan/SAMVIEW.design.txt section 3)
+    narrow:   Option<Narrow>,   // --sam-narrow-xy (plan/step19.txt decision 4)
     extension: Option<Extend>,  // --sam-aln-context, --sam-aln-xy (plan/step19.txt decision 2)
     fill:     Option<Fill>,     // the sequence fill, when an operator needs the query (SAMSEQ.design.txt)
+}
+
+// Narrowing: the region, and the records outside it (made unmapped).
+struct Narrow {
+    xy:        (u64, u64),
+    n_outside: u64,
 }
 
 // The context extension: the options, and the records whose right side could not be
@@ -528,7 +540,29 @@ impl Stages<'_> {
         if !self.filters.pre(row).map_err(Failure::Assertion)? {
             return Ok(filter::Verdict::RejectPre);
         }
-        // SAM input rewrites: after the @@ stage, before the computes.
+        // SAM input rewrites: after the @@ stage, before the computes; pick's order:
+        // narrow, normal form, extension. Narrowing: mapped records only; a record
+        // outside the region gets FLAG 0x4 and CIGAR '*' (RNAME and POS kept).
+        if let Some(nar) = &mut self.narrow {
+            if row.n_fields() > sam::CIGAR && !sam::is_unmapped(row) {
+                if let Some(pos) = sam::number(row.field(sam::POS)) {
+                    match sam::narrow(pos, row.field(sam::CIGAR), nar.xy.0, nar.xy.1) {
+                        sam::Narrowed::Unchanged => {}
+                        sam::Narrowed::Changed { pos, cigar } => {
+                            row.replace_field(sam::POS, pos.to_string().as_bytes());
+                            row.replace_field(sam::CIGAR, &cigar);
+                        }
+                        sam::Narrowed::Outside => {
+                            nar.n_outside += 1;
+                            if let Some(flag) = sam::flag(row) {
+                                row.replace_field(sam::FLAG, (flag | 0x4).to_string().as_bytes());
+                            }
+                            row.replace_field(sam::CIGAR, b"*");
+                        }
+                    }
+                }
+            }
+        }
         // As pick, every record, unmapped ones included (CIGAR '*' never changes).
         if self.normal_form && row.n_fields() > sam::CIGAR {
             if let Some((pos, cigar)) = sam::normal_form(row.field(sam::POS), row.field(sam::CIGAR)) {

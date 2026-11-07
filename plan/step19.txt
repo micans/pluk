@@ -86,6 +86,14 @@
       sets FLAG to 4, POS to 1 and CIGAR to '*', losing the other FLAG bits, and then
       discards the record silently if a sequence is needed). Rejected: dropping the record
       (narrowing as a region filter).
+      A narrowed record that keeps no aligned operation (M = X), because X..Y overlaps
+      only a D or N (typically vsearch's exterior deletions), is treated the same way
+      (agreed in item 2; pick leaves e.g. 200S at POS 300, a mapped record without a
+      reference span). As narrowing runs before the normal form, a cut inside an exterior
+      deletion leaves kD at the end, which the normal form then removes (POS moves to the
+      first aligned base); pick's 0S (and trailing 0S) hide that D from the normal form, so
+      pick shows the exterior deletion from X. In pluk it is shown with --sam-nonf, or
+      added back as context by --sam-aln-xy with the same region.
 
    5. --sam-ND-adjust=NAME (pick's sam_introns_only; undocumented, the help text says
       start,end): NAME is a dictionary (any kind) whose value for an RNAME is a list of

@@ -66,6 +66,8 @@ Options:
               context is written as X, D, I)
   --sam-aln-xy=X,Y  extend alignments to include reference positions X..Y
               (never reduces; with --sam-aln-context the larger per side)
+  --sam-narrow-xy=X,Y  reduce alignments to reference positions X..Y (before
+              the extension); a record outside X..Y gets FLAG 0x4 and CIGAR *
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
   --idx-list  write the input indexes of the output columns (computed columns
