@@ -9,7 +9,7 @@ by Stijn over a period of about three days. The `plan/` directory retains that h
 Many corner/edge cases in pick were settled and sometimes fixed.*
 
 
-*This manual is being written. Sections 4 to 14 are outlines; sections 1 to 3 and the operator reference (section 15) are complete.*
+*This manual is being written. Sections 6 to 14 are outlines; sections 1 to 5 and the operator reference (section 15) are complete.*
 
 
 ## 1. Introduction
@@ -397,7 +397,142 @@ a	c
 
 ## 5. Filters and assertions
 
-`@` and `@@` filters, the operators by kind, multi-column handles, `-o` and `-s`, `@assert@` and `@@assert@`.
+A filter is an argument that starts with `@`: a column, an operator and usually a value.
+A row is kept when it passes every filter.
+
+```console
+$ pluk -A @fruit=apple @kg/gt/15 < harvest.txt
+picker	fruit	tree	kg	bruised	ripeness
+Chen	apple	A07	22.1	5	0.88
+Fenna	apple	A12	18.0	1	0.95
+$ pluk picker kg '@picker~^[A-D]' @kg/lt/10 < harvest.txt
+picker	kg
+Bert	9.0
+Dora	6.4
+```
+
+### Kinds of filters
+
+The operators, each described in section 15:
+
+- numeric comparisons `/lt/ /le/ /eq/ /ge/ /gt/ /ne/`: a value that is not a number
+  fails the test, and such values are counted at the end;
+- string comparisons `~lt~ ~le~ ~eq~ ~ge~ ~gt~ ~ne~`, and `=` `/=` for equal and not equal;
+- regular expressions: `~PATTERN` matches, `/~PATTERN` does not;
+- dictionaries: `~isin~ ~isnotin~ ~notin~ ~hasval~ ~hasnotval~ ~notval~` (section 7);
+- bands: `/ep/VALUE/E` within E of VALUE, `/om/VALUE/K` within a factor K, and their
+  negations `/epx/ /omx/`;
+- bit masks: `/all/ /any/ /notall/ /none/`;
+- predicates without a value: `/ISINT /NOTINT /ISNUM /NOTNUM`.
+
+The value is a constant, or `:OTHER` for the value of another column in the same row; a
+leading `^` marks a constant explicitly (`^14.5` is the same as `14.5`). The value is
+%-decoded (section 3) after this leading `:` or `^` is read, so `%3A` and `%5E` give a
+literal colon and caret.
+
+```console
+$ pluk id x y @x/lt/:y < numbers.txt
+id	x	y
+B	-3	4
+D	0.1	0.2
+pluk: @x/lt/:y: 2 values not a number (rows not kept)
+$ printf 'k\nkg:x\n' | pluk -A '@k=kg%3Ax'
+k
+kg:x
+$ printf 'k\n^x\n' | pluk -A '@k=%5Ex'
+k
+^x
+```
+
+### Before and after the computes: @@ and @
+
+A filter written with `@@` is applied before the computes (section 6) and sees only the
+input columns; a filter with `@` is applied after them and can test computed columns. A
+row rejected by `@@` is not computed at all.
+
+```console
+$ pluk picker 'lb::kg^2.20462,mul^1,dd' '@lb/gt/30' < harvest.txt
+picker	lb
+Annie	32.0
+Chen	48.7
+Fenna	39.7
+$ pluk picker 'lb::kg^2.20462,mul^1,dd' '@@lb/gt/30' < harvest.txt
+pluk: (Preselect) handle [lb] in preselect does not reference a known entity among picker,fruit,tree,kg,bruised,ripeness
+```
+
+### Several columns at once
+
+The column of a filter can be a list, a pattern or a range (section 4): the row passes
+only if every one of the columns passes.
+
+```console
+$ pluk picker kg bruised '@kg:bruised/gt/2' < harvest.txt
+picker	kg	bruised
+Chen	22.1	5
+Dora	6.4	11
+Gus	12.7	3
+```
+
+### Any instead of all: -o and -s
+
+By default a row must pass all `@` filters and all `@@` filters. With `-o` it passes the
+`@` stage if it passes any `@` filter; with `-s` the same for `@@`.
+
+```console
+$ pluk -o picker fruit kg @fruit=plum @kg/gt/20 < harvest.txt
+picker	fruit	kg
+Chen	apple	22.1
+Dora	plum	6.4
+Hilde	plum	7.9
+```
+
+### Rejected rows: --other
+
+`--other=FILE` writes the rows that the filters reject to FILE, with the header line
+(section 9 has the details shared by all output files).
+
+```console
+$ pluk --other=light.txt picker kg @kg/gt/12 < harvest.txt
+picker	kg
+Annie	14.5
+Chen	22.1
+Fenna	18.0
+Gus	12.7
+$ cat light.txt
+picker	kg
+Bert	9.0
+Dora	6.4
+Eamon	3.2
+Hilde	7.9
+```
+
+### Assertions
+
+An assertion is a filter that must hold for every row: `@assert@COLUMN...` after the
+computes, `@@assert@COLUMN...` before them. The first row that fails it ends the run with
+an error naming the assertion, the column, the value and the line (exit status 1). With
+`--assert-other=FILE` such rows are written to FILE instead and the run goes on.
+
+```console
+$ pluk -A @assert@ripeness/ge/0.65 < harvest.txt
+picker	fruit	tree	kg	bruised	ripeness
+Annie	apple	A12	14.5	2	0.92
+Bert	pear	P03	9.0	0	0.75
+Chen	apple	A07	22.1	5	0.88
+Dora	plum	U11	6.4	11	0.99
+pluk: assertion @assert@ripeness/ge/0.65 failed: column ripeness value [0.61] at line 6
+$ pluk --assert-other=unripe.txt -A @assert@ripeness/ge/0.65 < harvest.txt
+picker	fruit	tree	kg	bruised	ripeness
+Annie	apple	A12	14.5	2	0.92
+Bert	pear	P03	9.0	0	0.75
+Chen	apple	A07	22.1	5	0.88
+...
+pluk: 1 row failed an assertion (written to unripe.txt)
+$ cat unripe.txt
+picker	fruit	tree	kg	bruised	ripeness
+Eamon	cherry	C02	3.2	0	0.61
+```
+
 
 
 ## 6. Computes

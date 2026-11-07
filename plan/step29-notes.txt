@@ -20,3 +20,16 @@ Item 1: section 4, selecting columns
   script that fills a fragment's console blocks and puts it in place of the section's
   outline; not part of the repository) and read against the text: one addition, that -R's
   column _ is written as an empty name in the output header.
+
+
+Item 2: section 5, filters and assertions
+
+  A filter keeps a row when it passes every filter; the operators by kind, linked to
+  section 15 rather than described again; VALUE as a constant, ^CONSTANT or :OTHER, then
+  %-decoded (so %3A and %5E give a literal colon and caret; checked by running pluk, the
+  first draft wrongly said a leading '^' was kept literally); @@ before the computes sees
+  only input columns (a computed column in @@ is an error, shown), @ after them; a
+  multi-column handle requires every column to pass; -o and -s (any instead of all);
+  --other; @assert@ and @@assert@, their message and exit status 1, --assert-other. The
+  manual's opening note now says sections 1 to 5 are complete (item 1 had left it at 1 to
+  3).
