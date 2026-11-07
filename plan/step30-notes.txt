@@ -1,0 +1,27 @@
+
+step30 notes: the manual, sections 10 and 11.
+
+
+Planning
+
+  All proposals agreed as written; for BAM option (a): a small doc/reads.bam made with
+  test/mkbam.py, so that reading BAM is a tested example.
+
+
+Item 1: section 10 part a, reading SAM and BAM
+
+  New data files in doc/: spliced.sam (@HD SO:coordinate; intron1 with 9M20N12M and a
+  secondary with SEQ '*', ext1 with exterior 2D and 2I for the normal form, gap1 on the
+  reverse strand with a short N outside the intron of intron1, for --sam-ND-adjust in
+  item 3), all against transgene.fa; reads.bam, reads.sam as BAM, written by
+  test/mkbam.py (which now also writes ../doc/reads.bam; the test BAM files it rewrites
+  come out byte-identical). pluk --sam-h -A < reads.bam reproduces reads.sam exactly.
+
+  The section: --sam (-k -O12, column 12 the optional fields, empty if none, @ lines
+  skipped), --sam-h, --sam/FILE (SAMFA, the length report), BAM (recognised by its first
+  bytes; error without --sam), --threads, the normal form and --sam-nonf, the sequence
+  fill (checked by running pluk: reverse-complemented across strands, hard clips taken
+  into account, column 10 output unchanged; the @HD warning), --sam-seqmiss, NA. Checked
+  and corrected in the draft: an operator that needs the reference without --sam/FILE is
+  an error before input is read, not NA. The rest of section 10 is marked as being
+  written. optcheck: 2 options not mentioned (--sam-aln-xy --sam-narrow-xy), for item 3.

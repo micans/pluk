@@ -1,0 +1,73 @@
+
+- The manual: sections 10 and 11 (SAM and BAM, bio operators)
+
+  Fourth manual step (plan/MANUAL.design.txt; writing order of MANUAL.notes.txt d). As in
+  step29: Claude drafts, the user revises later at his own pace; operators are named and
+  linked to the reference (section 15), not described again; options are described in
+  the body; every example is tested by doccheck.py. With section 10 written, the option
+  coverage check (test/optcheck.py) becomes an error (step29 decision 3).
+
+    10  SAM and BAM
+    11  Bio operators
+
+  Sections 12-14 (recipes, messages and reports, differences from pick) follow in step31;
+  section 14 collates the intended differences of plan/guidelines.txt and is a step of its
+  own in size.
+
+
+  Outcome of the discussion
+
+  All proposals agreed as written; BAM: (a), a small doc/reads.bam.
+
+  Decisions:
+
+   1. Content of section 10, in three parts:
+      a. Reading SAM: --sam (implies -k -O12, @ lines skipped; columns 1-11 and 12 the
+         optional fields), --sam-h (@ lines passed through), --sam/FILE (the reference
+         fasta as dictionary SAMFA), BAM recognised and read as SAM, --threads; the @HD
+         SO warning; the normal form (exterior D and I; --sam-nonf); the sequence fill
+         for SEQ '*' (secondary records; --sam-seqmiss=skip|exit); NA in a paragraph,
+         pointing to SAM-NA.md.
+      b. The operator families, each with one or two invocations and links: positions and
+         lengths (ref_posx .. qry_len), trails and matched parts, CIGAR parts
+         (aln_*_cgr, cgsum cgmax cgcount), sequence parts (needs --sam/FILE), counts and
+         edits (aln_nmatch aln_nedit, posinfo), patchiness, sam_get and sam_put (types,
+         the escape hatch), isforward.
+      c. Alignment display and its options: aln_all aln_allq aln_all_pack aln_ref
+         aln_qry, the alignment symbols, --sam-aln-prefix --sam-aln-mrk --sam-qlt-sim;
+         view options --sam-aln-context --sam-aln-xy --sam-narrow-xy (their order with
+         respect to each other); --sam-ND-adjust (N that overlaps none of the given
+         intervals becomes D; first of the rewrites); the region-bound tally --sam-rbt
+         and sam_rbt.
+
+   2. Content of section 11: the bio operators (rc forward todna dnatl dnagc fasta fastq
+      fastQ strpair) by use: reverse complement and strand, translation and GC content,
+      writing FASTA and FASTQ from SAM (a short recipe: unmapped reads to FASTQ), strpair.
+      Mostly links; it is the shortest section.
+
+   3. Example data: the existing transgene.fa, reads.sam, mixed.sam, align.sam as far as
+      they go. New, small: a spliced SAM file (doc/spliced.sam: a reference with a short
+      intron, a read with an N that overlaps a given interval and one that does not, for
+      --sam-ND-adjust; a read with exterior D/I for the normal form; an @HD line). The
+      existing files stay unchanged so that the examples of sections 1-9, 15 and the
+      introduction keep their outputs.
+
+   4. BAM in the examples: either (a) a small doc/reads.bam made from reads.sam with
+      test/mkbam.py, so that 'pluk --sam < reads.bam' is a tested example; or (b) BAM
+      described in prose only. Proposal: (a); the file is a few hundred bytes, binary.
+
+   5. When section 10 is complete the Makefile runs optcheck.py --strict (decision 3 of
+      step29). Proposal: in item 3, the item that writes the last SAM options.
+
+
+  Items (each: draft, all examples passing, commit)
+
+  1   Section 10 part a: reading SAM and BAM, normal form, sequence fill, NA (with
+      doc/spliced.sam and, if agreed, doc/reads.bam). Commit.
+
+  2   Section 10 part b: the operator families, sam_get and sam_put. Commit.
+
+  3   Section 10 part c: alignment display, view options, --sam-ND-adjust, --sam-rbt;
+      optcheck.py --strict in the Makefile. Commit.
+
+  4   Section 11, bio operators. Commit.

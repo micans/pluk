@@ -1200,7 +1200,135 @@ kg net
 
 ## 10. SAM and BAM
 
-`--sam`, `--sam-h`, `--sam/FILE`, normal form, the sequence fill, positions and counts, sequence parts, the alignment display, edits, patchiness, view options, the region-bound tally, `sam_put`; NA (see [SAM-NA.md](SAM-NA.md)).
+With `--sam` pluk reads SAM or BAM: the alignment records are rows, the fields are
+columns 1 to 12, and the operators of the `sam` category (section 15) compute from the
+CIGAR string, the sequence and the reference. A column is named by its number, as with
+`-k`; filters work as on any table.
+
+```console
+$ pluk --sam 1 4 6 'end::,ref_posy' < align.sam
+read1	9	3S22M3I8M3D9M	50
+read1	20	20S25M	44
+read2	30	2H4S12M3S	41
+read3	0	*	NA
+$ pluk --sam 1 2 4 6 '@2/all/16' < align.sam
+read2	16	30	2H4S12M3S
+$ pluk --sam -c '@2/none/4' < align.sam
+3
+```
+
+The examples use [transgene.fa](transgene.fa), a reference of 53 bases, and alignments
+against it: [reads.sam](reads.sam) (one read), [align.sam](align.sam) (a read with a
+secondary alignment whose SEQ is `*`, a read on the reverse strand with clips, an
+unmapped read), [spliced.sam](spliced.sam) (sorted by coordinate; reads with an N in
+the CIGAR string, one with exterior D and I) and [reads.bam](reads.bam) (reads.sam as
+BAM).
+
+### Reading SAM: --sam and --sam-h
+
+`--sam` implies `-k` and `-O12`: there is no header line of names, and the columns are
+the eleven mandatory SAM fields followed by column 12, which holds all optional fields
+(TAG:TYPE:VALUE, TAB-separated) as one value, empty if there are none. Lines starting
+with `@` (the SAM header) are skipped. `--sam-h` outputs them unchanged instead, so that
+the output is SAM again when all columns are output:
+
+```console
+$ pluk --sam 1 12 < align.sam
+read1	NM:i:7	AS:i:30
+read1	NM:i:12
+read2	NM:i:1
+read3	
+$ pluk --sam-h -A @1=read2 < align.sam
+@SQ	SN:transgene	LN:53
+read2	16	transgene	30	60	2H4S12M3S	*	0	0	GGTTGCTAAAGTTCCACCC	IIIIIIIIIIIIIIIIIII	NM:i:1
+```
+
+`-K` cannot be combined with `--sam`. Input that does not look like SAM is reported line
+by line and gives no output.
+
+### Reference sequences: --sam/FILE
+
+Some operators need the reference sequence (the alignment display, edits, patchiness,
+the reference parts of a read; section 15 says which). `--sam/FILE` and `--sam-h/FILE`
+read the references from fasta FILE into the dictionary `SAMFA`, keyed by name, with
+default `__EXIT__`. The lengths in the `@SQ` lines are compared with those in FILE; a
+message gives the number of references in the header and in FILE, the number in both,
+and the number whose lengths conflict:
+
+```console
+$ pluk --sam/transgene.fa 1 'ref::^transgene^SAMFA,map,len' < reads.sam
+read1	53
+pluk: SAM reference lengths: header/fasta/shared/conflict 1/1/1/0
+```
+
+### BAM
+
+BAM input is recognised by its first bytes and read as SAM: the records are converted to
+SAM text, so that everything in this section applies. `--threads=N` sets the number of
+threads for decompression (default 4, at most the number of processors; 1: no separate
+threads). Without `--sam` BAM input is an error.
+
+```console
+$ pluk --sam -A < reads.bam
+read1	0	transgene	9	60	3S22M3I8M3D9M	*	0	0	CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG	*	NM:i:7
+$ pluk 1 < reads.bam
+pluk: input is BAM; use --sam or --sam-h
+```
+
+### The normal form
+
+Some aligners write an alignment that starts or ends with a deletion or an insertion.
+pluk brings such a record into a normal form before anything else: a leading or trailing
+`nD` is removed (and POS adjusted), a leading or trailing `nI` becomes `nS`. Columns 4 and
+6 are output as rewritten. `--sam-nonf` keeps the record as it is.
+
+```console
+$ pluk --sam 1 4 6 @1=ext1 < spliced.sam
+ext1	10	14M2S
+$ pluk --sam --sam-nonf 1 4 6 @1=ext1 < spliced.sam
+ext1	8	2D14M2I
+```
+
+### Secondary records without a sequence
+
+A secondary or supplementary record often has `*` for SEQ and QUAL. The operators that
+need the sequence (`qry_seq`, `qry_qual` and those built on them) then take it from an
+earlier row of the same read (consecutive rows with the same QNAME) that has it, reversed
+and complemented where the strands differ, and with the hard clips taken into account.
+Column 10 itself is output unchanged. The number of rows filled is reported. If no earlier
+row has the sequence, the row is skipped and counted (`--sam-seqmiss=skip`, the default),
+or the run ends with an error (`--sam-seqmiss=exit`). Input sorted by coordinate is not
+grouped by read; pluk warns once when its `@HD` line says so and a fill is needed:
+
+```console
+$ pluk --sam 1 10 's::,qry_seq' @1=intron1 < spliced.sam
+intron1	TACAGGCTTAAGGTTCCATGC	TACAGGCTTAAGGTTCCATGC
+intron1	*	TACAGGCTTAAGGTTCCATGC
+pluk: the SAM input is not grouped by read (@HD SO:coordinate GO:none); a SEQ '*' is filled only from earlier rows of the same read
+pluk: SEQ '*' filled from another row of the read: 1 row
+```
+
+### NA
+
+A SAM operator gives NA where its result does not exist, such as a position of an
+unmapped read. (An operator that needs the reference without `--sam/FILE` is an error
+before the input is read.) How NA arises in SAM
+processing and how it travels through later computes is described in
+[SAM-NA.md](SAM-NA.md).
+
+```console
+$ pluk --sam 1 'x::,ref_posx' 's::,qry_seq' @1=read3 < align.sam
+read3	NA	ACGTTGCAAGGT
+$ pluk --sam 1 'a::,aln_ref' < reads.sam
+pluk: [a::,aln_ref]: operator aln_ref needs the reference sequence (--sam/FILE or --sam-h/FILE)
+```
+
+### Operators and alignment display
+
+*This part of the section is being written.* Positions and counts, sequence parts,
+`sam_get` and `sam_put`, the alignment display and its options, edits, patchiness,
+`--sam-ND-adjust`, the region-bound tally.
+
 
 
 ## 11. Bio operators
