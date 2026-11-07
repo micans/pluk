@@ -9,7 +9,7 @@ by Stijn over a period of about three days. The `plan/` directory retains that h
 Many corner/edge cases in pick were settled and sometimes fixed.*
 
 
-*This manual is being written. Sections 9 to 14 are outlines; sections 1 to 8 and the operator reference (section 15) are complete.*
+*This manual is being written. Sections 10 to 14 are outlines; sections 1 to 9 and the operator reference (section 15) are complete.*
 
 
 ## 1. Introduction
@@ -1029,7 +1029,173 @@ bar	2	1000	511
 
 ## 9. Input and output
 
-Compressed input, `-/PAT` and `-//PAT`, `-h`, `-c`, `-E<N>`, `--other`, `--assert-other`, `--demux` and `--demux-dir`, `--idx-list`, `--name-list`, `--idx-map`, `--progress`, `--threads`.
+pluk reads its input from standard input and writes to standard output; messages go to
+standard error (section 13).
+
+```console
+$ gzip -c harvest.txt > harvest.txt.gz
+$ pluk -h picker kg @kg/gt/15 < harvest.txt.gz
+Chen	22.1
+Fenna	18.0
+$ pluk -c @fruit=apple < harvest.txt
+3
+$ pluk -q --demux=fruit -x fruit < harvest.txt
+$ cat pear
+picker	tree	kg	bruised	ripeness
+Bert	P03	9.0	0	0.75
+Gus	P08	12.7	3	0.80
+```
+
+### Input
+
+The input is plain or gzip-compressed; pluk recognises compressed input by its first
+bytes, whatever the file is called. SAM and BAM input are the subject of section 10.
+
+`-/PAT` skips the lines that match the regular expression PAT, and `-//PAT` outputs them
+unchanged, as they are, where they occur; neither is a row. This applies to the header
+line too, so comment lines before it can be skipped or kept.
+
+```console
+$ printf '# harvest of Monday\npicker\tkg\nAnnie\t14.5\n# afternoon\nBert\t9.0\n' > notes.txt
+$ pluk -/^# picker < notes.txt
+picker
+Annie
+Bert
+$ pluk -//^# picker < notes.txt
+# harvest of Monday
+picker
+Annie
+# afternoon
+Bert
+```
+
+### What is written
+
+- `-h` leaves out the header line;
+- `-c` writes only the number of rows that pass the filters;
+- `-E<N>` makes it an error (exit status 1) if the number of output rows is not N; the
+  check is made at the end, once the rows have been written. It suits scripts that
+  expect, say, exactly one match.
+
+```console
+$ pluk -E3 picker @kg/gt/15 < harvest.txt
+picker
+Chen
+Fenna
+pluk: -E3: expected 3 output rows, found 2
+```
+
+### Other output files: --other, --assert-other, --demux
+
+`--other=FILE` (rows rejected by the filters) and `--assert-other=FILE` (rows that fail
+an assertion) are described in section 5. Their files have a header line and the same
+columns as the output.
+
+`--demux=NAME` writes each output row to the file named by the row's value in column
+NAME, instead of to standard output. The value is a relative path; with
+`--demux-dir=PATH` the files are made in PATH, which must exist. Every file has the
+header line. A row rejected by an `@` filter still creates its file, so that every value
+has a file, possibly with only the header. At the end a tally of the files, the rows
+written and the rows filtered goes to standard error (`-q` leaves it out). NAME is often
+a computed column:
+
+```console
+$ mkdir byfruit
+$ pluk --demux=fruit --demux-dir=byfruit picker kg fruit @kg/gt/10 < harvest.txt 2>&1
+File	Written	Filtered
+byfruit/apple	3	0
+byfruit/cherry	0	1
+byfruit/pear	1	1
+byfruit/plum	0	2
+$ ls byfruit
+apple
+cherry
+pear
+plum
+$ cat byfruit/cherry
+picker	kg	fruit
+$ pluk -q --demux=f 'f:=fruit^.txt,cat' picker kg < harvest.txt
+$ cat apple.txt
+picker	kg
+Annie	14.5
+Chen	22.1
+Fenna	18.0
+```
+
+An output file whose name ends in `.gz` or `.gzip` is written gzip-compressed; this
+holds for `--other`, `--assert-other` and `--demux`.
+
+```console
+$ pluk -q --other=light.txt.gz picker kg @kg/gt/12 < harvest.txt
+picker	kg
+Annie	14.5
+Chen	22.1
+Fenna	18.0
+Gus	12.7
+$ gzip -dc light.txt.gz
+picker	kg
+Bert	9.0
+Dora	6.4
+Eamon	3.2
+Hilde	7.9
+```
+
+`--demux-buffer` and `-F` are accepted for compatibility with pick and have no effect.
+
+### Column indexes and names
+
+`--idx-list` writes the input indexes (from 1) of the output columns, on one line, and
+stops after reading the header; computed columns are numbered after the input columns.
+`--name-list` writes the output column names, and `--idx-map` both, one column per line.
+They help to find column numbers for other tools such as `cut` or `sort`.
+
+```console
+$ pluk --idx-list -x tree < harvest.txt
+1	2	4	5	6
+$ pluk --idx-map picker kg 'lb::kg^2,mul' < harvest.txt
+1	picker
+4	kg
+7	lb
+pluk: the list contains computed columns (numbered after the 6 input columns)
+```
+
+### Progress and threads
+
+`--progress` writes a dot to standard error for every 1,000,000 input rows;
+`--progress=K/N` a dot every K rows and the row count after every N dots. `--threads=N`
+sets the number of threads for BAM decompression (section 10). Below, the dots are shown
+and the output itself is discarded.
+
+```console
+$ pluk --progress=2/3 -c < harvest.txt 2>&1 > /dev/null
+...         6
+.
+```
+
+### Help and listings
+
+- `-H` or `--help` prints a summary of the options, the stack language and the filters;
+- `--version` prints the version;
+- `-l` lists the operators (all of them, a category, or those whose name contains TERM:
+  `-l TERM..`); `--list-ops-tsv` lists them tab-separated, for scripts (section 15 is
+  checked against it);
+- `-z ARG..` and `-zz ARG..` write the %-encoding and decoding of their arguments, and
+  `-z` alone a table of the encoded characters (section 3).
+
+```console
+$ pluk -l dictionary
+Operator      Consumed    Produced            Description
+--------------------------------------------------------------------------------
+map           x D         map-of-x            Value of x in dictionary D (not found: as D's default) [dictionary]
+dord          x D         ord-of-x            Order of x in dictionary D (first appearance, 1-based; NA if absent) [dictionary]
+...
+$ pluk --list-ops-tsv | grep -w map
+map	dictionary	x D	map-of-x	Value of x in dictionary D (not found: as D's default)
+$ pluk -zz 'a%3Ab' 'kg%20net'
+a:b
+kg net
+```
+
 
 
 ## 10. SAM and BAM

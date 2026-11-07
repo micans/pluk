@@ -79,3 +79,29 @@ Item 5: section 8, state across rows
   (rows rejected by filters are counted; lineno includes the header), --pstore and pload
   (the previous row is the previous one that passed the @@ filters, shown against @),
   --pstore/LIST/DEFAULT and the //0 counter. All facts checked by running pluk.
+
+
+Item 6: section 9, input and output; the option coverage check
+
+  Section 9: gzip input (recognised by its first bytes), -/PAT and -//PAT (also before the
+  header), -h -c -E<N>, --demux with --demux-dir, the tally (shown with 2>&1, as it has
+  no pluk: prefix) and the file created for rows rejected by @ filters, a computed :=
+  column naming the demux files, gzip output files (.gz .gzip) for --other,
+  --assert-other and --demux, --demux-buffer and -F (no effect), --idx-list --name-list
+  --idx-map, --progress (dots shown with the output discarded), --threads (pointer to
+  section 10), -H/--help, --version (no example: its output changes), -l, --list-ops-tsv,
+  -z/-zz. --other and --assert-other themselves stay in section 5.
+
+  Option coverage check (decision 3): test/optcheck.py, run by 'make rundoc' after
+  opscheck.py. It takes every word of pluk --help that looks like an option, reduces it
+  to a stem (--kd-NAME=FILE -> --kd, -A<N> and -O12 -> -A -O, --kdict- -> --kdict; a
+  combination of short options such as -kO12 stands for each letter; words after '%'
+  such as %-decoded are not options), and looks for the stem in the manual, not
+  followed by a letter or '-' plus a lower-case letter (so --sam-h is no mention of
+  --sam). 65 options; 4 not mentioned, all SAM (--sam-nonf --sam-aln-xy --sam-narrow-xy
+  --sam-ND-adjust), for section 10. Report only for now; --strict makes it an error, to
+  be switched on in the Makefile when section 10 is written. The optional reverse check
+  (options the manual mentions that pluk lacks) is not done: section 14 will name pick
+  options that pluk does not have, so it would need an exception list.
+
+  Step29 complete with this item.
