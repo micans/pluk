@@ -247,7 +247,152 @@ pluk: -E2: expected 2 output rows, found 3
 
 ## 4. Selecting columns
 
-Names, `:` lists, `+` regular expressions, `-k` ranges; `-A`, `-A<N>`, `--A=NAME`, `-x`, `-U`; `-u`; `-R`; ragged input with `-O<N>`.
+Columns are named in the arguments, in the order they are to be output. A name can also
+be a list, a pattern or (without a header line) a range, and each of these works wherever
+a column is named: in the output, in filters and in computes.
+
+```console
+$ pluk fruit picker < harvest.txt
+fruit	picker
+apple	Annie
+pear	Bert
+apple	Chen
+...
+$ pluk 'picker:kg:fruit' < harvest.txt
+picker	kg	fruit
+Annie	14.5	apple
+Bert	9.0	pear
+Chen	22.1	apple
+...
+$ pluk '+.*r.*' < harvest.txt
+picker	fruit	tree	bruised	ripeness
+Annie	apple	A12	2	0.92
+Bert	pear	P03	0	0.75
+Chen	apple	A07	5	0.88
+...
+```
+
+### Names, lists and patterns
+
+- A plain argument is a column name. A name that contains one of pluk's special
+  characters is written %-encoded (section 3).
+- A `:` list names several columns at once (`picker:kg:fruit`).
+- An argument starting with `+` is a regular expression that must match the whole name:
+  `+p.*` is every column whose name starts with p, `+.*r.*` every column with an r in it.
+  A pattern that matches no column is an error, as is a name that is not a column:
+
+```console
+$ pluk '+r' < harvest.txt
+pluk: (Output) regex [+r] in output matches no column among picker,fruit,tree,kg,bruised,ripeness
+```
+
+A column that is selected more than once is output once, at its first place (with a
+message; `-U` asks for this without one):
+
+```console
+$ pluk picker kg picker < harvest.txt
+picker	kg
+Annie	14.5
+Bert	9.0
+Chen	22.1
+...
+```
+
+### Columns by number: -k and ranges
+
+Without a header line (`-k`, section 3), the columns are named 1, 2, ... and can be
+selected by ranges: `2-4`, `5-` (from 5 to the last), `1+1-2*2` (columns O + i·M for i
+from S to E, here 1+2 and 1+4). A range that selects no column is an error.
+
+```console
+$ tail -n +2 harvest.txt | pluk -k 2-4
+apple	A12	14.5
+pear	P03	9.0
+apple	A07	22.1
+plum	U11	6.4
+...
+$ tail -n +2 harvest.txt | pluk -k '1+1-2*2'
+A12	2
+P03	0
+A07	5
+U11	11
+...
+$ tail -n +2 harvest.txt | pluk -k 1 5-
+Annie	2	0.92
+Bert	0	0.75
+Chen	5	0.88
+Dora	11	0.99
+...
+```
+
+### All columns, all but some, and where new columns go
+
+- `-A` outputs every input column, in input order; this is the usual way to keep whole
+  rows while filtering them (section 5). New computed columns follow at the end, or with
+  `-A<N>` after the first N input columns (a negative N counts from the right), or with
+  `--A=NAME` after column NAME.
+- `-x` outputs every input column except the ones named (names, lists and patterns alike).
+- `-U` outputs the selected columns in their input order, whatever the order of the
+  arguments (computed columns after them).
+
+```console
+$ pluk -A2 'lb::kg^2.20462,mul^1,dd' < harvest.txt
+picker	fruit	lb	tree	kg	bruised	ripeness
+Annie	apple	32.0	A12	14.5	2	0.92
+Bert	pear	19.8	P03	9.0	0	0.75
+Chen	apple	48.7	A07	22.1	5	0.88
+...
+$ pluk --A=picker 'n::picker,len' < harvest.txt
+picker	n	fruit	tree	kg	bruised	ripeness
+Annie	5	apple	A12	14.5	2	0.92
+Bert	4	pear	P03	9.0	0	0.75
+Chen	4	apple	A07	22.1	5	0.88
+...
+$ pluk -x '+.*e.*' < harvest.txt
+fruit	kg
+apple	14.5
+pear	9.0
+apple	22.1
+...
+$ pluk -U kg picker fruit < harvest.txt
+picker	fruit	kg
+Annie	apple	14.5
+Bert	pear	9.0
+Chen	apple	22.1
+...
+```
+
+### Header lines that need help: -u and -R
+
+A header with a repeated name is an error unless `-u` makes the names unique (the
+repeats get a suffix `_v02`, `_v03`, ...). A header with one name fewer than the rows, as
+R writes tables with row names, is read with `-R`: the first column is named `_` (and
+written in the output header as an empty name, as R expects).
+
+```console
+$ printf 'kg\tkg\n1\t2\n' | pluk -u -A
+kg	kg_v02
+1	2
+$ printf 'kg\tbruised\nAnnie\t14.5\t2\n' | pluk -R _ kg
+	kg
+Annie	14.5
+```
+
+### Ragged input: -O<N>
+
+Every row must have as many fields as the header has names. Input whose rows vary in
+length is read with `-O<N>` (which needs `-k`): every row then has N columns; a shorter row
+is padded with empty fields, and in a longer row everything from field N on is kept
+together in column N, TABs included. SAM is such input: `--sam` implies `-k -O12`, so that
+the optional fields of a record are all in column 12 (section 10).
+
+```console
+$ pluk -kO3 1 3 < ragged.txt
+a	c
+1	
+1	3	4	5
+```
+
 
 
 ## 5. Filters and assertions

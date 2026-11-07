@@ -1,0 +1,22 @@
+
+Notes for plan/step29.txt (the manual: sections 4-9).
+
+
+Planning
+
+  Agreed without changes: body sections in pick's style (invocations first, then the
+  details), operators linked to the reference rather than described again, options
+  described in the body; new small data files where needed; an option coverage check,
+  reported at the end of this step and an error once section 10 is written.
+
+
+Item 1: section 4, selecting columns
+
+  Names, lists and patterns (a pattern must match the whole name; an unknown name or a
+  pattern without a match is an error); repeated columns (output once; -U); -k ranges
+  (2-4, 5-, O+S-E*M); -A -A<N> --A=NAME -x -U; -u and -R; ragged input -O<N> and why
+  --sam implies -k -O12. New data file doc/ragged.txt (a header of three names, a short
+  and a long row). 8 example blocks, outputs produced by running them (an authoring
+  script that fills a fragment's console blocks and puts it in place of the section's
+  outline; not part of the repository) and read against the text: one addition, that -R's
+  column _ is written as an empty name in the output header.

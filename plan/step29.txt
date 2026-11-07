@@ -1,0 +1,76 @@
+
+- The manual: sections 4-9
+
+  Third manual step (plan/MANUAL.design.txt; writing order of MANUAL.notes.txt d, part
+  (2)): the body sections on the core of pluk. Claude drafts, the user revises later at
+  his own pace (step28: 'motor on'); every example is tested by doccheck.py.
+
+    4  Selecting columns
+    5  Filters and assertions
+    6  Computes
+    7  Dictionaries and quantiles
+    8  State across rows
+    9  Input and output
+
+
+
+  Outcome of the discussion
+
+  Decisions:
+   0. Shape of a body section, as pick's manual: a few useful invocations first, then the
+      details and the options, each with a tested example. Operators are not described
+      again: the body names them and links to the reference (section 15), so every rule
+      is written once. Options are described in the body, in the section where they
+      belong (the reference has no options).
+
+   1. Content per section (MANUAL.design.txt section 2):
+      4  names, ':' lists, '+' regular expressions (whole-name, anchored), -k ranges
+         (forms O+S-E*M); -A, -A<N>, --A=NAME, -x, -U; repeated output columns; -u; -R;
+         ragged input -O<N> (and why --sam implies -k -O12).
+      5  @ and @@ (before and after the computes, what each sees), the operators by kind
+         with links, VALUE as a constant or :OTHER, %-decoding, multi-column handles
+         (lists, regexes, ranges: every column must pass), -o and -s, @assert@ and
+         @@assert@, --assert-other, --other.
+      6  NAME::SPEC and NAME:=SPEC, unnamed computes, the stack language (^ : ,, the
+         stack's contents written at the end), splats (a list or regex pushes several
+         columns), output positions, -A<N> with computes, -i and __, maps over lists,
+         regexes and ranges, renaming (P/SPEC/S, SPEC/S, P//SPEC//S) and capture group 1;
+         -e (white space removed); --num-perl, --seed.
+      7  the dictionary options (--kd --fd --cd --td --fasta-dict and their synonyms),
+         defaults and __EXIT__, merging, map and dord and the dictionary filters (links);
+         --quant-NAME with qnl and qnu (link).
+      8  registers (save fetch, per row), rowno r0wno lineno, --pstore and pload with
+         LIST and DEFAULT, --group and --group-first-ref with groupi groupno, pick's
+         intron example.
+      9  compressed input, -/PAT and -//PAT, -h -c -E<N>, --other, --assert-other,
+         --demux --demux-dir --demux-buffer, compressed output files (.gz), --idx-list
+         --name-list --idx-map, --progress, --threads, --version, -H/--help, -z -zz, -l,
+         --list-ops-tsv.
+
+   2. Example data, in pluk/doc/: harvest.txt and numbers.txt as far as they go; new small
+      files where needed: exons.txt (genes and exons, for --group and the intron
+      example), a ragged file (rows of varying length, for -O<N>), a dictionary file and
+      a table file (for --fd and --td), a small fasta (for --fasta-dict).
+
+   3. Option coverage check (agreed), in the spirit of opscheck.py: a test that every
+      option in pluk --help is mentioned in the manual (and, optionally, that every
+      option the manual mentions exists), so that a new option cannot go undocumented.
+      At present 46 of the 57 options of --help are mentioned (most only in the section
+      outlines); after sections 4-11 all should be. Added at the end of this step as a
+      report; made an error when section 10 (SAM) is written.
+
+
+  Items (each: draft, all examples passing, commit)
+
+  1   Section 4, selecting columns (with the ragged file). Commit.
+
+  2   Section 5, filters and assertions. Commit.
+
+  3   Section 6, computes. Commit.
+
+  4   Section 7, dictionaries and quantiles (with the dictionary, table and fasta
+      files). Commit.
+
+  5   Section 8, state across rows (with exons.txt). Commit.
+
+  6   Section 9, input and output; the option coverage check (decision 3). Commit.
