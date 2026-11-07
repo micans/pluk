@@ -220,8 +220,9 @@ NA marks a value that cannot be computed: an arithmetic operator given a field t
 not a number (rows F and G above), a SAM value of an unmapped read. It is written
 `NA`. An operator with an NA
 operand gives NA; a numeric filter fails on NA, so the row is not kept, and the number
-of such values is reported. A compute that reads a column holding NA reads the text `NA`
-(a string of two letters, not a number). For SAM, [SAM-NA.md](SAM-NA.md) follows NA
+of such values is reported. A later compute in the same run that refers to a column
+holding NA reads the text `NA` (a string of two letters, not a number); so does a later
+run that reads pluk's output. For SAM, [SAM-NA.md](SAM-NA.md) follows NA
 through the most likely cases.
 
 ### Messages, reports and exit status

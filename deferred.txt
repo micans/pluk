@@ -35,3 +35,7 @@
   on (operators give NA, numeric filters fail, test and ifelse give NA, output writes NA),
   what is counted and reported at the end, and where pick discarded the row or computed
   from missing data instead. For the pluk documentation.
+- --NA=NA,NaN,na (the user's idea, during step28): values listed by the option are read as
+  NA, not as text, wherever a field is read: input columns, and computed columns that a
+  later compute in the same run refers to (where an NA is now the text NA, SAM-NA.md
+  section 2). Feasibility not yet considered.

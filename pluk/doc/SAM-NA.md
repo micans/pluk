@@ -62,8 +62,9 @@ Within one compute an NA is a value of its own:
 - `ifelse` and `test` with an NA condition give NA.
 - A numeric operator given something that is not a number also gives NA.
 
-When the compute is written, NA becomes the text `NA` in its column. Later computes that
-read the column see that text, not an NA value:
+When the compute is written, NA becomes the text `NA` in its column. Later computes in the
+same run that refer to the column by name read that text, not an NA value (and so does a
+later run that reads pluk's output):
 
 ```console
 $ pluk -q --sam 1 n::,ref_trail3p_N l::n,len 'm::n^1,add' k::,ref_trail3p_N,len < mixed.sam
