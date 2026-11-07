@@ -1,0 +1,80 @@
+
+- The manual: sections 1-3 and the operator reference
+
+  Second manual step (plan/MANUAL.design.txt; writing order of MANUAL.notes.txt d, part
+  (1)). The skeleton of step27 is filled in: the opening sections, and a description for
+  every one of the 218 operators. Co-authored: Claude drafts each item in a neutral
+  manual voice, the user revises it, then commits.
+
+  Operators per category (pluk --list-ops-tsv): stack 3, string 27, arithmetic 24, math
+  16, precision 5, dictionary 2, branch 2, state 8, time 4, bit 6, radix 6, regex 8, sam
+  64, bio 9, filter 34.
+
+
+
+  Outcome of the discussion
+
+  Decisions:
+   0. A description says what the operator does in a sentence or two, then the rules a
+      user needs: what happens with NA and with a value that is not a number, edge cases
+      (empty strings, out-of-range counts, division by zero), and any constant operand
+      checked before input is read. pick is not mentioned (section 14 is the one place).
+      Examples (agreed): every operator gets at least one ```console example, tested by
+      doccheck.py; sibling operators share one (head tail skip shed; floor ceil round
+      int; the trig functions), so roughly 120 examples, not 218.
+
+   1. Example data, in pluk/doc/ (MANUAL.design.txt section 1): harvest.txt for most of
+      the manual; a small separate numbers file where harvest.txt is awkward (negative
+      numbers, large integers, nan, empty fields, values that are not numbers) (agreed;
+      harvest.txt keeps its character); for SAM,
+      transgene.fa with reads.sam and mixed.sam, extended with a few more reads where an
+      operator needs them (a reverse-strand read, hard clips, an N, a SEQ '*' to fill, a
+      read that runs past the reference end).
+
+   2. Section 1: what pluk is (a paragraph, pointing to INTRODUCTION.md), building it
+      (cargo build --release; make test; the int128 build and what it changes), the crates
+      and why each: flate2 (gzip input), regex (patterns everywhere), memchr (fast byte
+      search), noodles-bam, noodles-bgzf, noodles-sam (BAM input), md-5 (md5), jiff
+      (todate, time zones). No comparison of their standing with Perl modules (decided).
+      Instead, in a neutral voice: pluk is relatively lean, and why. Measured at step28:
+      8 direct dependencies; 56 further crates compiled (Cargo.lock lists 77 packages, the
+      others optional or for other platforms and not built); about 12,000 lines of Rust,
+      107 unit tests. The choices that keep it so: argument parsing written by hand (no
+      argument-parser crate), number formatting and parsing of its own (round-trip floats,
+      --num-perl), its own small random generator (splitmix64) rather than a random-number
+      crate, no serialisation framework, no async runtime; the BAM support (the noodles
+      crates) accounts for about 34 of the compiled crates, the rest is small. The manual
+      gives these numbers as approximate (they change with versions).
+
+   3. Section 2, quick start: about ten common tasks, one line each with output, partly
+      overlapping the introduction's tour but terser (pick a few columns, filter, count,
+      compute, demux, a SAM one-liner).
+
+   4. Section 3, concepts: header and rows (and -k, -K, -R, -u), column names and how a
+      name is written (%-encoding, -z -zz, \Q..\E), bytes (no encoding assumed), numbers
+      (integers exact, the int128 build, floats round-trip, --num-perl), NA (what it is,
+      how it is written, how it travels; pointing to SAM-NA.md for SAM), messages, the
+      end-of-run reports, -q, exit status.
+
+   5. When the reference is complete, operators without a description become an error in
+      opscheck.py (step27 decision b), so a new operator cannot be added without one.
+
+
+  Items (each: draft, user's revision, all examples passing doccheck.py, commit)
+
+  1   Sections 1-3 (decisions 2-4), with the example data files they need. Commit.
+
+  2   Reference: stack, string, regex (38 operators). Commit.
+
+  3   Reference: arithmetic, math, precision, bit, radix (57 operators). Commit.
+
+  4   Reference: dictionary, branch, state, time, bio (25 operators). Commit.
+
+  5   Reference: sam, positions, counts, CIGAR parts, sequence parts, sam_get sam_put
+      (about 35 operators; the extended SAM data). Commit.
+
+  6   Reference: sam, alignment strings, edits, posinfo, patchiness, rbt (about 29
+      operators). Commit.
+
+  7   Reference: the 34 filter operators; opscheck.py makes a missing description an
+      error (decision 5). Commit.

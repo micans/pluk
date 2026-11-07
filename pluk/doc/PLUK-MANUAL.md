@@ -9,22 +9,239 @@ by Stijn over a period of about three days. The `plan/` directory retains that h
 Many corner/edge cases in pick were settled and sometimes fixed.*
 
 
-*This manual is being written. Sections 1 to 14 are outlines; section 15 lists every operator, with descriptions to follow.*
+*This manual is being written. Sections 4 to 14 are outlines; section 15 lists every operator, with descriptions to follow.*
 
 
 ## 1. Introduction
 
-What pluk is, in brief (see [INTRODUCTION.md](INTRODUCTION.md) for a tour); building pluk (cargo; the int128 build); the crates pluk uses and why.
+pluk works on tables: files with a header line that names the columns, and rows of
+tab-separated fields. It selects columns by name, keeps or drops rows by their values,
+computes new columns with a small stack language, sends rows to different files, and
+checks assertions about the data. It also reads SAM and BAM alignment files, with
+operators that take alignments apart, count their edits and draw them. pluk reads its
+input once, line by line, and keeps little more than the current row, so the size of the
+input does not matter. [INTRODUCTION.md](INTRODUCTION.md) gives a short tour; this manual
+describes everything.
+
+### Building pluk
+
+pluk is written in Rust and built with cargo:
+
+```sh
+cargo build --release     # the program: target/release/pluk
+make test                 # build, unit tests, the test suite, the manual's examples
+make test-int128          # the same with 128-bit integers; binary target/release/pluk7
+```
+
+By default pluk computes with 64-bit signed integers; the int128 build uses 128-bit
+integers, so that integer arithmetic stays exact over a larger range before it moves to
+floating point (section 3, Numbers). Everything else is the same.
+
+### Dependencies
+
+pluk uses eight crates (Rust libraries) directly:
+
+| Crate | Used for |
+|-------|----------|
+| flate2 | reading gzip-compressed input, writing gzip-compressed output files |
+| regex | regular expressions: column selection, filters, operators, `-/PAT` |
+| memchr | fast searching of bytes |
+| noodles-bam, noodles-bgzf, noodles-sam | reading BAM files |
+| md-5 | the `md5` operator |
+| jiff | dates and time zones (`todate`) |
+
+pluk is relatively lean: these eight crates bring in about 56 further crates when it is
+built, about 34 of them for BAM support, and pluk itself is about 12,000 lines of Rust,
+including some 100 unit tests (the numbers change with versions). It parses its command
+line itself rather than with an argument-parsing library, formats and parses numbers
+itself, has a small random-number generator of its own (splitmix64, for `rand`), and needs
+neither a serialisation framework nor an asynchronous runtime.
 
 
 ## 2. Quick start
 
-Common tasks, one line each, with their output.
+The examples use [harvest.txt](harvest.txt), a day in an orchard (the table is shown in
+[INTRODUCTION.md](INTRODUCTION.md)). Each line is one common task.
+
+Columns by name; without the header line; by pattern; all but some:
+
+```console
+$ pluk picker kg < harvest.txt
+picker  kg
+Annie   14.5
+...
+$ pluk -h picker kg < harvest.txt
+Annie   14.5
+...
+$ pluk '+p.*' kg < harvest.txt
+picker  kg
+Annie   14.5
+...
+$ pluk -x tree ripeness < harvest.txt
+picker  fruit   kg    bruised
+Annie   apple   14.5  2
+...
+```
+
+Rows by value; counted; by pattern:
+
+```console
+$ pluk -A @fruit=pear < harvest.txt
+picker  fruit  tree  kg    bruised  ripeness
+Bert    pear   P03   9.0   0        0.75
+Gus     pear   P08   12.7  3        0.80
+$ pluk -c @ripeness/ge/0.9 < harvest.txt
+3
+$ pluk -A '@picker~^[A-C]' < harvest.txt
+picker  fruit  tree  kg    bruised  ripeness
+Annie   apple  A12   14.5  2        0.92
+Bert    pear   P03   9.0   0        0.75
+Chen    apple  A07   22.1  5        0.88
+```
+
+A new column, and a test that gives 1 or 0:
+
+```console
+$ pluk picker 'lb::kg^2.20462,mul^1,dd' 'heavy::kg^10^/gt/,test' < harvest.txt
+picker  lb    heavy
+Annie   32.0  1
+Bert    19.8  0
+...
+```
+
+Compressed input is recognised; SAM input with `--sam` (columns are then numbered):
+
+```console
+$ gzip -c harvest.txt | pluk picker kg
+picker  kg
+Annie   14.5
+...
+$ pluk -q --sam 1 4 6 < reads.sam
+read1   9   3S22M3I8M3D9M
+```
 
 
 ## 3. Concepts
 
-Header and rows, column names, `-k` and `-K`, bytes, %-encoding (`-z`, `-zz`), numbers, NA, messages and exit status, `-q`.
+### Rows and the header line
+
+The first line of the input is the header: it names the columns. Every other line is a
+row, with as many fields as the header has names. The arguments name columns (to output
+them), computes (new columns, they contain `::` or `:=`) and filters (they start with
+`@`); options come first, before all of these: an option after a column argument is taken
+as a column name.
+
+- `-k` the input has no header line; the columns are named 1, 2, ... .
+- `-K` as `-k`, and the output gets a header line with those names.
+- `-h` no header line in the output.
+- `-R` the header line has one name fewer than the rows (a first column of row names
+  without a name, as R writes tables): that column is named `_`.
+- `-u` make repeated names in the header unique (`kg`, `kg_v02`, ...); without it, a
+  repeated name is an error.
+
+```console
+$ tail -n +2 harvest.txt | pluk -K 1 4
+1       4
+Annie   14.5
+...
+```
+
+Rows with varying numbers of fields (ragged input, such as SAM) are described in
+section 4.
+
+### Writing names and values
+
+The arguments use a few characters for their own syntax: `:` `^` `,` `/` `~` `=` `@`
+`+` `%` and white space. Where such a character is part of a name or a value, write it
+%-encoded: `%3A` for `:`, `%2C` for `,`, `%2F` for `/`, `%20` for a space, and so on.
+`-z` prints the encoding of its arguments and `-zz` decodes:
+
+```console
+$ pluk -z 'a:b,c^d' 'x y'
+a%3Ab%2Cc%5Ed x%20y
+$ pluk picker 'w::^kg%3A:kg,cat' < harvest.txt
+picker  w
+Annie   kg:14.5
+...
+```
+
+In regular expressions `\Q...\E` quotes the text between (no character in it is special):
+
+```console
+$ pluk -A '@picker~\QA.n\E' < harvest.txt
+picker  fruit  tree  kg  bruised  ripeness
+```
+
+### Bytes
+
+pluk assumes no character encoding: fields are bytes, lengths count bytes, comparisons
+compare bytes, and anything is passed through unchanged.
+
+### Numbers
+
+A field is a number if it reads as one: integers (`7`, `-3`), decimals and exponents
+(`0.1`, `1e300`), and `nan` and `inf`. An empty field or a word is not a number.
+Integers are exact (64-bit signed, 128-bit in the int128 build); when an integer result
+does not fit, the result is a floating-point number. Floating-point numbers are written
+so that they read back as the same number, which shows their nature:
+
+```console
+$ pluk id 'sum::x:y,add' 'prod::x:y,mul' < numbers.txt
+id  sum                    prod
+A   9                      14
+B   1                      -12
+C   9.223372036854776e+18  9223372036854775807
+D   0.30000000000000004    0.020000000000000004
+E   nan                    nan
+F   NA                     NA
+G   NA                     NA
+H   1e+300                 inf
+```
+
+([numbers.txt](numbers.txt) has the columns id, x and y.) `--num-perl` writes numbers
+the way Perl prints them (15 significant digits):
+
+```console
+$ pluk --num-perl id 'sum::x:y,add' < numbers.txt
+id  sum
+A   9
+B   1
+C   9223372036854775808
+D   0.3
+...
+```
+
+Division by zero gives `inf` or `nan` (`div`) or NA (`idiv`, `mod`); the square root
+or logarithm of a negative number gives `nan`.
+
+### NA
+
+NA marks a value that cannot be computed: an arithmetic operator given a field that is
+not a number (rows F and G above), a SAM value of an unmapped read. It is written
+`NA`. An operator with an NA
+operand gives NA; a numeric filter fails on NA, so the row is not kept, and the number
+of such values is reported. A compute that reads a column holding NA reads the text `NA`
+(a string of two letters, not a number). For SAM, [SAM-NA.md](SAM-NA.md) follows NA
+through the most likely cases.
+
+### Messages, reports and exit status
+
+Errors are written to stderr, as `pluk: ...`, and end the run with exit status 1: an
+option or argument that is not valid, a name that is not a column, a failed assertion,
+a dictionary lookup with `__EXIT__`, an `-E<N>` count that does not match. Otherwise
+the exit status is 0. At the end of a run pluk reports counts on stderr where something
+deserves attention (values that were not numbers, NA in SAM values, rows skipped,
+groups, ...); `-q` silences everything except errors. `-E<N>` makes the run an error
+unless exactly N rows are output:
+
+```console
+$ pluk -E2 @fruit=apple picker < harvest.txt
+picker
+Annie
+Chen
+Fenna
+pluk: -E2: expected 2 output rows, found 3
+```
 
 
 ## 4. Selecting columns
