@@ -41,3 +41,19 @@ Item 2: section 10 part b, the operator families
   sam_put writing a new tag into SAM output (--sam-h -A), its type checks and counts.
   patchiness only pointed to (part c and section 15). The section is generated from one
   fragment for parts a and b (the authoring script replaces the whole section).
+
+
+Item 3: section 10 part c, alignment display, view options, region-bound tally
+
+  Alignment display: aln_all and the separate lines, the match-line symbols (details left
+  to section 15), patchiness on the match line; --sam-aln-prefix --sam-aln-mrk
+  --sam-qlt-sim. View options as one subsection, in the order pluk applies them
+  (SAMVIEW.design.txt section 3: ND-adjust, narrow, normal form, context extension):
+  --sam-ND-adjust on spliced.sam (the intron of intron1 overlaps 13-32 and stays N; the
+  short N of gap1 becomes D, NM +3), --sam-narrow-xy, --sam-aln-context (POS and CIGAR
+  change, context drawn '.'), --sam-aln-xy. Region-bound tally: --sam-rbt and sam_rbt,
+  clipping to the matched part (rbt_dx rbt_dy). Checked by running pluk: the rbt_
+  operators need --sam/FILE (the draft used --sam alone).
+
+  optcheck.py now runs with --strict in the Makefile: all 65 options of pluk --help are
+  mentioned; a manual copy with one option renamed fails (exit 1), checked by hand.

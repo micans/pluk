@@ -15,9 +15,9 @@ pluk reads a table, i.e. a file with a header line and tab-separated columns, an
 you manipulate rows using column names. It processes the table line by line and
 munches through large data fast using almost no memory.
 It is `cut` that knows names, `grep` that knows
-which column it is looking at, and `sed` for field values. On top of that it computes
-new columns, splits a table into files, and supports assertions over the data.
-It reads/writes compressed data transparently and supports tables without headers, including ragged data.
+which column it is looking at, and `sed` for field values. Besides that it computes
+new columns, splits a table into files, supports assertions over the data,
+reads/writes compressed data transparently and supports tables without headers, including ragged data.
 Everything happens on the command line. There is
 no script to write - pluk is expressive and concise.
 

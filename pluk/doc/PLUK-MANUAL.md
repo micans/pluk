@@ -9,7 +9,7 @@ by Stijn over a period of about three days. The `plan/` directory retains that h
 Many corner/edge cases in pick were settled and sometimes fixed.*
 
 
-*This manual is being written. Sections 10 to 14 are outlines; sections 1 to 9 and the operator reference (section 15) are complete.*
+*This manual is being written. Sections 11 to 14 are outlines; sections 1 to 10 and the operator reference (section 15) are complete.*
 
 
 ## 1. Introduction
@@ -1418,8 +1418,105 @@ counted. Replacing a field that is already there is counted as well.
 
 ### Alignment display
 
-*This part of the section is being written.* The alignment display and its options, the
-view options, `--sam-ND-adjust`, the region-bound tally.
+With `--sam/FILE`, pluk draws an alignment as text: a ruler with reference positions, the
+reference, a match line and the read, and optionally the quality. `aln_all` gives the four
+lines in one field (separated by newlines), `aln_allq` adds the quality line, and
+`aln_ref` `aln_aln` `aln_qry` `aln_rlr` `aln_qlt` give the lines one by one. In the
+match line `|` is a match, `x` a mismatch, `~` an insertion, `-` a deletion and `=` an
+N; dangling ends are drawn `` ` `` and `_`, added context `.` (section 15 has the
+details). Soft clips are not drawn.
+
+```console
+$ pluk -q --sam/transgene.fa 'a::,aln_all' @1=read1 @@2=0 < align.sam
+ 10        20        30           40        5
+GCTTAACGGTACCATGAGCTAG---CTAAGGTTCCATGCAATTCG
+||||||||||||x|||||||||~~~||||||||---|||||||||
+GCTTAACGGTACAATGAGCTAGTTTCTAAGGTT---TGCAATTCG
+$ pluk -q --sam/transgene.fa 1 'a::,aln_aln' 'p::,aln_aln^10,patchiness' @2/none/260 < align.sam
+read1	||||||||||||x|||||||||~~~||||||||---|||||||||	3
+read2	|||||x||||||	2
+```
+
+`patchiness` (second example) scores how clustered the differences in a match line are,
+within a window of the given number of columns.
+
+The options that change the drawing:
+
+- `--sam-aln-prefix=STR` puts STR before every line of `aln_all`, `aln_allq` and
+  `aln_all_pack` (the lines joined by byte 0x01, for further processing), so that the
+  alignments can be told apart from other output;
+- `--sam-aln-mrk` ends `aln_ref` and `aln_qry` in markers and the lengths of the 5'
+  trail, the matched part and the 3' trail;
+- `--sam-qlt-sim` writes the quality line in simplified symbols, five quality values per
+  symbol (`.,aAbB..iI`).
+
+```console
+$ pluk -q --sam/transgene.fa --sam-aln-prefix='>> ' 'a::,aln_allq' @1=read2 < align.sam
+>> 30        40
+>> GCTAAGGTTCCA
+>> |||||x||||||
+>> GCTAAAGTTCCA
+>> IIIIIIIIIIII
+$ pluk -q --sam/transgene.fa --sam-qlt-sim 1 'q::,aln_qlt' @1=read2 < align.sam
+read2	dddddddddddd
+```
+
+### Changing the alignment: the view options
+
+Four options rewrite the records themselves, before filters and computes, so that the
+output columns 4 and 6 and every operator see the rewritten POS and CIGAR. They are
+applied in this order:
+
+1. `--sam-ND-adjust=NAME`: dictionary NAME gives, per reference name, intervals
+   `a-b,c-d` (write the comma as `%2C` in `--cd`); an `N` that overlaps none of them
+   becomes `D`, and the `NM:i` value is increased by its length. An N that overlaps an
+   interval is plausibly an intron; one that does not is taken to be a deletion.
+2. `--sam-narrow-xy=X,Y` reduces alignments to reference positions X..Y: what lies
+   outside becomes soft clip. A record that does not overlap X..Y becomes unmapped (FLAG
+   0x4, CIGAR `*`) and is counted.
+3. The normal form (part a; `--sam-nonf` turns it off).
+4. `--sam-aln-context=N` extends alignments by up to N bases of reference and
+   soft-clipped read at each end, and `--sam-aln-xy=X,Y` extends them to include
+   reference positions X..Y (it never reduces); together, the larger extension applies
+   on each side. The context is written into the CIGAR as `X`, `D` and `I`, and POS
+   changes; in the drawing it shows as `.`.
+
+```console
+$ pluk --cd-INTRONS=transgene:13-32 --sam-ND-adjust=INTRONS --sam -q 1 4 6 12 < spliced.sam
+intron1	4	9M20N12M	NM:i:0
+intron1	6	2S7M20N12M	NM:i:0
+ext1	10	14M2S	NM:i:4
+gap1	30	10M3D10M	NM:i:3
+$ pluk --sam -q --sam-narrow-xy=20,30 1 2 4 6 < align.sam
+read1	0	20	14S11M20S
+read1	256	20	20S11M14S
+read2	16	30	2H4S1M14S
+read3	4	0	*
+$ pluk -q --sam/transgene.fa --sam-aln-context=3 4 6 'a::,aln_all' < reads.sam
+6	3X22M3I8M3D9M3D	    10        20        30           40        50  
+CAGGCTTAACGGTACCATGAGCTAG---CTAAGGTTCCATGCAATTCGAGG
+...||||||||||||x|||||||||~~~||||||||---|||||||||```
+CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTT---TGCAATTCG---
+```
+
+### The region-bound tally
+
+The `rbt_` operators describe the alignment within a region of the reference: its
+positions on reference and read, the read's sequence, the numbers of matches,
+mismatches, insertions and deletions, and the alignment lines, all cut to the region
+(section 15). They need `--sam/FILE`. The region is set for every row with `--sam-rbt=X,Y`, or in a compute with
+`sam_rbt` (taking X and Y from the stack, so that they can come from columns), for the
+rest of the row. A region is clipped to the matched part; `rbt_dx` and `rbt_dy` say how
+much was cut off.
+
+```console
+$ pluk -q --sam/transgene.fa --sam-rbt=25,35 1 'q::,rbt_qry' 'm::,rbt_nmatch' 'e::,rbt_nedit' 'a::,rbt_alnaln' @2/none/260 < align.sam
+read1	AGCTAGTTTCTAAG	11	3	||||||~~~|||||
+read2	GCTAAA	6	1	|||||x
+$ pluk -q --sam/transgene.fa 1 'z:=^40^45,sam_rbt' 'x::,rbt_refx' 'y::,rbt_refy' 'dx::,rbt_dx' 'dy::,rbt_dy' @2/none/260 < align.sam
+read1	40	45	0	0
+read2	40	41	0	4
+```
 
 
 

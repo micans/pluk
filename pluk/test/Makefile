@@ -19,14 +19,14 @@ test: runpluk runtestopt rundiff rundoc
 # operator reference of the manual checked against pluk --list-ops-tsv
 # (plan/MANUAL.design.txt sections 3 and 4; Python 3). After a change to an operator:
 # python3 opscheck.py --update $(p) ../doc/PLUK-MANUAL.md
-# optcheck.py reports the options of pluk --help that the manual does not mention
-# (plan/step29.txt decision 3; --strict, an error, once section 10 is written).
+# optcheck.py --strict: an option of pluk --help that the manual does not mention is an
+# error (plan/step29.txt decision 3; strict since step30 item 3).
 DOCS = ../doc/INTRODUCTION.md ../doc/SAM-NA.md ../doc/PLUK-MANUAL.md
 
 rundoc:
 	@python3 doccheck.py $(p) $(DOCS)
 	@python3 opscheck.py $(p) ../doc/PLUK-MANUAL.md
-	@python3 -B optcheck.py $(p) ../doc/PLUK-MANUAL.md
+	@python3 -B optcheck.py --strict $(p) ../doc/PLUK-MANUAL.md
 
 # A failing invocation does not stop the others; its output is compared as usual.
 .IGNORE: runpluk runtestopt
