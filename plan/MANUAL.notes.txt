@@ -6,6 +6,22 @@ User's requirement: the pluk/pick differences are collated in one section, not s
 through the document.
 
 
+0. Preamble (agreed: the same in the manual and in doc/INTRODUCTION.md, for now)
+
+   pluk is a Rust reimplementation of pick, a Perl program by Stijn van Dongen that served
+   as its prototype. All of pluk's code was written by Claude (Anthropic), in a continuous
+   dialogue with the author of pick. The work was staged into steps, each a small set of
+   items; every step was discussed and its decisions written down before any code was
+   written, then implemented item by item, tested against pick, and committed by the
+   author. The plan/ directory holds that record.
+
+   Agreed with the user: the Introduction to pluk is a separate document
+   (doc/INTRODUCTION.md: short, a tour on a table with character, then SAM), written
+   first; the manual follows as a proper user manual, in the spirit of pick's (many
+   useful invocations, then the details), co-authored. The outline below is to be
+   revised with that in mind.
+
+
 1. Form and place
 
    pluk/doc/PLUK-MANUAL.md (markdown, as pick/doc/PICK-USER-MANUAL.md), with the
