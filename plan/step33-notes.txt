@@ -1,0 +1,26 @@
+
+step33 notes: examples without needless quotes, output shown aligned.
+
+
+Planning
+
+  From issues.txt; both proposals agreed. Claude drafts the INTRODUCTION sentence on
+  quoting, the user revises it.
+
+
+Item 1: quotes
+
+  A script removed the quotes of every whole single-quoted word, on a '$ ' line of a
+  console block, whose content is in the safe set of decision 1: 370 of 434 (5 in
+  INTRODUCTION.md, 364 in the manual, 1 in SAM-NA.md). The 64 left need them (backslash
+  26, [ ] 19, * 8, space 8, ( ) 5, # 3, $ 3, | 3, & 2, < > ! 1 each). There are no
+  <!-- notest --> blocks, so every changed command is run by doccheck.py; all 275 examples
+  give the same output. The fragments of the authoring script (/tmp/sec*.md, outside the
+  repository) were rewritten the same way, so that a regenerated section keeps the form.
+  Prose that quotes a single argument in backticks was left as it is.
+
+  INTRODUCTION.md: the sentence 'Quotes keep the shell away from ^ and *' became 'No
+  quotes are needed: : ^ , @ and / mean nothing to the shell. An argument with *, ?, [,
+  \, (, $ or a space does need them.' (Claude's draft; for the user to revise.)
+  Manual section 3, 'Writing names and values': a paragraph on the shell, with the
+  characters that need quotes and zsh's extendedglob (^ and ~).

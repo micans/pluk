@@ -99,7 +99,7 @@ Chen    apple  A07   22.1  5        0.88
 A new column, and a test that gives 1 or 0:
 
 ```console
-$ pluk picker 'lb::kg^2.20462,mul^1,dd' 'heavy::kg^10^/gt/,test' < harvest.txt
+$ pluk picker lb::kg^2.20462,mul^1,dd heavy::kg^10^/gt/,test < harvest.txt
 picker  lb    heavy
 Annie   32.0  1
 Bert    19.8  0
@@ -154,13 +154,19 @@ The arguments use a few characters for their own syntax: `:` `^` `,` `/` `~` `=`
 `-z` prints the encoding of its arguments and `-zz` decodes:
 
 ```console
-$ pluk -z 'a:b,c^d' 'x y'
+$ pluk -z a:b,c^d 'x y'
 a%3Ab%2Cc%5Ed x%20y
-$ pluk picker 'w::^kg%3A:kg,cat' < harvest.txt
+$ pluk picker w::^kg%3A:kg,cat < harvest.txt
 picker  w
 Annie   kg:14.5
 ...
 ```
+
+The characters of pluk's syntax mean nothing to the shell (bash, dash, zsh), so most
+arguments need no quotes. An argument that contains a character the shell does treat
+specially needs them: `*` `?` `[` `]` (file name patterns), `\`, `(` `)`, `$`, `|` `&`
+`;` `<` `>`, `!`, `#` at the start, and white space. In zsh with `setopt extendedglob`,
+`^` and `~` are pattern characters too, and arguments that contain them must be quoted.
 
 In regular expressions `\Q...\E` quotes the text between (no character in it is special):
 
@@ -183,7 +189,7 @@ does not fit, the result is a floating-point number. Floating-point numbers are 
 so that they read back as the same number, which shows their nature:
 
 ```console
-$ pluk id 'sum::x:y,add' 'prod::x:y,mul' < numbers.txt
+$ pluk id sum::x:y,add prod::x:y,mul < numbers.txt
 id  sum                    prod
 A   9                      14
 B   1                      -12
@@ -199,7 +205,7 @@ H   1e+300                 inf
 the way Perl prints them (15 significant digits):
 
 ```console
-$ pluk --num-perl id 'sum::x:y,add' < numbers.txt
+$ pluk --num-perl id sum::x:y,add < numbers.txt
 id  sum
 A   9
 B   1
@@ -255,7 +261,7 @@ apple	Annie
 pear	Bert
 apple	Chen
 ...
-$ pluk 'picker:kg:fruit' < harvest.txt
+$ pluk picker:kg:fruit < harvest.txt
 picker	kg	fruit
 Annie	14.5	apple
 Bert	9.0	pear
@@ -279,7 +285,7 @@ Chen	apple	A07	5	0.88
   A pattern that matches no column is an error, as is a name that is not a column:
 
 ```console
-$ pluk '+r' < harvest.txt
+$ pluk +r < harvest.txt
 pluk: (Output) regex [+r] in output matches no column among picker,fruit,tree,kg,bruised,ripeness
 ```
 
@@ -333,13 +339,13 @@ Dora	11	0.99
   arguments (computed columns after them).
 
 ```console
-$ pluk -A2 'lb::kg^2.20462,mul^1,dd' < harvest.txt
+$ pluk -A2 lb::kg^2.20462,mul^1,dd < harvest.txt
 picker	fruit	lb	tree	kg	bruised	ripeness
 Annie	apple	32.0	A12	14.5	2	0.92
 Bert	pear	19.8	P03	9.0	0	0.75
 Chen	apple	48.7	A07	22.1	5	0.88
 ...
-$ pluk --A=picker 'n::picker,len' < harvest.txt
+$ pluk --A=picker n::picker,len < harvest.txt
 picker	n	fruit	tree	kg	bruised	ripeness
 Annie	5	apple	A12	14.5	2	0.92
 Bert	4	pear	P03	9.0	0	0.75
@@ -434,10 +440,10 @@ id	x	y
 B	-3	4
 D	0.1	0.2
 pluk: @x/lt/:y: 2 values not a number (rows not kept)
-$ printf 'k\nkg:x\n' | pluk -A '@k=kg%3Ax'
+$ printf 'k\nkg:x\n' | pluk -A @k=kg%3Ax
 k
 kg:x
-$ printf 'k\n^x\n' | pluk -A '@k=%5Ex'
+$ printf 'k\n^x\n' | pluk -A @k=%5Ex
 k
 ^x
 ```
@@ -449,12 +455,12 @@ input columns; a filter with `@` is applied after them and can test computed col
 row rejected by `@@` is not computed at all.
 
 ```console
-$ pluk picker 'lb::kg^2.20462,mul^1,dd' '@lb/gt/30' < harvest.txt
+$ pluk picker lb::kg^2.20462,mul^1,dd @lb/gt/30 < harvest.txt
 picker	lb
 Annie	32.0
 Chen	48.7
 Fenna	39.7
-$ pluk picker 'lb::kg^2.20462,mul^1,dd' '@@lb/gt/30' < harvest.txt
+$ pluk picker lb::kg^2.20462,mul^1,dd @@lb/gt/30 < harvest.txt
 pluk: (Preselect) handle [lb] in preselect does not reference a known entity among picker,fruit,tree,kg,bruised,ripeness
 ```
 
@@ -464,7 +470,7 @@ The column of a filter can be a list, a pattern or a range (section 4): the row 
 only if every one of the columns passes.
 
 ```console
-$ pluk picker kg bruised '@kg:bruised/gt/2' < harvest.txt
+$ pluk picker kg bruised @kg:bruised/gt/2 < harvest.txt
 picker	kg	bruised
 Chen	22.1	5
 Dora	6.4	11
@@ -541,19 +547,19 @@ column NAME and outputs it; `NAME:=SPEC` computes it without output, for use by 
 computes and filters.
 
 ```console
-$ pluk picker 'lb::kg^2.20462,mul^1,dd' < harvest.txt
+$ pluk picker lb::kg^2.20462,mul^1,dd < harvest.txt
 picker	lb
 Annie	32.0
 Bert	19.8
 Chen	48.7
 ...
-$ pluk picker kg 'size::kg^15^/gt/,test^big^small,ifelse' < harvest.txt
+$ pluk picker kg size::kg^15^/gt/,test^big^small,ifelse < harvest.txt
 picker	kg	size
 Annie	14.5	small
 Bert	9.0	small
 Chen	22.1	big
 ...
-$ pluk picker 't:=kg^2,mul' 'u::t^1,add' < harvest.txt
+$ pluk picker t:=kg^2,mul u::t^1,add < harvest.txt
 picker	u
 Annie	30
 Bert	19
@@ -576,7 +582,7 @@ A SPEC that does not start with `^`, `:` or `,` starts with a column, so `kg^2,m
 is left on the stack is the value, all entries concatenated; usually that is one entry.
 
 ```console
-$ pluk picker 'two::kg^1,dd:bruised' 'tag::^tree-:tree' < harvest.txt
+$ pluk picker two::kg^1,dd:bruised tag::^tree-:tree < harvest.txt
 picker	two	tag
 Annie	14.52	tree-A12
 Bert	9.00	tree-P03
@@ -588,7 +594,7 @@ A column given as a list, a `+REGEX` or (with `-k`) a range pushes every column 
 in order: a splat. The operators that end in `all` take the whole stack.
 
 ```console
-$ pluk picker 'all::kg:bruised:ripeness,addall' 'kb::+[kb].*^-,joinall' < harvest.txt
+$ pluk picker all::kg:bruised:ripeness,addall 'kb::+[kb].*^-,joinall' < harvest.txt
 picker	all	kb
 Annie	17.42	14.5-2
 Bert	9.75	9.0-0
@@ -602,7 +608,7 @@ Arithmetic is exact on integers and round-trips on floats (section 3; `--num-per
 numbers as Perl does). An operator that needs a number and gets something else gives NA:
 
 ```console
-$ pluk id x 'h::x^2,div' < numbers.txt
+$ pluk id x h::x^2,div < numbers.txt
 id	x	h
 A	7	3.5
 B	-3	-1.5
@@ -618,7 +624,7 @@ H	1e300	5e+299
 reproducible.
 
 ```console
-$ pluk --seed=7 picker 'die::^6,rand,floor^1,add' < harvest.txt
+$ pluk --seed=7 picker die::^6,rand,floor^1,add < harvest.txt
 picker	die
 Annie	3
 Bert	1
@@ -631,7 +637,7 @@ Chen	6
 `::SPEC` without a name is output under a generated name, PLUKAAAAA, PLUKAAAAB and so on.
 
 ```console
-$ pluk picker '::kg^2,mul' '::bruised^1,add' < harvest.txt
+$ pluk picker ::kg^2,mul ::bruised^1,add < harvest.txt
 picker	PLUKAAAAA	PLUKAAAAB
 Annie	29	3
 Bert	18	1
@@ -646,25 +652,25 @@ A computed column is output where its argument stands among the column arguments
 them after the first N input columns, `--A=NAME` after the input column NAME.
 
 ```console
-$ pluk picker 'lb::kg^2.2,mul^1,dd' kg < harvest.txt
+$ pluk picker lb::kg^2.2,mul^1,dd kg < harvest.txt
 picker	lb	kg
 Annie	31.9	14.5
 Bert	19.8	9.0
 Chen	48.6	22.1
 ...
-$ pluk -A 'lb::kg^2.2,mul^1,dd' < harvest.txt
+$ pluk -A lb::kg^2.2,mul^1,dd < harvest.txt
 picker	fruit	tree	kg	bruised	ripeness	lb
 Annie	apple	A12	14.5	2	0.92	31.9
 Bert	pear	P03	9.0	0	0.75	19.8
 Chen	apple	A07	22.1	5	0.88	48.6
 ...
-$ pluk -A2 'lb::kg^2.2,mul^1,dd' < harvest.txt
+$ pluk -A2 lb::kg^2.2,mul^1,dd < harvest.txt
 picker	fruit	lb	tree	kg	bruised	ripeness
 Annie	apple	31.9	A12	14.5	2	0.92
 Bert	pear	19.8	P03	9.0	0	0.75
 Chen	apple	48.6	A07	22.1	5	0.88
 ...
-$ pluk --A=kg 'lb::kg^2.2,mul^1,dd' < harvest.txt
+$ pluk --A=kg lb::kg^2.2,mul^1,dd < harvest.txt
 picker	fruit	tree	kg	lb	bruised	ripeness
 Annie	apple	A12	14.5	31.9	2	0.92
 Bert	pear	P03	9.0	19.8	0	0.75
@@ -680,9 +686,9 @@ Computes before the redefinition see the old value, later ones and the output th
 value. In SPEC, `__` stands for the compute's own name, that is the value being replaced.
 
 ```console
-$ pluk picker 'kg::__^1000,mul' < harvest.txt
+$ pluk picker kg::__^1000,mul < harvest.txt
 pluk: [kg::__^1000,mul]: name [kg] already exists (use -i for in-place change)
-$ pluk -i picker 'g::kg' 'kg::__^1000,mul' 'h::kg' < harvest.txt
+$ pluk -i picker g::kg kg::__^1000,mul h::kg < harvest.txt
 picker	g	kg	h
 Annie	14.5	14500	14500
 Bert	9.0	9000	9000
@@ -694,7 +700,7 @@ With `-i`, NAME can be a list, a `+REGEX` or (with `-k`) a range of existing col
 compute is applied to each of them, `__` being that column.
 
 ```console
-$ pluk -i -A 'kg:ripeness::__^10,mul' < harvest.txt
+$ pluk -i -A kg:ripeness::__^10,mul < harvest.txt
 picker	fruit	tree	kg	bruised	ripeness
 Annie	apple	A12	145	2	9.200000000000001
 Bert	pear	P03	90	0	7.5
@@ -710,19 +716,19 @@ name and S. P or S may be empty (`P/SPEC/` and `SPEC/S`). With `P//SPEC//S` each
 original column is output too, before its new column. A `/` in a name is written `%2F`.
 
 ```console
-$ pluk picker 'g_/kg:ripeness/_x10::__^10,mul' < harvest.txt
+$ pluk picker g_/kg:ripeness/_x10::__^10,mul < harvest.txt
 picker	g_kg_x10	g_ripeness_x10
 Annie	145	9.200000000000001
 Bert	90	7.5
 Chen	221	8.8
 ...
-$ pluk picker 'g_//kg:ripeness//_x10::__^10,mul' < harvest.txt
+$ pluk picker g_//kg:ripeness//_x10::__^10,mul < harvest.txt
 picker	kg	g_kg_x10	ripeness	g_ripeness_x10
 Annie	14.5	145	0.92	9.200000000000001
 Bert	9.0	90	0.75	7.5
 Chen	22.1	221	0.88	8.8
 ...
-$ pluk picker 'kg:ripeness/_sq::__,sq' < harvest.txt
+$ pluk picker kg:ripeness/_sq::__,sq < harvest.txt
 picker	kg_sq	ripeness_sq
 Annie	210.25	0.8464
 Bert	81	0.5625
@@ -769,7 +775,7 @@ sequence for some of the trees). Plums have no price: `map` gives the key itself
 multiplying by it gives NA.
 
 ```console
-$ pluk --fd-PRICE=prices.txt picker fruit kg 'cost::kg:fruit^PRICE,map,mul^2,dd' < harvest.txt
+$ pluk --fd-PRICE=prices.txt picker fruit kg cost::kg:fruit^PRICE,map,mul^2,dd < harvest.txt
 picker	fruit	kg	cost
 Annie	apple	14.5	30.45
 Bert	pear	9.0	22.50
@@ -779,7 +785,7 @@ Eamon	cherry	3.2	28.80
 Fenna	apple	18.0	37.80
 Gus	pear	12.7	31.75
 Hilde	plum	7.9	NA
-$ pluk --fd-PRICE=prices.txt picker fruit '@fruit~notin~PRICE' < harvest.txt
+$ pluk --fd-PRICE=prices.txt picker fruit @fruit~notin~PRICE < harvest.txt
 picker	fruit
 Dora	plum
 Hilde	plum
@@ -805,20 +811,20 @@ Hilde	plum
 line with the same key replaces the earlier value.
 
 ```console
-$ pluk --td=fruits.txt picker fruit 'c::fruit^colour,map' 's::fruit^season,map' < harvest.txt
+$ pluk --td=fruits.txt picker fruit c::fruit^colour,map s::fruit^season,map < harvest.txt
 picker	fruit	c	s
 Annie	apple	red	autumn
 Bert	pear	green	autumn
 Chen	apple	red	autumn
 ...
 $ printf 'plum\ncherry\n' > stone.txt
-$ pluk --kd-STONE=stone.txt picker fruit 's::fruit^STONE,map' '@fruit/=apple' < harvest.txt
+$ pluk --kd-STONE=stone.txt picker fruit s::fruit^STONE,map @fruit/=apple < harvest.txt
 picker	fruit	s
 Bert	pear	pear
 Dora	plum	1
 Eamon	cherry	1
 ...
-$ printf 'k\nA07\nP03\n*\n' | pluk --fasta-dict-TREE=trees.fa -A 's::k^TREE,map' 'n::s,len'
+$ printf 'k\nA07\nP03\n*\n' | pluk --fasta-dict-TREE=trees.fa -A s::k^TREE,map n::s,len
 k	s	n
 A07	GGATCC	6
 P03	TTAGGCAA	8
@@ -835,17 +841,17 @@ an `=` is written `%3D`, and in KEY `/` and `=` as `%2F` and `%3D`. Defaults pla
 in the dictionary filters, which only ask whether a key is present.
 
 ```console
-$ pluk --fd-PRICE/none=prices.txt picker fruit 'p::fruit^PRICE,map' '@fruit=plum' < harvest.txt
+$ pluk --fd-PRICE/none=prices.txt picker fruit p::fruit^PRICE,map @fruit=plum < harvest.txt
 picker	fruit	p
 Dora	plum	none
 Hilde	plum	none
-$ pluk --fd-PRICE/__EXIT__=prices.txt picker fruit 'p::fruit^PRICE,map' < harvest.txt
+$ pluk --fd-PRICE/__EXIT__=prices.txt picker fruit p::fruit^PRICE,map < harvest.txt
 picker	fruit	p
 Annie	apple	2.10
 Bert	pear	2.50
 Chen	apple	2.10
 pluk: map: key [plum] not found in dictionary [PRICE] (__EXIT__) at line 5
-$ pluk --fasta-dict-TREE=trees.fa picker tree 'bc::tree^TREE,map' < harvest.txt
+$ pluk --fasta-dict-TREE=trees.fa picker tree bc::tree^TREE,map < harvest.txt
 picker	tree	bc
 Annie	A12	ACGTTGCA
 Bert	P03	TTAGGCAA
@@ -860,7 +866,7 @@ replace earlier ones, with a message, and `dord` numbers the keys in order of fi
 appearance over all of them.
 
 ```console
-$ pluk --fd-PRICE=prices.txt --cd-PRICE=plum:4.75,apple:1.99 picker fruit 'p::fruit^PRICE,map' 'o::fruit^PRICE,dord' '@picker~[ABDE]' < harvest.txt
+$ pluk --fd-PRICE=prices.txt --cd-PRICE=plum:4.75,apple:1.99 picker fruit p::fruit^PRICE,map o::fruit^PRICE,dord '@picker~[ABDE]' < harvest.txt
 picker	fruit	p	o
 Annie	apple	1.99	1
 Bert	pear	2.50	2
@@ -878,7 +884,7 @@ value, `qnu` those at or above it.
 
 ```console
 $ printf '0.70\n0.80\n0.90\n0.95\n' > ripe.txt
-$ pluk --quant-R=ripe.txt picker ripeness 'lo::ripeness^R,qnl' 'hi::ripeness^R,qnu' < harvest.txt
+$ pluk --quant-R=ripe.txt picker ripeness lo::ripeness^R,qnl hi::ripeness^R,qnu < harvest.txt
 picker	ripeness	lo	hi
 Annie	0.92	0.8	0.4
 Bert	0.75	0.4	0.8
@@ -899,13 +905,13 @@ that: values saved earlier in the same row, the row's number, and the previous r
 first row of a group.
 
 ```console
-$ pluk --pstore picker kg 'prev::^kg,pload' 'diff::kg:prev,sub^1,dd' < harvest.txt
+$ pluk --pstore picker kg prev::^kg,pload diff::kg:prev,sub^1,dd < harvest.txt
 picker	kg	prev	diff
 Annie	14.5	NA	NA
 Bert	9.0	14.5	-5.5
 Chen	22.1	9.0	13.1
 ...
-$ pluk --group=gene gene 'intron_start::^exon_end,pload,incr' 'intron_end::exon_start,decr' < exons.txt
+$ pluk --group=gene gene intron_start::^exon_end,pload,incr intron_end::exon_start,decr < exons.txt
 gene	intron_start	intron_end
 foo	181	259
 foo	391	519
@@ -922,7 +928,7 @@ output. Registers are cleared between rows; a `fetch` of a register that no earl
 stores is an error before the input is read.
 
 ```console
-$ pluk picker kg 'lb::kg^2.20462,mul^LB,save^1,dd' 'oz::^LB,fetch^16,mul^0,dd' < harvest.txt
+$ pluk picker kg lb::kg^2.20462,mul^LB,save^1,dd oz::^LB,fetch^16,mul^0,dd < harvest.txt
 picker	kg	lb	oz
 Annie	14.5	32.0	511
 Bert	9.0	19.8	317
@@ -937,7 +943,7 @@ Chen	22.1	48.7	780
 included. Rows rejected by a filter are counted too.
 
 ```console
-$ pluk picker 'r::,rowno' 'z::,r0wno' 'l::,lineno' '@fruit=pear' < harvest.txt
+$ pluk picker r::,rowno z::,r0wno l::,lineno @fruit=pear < harvest.txt
 picker	r	z	l
 Bert	2	1	3
 Gus	7	6	8
@@ -951,12 +957,12 @@ value. The previous row is the previous row that passed the `@@` filters; the `@
 do not matter, as they come after the computes. For the first row, `pload` gives NA.
 
 ```console
-$ pluk --pstore picker kg 'prev::^kg,pload' '@fruit=apple' < harvest.txt
+$ pluk --pstore picker kg prev::^kg,pload @fruit=apple < harvest.txt
 picker	kg	prev
 Annie	14.5	NA
 Chen	22.1	9.0
 Fenna	18.0	3.2
-$ pluk --pstore picker kg 'prev::^kg,pload' '@@fruit=apple' < harvest.txt
+$ pluk --pstore picker kg prev::^kg,pload @@fruit=apple < harvest.txt
 picker	kg	prev
 Annie	14.5	NA
 Chen	22.1	14.5
@@ -968,13 +974,13 @@ Fenna	18.0	22.1
 LIST, `--pstore//0` makes a counter (it counts every row that reaches the computes):
 
 ```console
-$ pluk --pstore/kg:0/none picker kg 'prev::^kg,pload' 'who::^picker,pload' < harvest.txt
+$ pluk --pstore/kg:0/none picker kg prev::^kg,pload who::^picker,pload < harvest.txt
 picker	kg	prev	who
 Annie	14.5	0	none
 Bert	9.0	14.5	Annie
 Chen	22.1	9.0	Bert
 ...
-$ pluk --pstore//0 picker 'n::^n,pload,incr' '@kg/gt/12' < harvest.txt
+$ pluk --pstore//0 picker n::^n,pload,incr @kg/gt/12 < harvest.txt
 picker	n
 Annie	1
 Chen	3
@@ -1002,7 +1008,7 @@ foo	3	520	600
 bar	1	1000	1120
 bar	2	1400	1510
 baz	1	2000	2300
-$ pluk --group=gene gene exon 'i::,groupi' 'g::,groupno' 'intron_start::^exon_end,pload,incr' 'intron_end::exon_start,decr' < exons.txt
+$ pluk --group=gene gene exon i::,groupi g::,groupno intron_start::^exon_end,pload,incr intron_end::exon_start,decr < exons.txt
 gene	exon	i	g	intron_start	intron_end
 foo	2	2	1	181	259
 foo	3	3	1	391	519
@@ -1015,7 +1021,7 @@ group's first row (the first row itself is again not output). It implies `--psto
 group.
 
 ```console
-$ pluk --group-first-ref=gene gene exon 'first::^exon_start,pload' 'span::exon_end:first,sub^1,add' < exons.txt
+$ pluk --group-first-ref=gene gene exon first::^exon_start,pload span::exon_end:first,sub^1,add < exons.txt
 gene	exon	first	span
 foo	2	100	291
 foo	3	100	501
@@ -1112,7 +1118,7 @@ pear
 plum
 $ cat byfruit/cherry
 picker	kg	fruit
-$ pluk -q --demux=f 'f:=fruit^.txt,cat' picker kg < harvest.txt
+$ pluk -q --demux=f f:=fruit^.txt,cat picker kg < harvest.txt
 $ cat apple.txt
 picker	kg
 Annie	14.5
@@ -1150,7 +1156,7 @@ They help to find column numbers for other tools such as `cut` or `sort`.
 ```console
 $ pluk --idx-list -x tree < harvest.txt
 1	2	4	5	6
-$ pluk --idx-map picker kg 'lb::kg^2,mul' < harvest.txt
+$ pluk --idx-map picker kg lb::kg^2,mul < harvest.txt
 1	picker
 4	kg
 7	lb
@@ -1189,7 +1195,7 @@ dord          x D         ord-of-x            Order of x in dictionary D (first 
 ...
 $ pluk --list-ops-tsv | grep -w map
 map	dictionary	x D	map-of-x	Value of x in dictionary D (not found: as D's default)
-$ pluk -zz 'a%3Ab' 'kg%20net'
+$ pluk -zz a%3Ab kg%20net
 a:b
 kg net
 ```
@@ -1204,14 +1210,14 @@ CIGAR string, the sequence and the reference. A column is named by its number, a
 `-k`; filters work as on any table.
 
 ```console
-$ pluk --sam 1 4 6 'end::,ref_posy' < align.sam
+$ pluk --sam 1 4 6 end::,ref_posy < align.sam
 read1	9	3S22M3I8M3D9M	50
 read1	20	20S25M	44
 read2	30	2H4S12M3S	41
 read3	0	*	NA
-$ pluk --sam 1 2 4 6 '@2/all/16' < align.sam
+$ pluk --sam 1 2 4 6 @2/all/16 < align.sam
 read2	16	30	2H4S12M3S
-$ pluk --sam -c '@2/none/4' < align.sam
+$ pluk --sam -c @2/none/4 < align.sam
 3
 ```
 
@@ -1254,7 +1260,7 @@ message gives the number of references in the header and in FILE, the number in 
 and the number whose lengths conflict:
 
 ```console
-$ pluk --sam/transgene.fa 1 'ref::^transgene^SAMFA,map,len' < reads.sam
+$ pluk --sam/transgene.fa 1 ref::^transgene^SAMFA,map,len < reads.sam
 read1	53
 pluk: SAM reference lengths: header/fasta/shared/conflict 1/1/1/0
 ```
@@ -1299,7 +1305,7 @@ or the run ends with an error (`--sam-seqmiss=exit`). Input sorted by coordinate
 grouped by read; pluk warns once when its `@HD` line says so and a fill is needed:
 
 ```console
-$ pluk --sam 1 10 's::,qry_seq' @1=intron1 < spliced.sam
+$ pluk --sam 1 10 s::,qry_seq @1=intron1 < spliced.sam
 intron1	TACAGGCTTAAGGTTCCATGC	TACAGGCTTAAGGTTCCATGC
 intron1	*	TACAGGCTTAAGGTTCCATGC
 pluk: the SAM input is not grouped by read (@HD SO:coordinate GO:none); a SEQ '*' is filled only from earlier rows of the same read
@@ -1315,9 +1321,9 @@ processing and how it travels through later computes is described in
 [SAM-NA.md](SAM-NA.md).
 
 ```console
-$ pluk --sam 1 'x::,ref_posx' 's::,qry_seq' @1=read3 < align.sam
+$ pluk --sam 1 x::,ref_posx s::,qry_seq @1=read3 < align.sam
 read3	NA	ACGTTGCAAGGT
-$ pluk --sam 1 'a::,aln_ref' < reads.sam
+$ pluk --sam 1 a::,aln_ref < reads.sam
 pluk: [a::,aln_ref]: operator aln_ref needs the reference sequence (--sam/FILE or --sam-h/FILE)
 ```
 
@@ -1342,18 +1348,18 @@ CIGAR text, as a length on the reference or the read, and as sequence:
 All are described in section 15. Some uses:
 
 ```console
-$ pluk --sam 1 6 'cgr5::,aln_trail5p_cgr' 'cgr::,aln_matched_cgr' 'cgr3::,aln_trail3p_cgr' @2/none/4 < align.sam
+$ pluk --sam 1 6 cgr5::,aln_trail5p_cgr cgr::,aln_matched_cgr cgr3::,aln_trail3p_cgr @2/none/4 < align.sam
 read1	3S22M3I8M3D9M	3S	22M3I8M3D9M	
 read1	20S25M	20S	25M	
 read2	2H4S12M3S	2H4S	12M	3S
-$ pluk --sam 1 'strand::,isforward^+^-,ifelse' 'from::,ref_posx' 'to::,ref_posy' @2/none/4 < align.sam
+$ pluk --sam 1 strand::,isforward^+^-,ifelse from::,ref_posx to::,ref_posy @2/none/4 < align.sam
 read1	+	9	50
 read1	+	20	44
 read2	-	30	41
-$ pluk --sam 1 6 'clip::,qry_trail5p' 'clip3::,qry_trail3p' 'soft::6^S,cgsum' '@soft/gt/5' < align.sam
+$ pluk --sam 1 6 clip::,qry_trail5p clip3::,qry_trail3p soft::6^S,cgsum @soft/gt/5 < align.sam
 read1	20S25M	CCAGCTTAACGGTACAATGA		20
 read2	2H4S12M3S	GGTT	CCC	7
-$ pluk --sam/transgene.fa 1 'ref::,ref_matched' 'read::,qry_matched' < reads.sam
+$ pluk --sam/transgene.fa 1 ref::,ref_matched read::,qry_matched < reads.sam
 read1	GCTTAACGGTACCATGAGCTAGCTAAGGTTCCATGCAATTCG	GCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG
 ```
 
@@ -1361,7 +1367,7 @@ The reads that cover a reference position, here 43, are found with the positions
 `@` filter (an `@@` filter cannot see computed columns):
 
 ```console
-$ pluk --sam 1 4 6 'x:=,ref_posx' 'y:=,ref_posy' @x/le/43 @y/ge/43 < align.sam
+$ pluk --sam 1 4 6 x:=,ref_posx y:=,ref_posy @x/le/43 @y/ge/43 < align.sam
 read1	9	3S22M3I8M3D9M
 read1	20	20S25M
 ```
@@ -1375,10 +1381,10 @@ counted on the alignment itself, `aln_nedit_pia` and `aln_nedit_piu` (with and w
 counting an `N` as an edit), and listed by `aln_posinfo`:
 
 ```console
-$ pluk --sam 1 6 'm::,aln_nmatch' 'e::,aln_nedit' 'x::,aln_nmatchx' @2/none/260 < align.sam
+$ pluk --sam 1 6 m::,aln_nmatch e::,aln_nedit x::,aln_nmatchx @2/none/260 < align.sam
 read1	3S22M3I8M3D9M	39	7	1
 read2	2H4S12M3S	12	1	1
-$ pluk --sam/transgene.fa 1 6 'pia::,aln_nedit_pia' 'piu::,aln_nedit_piu' 'where::^5,aln_posinfo' < spliced.sam
+$ pluk --sam/transgene.fa 1 6 pia::,aln_nedit_pia piu::,aln_nedit_piu where::^5,aln_posinfo < spliced.sam
 intron1	9M20N12M	0	20	e=13,n=20
 intron1	2S7M20N12M	0	20	e=13,n=20
 ext1	14M2S	0	0	
@@ -1400,12 +1406,12 @@ the computes and leaves nothing on the stack, so its compute is usually hidden (
 With `--sam-h` and all columns, the output is SAM with the new field:
 
 ```console
-$ pluk --sam 1 'nm::^NM.i^0,sam_get' 'as::^AS.i^none,sam_get' < align.sam
+$ pluk --sam 1 nm::^NM.i^0,sam_get as::^AS.i^none,sam_get < align.sam
 read1	7	30
 read1	12	none
 read2	1	none
 read3	0	none
-$ pluk --sam-h -A 'x:=,aln_nmatchx^XM.i,xch,sam_put' < reads.sam
+$ pluk --sam-h -A x:=,aln_nmatchx^XM.i,xch,sam_put < reads.sam
 @SQ	SN:transgene	LN:53
 read1	0	transgene	9	60	3S22M3I8M3D9M	*	0	0	CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG	*	NM:i:7	XM:i:1
 ```
@@ -1425,12 +1431,12 @@ N; dangling ends are drawn `` ` `` and `_`, added context `.` (section 15 has th
 details). Soft clips are not drawn.
 
 ```console
-$ pluk -q --sam/transgene.fa 'a::,aln_all' @1=read1 @@2=0 < align.sam
+$ pluk -q --sam/transgene.fa a::,aln_all @1=read1 @@2=0 < align.sam
  10        20        30           40        5
 GCTTAACGGTACCATGAGCTAG---CTAAGGTTCCATGCAATTCG
 ||||||||||||x|||||||||~~~||||||||---|||||||||
 GCTTAACGGTACAATGAGCTAGTTTCTAAGGTT---TGCAATTCG
-$ pluk -q --sam/transgene.fa 1 'a::,aln_aln' 'p::,aln_aln^10,patchiness' @2/none/260 < align.sam
+$ pluk -q --sam/transgene.fa 1 a::,aln_aln p::,aln_aln^10,patchiness @2/none/260 < align.sam
 read1	||||||||||||x|||||||||~~~||||||||---|||||||||	3
 read2	|||||x||||||	2
 ```
@@ -1449,13 +1455,13 @@ The options that change the drawing:
   symbol (`.,aAbB..iI`).
 
 ```console
-$ pluk -q --sam/transgene.fa --sam-aln-prefix='>> ' 'a::,aln_allq' @1=read2 < align.sam
+$ pluk -q --sam/transgene.fa --sam-aln-prefix='>> ' a::,aln_allq @1=read2 < align.sam
 >> 30        40
 >> GCTAAGGTTCCA
 >> |||||x||||||
 >> GCTAAAGTTCCA
 >> IIIIIIIIIIII
-$ pluk -q --sam/transgene.fa --sam-qlt-sim 1 'q::,aln_qlt' @1=read2 < align.sam
+$ pluk -q --sam/transgene.fa --sam-qlt-sim 1 q::,aln_qlt @1=read2 < align.sam
 read2	dddddddddddd
 ```
 
@@ -1490,7 +1496,7 @@ read1	0	20	14S11M20S
 read1	256	20	20S11M14S
 read2	16	30	2H4S1M14S
 read3	4	0	*
-$ pluk -q --sam/transgene.fa --sam-aln-context=3 4 6 'a::,aln_all' < reads.sam
+$ pluk -q --sam/transgene.fa --sam-aln-context=3 4 6 a::,aln_all < reads.sam
 6	3X22M3I8M3D9M3D	    10        20        30           40        50  
 CAGGCTTAACGGTACCATGAGCTAG---CTAAGGTTCCATGCAATTCGAGG
 ...||||||||||||x|||||||||~~~||||||||---|||||||||```
@@ -1508,10 +1514,10 @@ rest of the row. A region is clipped to the matched part; `rbt_dx` and `rbt_dy` 
 much was cut off.
 
 ```console
-$ pluk -q --sam/transgene.fa --sam-rbt=25,35 1 'q::,rbt_qry' 'm::,rbt_nmatch' 'e::,rbt_nedit' 'a::,rbt_alnaln' @2/none/260 < align.sam
+$ pluk -q --sam/transgene.fa --sam-rbt=25,35 1 q::,rbt_qry m::,rbt_nmatch e::,rbt_nedit a::,rbt_alnaln @2/none/260 < align.sam
 read1	AGCTAGTTTCTAAG	11	3	||||||~~~|||||
 read2	GCTAAA	6	1	|||||x
-$ pluk -q --sam/transgene.fa 1 'z:=^40^45,sam_rbt' 'x::,rbt_refx' 'y::,rbt_refy' 'dx::,rbt_dx' 'dy::,rbt_dy' @2/none/260 < align.sam
+$ pluk -q --sam/transgene.fa 1 z:=^40^45,sam_rbt x::,rbt_refx y::,rbt_refy dx::,rbt_dx dy::,rbt_dy @2/none/260 < align.sam
 read1	40	45	0	0
 read2	40	41	0	4
 ```
@@ -1533,7 +1539,7 @@ a SAM operator. They do not need `--sam` (section 15 describes each).
 
 ```console
 $ printf 'id\tseq\nm1\tauguuuggcuaa\nm2\tAUGRNNx\n' > rna.txt
-$ pluk -A 'dna::seq,todna' 'protein::dna^0,dnatl' 'gc::dna^1,dnagc' 'rc::dna,rc' < rna.txt
+$ pluk -A dna::seq,todna protein::dna^0,dnatl gc::dna^1,dnagc rc::dna,rc < rna.txt
 id	seq	dna	protein	gc	rc
 m1	auguuuggcuaa	atgtttggctaa	MFG*	33.3	ttagccaaacat
 m2	AUGRNNx	ATGNNNn	M?{N}	33.3	nNNNCAT
@@ -1545,7 +1551,7 @@ SAM stores a read on the reverse strand reverse-complemented. `forward` with `is
 gives the read as it was sequenced:
 
 ```console
-$ pluk --sam 1 10 'read::,isforward,qry_seq,forward' @2/none/256 < align.sam
+$ pluk --sam 1 10 read::,isforward,qry_seq,forward @2/none/256 < align.sam
 read1	CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG	CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG
 read2	GGTTGCTAAAGTTCCACCC	GGGTGGAACTTTAGCAACC
 read3	ACGTTGCAAGGT	ACGTTGCAAGGT
@@ -1558,7 +1564,7 @@ newlines, so that the output is FASTA or FASTQ when that field is the only colum
 unmapped reads as FASTA:
 
 ```console
-$ pluk --sam 'fa::1,qry_seq,fasta' @2/all/4 < align.sam
+$ pluk --sam fa::1,qry_seq,fasta @2/all/4 < align.sam
 >read3
 ACGTTGCAAGGT
 ```
@@ -1568,7 +1574,7 @@ reverse-complemented (`ifelse` chooses), and a QUAL of `*` gives `Z` for every b
 Secondary and supplementary records (FLAG 0x100 and 0x800, together 2304) are left out:
 
 ```console
-$ pluk --sam 'fq::1,isforward,qry_seq,forward,isforward,qry_qual,qry_qual,rev,ifelse,fastQ' @2/none/2304 < align.sam
+$ pluk --sam fq::1,isforward,qry_seq,forward,isforward,qry_qual,qry_qual,rev,ifelse,fastQ @2/none/2304 < align.sam
 @read1
 CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG
 +
@@ -1589,7 +1595,7 @@ ZZZZZZZZZZZZ
 alignment without indels, it shows the mismatches against the reference:
 
 ```console
-$ pluk -q --sam/transgene.fa 1 'ref::,ref_matched' 'read::,qry_matched' 'cmp::,ref_matched,qry_matched,strpair' @1=read2 < align.sam
+$ pluk -q --sam/transgene.fa 1 ref::,ref_matched read::,qry_matched cmp::,ref_matched,qry_matched,strpair @1=read2 < align.sam
 read2	GCTAAGGTTCCA	GCTAAAGTTCCA	|||||x||||||
 ```
 
@@ -1626,7 +1632,7 @@ table, the price from the price list (0 where there is none), and the file name 
 hidden compute:
 
 ```console
-$ pluk --fd-PRICE/0=prices.txt --td=fruits.txt -q --demux=f 'f:=fruit^season,map^.txt,cat' picker fruit kg 'value::kg:fruit^PRICE,map,mul^2,dd' < harvest.txt
+$ pluk --fd-PRICE/0=prices.txt --td=fruits.txt -q --demux=f f:=fruit^season,map^.txt,cat picker fruit kg value::kg:fruit^PRICE,map,mul^2,dd < harvest.txt
 $ cat summer.txt
 picker	fruit	kg	value
 Dora	plum	6.4	0.00
@@ -1647,7 +1653,7 @@ record as the tags XE and XL; the output is SAM again. Where a value is NA (the
 unmapped read3) the tag is not put:
 
 ```console
-$ pluk -q --sam-h/transgene.fa -A 'e:=,aln_nedit_pia^XE.i,xch,sam_put' 'l:=,aln_nmatch^XL.i,xch,sam_put' < align.sam
+$ pluk -q --sam-h/transgene.fa -A e:=,aln_nedit_pia^XE.i,xch,sam_put l:=,aln_nmatch^XL.i,xch,sam_put < align.sam
 @SQ	SN:transgene	LN:53
 read1	0	transgene	9	60	3S22M3I8M3D9M	*	0	0	CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG	*	NM:i:7	AS:i:30	XE:i:7	XL:i:39
 read1	256	transgene	20	0	20S25M	*	0	0	*	*	NM:i:12	XE:i:22	XL:i:25
@@ -1662,7 +1668,7 @@ under a line with the read's name and position. The region's lines are indented 
 `--sam-aln-prefix`; a newline (`%0A`) joins them to the name:
 
 ```console
-$ pluk -q --sam/transgene.fa --sam-rbt=25,44 --sam-aln-prefix='  ' 'aln::1^%20:4^%0A,rbt_alnall,catall' @2/none/260 < align.sam
+$ pluk -q --sam/transgene.fa --sam-rbt=25,44 --sam-aln-prefix='  ' aln::1^%20:4^%0A,rbt_alnall,catall @2/none/260 < align.sam
 read1 9
        30           40   
   AGCTAG---CTAAGGTTCCATGC
@@ -1732,7 +1738,7 @@ Two errors found while the options and arguments are read:
 ```console
 $ pluk --sam-nonf 1 < reads.sam
 pluk: --sam-nonf requires --sam or --sam-h
-$ pluk picker 's::kg,nosuch' < harvest.txt
+$ pluk picker s::kg,nosuch < harvest.txt
 pluk: [s::kg,nosuch]: unknown operator [nosuch]
 ```
 
@@ -1782,13 +1788,13 @@ count is not zero:
 | `fastQ: quality of another length than the sequence` | fastQ results that were NA for that reason | 11 |
 
 ```console
-$ pluk --group=gene gene 'start::^exon_end,pload,incr' < exons.txt
+$ pluk --group=gene gene start::^exon_end,pload,incr < exons.txt
 gene	start
 foo	181
 foo	391
 bar	1121
 pluk: --group: 3 groups (the first row of each not output)
-$ printf 'i\ts\tq\nr\tACGT\tII\n' | pluk 'f::i:s:q,fastQ'
+$ printf 'i\ts\tq\nr\tACGT\tII\n' | pluk f::i:s:q,fastQ
 f
 NA
 pluk: fastQ: quality of another length than the sequence (NA): 1 value
@@ -2149,7 +2155,7 @@ Every operator, by category, in the order of `pluk -l`. The line under each name
 Pushes a second copy of the top value. `pop` removes the top value and `xch` exchanges the top two; with them a value can be reused or put in place without computing it again.
 
 ```console
-$ pluk picker 'd::fruit,dup,cat' 'p::^a^b,pop' 'x::^a^b,xch' < harvest.txt
+$ pluk picker d::fruit,dup,cat p::^a^b,pop x::^a^b,xch < harvest.txt
 picker	d	p	x
 Annie	appleapple	a	ba
 Bert	pearpear	a	ba
@@ -2177,7 +2183,7 @@ Exchanges the top two values of the stack. Example under `dup`.
 Concatenates x and y. A number is written as text first, as it would be in the output (with `--num-perl` as Perl writes it). `len` gives the length in bytes, so the length of a computed number depends on how it is written: 0.1 + 0.2 is written 0.30000000000000004.
 
 ```console
-$ pluk picker 'c::picker:fruit,cat' 'n::picker,len' 'l::^0.1^0.2,add,len' < harvest.txt
+$ pluk picker c::picker:fruit,cat n::picker,len l::^0.1^0.2,add,len < harvest.txt
 picker	c	n	l
 Annie	Annieapple	5	19
 Bert	Bertpear	4	19
@@ -2197,7 +2203,7 @@ The length of x in bytes (a multi-byte character counts all its bytes). Example 
 Changes the ASCII letters of x to lower case (`lc`) or upper case (`uc`); other bytes are unchanged. `rev` reverses x byte by byte; `rot13` rotates the ASCII letters by 13 places (applied twice it gives x back).
 
 ```console
-$ pluk picker 'l::picker,lc' 'u::picker,uc' 'r::picker,rev' 't::picker,rot13' < harvest.txt
+$ pluk picker l::picker,lc u::picker,uc r::picker,rev t::picker,rot13 < harvest.txt
 picker	l	u	r	t
 Annie	annie	ANNIE	einnA	Naavr
 Bert	bert	BERT	treB	Oreg
@@ -2229,7 +2235,7 @@ Rotates the ASCII letters of x by 13 places. Example under `lc`.
 The part of x that starts at offset i (counting from 0) and is k bytes long, as Perl's substr: a negative i counts from the end of x, a negative k leaves that many bytes off the end. A part that lies outside x is empty. i and k must be integers, otherwise the result is NA.
 
 ```console
-$ pluk tree 'a::tree^1^2,substr' 'b::tree^-2^9,substr' 'c::tree^0^-1,substr' 'd::tree^7^1,substr' < harvest.txt
+$ pluk tree a::tree^1^2,substr b::tree^-2^9,substr c::tree^0^-1,substr d::tree^7^1,substr < harvest.txt
 tree	a	b	c	d
 A12	12	12	A1	
 P03	03	03	P0	
@@ -2243,7 +2249,7 @@ P03	03	03	P0
 `head` keeps the first k bytes of x, `tail` the last k; `skip` drops the first k, `shed` the last k. k is clamped to the length of x (a k beyond it takes or drops everything, a negative k counts as 0); a k that is not an integer gives NA.
 
 ```console
-$ pluk picker 'h::picker^2,head' 't::picker^2,tail' 's::picker^2,skip' 'd::picker^2,shed' 'a::picker^99,head' < harvest.txt
+$ pluk picker h::picker^2,head t::picker^2,tail s::picker^2,skip d::picker^2,shed a::picker^99,head < harvest.txt
 picker	h	t	s	d	a
 Annie	An	ie	nie	Ann	Annie
 Bert	Be	rt	rt	Be	Bert
@@ -2275,7 +2281,7 @@ x without its last k bytes. Example under `head`.
 Removes nx bytes from the start and ny bytes from the end of s. A negative count is 0; a count that is not an integer gives NA.
 
 ```console
-$ pluk tree 's::tree^1^1,strim' 'p::picker^0^2,strim' < harvest.txt
+$ pluk tree s::tree^1^1,strim p::picker^0^2,strim < harvest.txt
 tree	s	p
 A12	1	Ann
 P03	0	Be
@@ -2289,7 +2295,7 @@ P03	0	Be
 Pads x with spaces to a width of N bytes: `ppl` adds them on the right (left-aligned), `ppr` on the left (right-aligned); `zp` pads on the left with zeroes. An x that is already N bytes or longer is unchanged. A negative width, or one that is not an integer, gives NA. `zp` pads the text as it is, so -2 to width 4 is 00-2. (Below the padded values are put between brackets, to show the spaces.)
 
 ```console
-$ pluk picker 'l::^[:fruit^7,ppl,cat^],cat' 'r::^[:fruit^7,ppr,cat^],cat' 'z::bruised^3,zp' 'n::^-2^4,zp' < harvest.txt
+$ pluk picker 'l::^[:fruit^7,ppl,cat^],cat' 'r::^[:fruit^7,ppr,cat^],cat' z::bruised^3,zp n::^-2^4,zp < harvest.txt
 picker	l	r	z	n
 Annie	[apple  ]	[  apple]	002	00-2
 Bert	[pear   ]	[   pear]	000	00-2
@@ -2315,7 +2321,7 @@ x left-padded with zeroes to width N. Example under `ppl`.
 The number of non-overlapping occurrences of the string c in x; c may be longer than one byte. An empty c counts 0.
 
 ```console
-$ pluk picker 'n::picker^n,nchar' 'e::fruit^pp,nchar' < harvest.txt
+$ pluk picker n::picker^n,nchar e::fruit^pp,nchar < harvest.txt
 picker	n	e
 Annie	2	1
 Bert	0	0
@@ -2329,7 +2335,7 @@ Bert	0	0
 Concatenates all values on the stack, from the bottom up; `joinall` joins them with the top value as separator; `join` joins just x and y with j. An empty stack gives an empty string; joining an NA gives NA.
 
 ```console
-$ pluk 'a::picker:fruit:tree,catall' 'j::picker:fruit:tree^-,joinall' 'k::picker:fruit^%20&%20,join' < harvest.txt
+$ pluk a::picker:fruit:tree,catall j::picker:fruit:tree^-,joinall 'k::picker:fruit^%20&%20,join' < harvest.txt
 a	j	k
 AnnieappleA12	Annie-apple-A12	Annie & apple
 BertpearP03	Bert-pear-P03	Bert & pear
@@ -2355,7 +2361,7 @@ x and y joined with separator j. Example under `catall`.
 x, unless x is empty or NA; then y. Useful for a default value.
 
 ```console
-$ pluk id x 'v::x^none,uie' '@id~[EFG]' < numbers.txt
+$ pluk id x v::x^none,uie '@id~[EFG]' < numbers.txt
 id	x	v
 E	nan	nan
 F		none
@@ -2369,7 +2375,7 @@ G	fox	fox
 `urlec` encodes every byte of x except A-Z a-z 0-9 and _ as %XX (upper-case hexadecimal); `urldc` decodes %XX (either case) and leaves everything else, including +, as it is.
 
 ```console
-$ echo 'Annie & Bert' | pluk -k 1 'e::1,urlec' 'd::1,urlec,urldc'
+$ echo 'Annie & Bert' | pluk -k 1 e::1,urlec d::1,urlec,urldc
 Annie & Bert	Annie%20%26%20Bert	Annie & Bert
 ```
 
@@ -2386,7 +2392,7 @@ Decodes %XX in x. Example under `urlec`.
 Take a CIGAR string c (a value, not necessarily from SAM input) and a set of operation letters s: `cgsum` adds up the lengths of the operations in s, `cgmax` gives the largest length (0 if there is none), `cgcount` the number of such operations. A CIGAR `*` gives 0; a CIGAR that does not parse (also the empty string and lower-case operations) gives NA. Letters in s that are not CIGAR operations count nothing.
 
 ```console
-$ pluk -q --sam 1 6 'm::6^M,cgsum' 'i::6^ID,cgsum' 'x::6^MID,cgmax' 'n::6^ID,cgcount' < reads.sam
+$ pluk -q --sam 1 6 m::6^M,cgsum i::6^ID,cgsum x::6^MID,cgmax n::6^ID,cgcount < reads.sam
 read1	3S22M3I8M3D9M	39	6	22	2
 ```
 
@@ -2409,7 +2415,7 @@ The number of operations of s in the CIGAR c. Example under `cgsum`.
 The MD5 digest of the bytes of x, as 32 lower-case hexadecimal digits.
 
 ```console
-$ pluk picker 'm::picker,md5' < harvest.txt
+$ pluk picker m::picker,md5 < harvest.txt
 picker	m
 Annie	0a420beb77b963b9a14066f08b7865e8
 Bert	bddfdb28870c5800d938fa0993c46d65
@@ -2439,12 +2445,12 @@ Bert picked 9.0 kg
 The four arithmetic operations and integer division. Integers stay integers as long as the result fits; otherwise the result is a floating-point number. `div` always gives a float (written 3.5, or 2 for 6/3); division by zero gives inf, -inf or nan. `idiv` and `mod` are floored, so that x = y·idiv(x,y) + mod(x,y) and `mod` has the sign of y; they need integers, and give NA for a float or a divisor of 0. A value that is not a number gives NA.
 
 ```console
-$ pluk id x y 'a::x:y,add' 's::x:y,sub' 'm::x:y,mul' 'd::x:y,div' 'i::x:y,idiv' 'r::x:y,mod' '@id~[ABD]' < numbers.txt
+$ pluk id x y a::x:y,add s::x:y,sub m::x:y,mul d::x:y,div i::x:y,idiv r::x:y,mod '@id~[ABD]' < numbers.txt
 id	x	y	a	s	m	d	i	r
 A	7	2	9	5	14	3.5	3	1
 B	-3	4	1	-7	-12	-0.75	-1	1
 D	0.1	0.2	0.30000000000000004	-0.1	0.020000000000000004	0.5	NA	NA
-$ pluk 'd::^7^0,div' 'n::^-7^0,div' 'z::^0^0,div' 'i::^7^0,idiv' '@picker=Annie' < harvest.txt
+$ pluk d::^7^0,div n::^-7^0,div z::^0^0,div i::^7^0,idiv @picker=Annie < harvest.txt
 d	n	z	i
 inf	-inf	nan	NA
 ```
@@ -2486,7 +2492,7 @@ x modulo y, with the sign of y; integers only, NA by zero. Example under `add`.
 `pow` raises x to the power y and always gives a float. `ipow` works in integers: it gives an integer, NA when the result does not fit or when x or y is a float, and a negative y behaves as with `pow`.
 
 ```console
-$ pluk 'p::^2^10,pow' 'q::^2^10,ipow' 'r::^2^-1,ipow' 's::^2^70,ipow' 't::^2.5^2,ipow' '@picker=Annie' < harvest.txt
+$ pluk p::^2^10,pow q::^2^10,ipow r::^2^-1,ipow s::^2^70,ipow t::^2.5^2,ipow @picker=Annie < harvest.txt
 p	q	r	s	t
 1024	1024	0.5	NA	NA
 ```
@@ -2504,7 +2510,7 @@ x to the power y in integers (overflow or a float: NA). Example under `pow`.
 The larger (`max`) or smaller (`min`) of x and y, as it is: an integer stays an integer.
 
 ```console
-$ pluk id x y 'a::x:y,max' 'b::x:y,min' '@id~[ABG]' < numbers.txt
+$ pluk id x y a::x:y,max b::x:y,min '@id~[ABG]' < numbers.txt
 id	x	y	a	b
 A	7	2	7	2
 B	-3	4	4	-3
@@ -2524,7 +2530,7 @@ The smaller of x and y. Example under `max`.
 Operations on one number: `neg` changes the sign, `abs` takes the absolute value, `sign` gives -1, 0 or 1, `sq` squares, `incr` and `decr` add or subtract 1. Integers stay integers while the result fits.
 
 ```console
-$ pluk id x 'n::x,neg' 'a::x,abs' 's::x,sign' 'q::x,sq' 'i::x,incr' 'd::x,decr' '@id~[ABD]' < numbers.txt
+$ pluk id x n::x,neg a::x,abs s::x,sign q::x,sq i::x,incr d::x,decr '@id~[ABD]' < numbers.txt
 id	x	n	a	s	q	i	d
 A	7	-7	7	1	49	8	6
 B	-3	3	3	-1	9	-2	-4
@@ -2568,7 +2574,7 @@ x minus 1. Example under `neg`.
 A random number in [0, x); for x = 0 in [0, 1). The generator is seeded from the clock, or with `--seed=N`, which makes the output reproducible.
 
 ```console
-$ pluk --seed=42 picker 'r::^10,rand^2,dd' < harvest.txt
+$ pluk --seed=42 picker r::^10,rand^2,dd < harvest.txt
 picker	r
 Annie	7.42
 Bert	1.60
@@ -2582,12 +2588,12 @@ Bert	1.60
 Operators that take every value on the stack. `addall` adds them, `mulall` multiplies, `maxall` and `minall` give the largest and smallest (the value itself, as `max`), `meanall` the mean, `hmeanall` the harmonic and `gmeanall` the geometric mean of the absolute values (the latter computed from logarithms, so it cannot overflow). NA among the values gives NA. On an empty stack `addall` gives 0 and `mulall` 1; the others give NA.
 
 ```console
-$ pluk picker 'a::kg:bruised:ripeness,addall' 'm::kg:bruised:ripeness,mulall' 'x::kg:bruised:ripeness,maxall' 'n::kg:bruised:ripeness,minall' < harvest.txt
+$ pluk picker a::kg:bruised:ripeness,addall m::kg:bruised:ripeness,mulall x::kg:bruised:ripeness,maxall n::kg:bruised:ripeness,minall < harvest.txt
 picker	a	m	x	n
 Annie	17.42	26.68	14.5	0.92
 Bert	9.75	0	9.0	0
 ...
-$ pluk picker 'm::kg:ripeness,meanall^2,dd' 'h::kg:ripeness,hmeanall^2,dd' 'g::kg:ripeness,gmeanall^2,dd' < harvest.txt
+$ pluk picker m::kg:ripeness,meanall^2,dd h::kg:ripeness,hmeanall^2,dd g::kg:ripeness,gmeanall^2,dd < harvest.txt
 picker	m	h	g
 Annie	7.71	1.73	3.65
 Bert	4.88	1.38	2.60
@@ -2639,7 +2645,7 @@ The geometric mean of the absolute values on the stack. Example under `addall`.
 Conversions to a whole number: `int` cuts off the fraction (towards zero), `floor` rounds down, `ceil` rounds up, `round` rounds to the nearest integer with halves to the even neighbour (2.5 becomes 2, 3.5 becomes 4). An integer is returned unchanged; a float beyond the integer range stays the whole float it is.
 
 ```console
-$ printf '2.5\n3.5\n-2.5\n-1.7\n' | pluk -k 1 'i::1,int' 'f::1,floor' 'c::1,ceil' 'r::1,round'
+$ printf '2.5\n3.5\n-2.5\n-1.7\n' | pluk -k 1 i::1,int f::1,floor c::1,ceil r::1,round
 2.5	2	2	3	2
 3.5	3	3	4	4
 -2.5	-2	-3	-2	-2
@@ -2672,7 +2678,7 @@ Where x falls among the quantile steps of `--quant-Q=FILE` (a file of numbers in
 
 ```console
 $ printf '5\n10\n15\n' > steps.txt
-$ pluk --quant-Q=steps.txt picker kg 'l::kg^Q,qnl' 'u::kg^Q,qnu' < harvest.txt
+$ pluk --quant-Q=steps.txt picker kg l::kg^Q,qnl u::kg^Q,qnu < harvest.txt
 picker	kg	l	u
 Annie	14.5	0.75	0.5
 Bert	9.0	0.5	0.75
@@ -2692,7 +2698,7 @@ The normalised quantile of x, upper tail. Example under `qnl`.
 Square root, exponentials and logarithms. They give floats; outside their domain the result follows IEEE: the logarithm of 0 is -inf, of a negative number nan, as is the square root of a negative number. `log10` and `log2` are computed directly (not as log(x)/log(10)).
 
 ```console
-$ printf '1\n100\n0\n-1\n' | pluk -k 1 's::1,sqrt' 'e::1,log10' 'l::1,log2' 'x::1,exp10'
+$ printf '1\n100\n0\n-1\n' | pluk -k 1 s::1,sqrt e::1,log10 l::1,log2 x::1,exp10
 1	1	0	0	10
 100	10	2	6.643856189774724	1e+100
 0	0	-inf	-inf	1
@@ -2742,7 +2748,7 @@ The logarithm of x in base 10. Example under `sqrt`.
 Sine, cosine and tangent of x, in radians.
 
 ```console
-$ printf '0\n1\n' | pluk -k 1 's::1,sin^3,dd' 'c::1,cos^3,dd' 't::1,tan^3,dd'
+$ printf '0\n1\n' | pluk -k 1 s::1,sin^3,dd c::1,cos^3,dd t::1,tan^3,dd
 0	0.000	1.000	0.000
 1	0.841	0.540	1.557
 ```
@@ -2768,7 +2774,7 @@ The tangent of x (radians). Example under `sin`.
 Numbers written with a fixed number of decimals N (an integer from 0 to 1000, otherwise NA): `dd` writes x, `sn` writes x in scientific notation; `frac`, `pct` and `pml` write x/y, 100·x/y and 1000·x/y. A division by zero gives inf or nan.
 
 ```console
-$ pluk picker 'd::ripeness^1,dd' 's::kg^2,sn' 'f::bruised:kg^3,frac' 'p::bruised:kg^1,pct' 'm::bruised:kg^0,pml' < harvest.txt
+$ pluk picker d::ripeness^1,dd s::kg^2,sn f::bruised:kg^3,frac p::bruised:kg^1,pct m::bruised:kg^0,pml < harvest.txt
 picker	d	s	f	p	m
 Annie	0.9	1.45e+01	0.138	13.8	138
 Bert	0.8	9.00e+00	0.000	0.0	0
@@ -2808,7 +2814,7 @@ x/y per mille, with N decimals. Example under `dd`.
 `map` gives the value of key x in dictionary D; for a key that is not in D it gives D's not-found result: the key itself, the default given with the dictionary (`--cd-NAME/DEFAULT=...`), or, with the default `__EXIT__`, an error that ends the run with the line number. `dord` gives the position (1-based) at which x first appeared in D, counted over everything merged into D in command-line order, and NA for a key that is not in D. D must be a constant naming a dictionary; an NA x gives NA.
 
 ```console
-$ pluk --cd-PRICE/none=apple:2.10,pear:2.50,cherry:9.00 picker fruit 'p::fruit^PRICE,map' 'o::fruit^PRICE,dord' '@picker~[ABD]' < harvest.txt
+$ pluk --cd-PRICE/none=apple:2.10,pear:2.50,cherry:9.00 picker fruit p::fruit^PRICE,map o::fruit^PRICE,dord '@picker~[ABD]' < harvest.txt
 picker	fruit	p	o
 Annie	apple	2.10	1
 Bert	pear	2.50	2
@@ -2830,7 +2836,7 @@ The order of key x in dictionary D (NA if absent). Example under `map`.
 `ifelse` gives x if B is true and y otherwise: a number is true if it is not zero, anything else if it is not empty; an NA B gives NA. `test` applies a filter operator T (any of section 5: `/gt/`, `~eq~`, `=`, `~`, `~isin~`, `/ep/`, `/all/`, ...) to x and y and gives 1 or 0; T must be a constant, as must the pattern of `~` and the dictionary of `~isin~`; where a filter would fail on a value that is not a number, `test` gives NA. `~hasval~`, `~hasnotval~` and the predicates such as `/ISNUM` cannot be used in `test`.
 
 ```console
-$ pluk picker kg 'h::kg^15^/gt/,test' 'w::kg^15^/gt/,test^heavy^light,ifelse' 'a::picker^%5E[A-D]^~,test' < harvest.txt
+$ pluk picker kg h::kg^15^/gt/,test w::kg^15^/gt/,test^heavy^light,ifelse 'a::picker^%5E[A-D]^~,test' < harvest.txt
 picker	kg	h	w	a
 Annie	14.5	0	light	1
 Bert	9.0	0	light	1
@@ -2852,7 +2858,7 @@ Filter operator T applied to x and y: 1 or 0. Example under `ifelse`.
 `save` stores x in register n and leaves x on the stack; `fetch` gives the value stored in register n. Registers hold for one row and are shared by all computes of that row: a later compute can fetch what an earlier one saved, and every row starts without them. A constant register name is checked before input is read: a `fetch` that no earlier `save` (in compute order) stores is an error. A name taken from a column is looked up per row; a register that was not stored gives NA.
 
 ```console
-$ pluk picker 'r::bruised:kg,div^r,save^r,fetch,mul^4,dd' 's::^r,fetch' < harvest.txt
+$ pluk picker r::bruised:kg,div^r,save^r,fetch,mul^4,dd s::^r,fetch < harvest.txt
 picker	r	s
 Annie	0.0190	0.13793103448275862
 Bert	0.0000	0
@@ -2872,7 +2878,7 @@ The value stored in register n in this row. Example under `save`.
 Column c of the previous row, with `--pstore` (or `--group`): the value it had after the computes of that row, so that a column can build on its own previous value. c must be a constant naming an input or computed column. Before the first row the value is NA, unless `--pstore/LIST/DEFAULT` gives one (`--pstore//0`: 0 for every column). Section 8 describes `--pstore` and `--group`.
 
 ```console
-$ pluk --pstore//0 picker kg 'total::^total,pload:kg,add' < harvest.txt
+$ pluk --pstore//0 picker kg total::^total,pload:kg,add < harvest.txt
 picker	kg	total
 Annie	14.5	14.5
 Bert	9.0	23.5
@@ -2886,7 +2892,7 @@ Bert	9.0	23.5
 With `--group=COL` or `--group-first-ref=COL`, rows with the same value in COL follow one another as a group, and the first row of each group is not output (it is the reference for `pload`). `groupi` is the position of the row in its group (2 for the first row output), `groupno` the number of the group. Without `--group` they are an error.
 
 ```console
-$ { head -n 1 harvest.txt; tail -n +2 harvest.txt | sort -k2,2; } | pluk -q --group=fruit fruit picker 'i::,groupi' 'g::,groupno'
+$ { head -n 1 harvest.txt; tail -n +2 harvest.txt | sort -k2,2; } | pluk -q --group=fruit fruit picker i::,groupi g::,groupno
 fruit	picker	i	g
 apple	Chen	2	1
 apple	Fenna	3	1
@@ -2906,7 +2912,7 @@ The number of the row's group (1-based). Example under `groupi`.
 `rowno` is the number of the data row (1 for the first row after the header; with `-k` the first line is row 1), `r0wno` the same counted from 0, `lineno` the line number in the input. Rows that a filter rejects later still count, so the numbers are those of the input.
 
 ```console
-$ pluk picker 'r::,rowno' 'z::,r0wno' 'l::,lineno' @fruit=apple < harvest.txt
+$ pluk picker r::,rowno z::,r0wno l::,lineno @fruit=apple < harvest.txt
 picker	r	z	l
 Annie	1	0	2
 Chen	3	2	4
@@ -2934,7 +2940,7 @@ The line number in the input. Example under `rowno`.
 The current time in seconds since 1970-01-01 (the epoch), the same for every row of a run only to the second. The example tests that it is past 2001.
 
 ```console
-$ pluk picker 'n::,now^1000000000^/gt/,test' '@picker=Annie' < harvest.txt
+$ pluk picker n::,now^1000000000^/gt/,test @picker=Annie < harvest.txt
 picker	n
 Annie	1
 ```
@@ -2946,7 +2952,7 @@ Annie	1
 `ttu` reads a time unit, a number followed by one of s m h d w y (a year is 31556952 seconds), and gives seconds; anything else is NA (a constant that is not a time unit is an error before input is read). `rttu` writes seconds as days, hours, minutes and seconds (1d,2h,3m,4s; 0 as 0s; a negative number with a minus sign); a float is rounded to the nearest second.
 
 ```console
-$ pluk 'a::^1.5d,ttu' 'b::^90061,rttu' 'c::^1.11m,ttu,rttu' '@picker=Annie' < harvest.txt
+$ pluk a::^1.5d,ttu b::^90061,rttu c::^1.11m,ttu,rttu @picker=Annie < harvest.txt
 a	b	c
 129600	1d,1h,1m,1s	1m,7s
 ```
@@ -2964,7 +2970,7 @@ Seconds written as 1d,2h,3m,4s. Example under `ttu`.
 An epoch (seconds since 1970-01-01) as the local date and time, year-month-day-hour-minute-second. The time zone is the system's, or the one in the environment variable TZ. A float is NA.
 
 ```console
-$ TZ=UTC pluk 'd::^0,todate' 'e::^1700000000,todate' '@picker=Annie' < harvest.txt
+$ TZ=UTC pluk d::^0,todate e::^1700000000,todate @picker=Annie < harvest.txt
 d	e
 1970-01-01-00-00-00	2023-11-14-22-13-20
 ```
@@ -2978,7 +2984,7 @@ d	e
 Bitwise operations on the absolute values of integers: `bitand`, `bitor`, `bitxor`, `bitoff` (the bits of |x| without those of |y|), `bitlsh` and `bitrsh` (shift |x| left or right by |y| bits). A float, even 3.0, or a value that is not a number gives NA. A left shift whose result does not fit gives NA; a right shift by the integer width or more gives 0.
 
 ```console
-$ printf '12\t10\n-12\t3\n5\t1.5\n' | pluk -k 1 2 'a::1:2,bitand' 'o::1:2,bitor' 'x::1:2,bitxor' 'f::1:2,bitoff' 'l::1:2,bitlsh' 'r::1:2,bitrsh'
+$ printf '12\t10\n-12\t3\n5\t1.5\n' | pluk -k 1 2 a::1:2,bitand o::1:2,bitor x::1:2,bitxor f::1:2,bitoff l::1:2,bitlsh r::1:2,bitrsh
 12	10	8	14	6	4	12288	0
 -12	3	0	15	15	12	96	1
 5	1.5	NA	NA	NA	NA	NA	NA
@@ -3023,11 +3029,11 @@ The bits of |x| without those of |y|. Example under `bitand`.
 `tobin`, `tohex` and `tooct` write an integer in base 2, 16 or 8; a negative integer as a minus sign and its magnitude (-ff). A float gives NA. `binto`, `hexto` and `octto` read such a representation back: an optional minus, an optional prefix matching the base (0b, 0x, 0o, either case), and digits with at most single underscores between them. Anything else (a plus, spaces, other characters, an empty value, a number beyond the integer range) gives NA.
 
 ```console
-$ printf '255\n-255\n2.5\n' | pluk -k 1 'b::1,tobin' 'h::1,tohex' 'o::1,tooct'
+$ printf '255\n-255\n2.5\n' | pluk -k 1 b::1,tobin h::1,tohex o::1,tooct
 255	11111111	ff	377
 -255	-11111111	-ff	-377
 2.5	NA	NA	NA
-$ printf '0xff\n-FF\n1_000\nff \n' | pluk -k 1 'h::1,hexto'
+$ printf '0xff\n-FF\n1_000\nff \n' | pluk -k 1 h::1,hexto
 0xff	255
 -FF	-255
 1_000	4096
@@ -3093,7 +3099,7 @@ Deletes every match of p in x. Example under `del`.
 `ed` replaces the first match of p in x by s, `edg` every match. s is literal text: `$` has no special meaning here (see `edbr` for groups).
 
 ```console
-$ pluk picker 'e::picker^n^N,ed' 'g::picker^n^N,edg' < harvest.txt
+$ pluk picker e::picker^n^N,ed g::picker^n^N,edg < harvest.txt
 picker	e	g
 Annie	ANnie	ANNie
 Bert	Bert	Bert
@@ -3155,7 +3161,7 @@ As `edg`, with `$1` `$2` .. and `$0` in s. Example under `edbr`.
 1 if the alignment is on the forward strand, 0 if it is on the reverse strand (FLAG bit 0x10); NA if FLAG is not a number. Like `sam_get`, it works for every record, unmapped ones included. All SAM operators need `--sam` or `--sam-h` (section 10).
 
 ```console
-$ pluk -q --sam 1 2 'f::,isforward' < align.sam
+$ pluk -q --sam 1 2 f::,isforward < align.sam
 read1	0	1
 read1	256	1
 read2	16	0
@@ -3169,7 +3175,7 @@ read3	4	1
 Positions and lengths of the alignment, 1-based and in the orientation of the reference (as SAM's POS), whatever the strand. `ref_len` is the length of the reference sequence, from the `@SQ` header lines or from the fasta of `--sam/FILE`. `ref_posx` and `ref_posy` are the first and last reference positions of the matched part; `qry_len` is the length of the read as the CIGAR gives it (M I S = X), and `qry_posx` `qry_posy` the first and last positions of the matched part in the read. The matched part of a CIGAR is what lies between its 5' trail (the leading run of S H D N I operations) and its 3' trail (the trailing run); it starts and ends with an aligned operation. For an unmapped record, or a CIGAR or POS that is not valid, these values are NA; without a reference length `ref_len` is NA ([SAM-NA.md](SAM-NA.md)).
 
 ```console
-$ pluk -q --sam 1 6 'rl::,ref_len' 'rx::,ref_posx' 'ry::,ref_posy' 'ql::,qry_len' 'qx::,qry_posx' 'qy::,qry_posy' < align.sam
+$ pluk -q --sam 1 6 rl::,ref_len rx::,ref_posx ry::,ref_posy ql::,qry_len qx::,qry_posx qy::,qry_posy < align.sam
 read1	3S22M3I8M3D9M	53	9	50	45	4	45
 read1	20S25M	53	20	44	45	21	45
 read2	2H4S12M3S	53	30	41	19	5	16
@@ -3213,12 +3219,12 @@ The last position of the matched part in the read. Example under `ref_len`.
 How the reference and the read divide into the 5' trail, the matched part and the 3' trail. On the reference: `ref_trail5p_N` is everything before the matched part (POS - 1 plus the reference length of the 5' trail), `ref_matched_N` the matched part, `ref_trail3p_N` the rest of the reference (it needs the reference length); `ref_trail5p_V` and `ref_trail3p_V` are the reference lengths of the trails of the CIGAR alone (what an alignment display shows). On the read: `qry_trail5p_N`, `qry_matched_N` and `qry_trail3p_N` (I S M = X; H not counted).
 
 ```console
-$ pluk -q --sam 1 6 'r5::,ref_trail5p_N' 'rm::,ref_matched_N' 'r3::,ref_trail3p_N' 'v5::,ref_trail5p_V' 'v3::,ref_trail3p_V' < align.sam
+$ pluk -q --sam 1 6 r5::,ref_trail5p_N rm::,ref_matched_N r3::,ref_trail3p_N v5::,ref_trail5p_V v3::,ref_trail3p_V < align.sam
 read1	3S22M3I8M3D9M	8	42	3	0	0
 read1	20S25M	19	25	9	0	0
 read2	2H4S12M3S	29	12	12	0	0
 read3	*	NA	NA	NA	NA	NA
-$ pluk -q --sam 1 6 'q5::,qry_trail5p_N' 'qm::,qry_matched_N' 'q3::,qry_trail3p_N' < align.sam
+$ pluk -q --sam 1 6 q5::,qry_trail5p_N qm::,qry_matched_N q3::,qry_trail3p_N < align.sam
 read1	3S22M3I8M3D9M	3	42	0
 read1	20S25M	20	25	0
 read2	2H4S12M3S	4	12	3
@@ -3274,7 +3280,7 @@ The read length of the 3' trail. Example under `ref_trail5p_N`.
 The three parts of the CIGAR as CIGAR strings: the 5' trail, the matched part and the 3' trail (substrings of the CIGAR as written).
 
 ```console
-$ pluk -q --sam 1 6 't5::,aln_trail5p_cgr' 'm::,aln_matched_cgr' 't3::,aln_trail3p_cgr' < align.sam
+$ pluk -q --sam 1 6 t5::,aln_trail5p_cgr m::,aln_matched_cgr t3::,aln_trail3p_cgr < align.sam
 read1	3S22M3I8M3D9M	3S	22M3I8M3D9M	
 read1	20S25M	20S	25M	
 read2	2H4S12M3S	2H4S	12M	3S
@@ -3300,7 +3306,7 @@ The 3' trail of the CIGAR. Example under `aln_trail5p_cgr`.
 `aln_nmatch` is the number of aligned bases in the matched part (M = X); `aln_nedit` the edit distance from the NM:i tag (0 without one, NA for a value that is not a non-negative integer; it works for every record); `aln_nmatchx` the mismatches, NM minus the deleted and inserted bases of the matched part.
 
 ```console
-$ pluk -q --sam 1 6 'n::,aln_nmatch' 'e::,aln_nedit' 'x::,aln_nmatchx' < align.sam
+$ pluk -q --sam 1 6 n::,aln_nmatch e::,aln_nedit x::,aln_nmatchx < align.sam
 read1	3S22M3I8M3D9M	39	7	1
 read1	20S25M	25	12	12
 read2	2H4S12M3S	12	1	1
@@ -3326,7 +3332,7 @@ The number of mismatches: NM minus the D and I of the matched part. Example unde
 The read's sequence and quality, as stored in SEQ and QUAL (in the orientation of the reference). A SEQ `*`, as aligners write for secondary alignments, is filled from an earlier record of the same read whose part of the read covers it (reverse-complemented when the strands differ, hard clips taken into account); the quality is filled with it. A record that cannot be filled is skipped, or ends the run with `--sam-seqmiss=exit` (section 10). A SEQ or QUAL whose length does not fit the CIGAR gives NA.
 
 ```console
-$ pluk -q --sam 1 2 6 's::,qry_seq' 'q::,qry_qual' < align.sam
+$ pluk -q --sam 1 2 6 s::,qry_seq q::,qry_qual < align.sam
 read1	0	3S22M3I8M3D9M	CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG	*
 read1	256	20S25M	CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG	*
 read2	16	2H4S12M3S	GGTTGCTAAAGTTCCACCC	IIIIIIIIIIIIIIIIIII
@@ -3346,7 +3352,7 @@ The read's quality (QUAL, or filled with the sequence; `*` if absent; with `--sa
 The alignment drawn as strings, from POS, the CIGAR, the read and the reference (which comes from the fasta of `--sam/FILE`; a compile-time error without it). `aln_ref` is the reference line, `aln_aln` the line between, `aln_qry` the read, `aln_rlr` a ruler with the reference position written at every multiple of 10, `aln_qlt` the quality under the read (`!` for every base when QUAL is `*`). In `aln_aln`: `|` match and `x` mismatch (upper and lower case compare equal), `~` insertion and `-` deletion, `=` an N (an intron); at either end a run of insertions is drawn `_` and a run of deletions `` ` `` (dangling), and context added with `--sam-aln-context` is drawn `.` (section 10). Soft clips are not drawn, hard clips and padding are ignored. An unmapped record, or a CIGAR that runs past the end of the reference, gives NA.
 
 ```console
-$ pluk -q --sam/transgene.fa 1 'r::,aln_ref' 'a::,aln_aln' 'q::,aln_qry' 'l::,aln_qlt' '@1=read2' < align.sam
+$ pluk -q --sam/transgene.fa 1 r::,aln_ref a::,aln_aln q::,aln_qry l::,aln_qlt @1=read2 < align.sam
 read2	GCTAAGGTTCCA	|||||x||||||	GCTAAAGTTCCA	IIIIIIIIIIII
 ```
 
@@ -3381,13 +3387,13 @@ The quality line of the alignment (with `--sam-qlt-sim` simplified, section 10).
 `aln_all` joins the ruler, the reference, the alignment and the read line with newlines, so that the output shows the alignment as a picture (the field then contains newlines); `aln_allq` adds the quality line; `aln_all_pack` joins with the byte 0x01 instead of newlines (one line per record, for further processing). Every line begins with the text of `--sam-aln-prefix=STR` (for example `'++ '`); `--sam-aln-mrk` adds markers and the part lengths to the reference and read lines (section 10).
 
 ```console
-$ pluk -q --sam/transgene.fa '--sam-aln-prefix=++ ' 'a::,aln_allq' '@1=read2' < align.sam
+$ pluk -q --sam/transgene.fa '--sam-aln-prefix=++ ' a::,aln_allq @1=read2 < align.sam
 ++ 30        40
 ++ GCTAAGGTTCCA
 ++ |||||x||||||
 ++ GCTAAAGTTCCA
 ++ IIIIIIIIIIII
-$ pluk -q --sam/transgene.fa 1 'p::,aln_all_pack' '@1=read2' < align.sam | tr '\001' '#'
+$ pluk -q --sam/transgene.fa 1 p::,aln_all_pack @1=read2 < align.sam | tr '\001' '#'
 read2	30        40#GCTAAGGTTCCA#|||||x||||||#GCTAAAGTTCCA
 ```
 
@@ -3410,7 +3416,7 @@ As `aln_all`, the lines joined by the byte 0x01. Example under `aln_all`.
 The number of edits in the alignment line: `aln_nedit_pia` counts the columns `x`, `-` and `~` (an N, `=`, is an intron and not an edit), `aln_nedit_piu` counts `=` as well. Dangling columns (`` ` `` `_` `.`) are never edits.
 
 ```console
-$ pluk -q --sam/transgene.fa 1 6 'a::,aln_nedit_pia' 'u::,aln_nedit_piu' '@@2/none/260' < align.sam
+$ pluk -q --sam/transgene.fa 1 6 a::,aln_nedit_pia u::,aln_nedit_piu @@2/none/260 < align.sam
 read1	3S22M3I8M3D9M	7	7
 read2	2H4S12M3S	1	1
 ```
@@ -3428,7 +3434,7 @@ The number of edits, introns (=) included. Example under `aln_nedit_pia`.
 The differences between read and reference, in CIGAR order, joined by `:`: `x=P,c=RQ` for a mismatch at reference position P (R the reference base, Q the read's, upper case), `i=P,n=L` for an insertion of L bases before position P, `d=P,n=L` for a deletion and `e=P,n=L` for an N starting at P. For an insertion, deletion or N the bases are added as `,s=SEQ` when n is 0 or L is at most n; n must be a non-negative integer, else NA. Context is not reported. The empty string means no difference.
 
 ```console
-$ pluk -q --sam/transgene.fa 1 'a::^0,aln_posinfo' 'b::^2,aln_posinfo' '@@2/none/260' < align.sam
+$ pluk -q --sam/transgene.fa 1 a::^0,aln_posinfo b::^2,aln_posinfo @@2/none/260 < align.sam
 read1	x=21,c=CA:i=31,n=3,s=TTT:d=39,n=3,s=CCA	x=21,c=CA:i=31,n=3:d=39,n=3
 read2	x=35,c=GA	x=35,c=GA
 ```
@@ -3440,9 +3446,9 @@ read2	x=35,c=GA	x=35,c=GA
 A score for how clustered the differences in an alignment line s are, over a sliding window of d columns: s is read as runs of one symbol, each run counting once with a penalty (`|` `=` `.` `` ` `` `_` 0, `-` `~` `+` 1, `x` 2; `(` and `)` count as `|`, a space as `x`), and the result is the largest sum of the penalties of the runs that start within d columns of each other. `patchiness2` measures the window in aligned columns only (the dangling, deletion and insertion columns do not count). A symbol outside these, or a d that is not a non-negative integer, gives NA. Like the other SAM operators they need `--sam` (also for an alignment string from elsewhere, here a constant).
 
 ```console
-$ pluk -q --sam/transgene.fa 1 'a::,aln_aln' 'p::,aln_aln^10,patchiness' 'q::,aln_aln^10,patchiness2' '@1=read1' '@@2=0' < align.sam
+$ pluk -q --sam/transgene.fa 1 a::,aln_aln p::,aln_aln^10,patchiness q::,aln_aln^10,patchiness2 @1=read1 @@2=0 < align.sam
 read1	||||||||||||x|||||||||~~~||||||||---|||||||||	3	3
-$ pluk -q --sam 'a::^xx|x||||||x-x^1,patchiness' 'b::^xx|x||||||x-x^3,patchiness' 'c::^xx|x||||||x-x^3,patchiness2' '@1=read2' < align.sam
+$ pluk -q --sam 'a::^xx|x||||||x-x^1,patchiness' 'b::^xx|x||||||x-x^3,patchiness' 'c::^xx|x||||||x-x^3,patchiness2' @1=read2 < align.sam
 3	5	5
 ```
 
@@ -3459,7 +3465,7 @@ As `patchiness`, the window counting aligned columns only. Example under `patchi
 The region-bound tally looks at the part of an alignment that lies within a region of the reference, positions x to y. The region is set for the rest of the row by `sam_rbt` (it takes x and y, pushes nothing, and is normally written as a hidden compute: `r:=^20^35,sam_rbt`; x and y may come from columns), or for every row by `--sam-rbt=X,Y`; the later `sam_rbt` in a row wins. An rbt_ operator without either is a compile-time error; operands that are not integers 1 <= x <= y give NA.
 
 ```console
-$ pluk -q --sam/transgene.fa 1 'r:=^20^35,sam_rbt' 'e::,rbt_nedit' 's:=^1^5,sam_rbt' 'f::,rbt_nedit' '@1=read1' '@@2=0' < align.sam
+$ pluk -q --sam/transgene.fa 1 r:=^20^35,sam_rbt e::,rbt_nedit s:=^1^5,sam_rbt f::,rbt_nedit @1=read1 @@2=0 < align.sam
 read1	4	NA
 ```
 
@@ -3470,7 +3476,7 @@ read1	4	NA
 The region is clipped to the matched part of the alignment. `rbt_refx` and `rbt_refy` are the clipped region on the reference, `rbt_dx` and `rbt_dy` the positions cut off at the start and at the end; `rbt_qryx`, `rbt_qryy` and `rbt_qrylen` the corresponding part of the read (1-based, in SEQ orientation, soft clips counted; a region that lies within a deletion has `rbt_qrylen` 0), and `rbt_qry` its sequence. A region that does not overlap the matched part gives NA for every rbt_ value (counted at the end).
 
 ```console
-$ pluk -q --sam/transgene.fa --sam-rbt=5,30 1 'rx::,rbt_refx' 'ry::,rbt_refy' 'dx::,rbt_dx' 'dy::,rbt_dy' 'qx::,rbt_qryx' 'qy::,rbt_qryy' 'ql::,rbt_qrylen' 'q::,rbt_qry' '@@2/none/260' < align.sam
+$ pluk -q --sam/transgene.fa --sam-rbt=5,30 1 rx::,rbt_refx ry::,rbt_refy dx::,rbt_dx dy::,rbt_dy qx::,rbt_qryx qy::,rbt_qryy ql::,rbt_qrylen q::,rbt_qry @@2/none/260 < align.sam
 read1	9	30	4	0	4	25	22	GCTTAACGGTACAATGAGCTAG
 read2	30	30	25	0	5	5	1	G
 ```
@@ -3524,7 +3530,7 @@ The read's sequence in the region. Example under `rbt_refx`.
 Counts over the columns of `aln_aln` within the region: `rbt_nmatch` the aligned bases (`|` and `x`), `rbt_nmatchx` the mismatches (`x`), `rbt_ndel` the deleted bases (`-`), `rbt_nins` the inserted ones (`~`), and `rbt_nedit` their total of edits (`x` `-` `~`; an N, `=`, counts in none). An insertion counts only when it lies between two positions of the region.
 
 ```console
-$ pluk -q --sam/transgene.fa --sam-rbt=20,35 1 'n::,rbt_nmatch' 'x::,rbt_nmatchx' 'd::,rbt_ndel' 'i::,rbt_nins' 'e::,rbt_nedit' '@@2/none/260' < align.sam
+$ pluk -q --sam/transgene.fa --sam-rbt=20,35 1 n::,rbt_nmatch x::,rbt_nmatchx d::,rbt_ndel i::,rbt_nins e::,rbt_nedit @@2/none/260 < align.sam
 read1	16	1	0	3	4
 read2	6	1	0	0	1
 ```
@@ -3560,13 +3566,13 @@ The edits in the region. Examples under `rbt_nmatch` and `sam_rbt`.
 The columns of the alignment strings that lie within the region: `rbt_alnref`, `rbt_alnaln`, `rbt_alnqry`, `rbt_alnrlr` and `rbt_alnqlt` cut `aln_ref` and the others; `rbt_alnall` joins the region's ruler, reference, alignment, read and quality lines with newlines, each line beginning with `--sam-aln-prefix` (a ruler number that begins before the region shows only its last digits).
 
 ```console
-$ pluk -q --sam/transgene.fa --sam-rbt=20,35 'a::,rbt_alnall' '@1=read1' '@@2=0' < align.sam
+$ pluk -q --sam/transgene.fa --sam-rbt=20,35 a::,rbt_alnall @1=read1 @@2=0 < align.sam
 20        30       
 CCATGAGCTAG---CTAAG
 |x|||||||||~~~|||||
 CAATGAGCTAGTTTCTAAG
 !!!!!!!!!!!!!!!!!!!
-$ pluk -q --sam/transgene.fa --sam-rbt=20,35 1 'r::,rbt_alnref' 'a::,rbt_alnaln' 'q::,rbt_alnqry' '@1=read1' '@@2=0' < align.sam
+$ pluk -q --sam/transgene.fa --sam-rbt=20,35 1 r::,rbt_alnref a::,rbt_alnaln q::,rbt_alnqry @1=read1 @@2=0 < align.sam
 read1	CCATGAGCTAG---CTAAG	|x|||||||||~~~|||||	CAATGAGCTAGTTTCTAAG
 ```
 
@@ -3607,11 +3613,11 @@ The region's ruler, reference, alignment, read and quality lines. Example under 
 The sequences of the three parts. `ref_trail5p`, `ref_matched` and `ref_trail3p` cut the reference (from the fasta of `--sam/FILE`, which they need; a compile-time error without it); `qry_trail5p`, `qry_matched` and `qry_trail3p` cut the read (SEQ, or the filled sequence). A record that is unmapped, or whose matched part runs past the end of the reference, gives NA.
 
 ```console
-$ pluk -q --sam/transgene.fa 1 'a::,ref_trail5p' 'b::,ref_matched' 'c::,ref_trail3p' '@@2/none/4' < align.sam
+$ pluk -q --sam/transgene.fa 1 a::,ref_trail5p b::,ref_matched c::,ref_trail3p @@2/none/4 < align.sam
 read1	GATTACAG	GCTTAACGGTACCATGAGCTAGCTAAGGTTCCATGCAATTCG	AGG
 read1	GATTACAGGCTTAACGGTA	CCATGAGCTAGCTAAGGTTCCATGC	AATTCGAGG
 read2	GATTACAGGCTTAACGGTACCATGAGCTA	GCTAAGGTTCCA	TGCAATTCGAGG
-$ pluk -q --sam 1 'a::,qry_trail5p' 'b::,qry_matched' 'c::,qry_trail3p' '@@2/none/4' < align.sam
+$ pluk -q --sam 1 a::,qry_trail5p b::,qry_matched c::,qry_trail3p @@2/none/4 < align.sam
 read1	CCA	GCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG	
 read1	CCAGCTTAACGGTACAATGA	GCTAGTTTCTAAGGTTTGCAATTCG	
 read2	GGTT	GCTAAAGTTCCA	CCC
@@ -3660,12 +3666,12 @@ Puts tag:val into the optional fields (column 12), replacing the same tag. Examp
 `sam_get` gives the value of the first optional field with tag and type XX:T, or def if there is none. `sam_put` puts XX:T:val into the optional fields (column 12, which `--sam` makes hold them all), after the computes: a tag already there is replaced (counted, with a message for the first few rows), else the field is appended. The tag must be a constant, written XX.T or XX-T in a compute (':' separates the parts of a compute); T is one of A i f Z H B. sam_put checks the value against its type and does not put a value that is NA, contains a TAB or newline, or does not fit the type (counted). `sam_put` pushes nothing; its compute is normally hidden (`:=`).
 
 ```console
-$ pluk -q --sam 1 'n::^NM.i^0,sam_get' 'a::^AS.i^none,sam_get' < align.sam
+$ pluk -q --sam 1 n::^NM.i^0,sam_get a::^AS.i^none,sam_get < align.sam
 read1	7	30
 read1	12	none
 read2	1	none
 read3	0	none
-$ pluk -q --sam 1 12 't:=^XP.i:4,sam_put' 'u:=^NM.i^0,sam_get,incr^NM.i,xch,sam_put' < align.sam
+$ pluk -q --sam 1 12 t:=^XP.i:4,sam_put u:=^NM.i^0,sam_get,incr^NM.i,xch,sam_put < align.sam
 read1	NM:i:8	AS:i:30	XP:i:9
 read1	NM:i:13	XP:i:20
 read2	NM:i:2	XP:i:30
@@ -3681,7 +3687,7 @@ read3	XP:i:0	NM:i:1
 `rc` gives the reverse complement of x: A C G T become T G C A in either case, U becomes A, the IUPAC codes are complemented (R Y, K M, B V, D H) and N, S, W and every other byte stay as they are. `todna` makes x DNA: u and U become t and T, other letters n or N (keeping the case), and every other byte N.
 
 ```console
-$ printf 'ACGTN\nacgu\nRYKM-\n' | pluk -k 1 'r::1,rc' 'd::1,todna'
+$ printf 'ACGTN\nacgu\nRYKM-\n' | pluk -k 1 r::1,rc d::1,todna
 ACGTN	NACGT	ACGTN
 acgu	acgt	acgt
 RYKM-	-KMRY	NNNNN
@@ -3694,7 +3700,7 @@ RYKM-	-KMRY	NNNNN
 seq if B is true, otherwise its reverse complement (`rc`); B is true as for `ifelse`. With SAM input, `isforward` gives B: `,isforward,qry_seq,forward` is the read as it was sequenced (SAM stores the sequence of a reverse-strand alignment reverse-complemented).
 
 ```console
-$ printf '1\tACGTT\n0\tACGTT\n' | pluk -k 1 2 'f::1:2,forward'
+$ printf '1\tACGTT\n0\tACGTT\n' | pluk -k 1 2 f::1:2,forward
 1	ACGTT	ACGTT
 0	ACGTT	AACGT
 ```
@@ -3712,7 +3718,7 @@ x as DNA letters. Example under `rc`.
 `dnatl` translates x from offset f (0, 1, 2, ...) with the standard genetic code: x is read in upper case, U as T; a stop codon is *, a codon with other letters (N, IUPAC codes) ?, and the one or two bases left at the end are added between braces. An x not longer than f gives the empty string; f must be a non-negative integer, else NA. `dnagc` gives the percentage of G and C among the A C G T U of x (either case), with N decimals (0 to 1000); without any of those bases it is NA.
 
 ```console
-$ printf 'ATGGCCTAA\nAUGUUU\nACGTNNNN\nNNNN\n' | pluk -k 1 't::1^0,dnatl' 'g::1^1,dnagc'
+$ printf 'ATGGCCTAA\nAUGUUU\nACGTNNNN\nNNNN\n' | pluk -k 1 t::1^0,dnatl g::1^1,dnagc
 ATGGCCTAA	MA*	44.4
 AUGUUU	MF	16.7
 ACGTNNNN	T?{NN}	50.0
@@ -3732,12 +3738,12 @@ The G C percentage of x, with N decimals. Example under `dnatl`.
 `fasta` writes a FASTA record of identifier i and sequence s; `fastq` a FASTQ record with the quality Z for every base, `fastQ` one with the quality q. A q of `*` (SAM's missing quality) gives Z for every base, as `fastq` (unless s is one base long); another q whose length differs from s gives NA, counted at the end. The record contains newlines; output only that column to get a file.
 
 ```console
-$ pluk -h 'f::picker^ACGT,fasta' '@fruit=pear' < harvest.txt
+$ pluk -h f::picker^ACGT,fasta @fruit=pear < harvest.txt
 >Bert
 ACGT
 >Gus
 ACGT
-$ pluk -h 'q::picker^ACGT^!!%23%23,fastQ' '@picker=Bert' < harvest.txt
+$ pluk -h 'q::picker^ACGT^!!%23%23,fastQ' @picker=Bert < harvest.txt
 @Bert
 ACGT
 +
@@ -3763,7 +3769,7 @@ A FASTQ record with quality q. Example under `fasta`.
 For each position up to the shorter of x and y, | where the bytes are equal and x where they differ (exact, case matters). The result uses the symbols of `aln_aln`, so `patchiness` can score it.
 
 ```console
-$ printf 'ACGTA\tACCTA\nacgt\tACGT\n' | pluk -k 1 2 's::1:2,strpair'
+$ printf 'ACGTA\tACCTA\nacgt\tACGT\n' | pluk -k 1 2 s::1:2,strpair
 ACGTA	ACCTA	||x||
 acgt	ACGT	xxxx
 ```
@@ -3831,7 +3837,7 @@ Numeric not equal (a value that is not a number fails, as for the others). Examp
 String comparisons, byte by byte (as `sort` in the C locale): `@NAME~lt~VALUE` and the others. `=` and `/=` are short for `~eq~` and `~ne~`. VALUE is text, or `:OTHER` for the value of column OTHER.
 
 ```console
-$ pluk picker fruit '@fruit~lt~d' < harvest.txt
+$ pluk picker fruit @fruit~lt~d < harvest.txt
 picker	fruit
 Annie	apple
 Chen	apple
@@ -3897,7 +3903,7 @@ picker	tree
 Annie	A12
 Bert	P03
 Chen	A07
-$ pluk picker tree '@tree/~^A' '@picker~e$' < harvest.txt
+$ pluk picker tree @tree/~^A '@picker~e$' < harvest.txt
 picker	tree
 Hilde	U02
 ```

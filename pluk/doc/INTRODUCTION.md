@@ -74,10 +74,11 @@ $ pluk -c @fruit=apple < harvest.txt
 
 **Make new columns.** A compute is `NAME::` followed by a small stack program: `:` pushes a
 column, `^` a constant, `,` applies an operator. Here, pounds (to one decimal) and
-bruises per kilo (to two). Quotes keep the shell away from `^` and `*`.
+bruises per kilo (to two). No quotes are needed: `:` `^` `,` `@` and `/` mean nothing to
+the shell. An argument with `*`, `?`, `[`, `\`, `(`, `$` or a space does need them.
 
 ```console
-$ pluk picker kg 'lb::kg^2.20462,mul^1,dd' 'bpk::bruised:kg,div^2,dd' < harvest.txt
+$ pluk picker kg lb::kg^2.20462,mul^1,dd bpk::bruised:kg,div^2,dd < harvest.txt
 picker  kg    lb    bpk
 Annie   14.5  32.0  0.14
 Bert    9.0   19.8  0.00
@@ -99,7 +100,7 @@ Bert    pear   9.0   22.50
 **Edit in place**, `sed`-style but per column (`-i`; `__` is the column being changed).
 
 ```console
-$ pluk -i -A fruit::__,uc 'picker::__^e^3,edg' < harvest.txt
+$ pluk -i -A fruit::__,uc picker::__^e^3,edg < harvest.txt
 picker  fruit  tree  kg    bruised  ripeness
 Anni3   APPLE  A12   14.5  2        0.92
 B3rt    PEAR   P03   9.0   0        0.75
@@ -111,7 +112,7 @@ Ch3n    APPLE  A07   22.1  5        0.88
 and `x2bruised`; with `x2//kg:bruised//` the originals are kept alongside).
 
 ```console
-$ pluk picker 'x2/kg:bruised/::__^2,mul' < harvest.txt
+$ pluk picker x2/kg:bruised/::__^2,mul < harvest.txt
 picker  x2kg  x2bruised
 Annie   29    4
 ...
@@ -154,7 +155,7 @@ Here is [one read](reads.sam) against a [53-base transgene](transgene.fa) in thi
 the full alignment:
 
 ```console
-$ pluk --sam/transgene.fa 1 6 n::,aln_nedit_pia 'p::^0,aln_posinfo' < reads.sam
+$ pluk --sam/transgene.fa 1 6 n::,aln_nedit_pia p::^0,aln_posinfo < reads.sam
 read1   3S22M3I8M3D9M   7   x=21,c=CA:i=31,n=3,s=TTT:d=39,n=3,s=CCA
 ```
 

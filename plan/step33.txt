@@ -1,0 +1,33 @@
+
+- Examples: no needless quotes; output shown aligned
+
+  Presentation only, from issues.txt (the two [discuss] items). Every example keeps
+  passing doccheck.py, which is the check that nothing changed in what the commands do.
+
+
+  Outcome of the discussion
+
+  Decisions:
+   1. Quotes are removed from every argument of an example that does not need them: a
+      whole single-quoted word whose content is only letters, digits and _ @ % ^ : , . /
+      = + - ~ (~ not first). Words with other characters (* ? [ ] \ ( ) space $ | & < >
+      # !), words only partly quoted (--sam-aln-prefix='>> ') and printf formats keep
+      their quotes. Done by a script; doccheck.py confirms the outputs. ^ is safe in bash,
+      dash and default zsh (special in zsh only with setopt extendedglob; bash's ^old^new
+      only at the start of an interactive line). The sentence on quoting in
+      INTRODUCTION.md is redrafted by Claude (the user revises it), and section 3 of the
+      manual gets a short note on the shell, zsh's extendedglob included.
+   2. Output shown aligned: the commands stay as they are (no column -t, whose BSD form
+      merges empty fields); the output lines of each command that contain TABs are shown
+      padded with spaces into columns. doccheck.py already counts a run of white space as
+      one separator, so the check is unchanged. Section 3 says that output is
+      TAB-separated and shown aligned. The authoring script aligns new outputs the same
+      way.
+
+
+  Items
+
+  1   Decision 1: quotes, the INTRODUCTION sentence, the note in section 3. Commit.
+
+  2   Decision 2: aligned output in all three documents, the sentence in section 3, the
+      authoring script. Commit.

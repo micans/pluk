@@ -67,7 +67,7 @@ same run that refer to the column by name read that text, not an NA value (and s
 later run that reads pluk's output):
 
 ```console
-$ pluk -q --sam 1 n::,ref_trail3p_N l::n,len 'm::n^1,add' k::,ref_trail3p_N,len < mixed.sam
+$ pluk -q --sam 1 n::,ref_trail3p_N l::n,len m::n^1,add k::,ref_trail3p_N,len < mixed.sam
 read1   3    1   4    1
 read2   NA   2   NA   NA
 ```
