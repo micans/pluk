@@ -96,3 +96,22 @@ Item 5: reference for SAM, part 1 (31 operators)
   tags; a secondary of read1 with SEQ '*' (filled from read1); read2 on the reverse
   strand with a hard clip and one mismatch; an unmapped read3. 10 examples; every count
   was checked by hand against the definitions.
+
+
+Item 6: reference for SAM, part 2 (33 operators)
+
+  The alignment strings (the symbols, the ruler, the quality line, dangling runs and
+  context), aln_all aln_allq aln_all_pack (--sam-aln-prefix), aln_nedit_pia piu,
+  aln_posinfo, patchiness patchiness2, and the region-bound tally (sam_rbt, --sam-rbt,
+  the clipped region, the counts, the strings). Rules from step18, step19 (context, edit
+  counts) and step20. 12 examples on align.sam and transgene.fa.
+
+  Reading the outputs led to changes: the secondary of read1 (an alignment of mismatches)
+  made the examples long and unclear, so they leave out secondary and unmapped records
+  (@@2/none/260) or select read1's primary (@@2=0); the alignment pictures of aln_allq and
+  rbt_alnall are shown in full (the authoring script elided after four lines). The second
+  patchiness example first piped a bare alignment string into pluk: patchiness is a SAM
+  operator (step18) and needs --sam, and --sam refuses input that does not look like SAM,
+  so the example produced nothing; it now gives the string as a constant on align.sam.
+  The authoring script now warns about a command without output (it had shown only
+  stdout); a scan of the manual found no other empty example.

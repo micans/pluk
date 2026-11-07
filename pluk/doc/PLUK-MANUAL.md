@@ -1507,133 +1507,262 @@ The read's quality (QUAL, or filled with the sequence; `*` if absent; with `--sa
 <!-- op aln_ref -->
 `-` → `aln` — Alignment: reference line (needs --sam/FILE)
 
+The alignment drawn as strings, from POS, the CIGAR, the read and the reference (which comes from the fasta of `--sam/FILE`; a compile-time error without it). `aln_ref` is the reference line, `aln_aln` the line between, `aln_qry` the read, `aln_rlr` a ruler with the reference position written at every multiple of 10, `aln_qlt` the quality under the read (`!` for every base when QUAL is `*`). In `aln_aln`: `|` match and `x` mismatch (upper and lower case compare equal), `~` insertion and `-` deletion, `=` an N (an intron); at either end a run of insertions is drawn `_` and a run of deletions `` ` `` (dangling), and context added with `--sam-aln-context` is drawn `.` (section 10). Soft clips are not drawn, hard clips and padding are ignored. An unmapped record, or a CIGAR that runs past the end of the reference, gives NA.
+
+```console
+$ pluk -q --sam/transgene.fa 1 'r::,aln_ref' 'a::,aln_aln' 'q::,aln_qry' 'l::,aln_qlt' '@1=read2' < align.sam
+read2	GCTAAGGTTCCA	|||||x||||||	GCTAAAGTTCCA	IIIIIIIIIIII
+```
+
 #### `aln_aln`
 <!-- op aln_aln -->
 `-` → `aln` — Alignment: match line (| x ~ - = _ `)
+
+The alignment line (| x ~ - = _ ` .). Example under `aln_ref`.
 
 #### `aln_qry`
 <!-- op aln_qry -->
 `-` → `aln` — Alignment: query line
 
+The read line of the alignment. Example under `aln_ref`.
+
 #### `aln_rlr`
 <!-- op aln_rlr -->
 `-` → `aln` — Alignment: ruler with reference positions
+
+The ruler of the alignment. Examples under `aln_ref` and `aln_all`.
 
 #### `aln_qlt`
 <!-- op aln_qlt -->
 `-` → `aln` — Alignment: query quality line
 
+The quality line of the alignment (with `--sam-qlt-sim` simplified, section 10). Example under `aln_ref`.
+
 #### `aln_all`
 <!-- op aln_all -->
 `-` → `aln` — Alignment: ruler, reference, match, query lines
+
+`aln_all` joins the ruler, the reference, the alignment and the read line with newlines, so that the output shows the alignment as a picture (the field then contains newlines); `aln_allq` adds the quality line; `aln_all_pack` joins with the byte 0x01 instead of newlines (one line per record, for further processing). Every line begins with the text of `--sam-aln-prefix=STR` (for example `'++ '`); `--sam-aln-mrk` adds markers and the part lengths to the reference and read lines (section 10).
+
+```console
+$ pluk -q --sam/transgene.fa '--sam-aln-prefix=++ ' 'a::,aln_allq' '@1=read2' < align.sam
+++ 30        40
+++ GCTAAGGTTCCA
+++ |||||x||||||
+++ GCTAAAGTTCCA
+++ IIIIIIIIIIII
+$ pluk -q --sam/transgene.fa 1 'p::,aln_all_pack' '@1=read2' < align.sam | tr '\001' '#'
+read2	30        40#GCTAAGGTTCCA#|||||x||||||#GCTAAAGTTCCA
+```
 
 #### `aln_allq`
 <!-- op aln_allq -->
 `-` → `aln` — Alignment: as aln_all, with the quality line
 
+As `aln_all`, with the quality line. Example under `aln_all`.
+
 #### `aln_all_pack`
 <!-- op aln_all_pack -->
 `-` → `aln` — Alignment: as aln_all, lines joined by byte 0x01
+
+As `aln_all`, the lines joined by the byte 0x01. Example under `aln_all`.
 
 #### `aln_nedit_pia`
 <!-- op aln_nedit_pia -->
 `-` → `n` — Edits in aln_aln, intron aware (x - ~)
 
+The number of edits in the alignment line: `aln_nedit_pia` counts the columns `x`, `-` and `~` (an N, `=`, is an intron and not an edit), `aln_nedit_piu` counts `=` as well. Dangling columns (`` ` `` `_` `.`) are never edits.
+
+```console
+$ pluk -q --sam/transgene.fa 1 6 'a::,aln_nedit_pia' 'u::,aln_nedit_piu' '@@2/none/260' < align.sam
+read1	3S22M3I8M3D9M	7	7
+read2	2H4S12M3S	1	1
+```
+
 #### `aln_nedit_piu`
 <!-- op aln_nedit_piu -->
 `-` → `n` — Edits in aln_aln, intron unaware (x - ~ =)
+
+The number of edits, introns (=) included. Example under `aln_nedit_pia`.
 
 #### `aln_posinfo`
 <!-- op aln_posinfo -->
 `n` → `info` — Mismatch and indel positions; indel sequences up to length n (0: all)
 
+The differences between read and reference, in CIGAR order, joined by `:`: `x=P,c=RQ` for a mismatch at reference position P (R the reference base, Q the read's, upper case), `i=P,n=L` for an insertion of L bases before position P, `d=P,n=L` for a deletion and `e=P,n=L` for an N starting at P. For an insertion, deletion or N the bases are added as `,s=SEQ` when n is 0 or L is at most n; n must be a non-negative integer, else NA. Context is not reported. The empty string means no difference.
+
+```console
+$ pluk -q --sam/transgene.fa 1 'a::^0,aln_posinfo' 'b::^2,aln_posinfo' '@@2/none/260' < align.sam
+read1	x=21,c=CA:i=31,n=3,s=TTT:d=39,n=3,s=CCA	x=21,c=CA:i=31,n=3:d=39,n=3
+read2	x=35,c=GA	x=35,c=GA
+```
+
 #### `patchiness`
 <!-- op patchiness -->
 `s d` → `score` — Largest penalty sum of runs in alignment string s within window d
+
+A score for how clustered the differences in an alignment line s are, over a sliding window of d columns: s is read as runs of one symbol, each run counting once with a penalty (`|` `=` `.` `` ` `` `_` 0, `-` `~` `+` 1, `x` 2; `(` and `)` count as `|`, a space as `x`), and the result is the largest sum of the penalties of the runs that start within d columns of each other. `patchiness2` measures the window in aligned columns only (the dangling, deletion and insertion columns do not count). A symbol outside these, or a d that is not a non-negative integer, gives NA. Like the other SAM operators they need `--sam` (also for an alignment string from elsewhere, here a constant).
+
+```console
+$ pluk -q --sam/transgene.fa 1 'a::,aln_aln' 'p::,aln_aln^10,patchiness' 'q::,aln_aln^10,patchiness2' '@1=read1' '@@2=0' < align.sam
+read1	||||||||||||x|||||||||~~~||||||||---|||||||||	3	3
+$ pluk -q --sam 'a::^xx|x||||||x-x^1,patchiness' 'b::^xx|x||||||x-x^3,patchiness' 'c::^xx|x||||||x-x^3,patchiness2' '@1=read2' < align.sam
+3	5	5
+```
 
 #### `patchiness2`
 <!-- op patchiness2 -->
 `s d` → `score` — As patchiness; the window counts aligned columns only
 
+As `patchiness`, the window counting aligned columns only. Example under `patchiness`.
+
 #### `sam_rbt`
 <!-- op sam_rbt -->
 `x y` → `-` — Set the rbt region to reference positions x..y (for the rbt_ operators)
+
+The region-bound tally looks at the part of an alignment that lies within a region of the reference, positions x to y. The region is set for the rest of the row by `sam_rbt` (it takes x and y, pushes nothing, and is normally written as a hidden compute: `r:=^20^35,sam_rbt`; x and y may come from columns), or for every row by `--sam-rbt=X,Y`; the later `sam_rbt` in a row wins. An rbt_ operator without either is a compile-time error; operands that are not integers 1 <= x <= y give NA.
+
+```console
+$ pluk -q --sam/transgene.fa 1 'r:=^20^35,sam_rbt' 'e::,rbt_nedit' 's:=^1^5,sam_rbt' 'f::,rbt_nedit' '@1=read1' '@@2=0' < align.sam
+read1	4	NA
+```
 
 #### `rbt_refx`
 <!-- op rbt_refx -->
 `-` → `p` — rbt: first reference position (region clipped to the matched part)
 
+The region is clipped to the matched part of the alignment. `rbt_refx` and `rbt_refy` are the clipped region on the reference, `rbt_dx` and `rbt_dy` the positions cut off at the start and at the end; `rbt_qryx`, `rbt_qryy` and `rbt_qrylen` the corresponding part of the read (1-based, in SEQ orientation, soft clips counted; a region that lies within a deletion has `rbt_qrylen` 0), and `rbt_qry` its sequence. A region that does not overlap the matched part gives NA for every rbt_ value (counted at the end).
+
+```console
+$ pluk -q --sam/transgene.fa --sam-rbt=5,30 1 'rx::,rbt_refx' 'ry::,rbt_refy' 'dx::,rbt_dx' 'dy::,rbt_dy' 'qx::,rbt_qryx' 'qy::,rbt_qryy' 'ql::,rbt_qrylen' 'q::,rbt_qry' '@@2/none/260' < align.sam
+read1	9	30	4	0	4	25	22	GCTTAACGGTACAATGAGCTAG
+read2	30	30	25	0	5	5	1	G
+```
+
 #### `rbt_refy`
 <!-- op rbt_refy -->
 `-` → `p` — rbt: last reference position
+
+The last reference position of the clipped region. Example under `rbt_refx`.
 
 #### `rbt_dx`
 <!-- op rbt_dx -->
 `-` → `n` — rbt: positions cut off at the start (rbt_refx - x)
 
+The positions cut off the region at the start (rbt_refx - x). Example under `rbt_refx`.
+
 #### `rbt_dy`
 <!-- op rbt_dy -->
 `-` → `n` — rbt: positions cut off at the end (y - rbt_refy)
+
+The positions cut off the region at the end (y - rbt_refy). Example under `rbt_refx`.
 
 #### `rbt_qryx`
 <!-- op rbt_qryx -->
 `-` → `p` — rbt: first query position
 
+The first read position of the region. Example under `rbt_refx`.
+
 #### `rbt_qryy`
 <!-- op rbt_qryy -->
 `-` → `p` — rbt: last query position
+
+The last read position of the region. Example under `rbt_refx`.
 
 #### `rbt_qrylen`
 <!-- op rbt_qrylen -->
 `-` → `n` — rbt: query length
 
+The number of read bases in the region. Example under `rbt_refx`.
+
 #### `rbt_qry`
 <!-- op rbt_qry -->
 `-` → `seq` — rbt: query sequence
+
+The read's sequence in the region. Example under `rbt_refx`.
 
 #### `rbt_nmatch`
 <!-- op rbt_nmatch -->
 `-` → `n` — rbt: aligned bases (| x)
 
+Counts over the columns of `aln_aln` within the region: `rbt_nmatch` the aligned bases (`|` and `x`), `rbt_nmatchx` the mismatches (`x`), `rbt_ndel` the deleted bases (`-`), `rbt_nins` the inserted ones (`~`), and `rbt_nedit` their total of edits (`x` `-` `~`; an N, `=`, counts in none). An insertion counts only when it lies between two positions of the region.
+
+```console
+$ pluk -q --sam/transgene.fa --sam-rbt=20,35 1 'n::,rbt_nmatch' 'x::,rbt_nmatchx' 'd::,rbt_ndel' 'i::,rbt_nins' 'e::,rbt_nedit' '@@2/none/260' < align.sam
+read1	16	1	0	3	4
+read2	6	1	0	0	1
+```
+
 #### `rbt_nmatchx`
 <!-- op rbt_nmatchx -->
 `-` → `n` — rbt: mismatched aligned bases (x)
+
+The mismatches in the region. Example under `rbt_nmatch`.
 
 #### `rbt_ndel`
 <!-- op rbt_ndel -->
 `-` → `n` — rbt: deleted bases (-)
 
+The deleted bases in the region. Example under `rbt_nmatch`.
+
 #### `rbt_nins`
 <!-- op rbt_nins -->
 `-` → `n` — rbt: inserted bases (~)
+
+The inserted bases in the region. Example under `rbt_nmatch`.
 
 #### `rbt_nedit`
 <!-- op rbt_nedit -->
 `-` → `n` — rbt: edits (- ~ x)
 
+The edits in the region. Examples under `rbt_nmatch` and `sam_rbt`.
+
 #### `rbt_alnref`
 <!-- op rbt_alnref -->
 `-` → `aln` — rbt: the region's columns of aln_ref
+
+The columns of the alignment strings that lie within the region: `rbt_alnref`, `rbt_alnaln`, `rbt_alnqry`, `rbt_alnrlr` and `rbt_alnqlt` cut `aln_ref` and the others; `rbt_alnall` joins the region's ruler, reference, alignment, read and quality lines with newlines, each line beginning with `--sam-aln-prefix` (a ruler number that begins before the region shows only its last digits).
+
+```console
+$ pluk -q --sam/transgene.fa --sam-rbt=20,35 'a::,rbt_alnall' '@1=read1' '@@2=0' < align.sam
+20        30       
+CCATGAGCTAG---CTAAG
+|x|||||||||~~~|||||
+CAATGAGCTAGTTTCTAAG
+!!!!!!!!!!!!!!!!!!!
+$ pluk -q --sam/transgene.fa --sam-rbt=20,35 1 'r::,rbt_alnref' 'a::,rbt_alnaln' 'q::,rbt_alnqry' '@1=read1' '@@2=0' < align.sam
+read1	CCATGAGCTAG---CTAAG	|x|||||||||~~~|||||	CAATGAGCTAGTTTCTAAG
+```
 
 #### `rbt_alnaln`
 <!-- op rbt_alnaln -->
 `-` → `aln` — rbt: the region's columns of aln_aln
 
+The region's columns of `aln_aln`. Example under `rbt_alnref`.
+
 #### `rbt_alnqry`
 <!-- op rbt_alnqry -->
 `-` → `aln` — rbt: the region's columns of aln_qry
+
+The region's columns of `aln_qry`. Example under `rbt_alnref`.
 
 #### `rbt_alnrlr`
 <!-- op rbt_alnrlr -->
 `-` → `aln` — rbt: the region's columns of aln_rlr
 
+The region's columns of `aln_rlr`. Example under `rbt_alnref`.
+
 #### `rbt_alnqlt`
 <!-- op rbt_alnqlt -->
 `-` → `aln` — rbt: the region's columns of aln_qlt
 
+The region's columns of `aln_qlt`. Example under `rbt_alnref`.
+
 #### `rbt_alnall`
 <!-- op rbt_alnall -->
 `-` → `aln` — rbt: ruler, reference, match, query, quality lines of the region
+
+The region's ruler, reference, alignment, read and quality lines. Example under `rbt_alnref`.
 
 #### `ref_trail5p`
 <!-- op ref_trail5p -->
