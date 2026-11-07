@@ -1,0 +1,72 @@
+
+What remains after step21 (2026-11-07): pick functionality not in pluk, items deferred
+during the steps, and requested additions. Drawn from pick -l and pick --sam -l against
+pluk -l, pick -H and its option parser against pluk --help, deferred.txt, SAM.notes.txt
+and plan/sketch. Not a step file; the steps are chosen from it.
+
+
+A. Operators of pick not in pluk
+
+  1. Previous-row and group state (one feature in pick):
+       --pstore, --pstore/LIST/DEFAULT, --pstore/LIST/, --pstore//DEFAULT
+                           keep the previous row; LIST (k:v,..) and DEFAULT give the
+                           values before the first row (pick's Fibonacci example:
+                           pick -k --pstore/x:1,y:0 x::^y,pload y::x^x,pload,add)
+       --group=COL         groups of consecutive rows with the same COL value; pload
+                           reads the previous row of the group
+       --group-first-ref=COL
+                           as --group, the first row of a group is skipped and is the
+                           reference row for pload
+       pload c             column c of the previous (reference) row
+       groupi              1-based offset of the row within its group
+       groupno             group number
+  2. Quantiles: --quant-NAME=FILE with qnl x Q and qnu x Q (normalised quantile of x,
+     lower and upper tail). Deferred since step12.
+  3. sam_put tag val: append TAG:VALUE to the optional fields; two implementation ideas
+     and the -i workaround in SAM.notes.txt.
+  4. Decided not to implement, unless a need appears (listed for completeness):
+       sprintf, reqm          deferred.txt (step14)
+       tmap                   step4: no named table dictionaries, no tmap
+       suv, input_cigar       dropped / withheld (step17)
+       debug                  pick's internal state dump [proposal: drop]
+       deprecated aliases     pick rewrites old names (alnmatch, qrylen, refstart, ..)
+                              with a warning (its %appreciated) [proposal: not taken over]
+
+
+B. Options of pick not in pluk
+
+  -U              with -k and -K keep output columns unique and in their original order
+  -W              header present, but columns are named 1 2 ..; selection not applied
+                  to the header
+  -f              force: allow identical input and output column names
+  --inf=STRING    the result of division by zero; with pick's environment variables
+                  PICK_DIV_INF PICK_LOG_INF PICK_LOG2_INF PICK_LOG10_INF PICK_TAN_INF
+                  PICK_NAN PICK_DNAGC_NAN (pluk: inf, nan and NA per step12; to decide
+                  whether any of this is wanted)
+  --remind-me=sam the SAM field and FLAG tables (pick accepts only '--remind-me sam')
+  --fastq-dict-NAME=FILE   deferred.txt (step4: rarely used)
+  --inames --add-inames --onames   deferred by the user (2026-11-07)
+  Not taken over earlier, for completeness: -v, -d (step16), -ll (step16).
+
+
+C. Requested additions
+
+  a. ~notin~ and ~notval~ as synonyms of ~isnotin~ and ~hasnotval~ (from plan/sketch).
+  b. Questions about the test setup (the user's; to be collected and discussed).
+  c. pluk documentation: a user manual (pick's manual as the model), the differences from
+     pick (now in guidelines.txt), the NA overview (deferred.txt), the regex notes
+     (\K, look-around, capture-group workarounds; step14-notes.txt), and the crates
+     used with the reasons for each and their standing (plan/sketch).
+
+
+D. Deferred infrastructure and performance (deferred.txt)
+
+  - BAM output (--bam), seed in BAMOUT.notes.txt
+  - BAM field mask: format only the fields that are used
+  - BAM record formatting in a separate thread
+  - a faster hasher for dictionary lookups (measure with computes)
+  - an option to protect the header line from -/PAT and -//PAT
+
+
+E. The user's open notes in plan/sketch (not items yet): a binary format for staged pluk
+   runs, NA sentinel values (R's approach), the meaning of a check in the SAM code.

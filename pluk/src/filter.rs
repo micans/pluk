@@ -125,7 +125,7 @@ fn extra_rule(op: Op) -> Extra {
 }
 
 // The operators of the form /xx/ and ~xx~, with the ones not yet implemented.
-const OPERATORS: [(&[u8], Option<Op>); 28] = [
+const OPERATORS: [(&[u8], Option<Op>); 30] = [
     (b"/lt/", Some(Op::Num(Cmp::Lt))), (b"/le/", Some(Op::Num(Cmp::Le))),
     (b"/eq/", Some(Op::Num(Cmp::Eq))), (b"/ge/", Some(Op::Num(Cmp::Ge))),
     (b"/gt/", Some(Op::Num(Cmp::Gt))), (b"/ne/", Some(Op::Num(Cmp::Ne))),
@@ -136,6 +136,8 @@ const OPERATORS: [(&[u8], Option<Op>); 28] = [
     (b"/om/", Some(Op::Om(false))), (b"/omx/", Some(Op::Om(true))),
     (b"~isin~", Some(Op::IsIn(false))), (b"~isnotin~", Some(Op::IsIn(true))),
     (b"~hasval~", Some(Op::HasVal(false))), (b"~hasnotval~", Some(Op::HasVal(true))),
+    // Synonyms (plan/step22.txt decision 0; not in pick).
+    (b"~notin~", Some(Op::IsIn(true))), (b"~notval~", Some(Op::HasVal(true))),
     (b"/all/", Some(Op::Bit(BitTest::All, false))), (b"/any/", Some(Op::Bit(BitTest::Any, false))),
     (b"/none/", Some(Op::Bit(BitTest::Any, true))), (b"/notall/", Some(Op::Bit(BitTest::All, true))),
     (b"=", Some(Op::Str(Cmp::Eq))), (b"/=", Some(Op::Str(Cmp::Ne))),

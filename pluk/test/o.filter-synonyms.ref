@@ -1,0 +1,32 @@
+@id~isnotin~K @id~notin~K
+89
+89
+@@id~isnotin~K @@id~notin~K
+89
+89
+@grp~hasnotval~G~2 @grp~notval~G~2
+84
+84
+@grp~hasnotval~G~ @grp~notval~G~
+78
+78
+@grp:id~isnotin~G @grp:id~notin~G
+25
+25
+@grp~isnotin~G @grp~notin~G
+25
+25
+bdff670db9a6d24fdc46689cf25154ca  -
+pluk: [a::id^K^~notval~,test]: test: [~notval~] is not supported in test
+exit 1
+pluk: Dictionary [NOPE] not found (in @id~notin~NOPE)
+exit 1
+Operator      Consumed    Produced            Description
+--------------------------------------------------------------------------------
+~isnotin~     x D         x not in D          x is not a key of dictionary D [filter]
+~hasnotval~   x D~v       D{x} ne v           x is not a key of D with value v (not in test) [filter]
+~notin~       x D         x not in D          Synonym of ~isnotin~ [filter]
+~notval~      x D~v       D{x} ne v           Synonym of ~hasnotval~ (not in test) [filter]
+
+Use -l TERM.. for a category or the operators whose name contains TERM.
+Categories: stack string arithmetic math precision dictionary branch state time bit radix regex sam bio filter

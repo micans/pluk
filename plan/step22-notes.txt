@@ -1,0 +1,18 @@
+
+Notes for plan/step22.txt (filter synonyms; the test setup).
+
+
+Item 1: ~notin~ ~notval~
+
+  filter.rs: two entries in the operator table, mapping to Op::IsIn(true) and
+  Op::HasVal(true); everything else (multi-column handles, test, the refusal of the
+  ~hasval~ kind in test, the dictionary checks) follows from the Op. list.rs: two lines in
+  the filter table ('Synonym of ..'); help text.
+
+  The draft of decision 1 assumed that @x~notin~D was read as the regex filter ~; it was
+  an 'unrecognised operator' error (find_operator takes any ~letters~ as an operator
+  name), so no filter changes meaning. Corrected in step22.txt.
+
+  Tests: filter-synonyms (each synonym against its long form on big.txt: @ and @@, a
+  multi-column handle, ~notval~ with and without a value; test with ~notin~, ~notval~
+  refused in test, an unknown dictionary, -l notin notval). help, list-ops refs.

@@ -145,6 +145,7 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	for a in @x~ @x/~ @x~^ '@x~a(' '@x~(.)\1' '@x~a(?=b)' @x~a/b @x=a~b @x=3/4; do $(p) name "$$a" < data.txt; [ $$? -eq 1 ] || exit 1; done 2> o.filter-regex-errors.test
 	$(p) -A --kdict-K=big.keep.txt @id~isin~K       < big.txt  > o.big-isin.test
 	{ for a in @id~isnotin~K @@id~isin~K @grp~hasval~G~2 @grp~hasval~G~ @grp~hasnotval~G~2 @grp~isin~G @grp~isnotin~G @grp~hasval~G~%3A2 @n1~isin~Z; do echo "$$a"; $(p) -c --kd-K=big.keep.txt --cd-G/zz=A:2,B:,C:3,D:%3A2 --cd-Z/__EXIT__=0:1 "$$a" < big.txt; done; } > o.filter-dict.test
+	{ for pair in '@id~isnotin~K @id~notin~K' '@@id~isnotin~K @@id~notin~K' '@grp~hasnotval~G~2 @grp~notval~G~2' '@grp~hasnotval~G~ @grp~notval~G~' '@grp:id~isnotin~G @grp:id~notin~G' '@grp~isnotin~G @grp~notin~G'; do set -- $$pair; echo "$$1 $$2"; $(p) -c --kd-K=big.keep.txt --cd-G/zz=A:2,B:,C:3,D:%3A2 "$$1" < big.txt; $(p) -c --kd-K=big.keep.txt --cd-G/zz=A:2,B:,C:3,D:%3A2 "$$2" < big.txt; done; $(p) --kd-K=big.keep.txt id 'a::id^K^~isnotin~,test' 'b::id^K^~notin~,test' < big.txt | md5sum; $(p) --kd-K=big.keep.txt 'a::id^K^~notval~,test' < big.txt; echo "exit $$?"; $(p) -c '@id~notin~NOPE' < big.txt; echo "exit $$?"; $(p) -l notin notval < /dev/null; } > o.filter-synonyms.test 2>&1
 	$(p) -o --kd-G=big.keep.txt --cd-H=r001:x id grp @id~isin~G @id~hasval~H~x  < big.txt  > o.filter-dict-or.test
 	$(p) --sam 1 3 @3~isin~seqlen   < sam.txt   2> /dev/null > o.filter-dict-sam.test
 	$(p) --sam 1 3 @3~isnotin~seqlen < sam.bam   > o.filter-dict-bam.test

@@ -1,0 +1,29 @@
+
+- Filter synonyms; the test setup
+
+  A small step (plan/remaining.txt C a and b).
+
+
+  Outcome of the discussion
+
+  Decisions:
+   0. ~notin~ is a synonym of ~isnotin~, ~notval~ of ~hasnotval~ (plan/sketch: 'aliases to
+      be consistent'). They are accepted wherever the long names are: @ and @@ filters,
+      multi-column handles, and test (~notin~ with a constant dictionary as ~isnotin~;
+      ~notval~ refused in test, as ~hasnotval~). -l lists them on their own lines, as
+      'synonym of ..', in the filter category. pick has neither: a pluk addition, listed
+      in guidelines.txt.
+   1. A filter written @x~notin~D or @x~notval~D~v was until now an error ('unrecognised
+      operator': any ~letters~ is read as an operator name), so no existing filter changes
+      meaning. (Corrected in item 1; the draft assumed the regex filter ~.)
+   2. The test setup: the user's questions, discussed and answered in step22-notes.txt;
+      changes to test/Makefile or the test conventions that come out of it are made in
+      item 2 [to be filled in from the questions].
+
+
+  Items
+
+  1   ~notin~ ~notval~ (decisions 0, 1): filter.rs table, list.rs, help text; tests (both
+      synonyms against the long forms on big.txt/big.keep.txt, in test, -l). Commit.
+
+  2   The test setup (decision 2). Commit (if anything changes).

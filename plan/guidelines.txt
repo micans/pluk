@@ -71,7 +71,8 @@
       refused (pick: empty or repeated selection) (step8-notes.txt item 2).
     - Additions without a pick counterpart: multi-column filter handles (lists, + regexes, -k
       ranges; the test must hold for every column), unary predicates /ISINT /NOTINT /ISNUM
-      /NOTNUM (step8.txt items 3 and 4).
+      /NOTNUM (step8.txt items 3 and 4);
+      ~notin~ and ~notval~ as synonyms of ~isnotin~ and ~hasnotval~ (step22.txt).
     - Assertions: @@assert@ (before computes) is new; a failed assertion ends pluk with exit
       status 1 (pick: 255, Perl die) and the message 'assertion A failed: column C value [V]
       at line N'. --assert-other diverts failing rows instead (step9.txt item 2).

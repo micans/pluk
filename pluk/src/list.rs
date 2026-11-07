@@ -32,7 +32,7 @@ const FILTER: &str = "filter";
 
 // The filter operators and predicates (filter.rs), as used in @NAME<op>VALUE and by
 // test (x is the column value, y the VALUE): operator, operands, result, description.
-const FILTERS: [(&str, &str, &str, &str); 32] = [
+const FILTERS: [(&str, &str, &str, &str); 34] = [
     ("/lt/", "x y", "x < y", "Numeric less than"),
     ("/le/", "x y", "x <= y", "Numeric less than or equal"),
     ("/eq/", "x y", "x == y", "Numeric equal"),
@@ -53,6 +53,8 @@ const FILTERS: [(&str, &str, &str, &str); 32] = [
     ("~isnotin~", "x D", "x not in D", "x is not a key of dictionary D"),
     ("~hasval~", "x D~v", "D{x} eq v", "x is a key of D with value v (not in test)"),
     ("~hasnotval~", "x D~v", "D{x} ne v", "x is not a key of D with value v (not in test)"),
+    ("~notin~", "x D", "x not in D", "Synonym of ~isnotin~"),
+    ("~notval~", "x D~v", "D{x} ne v", "Synonym of ~hasnotval~ (not in test)"),
     ("/ep/", "x y/e", "|x-y| <= e", "x within e of y (default e 0.0001)"),
     ("/epx/", "x y/e", "|x-y| > e", "x not within e of y"),
     ("/om/", "x y/k", "x ~ y", "|x| within a factor k of |y| (default k 2)"),
