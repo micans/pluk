@@ -1804,6 +1804,110 @@ Building:
 
 ### 14.3 Changed behaviour
 
+One list per topic, in the order of the manual. Each entry says what pick does and what
+pluk does.
+
+#### Selecting columns (section 4)
+
+- Regular expressions: pick takes a name as a regex when it contains one of
+  `[ { ( \ * ? ^ $ ,`, unanchored (and `-F` turns this off); pluk only when it starts with
+  `+`, and it must match the whole name. A name such as `log2(FC)` is then just a name.
+- Repeated input column names: pluk refuses them unless `-u` makes them unique.
+- `-R` cannot be combined with `-k`.
+- `-k` ranges: a range that selects no column, or a multiplier 0 (`1-3*0`), is an
+  error (pick: an empty or repeated selection).
+- `-U` orders the output columns by input position also with a header line, computed
+  columns after them in compute order (pick sorts the names numerically, which is
+  meaningful with `-k` and `-K` only, and puts computed columns first).
+- `--A=NAME` must name an input column (pick: any output column); `-A<N>` cannot be
+  combined with `-x`.
+
+#### Regular expressions
+
+- Every pluk regex (column names, `-/PAT`, filters, regex operators) uses the Rust regex
+  dialect and matches bytes: there are no backreferences and no look-around (`(?=`,
+  `(?!`, `(?<=`, `(?<!`), and no `\K`; capture groups usually do the same work.
+  `\Q...\E` quotes literal text in every pluk regex (pick: in filters and computes).
+- An empty pattern is refused. A lazy pattern that can match the empty string (`a*?`)
+  iterates differently from Perl in the global operators (`delg`, `edg`).
+
+#### Filters and assertions (section 5)
+
+- A value that is not a number (empty, `fox`, `0x10`, ` 4`) fails a numeric filter and
+  is counted (pick: it counts as 0, with a Perl warning per value). A constant that is
+  not a number is an error before input is read.
+- In a filter value, a leading `:` or `^` is recognised before %-decoding (`%3Ax` is the
+  literal `:x`).
+- With `~:NAME` and `/~:NAME` the other column's value is matched as a fixed string, not
+  as a regex.
+- Dictionary filters: the value of `~hasval~` follows a `~`, and `/` and `~` in it are
+  written `%2F` and `%7E`; an unknown dictionary is an error.
+- `/ep/` and `/om/`: the band is optional, `/E` at least 0 and `/K` at least 1 (pick:
+  0 or empty means the default, and K below 1 selects nothing); E 0 is exact equality;
+  integers are compared exactly.
+- Bit filters: a value that is not an integer fails and is counted (pick truncates
+  floats); a negative constant mask is refused; a mask from a column is used as its
+  absolute value by all four operators (pick: `/all/` and `/notall/` use it as it is).
+- A failed assertion ends pluk with exit status 1 and the message `assertion A failed:
+  column C value [V] at line N` (pick: exit status 255). `--assert-other` also covers
+  `@@assert@` and combines with `@` filters (pick refuses the combination).
+
+#### Computes and numbers (sections 3 and 6)
+
+- A value that is not a number gives NA in a numeric operator, written `NA` (pick: it
+  counts as 0).
+- Floats are written so that they read back as the same number: 0.1 + 0.2 gives
+  `0.30000000000000004` (pick: `0.3`, Perl's `%.15g`; `--num-perl` writes as pick).
+- An integer result that overflows becomes a float directly (Perl first uses unsigned
+  64-bit integers).
+- Unnamed computes are named `PLUKAAAAA`, `PLUKAAAAB`, ... (pick: `PICKAAAAA`).
+- A regex, dictionary or quantile operand must be a constant (pick: also a column).
+- `-i`: an input column can be redefined once (pick: any number of times); a list NAME
+  cannot create new columns.
+- Renaming: the form that keeps the originals is `P//SPEC//S` (pick: `P/SPEC//S`, which
+  pluk refuses with a hint); only `SPEC/S`, `P/SPEC/S` and `P//SPEC//S` are accepted; a
+  generated name that equals an existing column is an error, also with `-i`, as are two
+  equal generated names; a capture group that does not take part or matches empty is an
+  error.
+- A row rejected by an `@@` filter has empty computed columns in `--other`.
+
+#### Operators (section 15)
+
+- Arithmetic: division by zero gives `inf` or `nan` with `div`, NA with `idiv` and `mod`
+  (pick dies); a float given to `idiv`, `mod` or `ipow` is NA (pick truncates); `ipow`
+  overflow is NA; the logarithm or square root of 0 or a negative number gives `-inf`
+  or `nan` (pick dies); `sign` of `nan` is `nan` (pick: 0); `log10`, `log2` and `tan`
+  are computed directly (pick: from `log` and `sin`/`cos`), so the last digit can
+  differ; `gmeanall` is computed from logarithms and cannot overflow.
+- The `*all` operators on an empty stack give NA (pick: 0, 0, 1, and the largest float
+  with either sign); `frac`, `pct` and `pml` divide by zero to `inf` or `nan` (pick
+  dies) and take N from 0 to 1000.
+- `rand` uses pluk's own generator, with `--seed` for reproducible output.
+- String operators: an NA operand gives NA; a count that is not an integer is NA (pick:
+  Perl converts); `substr` outside the string is empty; a negative padding width is NA
+  (Perl pads on the right); `nchar` counts occurrences of a substring (pick: of single
+  characters); `uie` treats NA as empty; a constant `fmtall` format whose `#` count does
+  not match is an error before input is read.
+- `test` gives NA where a filter would reject a value that is not a number (pick: 0 or
+  1 after Perl's conversion); `~hasval~` and the predicates cannot be used in `test`;
+  `ifelse` with an NA condition gives NA; a `fetch` of a register that no earlier `save`
+  stores is an error before input is read (pick: an error per row).
+- Time: `ttu` needs exactly a number and a unit and gives NA otherwise (pick: it also
+  matches the end of a longer value, and gives 0 with a message); a constant that is not
+  a unit is an error before input is read; `rttu` rounds to the nearest second (pick
+  truncates); `todate` takes integers only.
+- Bit operators take the absolute value of both operands (pick: of y only, and Perl
+  treats a negative x as unsigned: `-1 bitor 0` is 18446744073709551615); a float,
+  `3.0` included, or a value that is not a number is NA (pick: Perl's conversion);
+  `bitlsh` gives NA when the result does not fit (pick: bits are lost).
+- Radix: `tobin`, `tohex`, `tooct` write a negative integer with a minus sign (`-ff`;
+  pick: 64-bit two's complement) and give NA for a float; `binto`, `hexto`, `octto` read
+  the whole value strictly: an optional minus, an optional prefix matching the operator
+  (`0b`, `0x`, `0o`), digits with single `_` between them; anything else is NA (Perl
+  stops at the first invalid character).
+
+#### Input, output, SAM
+
 *This part of the section is being written.*
 
 ### 14.4 pick's corner cases

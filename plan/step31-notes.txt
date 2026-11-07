@@ -46,3 +46,22 @@ Item 2: section 14.1 and 14.2
   23-25); it is a planning record and was not used as the source. pick's --group-all
   dies in pick itself ('not available currently') and is not listed. guidelines.txt now
   says that a new difference is recorded there and in section 14 (decision 3).
+
+
+Item 3: section 14.3 part 1
+
+  Topics: selecting columns, regular expressions (a topic of its own: the dialect applies
+  everywhere), filters and assertions, computes and numbers, the non-SAM operators
+  (arithmetic, *all, rand, string, branch and fetch, time, bit, radix). Regrouped from
+  guidelines.txt; dictionaries, state, input and output (including -z -l -q -E
+  --progress), SAM and bio follow in item 4.
+
+  Checked by running pluk and pick side by side: regex names (pick: unanchored, 'r.*'
+  selects every name containing r; pluk refuses and hints at '+'), a non-number in a
+  numeric filter (pick keeps the empty and fox rows of numbers.txt, with Perl warnings),
+  division by zero (pick dies), nchar of a substring (pick 0, pluk 2), PICKAAAAA,
+  -1 bitor 0 and tohex -1 (pick 18446744073709551615 and ffffffffffffffff, pluk 1 and
+  -1), ttu of x3h (pick 0 with an alert, pluk NA), 0.1+0.2, a negative padding width
+  (pick pads on the right), the assertion exit status (pick 255); in pluk: -R with -k,
+  a 0 multiplier, a non-numeric constant, -A<N> with -x, --A=NAME of a computed column,
+  an empty pattern, a second redefinition with -i. No stale entry found in guidelines.txt.
