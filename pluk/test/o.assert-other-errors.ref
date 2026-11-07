@@ -1,6 +1,6 @@
---other and --assert-other name the same file [out/x]
+pluk: --other and --assert-other name the same file [out/x]
 exit 1
---assert-other=FILE: file name missing
+pluk: --assert-other=FILE: file name missing
 exit 1
 pluk: --assert-other: cannot create out/nodir/x: No such file or directory (os error 2)
 exit 1

@@ -25,6 +25,6 @@ Ann	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA	1
 name	num1	num2	num4	dna
 Ann	1	2	1	ACGTTGCA
 == dna name fib name
--- Identical output column names exist (will make unique)
+pluk: column [name] is given more than once; it is output once
 dna	name	fib
 ACGTTGCA	Ann	1

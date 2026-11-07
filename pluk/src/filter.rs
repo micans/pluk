@@ -632,9 +632,8 @@ impl<'d> Filters<'d> {
                 Value::Column(name) => Operand::Column(lookup(name, &format!("Indirection {}", kind))?),
                 Value::Const(c) => {
                     if !c.is_empty() && names.index_of(c).is_some() && spec.const_num.is_none() && !spec.literal {
-                        crate::note::note!("-- You used {} (a column handle) as a constant in {} test, did you want :{}? --",
-                                  String::from_utf8_lossy(c), String::from_utf8_lossy(&spec.text),
-                                  String::from_utf8_lossy(c));
+                        crate::note::note!("pluk: {1}: [{0}] is a column name used as a constant; for the column write :{0}",
+                                  String::from_utf8_lossy(c), String::from_utf8_lossy(&spec.text));
                     }
                     match (spec.const_num, &spec.regex) {
                         (Some(n), _) => Operand::Num(n),

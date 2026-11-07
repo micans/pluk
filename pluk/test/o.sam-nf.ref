@@ -36,5 +36,5 @@ r10	5	*
 @HD	VN:1.6
 r1	0	c1	3	60	3S10M2S	*	0	0	AAAAAAAAAAAAAAA	*	NM:i:1
 r2	16	c1	7	60	3S2D10M	*	0	0	AAAAAAAAAAAAA	*	
---sam-nonf requires --sam or --sam-h
+pluk: --sam-nonf requires --sam or --sam-h
 exit 1

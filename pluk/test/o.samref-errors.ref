@@ -1,6 +1,6 @@
---sam/: expected --sam/FILE
---sam-h/: expected --sam-h/FILE
+pluk: --sam/: expected --sam/FILE
+pluk: --sam-h/: expected --sam-h/FILE
 pluk: --sam/nonexistent: cannot read nonexistent: No such file or directory (os error 2)
---fd-SAMFA=data.txt: SAMFA is a reserved dictionary name
---fasta-dict-SAMFA/x=sam.fa: SAMFA is a reserved dictionary name
+pluk: --fd-SAMFA=data.txt: SAMFA is a reserved dictionary name
+pluk: --fasta-dict-SAMFA/x=sam.fa: SAMFA is a reserved dictionary name
 pluk: --td=td.tmp: column name [SAMFA] in td.tmp is a reserved dictionary name

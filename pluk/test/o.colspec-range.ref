@@ -19,7 +19,7 @@ fib2	fx	ud	ms	name
 0	dog	1	0.142857	Ann
 1	cat	-2	0.285714	Bob
 1-02:2
--- Identical output column names exist (will make unique)
+pluk: column [2] is given more than once; it is output once
 name	fib
 Ann	1
 2-3:+1.

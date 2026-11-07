@@ -177,7 +177,8 @@ impl ColSpec {
                     let (found, dropped) = range.indexes(names.n_input());
                     let found: Vec<usize> = found.into_iter().map(|i| names.current(i)).collect();
                     if dropped {
-                        crate::note::note!("-- range expansion produced some indexes out of range (now dropped)");
+                        crate::note::note!("pluk: range [{}] has indexes beyond the last column (dropped)",
+                                           String::from_utf8_lossy(&range.text));
                     }
                     if found.is_empty() {
                         return Err(format!("({}) range [{}] in {} selects no column (there are {})",
@@ -219,7 +220,7 @@ fn unknown_name(name: &[u8], names: &ColumnNames, label: &str, kind: &str) -> St
     let mut msg = format!("({}) handle [{}] in {} does not reference a known entity among {}",
                           label, shown, kind, names.joined());
     if name.iter().any(|b| REGEX_CHARS.contains(b)) {
-        msg.push_str(&format!("\n-- a regex column name starts with '+', e.g. +{} --", shown));
+        msg.push_str(&format!("\npluk: hint: a regex column name starts with '+', e.g. +{}", shown));
     }
     msg
 }

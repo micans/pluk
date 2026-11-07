@@ -48,9 +48,9 @@ pluk: -E1: expected 1 output row, found 4
 exit 1
 pluk: -E9: expected 9 output rows, found 8
 exit 1
--E<N> requires an attached non-negative number N, e.g. -E10
+pluk: -E<N> requires an attached non-negative number N, e.g. -E10
 exit 1
--E<N> requires an attached non-negative number N, e.g. -E10
+pluk: -E<N> requires an attached non-negative number N, e.g. -E10
 exit 1
--E<N> requires an attached non-negative number N, e.g. -E10
+pluk: -E<N> requires an attached non-negative number N, e.g. -E10
 exit 1

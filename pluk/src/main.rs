@@ -115,7 +115,7 @@ fn run() -> std::io::Result<()> {
         Some(p) => match io::compile_pattern(p, what) {
             Ok(re)   => Some(re),
             Err(msg) => {
-                eprintln!("{}", msg);
+                eprintln!("pluk: {}", msg);
                 process::exit(1);
             }
         },

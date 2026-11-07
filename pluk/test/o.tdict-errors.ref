@@ -1,9 +1,9 @@
 pluk: --td^fib=data.txt: repeated key [1] on line 3 of data.txt
 pluk: --td^nosuch=data.txt: no column [nosuch] in data.txt
 pluk: --td=/dev/null: table /dev/null is empty
---td-x=f: named table dictionaries are not supported, use --td[^KEY][/DEFAULT]=FILE
---tdict-x=f: named table dictionaries are not supported, use --tdict[^KEY][/DEFAULT]=FILE
---td/d^dna=data.txt: '^' in DEFAULT; the key column comes first, --td^KEY/DEFAULT=FILE (write a literal ^ as %5E)
---td^=f: expected --td[^KEY][/DEFAULT]=FILE
---td^k: expected --td[^KEY][/DEFAULT]=FILE
---td=: expected --td[^KEY][/DEFAULT]=FILE
+pluk: --td-x=f: named table dictionaries are not supported, use --td[^KEY][/DEFAULT]=FILE
+pluk: --tdict-x=f: named table dictionaries are not supported, use --tdict[^KEY][/DEFAULT]=FILE
+pluk: --td/d^dna=data.txt: '^' in DEFAULT; the key column comes first, --td^KEY/DEFAULT=FILE (write a literal ^ as %5E)
+pluk: --td^=f: expected --td[^KEY][/DEFAULT]=FILE
+pluk: --td^k: expected --td[^KEY][/DEFAULT]=FILE
+pluk: --td=: expected --td[^KEY][/DEFAULT]=FILE

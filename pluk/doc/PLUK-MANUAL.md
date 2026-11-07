@@ -1681,8 +1681,7 @@ read2 30
 ## 13. Messages and reports
 
 Standard output carries only data. Everything else goes to standard error: errors,
-warnings, and the reports pluk writes at the end of a run. Most messages start with
-`pluk:`.
+warnings, and the reports pluk writes at the end of a run. Messages start with `pluk:`.
 
 ```console
 $ pluk id x @x/gt/0 < numbers.txt
@@ -1727,16 +1726,13 @@ exit 1
 pluk: -E2: expected 2 output rows, found 1
 ```
 
-The errors found while the options and arguments are read are at present written
-without the `pluk:` prefix:
+Two errors found while the options and arguments are read:
 
 ```console
-$ pluk --sam-nonf 1 < reads.sam 2>&1; echo "exit $?"
---sam-nonf requires --sam or --sam-h
-exit 1
-$ pluk picker 's::kg,nosuch' < harvest.txt 2>&1; echo "exit $?"
-[s::kg,nosuch]: unknown operator [nosuch]
-exit 1
+$ pluk --sam-nonf 1 < reads.sam
+pluk: --sam-nonf requires --sam or --sam-h
+$ pluk picker 's::kg,nosuch' < harvest.txt
+pluk: [s::kg,nosuch]: unknown operator [nosuch]
 ```
 
 pluk without column arguments writes a short usage note and exits with status 0.
@@ -1746,7 +1742,7 @@ pluk without column arguments writes a short usage note and exits with status 0.
 A warning points at something that is allowed but probably not meant; the run goes on.
 Some are written when they occur, before or during the reading of the input:
 
-- a filter constant that is the name of a column (`@fruit=tree`: did you want `:tree`?);
+- a filter constant that is the name of a column (`@fruit=tree`, where `:tree` names the column);
 - a renaming suffix that looks like a column specification (section 6);
 - a `-k` range with indexes beyond the last column (they are dropped);
 - in SAM input: an `@SQ` line after the first alignment, or without a valid SN: or LN:;
@@ -1754,12 +1750,10 @@ Some are written when they occur, before or during the reading of the input:
   `@SQ` line and the fasta file (the header's is used); input that is not grouped by
   read when a SEQ `*` must be filled; a line that does not look like SAM.
 
-The warnings that start with `--` or `Line`, rather than `pluk:`, are older forms:
-
 ```console
-$ pluk picker @fruit=tree < harvest.txt 2>&1
--- You used tree (a column handle) as a constant in @fruit=tree test, did you want :tree? --
+$ pluk picker @fruit=tree < harvest.txt
 picker
+pluk: @fruit=tree: [tree] is a column name used as a constant; for the column write :tree
 ```
 
 ### Reports at the end of a run

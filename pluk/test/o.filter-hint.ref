@@ -1,2 +1,2 @@
--- You used fx (a column handle) as a constant in @ud~eq~fx test, did you want :fx? --
+pluk: @ud~eq~fx: [fx] is a column name used as a constant; for the column write :fx
 name	ud

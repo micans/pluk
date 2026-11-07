@@ -4,17 +4,17 @@ Ann	2
 Bob	2
 Charlie	3
 -i name fib fib::fib^1,add
--- Identical output column names exist (will make unique)
+pluk: column [fib] is given more than once; it is output once
 name	fib
 Ann	2
 Bob	2
 -i fib::fib^1,add name fib
--- Identical output column names exist (will make unique)
+pluk: column [fib] is given more than once; it is output once
 fib	name
 2	Ann
 2	Bob
 -i name fib fib::fib^1,add x::fib^100,add
--- Identical output column names exist (will make unique)
+pluk: column [fib] is given more than once; it is output once
 name	fib	x
 Ann	2	102
 Bob	2	102
@@ -63,7 +63,7 @@ Ann	2
 Bob	2
 Charlie	2
 -i name x::^1 y::x x::x^1,add
--- Identical output column names exist (will make unique)
+pluk: column [x] is given more than once; it is output once
 name	x	y
 Ann	2	1
 Bob	2	1

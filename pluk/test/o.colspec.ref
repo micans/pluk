@@ -27,6 +27,6 @@ num1	num2	num4
 1	2	1
 2	3	2
 fib:fib:+fi.
--- Identical output column names exist (will make unique)
+pluk: column [fib] is given more than once; it is output once
 fib
 1

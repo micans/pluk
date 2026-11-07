@@ -1,10 +1,10 @@
-[+]: empty regex after '+'
-[a:+]: empty regex after '+'
-[+a(]: regex parse error:
+pluk: [+]: empty regex after '+'
+pluk: [a:+]: empty regex after '+'
+pluk: [+a(]: regex parse error:
     a(
      ^
 error: unclosed group
-[+(?<=a)b]: regex parse error:
+pluk: [+(?<=a)b]: regex parse error:
     (?<=a)b
     ^^^^
 error: look-around, including look-ahead and look-behind, is not supported

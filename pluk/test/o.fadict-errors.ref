@@ -1,4 +1,4 @@
---fasta-dict-=f: expected --fasta-dict-NAME[/DEFAULT]=FILE
---fasta-dict-x: expected --fasta-dict-NAME[/DEFAULT]=FILE
---fasta-dict-x=: expected --fasta-dict-NAME[/DEFAULT]=FILE
+pluk: --fasta-dict-=f: expected --fasta-dict-NAME[/DEFAULT]=FILE
+pluk: --fasta-dict-x: expected --fasta-dict-NAME[/DEFAULT]=FILE
+pluk: --fasta-dict-x=: expected --fasta-dict-NAME[/DEFAULT]=FILE
 pluk: --fasta-dict-x=/nonexistent: cannot read /nonexistent: No such file or directory (os error 2)

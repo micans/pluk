@@ -73,7 +73,7 @@ John	55	34
 Kelly	89	55
 Lucy	144	89
 == -i --pstore//0 name fib fib::^fib,pload:fib,add
--- Identical output column names exist (will make unique)
+pluk: column [fib] is given more than once; it is output once
 name	fib
 Ann	1
 Bob	2
@@ -138,7 +138,7 @@ pluk: --pstore/pload: [nope] is not a column name among name,fib,fib2,sq,fx,ud,m
 exit 1
 pluk: --pstore/pload: [nope] is not a column name among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
 exit 1
---pstore: [nope] has no value (expected name:value)
+pluk: --pstore: [nope] has no value (expected name:value)
 exit 1
 Operator      Consumed    Produced            Description
 --------------------------------------------------------------------------------

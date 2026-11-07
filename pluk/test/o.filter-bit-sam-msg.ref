@@ -1,6 +1,6 @@
-Line 7 does not look like SAM format [r003	notanumber	chr1	9	30	5M	*	0	0	GCCTA	IIIII]
-Line 9 does not look like SAM format [shortline	0	chr2]
+pluk: line 7 does not look like SAM [r003	notanumber	chr1	9	30	5M	*	0	0	GCCTA	IIIII]
+pluk: line 9 does not look like SAM [shortline	0	chr2]
 pluk: @2/any/16: 1 value not a number (row not kept)
-Line 7 does not look like SAM format [r003	notanumber	chr1	9	30	5M	*	0	0	GCCTA	IIIII]
-Line 9 does not look like SAM format [shortline	0	chr2]
+pluk: line 7 does not look like SAM [r003	notanumber	chr1	9	30	5M	*	0	0	GCCTA	IIIII]
+pluk: line 9 does not look like SAM [shortline	0	chr2]
 pluk: @2/none/4: 1 value not a number (row not kept)

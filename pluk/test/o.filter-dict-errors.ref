@@ -1,9 +1,9 @@
 pluk: Dictionary [Q] not found (in @fx~isin~Q)
-[@fx~isin~]: dictionary name missing
-[@fx~isin~:D]: ~isin~ takes a dictionary name, not a column or literal (':' or '^')
-[@fx~isin~^D]: ~isin~ takes a dictionary name, not a column or literal (':' or '^')
-[@fx~isin~D~v]: extra argument [~v] not allowed with ~isin~ (write '/' or '~' in VALUE as %2F or %7E)
-[@fx~hasval~D]: ~hasval~ requires an extra argument: @NAME~hasval~VALUE~ARG
-[@fx~hasval~D/v]: the extra argument of ~hasval~ is separated by '~', not '/'
-[@fx~hasval~D~:y]: a column (':') as extra argument not yet supported
-[@fx~hasval~D~a~b]: extra argument [a~b] contains '/' or '~' (write them as %2F or %7E)
+pluk: [@fx~isin~]: dictionary name missing
+pluk: [@fx~isin~:D]: ~isin~ takes a dictionary name, not a column or literal (':' or '^')
+pluk: [@fx~isin~^D]: ~isin~ takes a dictionary name, not a column or literal (':' or '^')
+pluk: [@fx~isin~D~v]: extra argument [~v] not allowed with ~isin~ (write '/' or '~' in VALUE as %2F or %7E)
+pluk: [@fx~hasval~D]: ~hasval~ requires an extra argument: @NAME~hasval~VALUE~ARG
+pluk: [@fx~hasval~D/v]: the extra argument of ~hasval~ is separated by '~', not '/'
+pluk: [@fx~hasval~D~:y]: a column (':') as extra argument not yet supported
+pluk: [@fx~hasval~D~a~b]: extra argument [a~b] contains '/' or '~' (write them as %2F or %7E)

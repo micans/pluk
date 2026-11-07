@@ -1,3 +1,3 @@
---fd-seqlen=data.txt: seqlen is a reserved dictionary name
---cd-seqlen=a: seqlen is a reserved dictionary name
+pluk: --fd-seqlen=data.txt: seqlen is a reserved dictionary name
+pluk: --cd-seqlen=a: seqlen is a reserved dictionary name
 pluk: --td=td.tmp: column name [seqlen] in td.tmp is a reserved dictionary name

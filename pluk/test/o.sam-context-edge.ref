@@ -85,23 +85,23 @@ r7	0	c1	27	60	1D2X10M1D	*	0	0	TTAAAAACCCCC	*
 r1	8	3X10M4S
 pluk: alignment not extended at the right (reference length not known): 1 row
 7
---sam-aln-context=N: N must be a non-negative integer
+pluk: --sam-aln-context=N: N must be a non-negative integer
 exit 1
---sam-aln-context=N: N must be a non-negative integer
+pluk: --sam-aln-context=N: N must be a non-negative integer
 exit 1
---sam-aln-context=N: N must be a non-negative integer
+pluk: --sam-aln-context=N: N must be a non-negative integer
 exit 1
---sam-aln-xy=X,Y: X and Y must be positive integers
+pluk: --sam-aln-xy=X,Y: X and Y must be positive integers
 exit 1
---sam-aln-xy=X,Y: X and Y must be positive integers
+pluk: --sam-aln-xy=X,Y: X and Y must be positive integers
 exit 1
---sam-aln-xy=X,Y: X is larger than Y
+pluk: --sam-aln-xy=X,Y: X is larger than Y
 exit 1
---sam-aln-xy=X,Y: X and Y must be positive integers
+pluk: --sam-aln-xy=X,Y: X and Y must be positive integers
 exit 1
---sam-aln-xy=X,Y: X and Y must be positive integers
+pluk: --sam-aln-xy=X,Y: X and Y must be positive integers
 exit 1
---sam-aln-context requires --sam or --sam-h
+pluk: --sam-aln-context requires --sam or --sam-h
 exit 1
---sam-aln-xy requires --sam or --sam-h
+pluk: --sam-aln-xy requires --sam or --sam-h
 exit 1

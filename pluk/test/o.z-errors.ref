@@ -1,6 +1,6 @@
--zzz: use -z to encode, -zz to decode
+pluk: -zzz: use -z to encode, -zz to decode
 exit 1
--z and -zz must be words of their own
+pluk: -z and -zz must be words of their own
 exit 1
 pluk: (Output) handle [-z] in output does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
 exit 1

@@ -32,16 +32,21 @@ impl OutputSelection {
         }
         wanted.extend(computed.iter().filter(|(p, _)| *p >= args.len()).map(|&(_, i)| names.current(i)));
         let mut output_offset: Vec<usize> = Vec::with_capacity(wanted.len());
-        let mut have_duplicate = false;
+        let mut repeated: Vec<usize> = Vec::new();
         for i in wanted {
             if output_offset.contains(&i) {
-                have_duplicate = true;
+                if !repeated.contains(&i) {
+                    repeated.push(i);
+                }
             } else {
                 output_offset.push(i);
             }
         }
-        if have_duplicate && !quiet {
-            crate::note::note!("-- Identical output column names exist (will make unique)");
+        if !quiet {
+            for &i in &repeated {
+                crate::note::note!("pluk: column [{}] is given more than once; it is output once",
+                                   String::from_utf8_lossy(names.name(i)));
+            }
         }
         Ok(OutputSelection::from_offsets(output_offset, names))
     }

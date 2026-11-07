@@ -1,6 +1,6 @@
--K cannot be combined with --sam or --sam-h
+pluk: -K cannot be combined with --sam or --sam-h
 exit 1
--K cannot be combined with --sam or --sam-h
+pluk: -K cannot be combined with --sam or --sam-h
 exit 1
--R cannot be combined with -k
+pluk: -R cannot be combined with -k
 exit 1

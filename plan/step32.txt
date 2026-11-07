@@ -1,0 +1,37 @@
+
+- Messages: the 'pluk:' prefix, the --demux tally, the exit status without columns
+
+  A small code step after the manual (step31 items 1 and 5 found these while documenting
+  the messages).
+
+
+  Outcome of the discussion
+
+  Decisions:
+   1. Every message starts with 'pluk:'. The errors found while reading options and
+      arguments (opt.rs, the -/PAT compile in main.rs) get the prefix; the notes written
+      as '-- ... --' become 'pluk: ...'; the hint after an unknown column name becomes
+      'pluk: hint: a regex column name starts with '+' ...'; 'Line N does not look like
+      SAM format [..]' becomes 'pluk: line N does not look like SAM [..]'. The stale
+      --help line for @@ is corrected (input columns only).
+   2. The --demux tally stays a table (option a): a prefixed title line 'pluk: --demux:
+      rows written and filtered per file', then the rows (File, Written, Filtered)
+      without prefix.
+   3. pluk without column arguments writes its usage note and exits with status 1 (pick:
+      0); recorded in section 14 of the manual.
+   4. The notice for a column given twice in the output names the column: 'pluk: column
+      [C] is given more than once; it is output once'.
+
+  The golden files that contain the changed messages are re-accepted only after checking
+  that each diff changes the message alone. The manual (sections 13 and 14, and the
+  examples that show these messages with 2>&1) is regenerated.
+
+
+  Items
+
+  1   Decisions 1 and 4: the prefix, the reworded notes, the --help line; tests. Commit.
+
+  2   Decisions 2 and 3: the demux tally, the exit status; tests. Commit.
+
+  3   The manual: section 13 (no unprefixed messages left; examples without 2>&1 where
+      it was only there for them), section 14 (exit status), other examples. Commit.

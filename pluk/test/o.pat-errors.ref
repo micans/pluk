@@ -1,5 +1,5 @@
--/PAT: regex parse error:
+pluk: -/PAT: regex parse error:
     (
     ^
 error: unclosed group
--/PAT: pattern is not valid UTF-8 (use \xHH escapes for bytes)
+pluk: -/PAT: pattern is not valid UTF-8 (use \xHH escapes for bytes)

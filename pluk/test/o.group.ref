@@ -77,7 +77,7 @@ pluk: [g::,groupno]: groupno needs --group or --group-first-ref
 exit 1
 pluk: --group: [nope] is not a column name among gene,exon_start,exon_end
 exit 1
---group and --group-first-ref cannot be combined
+pluk: --group and --group-first-ref cannot be combined
 exit 1
---group=: expected a column name
+pluk: --group=: expected a column name
 exit 1

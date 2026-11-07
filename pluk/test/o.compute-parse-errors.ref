@@ -1,14 +1,14 @@
-[x::]: compute is empty
-[x::,]: operator missing after ','
-[x::^a:]: column name missing after ':'
-[x::^a,nosuch]: unknown operator [nosuch]
-[p/x//s::^1]: mixed '/' and '//' in NAME: P/SPEC/S, or P//SPEC//S to keep the original (pick's P/SPEC//S)
-[x::+(a]: [+(a]: regex parse error:
+pluk: [x::]: compute is empty
+pluk: [x::,]: operator missing after ','
+pluk: [x::^a:]: column name missing after ':'
+pluk: [x::^a,nosuch]: unknown operator [nosuch]
+pluk: [p/x//s::^1]: mixed '/' and '//' in NAME: P/SPEC/S, or P//SPEC//S to keep the original (pick's P/SPEC//S)
+pluk: [x::+(a]: [+(a]: regex parse error:
     (a
     ^
 error: unclosed group
-[x::^1,addall,nosuch]: unknown operator [nosuch]
-[+(::^1]: [+(]: regex parse error:
+pluk: [x::^1,addall,nosuch]: unknown operator [nosuch]
+pluk: [+(::^1]: [+(]: regex parse error:
     (
     ^
 error: unclosed group

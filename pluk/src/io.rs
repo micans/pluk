@@ -307,7 +307,7 @@ impl LineReader {
             if self.settings.sam != SamMode::Off && self.n_accepted < 5
                 && self.split_order == Ordering::Less && !self.looks_like_sam(n_found)
             {
-                crate::note::note!("Line {} does not look like SAM format [{}]",
+                crate::note::note!("pluk: line {} does not look like SAM [{}]",
                           self.n_lines, String::from_utf8_lossy(&self.row.line));
                 self.n_skipped += 1;
                 continue;

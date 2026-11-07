@@ -14,17 +14,17 @@ pluk: --demux: cannot create out/dm7/nodir/x: No such file or directory (os erro
 exit 1
 pluk: --demux: value [x] at line 2 names the file of --other or --assert-other
 exit 1
---demux cannot be combined with -c
+pluk: --demux cannot be combined with -c
 exit 1
 pluk: --demux: column [zz] not found among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
 exit 1
 pluk: --demux-dir: [out/nodir] is not a directory
 exit 1
---demux-dir requires --demux
+pluk: --demux-dir requires --demux
 exit 1
---demux=NAME: NAME must be a single column name
+pluk: --demux=NAME: NAME must be a single column name
 exit 1
---demux=NAME: NAME must be a single column name
+pluk: --demux=NAME: NAME must be a single column name
 exit 1
---demux-buffer=<N> N must be a number
+pluk: --demux-buffer=<N> N must be a number
 exit 1

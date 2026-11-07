@@ -73,22 +73,22 @@ exit 1
 pluk: [/fib/2::^1]: the new name [fib2] (from column [fib]) exists already
 exit 1
 == name p/fib//s::^1
-[p/fib//s::^1]: mixed '/' and '//' in NAME: P/SPEC/S, or P//SPEC//S to keep the original (pick's P/SPEC//S)
+pluk: [p/fib//s::^1]: mixed '/' and '//' in NAME: P/SPEC/S, or P//SPEC//S to keep the original (pick's P/SPEC//S)
 exit 1
 == name fib//s::^1
-[fib//s::^1]: SPEC//S: the keep-original form is P//SPEC//S (P may be empty: //SPEC//S)
+pluk: [fib//s::^1]: SPEC//S: the keep-original form is P//SPEC//S (P may be empty: //SPEC//S)
 exit 1
 == name a/b/c/d::^1
-[a/b/c/d::^1]: too many '/' delimiters in NAME: SPEC/S, P/SPEC/S or P//SPEC//S (a literal / is written %2F)
+pluk: [a/b/c/d::^1]: too many '/' delimiters in NAME: SPEC/S, P/SPEC/S or P//SPEC//S (a literal / is written %2F)
 exit 1
 == name p///fib::^1
-[p///fib::^1]: '///' in NAME (a literal / is written %2F)
+pluk: [p///fib::^1]: '///' in NAME (a literal / is written %2F)
 exit 1
 == name //s::^1
-[//s::^1]: SPEC//S: the keep-original form is P//SPEC//S (P may be empty: //SPEC//S)
+pluk: [//s::^1]: SPEC//S: the keep-original form is P//SPEC//S (P may be empty: //SPEC//S)
 exit 1
 == name p//fib//s:=^1
-[p//fib//s:=^1]: P//SPEC//S outputs the original columns; it needs '::', not ':='
+pluk: [p//fib//s:=^1]: P//SPEC//S outputs the original columns; it needs '::', not ':='
 exit 1
 == name /nosuch/x::^1
 pluk: (Compute) handle [nosuch] in compute /nosuch/x does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna

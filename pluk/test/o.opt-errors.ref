@@ -1,11 +1,11 @@
--O<N> requires an attached number N, e.g. -O12
--O<N> N must be positive
-Option string not fully parsed: -w remains
-Unrecognised long option --nosuch
--//PAT: write '/' inside a pattern as %2F [a/b]
--/PAT: write '/' inside a pattern as %2F [a/b]
--/PAT: empty pattern
--//PAT: empty pattern
---test-i=<N> N must be a positive number
---sam/: expected --sam/FILE
--A<N> N out of range
+pluk: -O<N> requires an attached number N, e.g. -O12
+pluk: -O<N> N must be positive
+pluk: Option string not fully parsed: -w remains
+pluk: Unrecognised long option --nosuch
+pluk: -//PAT: write '/' inside a pattern as %2F [a/b]
+pluk: -/PAT: write '/' inside a pattern as %2F [a/b]
+pluk: -/PAT: empty pattern
+pluk: -//PAT: empty pattern
+pluk: --test-i=<N> N must be a positive number
+pluk: --sam/: expected --sam/FILE
+pluk: -A<N> N out of range

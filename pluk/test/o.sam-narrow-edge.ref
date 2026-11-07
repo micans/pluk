@@ -96,11 +96,11 @@ pluk: alignment outside the --sam-narrow-xy region, made unmapped (FLAG 0x4, CIG
 n5	4	1	*
 n6	4	1	10M
 pluk: alignment outside the --sam-narrow-xy region, made unmapped (FLAG 0x4, CIGAR '*'): 1 row
---sam-narrow-xy=X,Y: X and Y must be positive integers
+pluk: --sam-narrow-xy=X,Y: X and Y must be positive integers
 exit 1
---sam-narrow-xy=X,Y: X is larger than Y
+pluk: --sam-narrow-xy=X,Y: X is larger than Y
 exit 1
---sam-narrow-xy=X,Y: X and Y must be positive integers
+pluk: --sam-narrow-xy=X,Y: X and Y must be positive integers
 exit 1
---sam-narrow-xy requires --sam or --sam-h
+pluk: --sam-narrow-xy requires --sam or --sam-h
 exit 1
