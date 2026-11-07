@@ -57,3 +57,15 @@ Item 3: section 10 part c, alignment display, view options, region-bound tally
 
   optcheck.py now runs with --strict in the Makefile: all 65 options of pluk --help are
   mentioned; a manual copy with one option renamed fails (exit 1), checked by hand.
+
+
+Item 4: section 11, bio operators
+
+  The nine operators grouped by use (strand, cleaning, content, records, comparison) and
+  left to section 15; an RNA example made with printf (todna dnatl dnagc rc); the read as
+  sequenced (forward with isforward); unmapped reads as FASTA; all primary reads as
+  FASTQ as sequenced (quality reversed with ifelse where the sequence is
+  reverse-complemented; QUAL '*' gives Z; secondary and supplementary records left out
+  with @2/none/2304); strpair over the matched part. Checked by running pluk and
+  corrected in the draft: strpair writes a literal x at a difference, not the base.
+  Step30 complete with this item.

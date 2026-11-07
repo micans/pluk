@@ -9,7 +9,7 @@ by Stijn over a period of about three days. The `plan/` directory retains that h
 Many corner/edge cases in pick were settled and sometimes fixed.*
 
 
-*This manual is being written. Sections 11 to 14 are outlines; sections 1 to 10 and the operator reference (section 15) are complete.*
+*This manual is being written. Sections 12 to 14 are outlines; sections 1 to 11 and the operator reference (section 15) are complete.*
 
 
 ## 1. Introduction
@@ -1522,7 +1522,79 @@ read2	40	41	0	4
 
 ## 11. Bio operators
 
-`rc`, `forward`, `todna`, `dnatl`, `dnagc`, `fasta`, `fastq`, `fastQ`, `strpair`.
+The bio operators work on sequences given as text: a column, a constant, or the result of
+a SAM operator. They do not need `--sam` (section 15 describes each).
+
+- strand: `rc` (reverse complement, IUPAC codes included) and `forward` (a sequence or its
+  reverse complement, depending on a flag such as `isforward`);
+- cleaning: `todna` (U to T, other letters to N, case kept);
+- content: `dnagc` (GC percentage) and `dnatl` (translation from an offset 0, 1 or 2);
+- records: `fasta` (`>ID` and the sequence), `fastq` (quality `Z` for every base) and
+  `fastQ` (with a quality string);
+- comparison: `strpair` (`|` where two sequences agree, `x` where not).
+
+```console
+$ printf 'id\tseq\nm1\tauguuuggcuaa\nm2\tAUGRNNx\n' > rna.txt
+$ pluk -A 'dna::seq,todna' 'protein::dna^0,dnatl' 'gc::dna^1,dnagc' 'rc::dna,rc' < rna.txt
+id	seq	dna	protein	gc	rc
+m1	auguuuggcuaa	atgtttggctaa	MFG*	33.3	ttagccaaacat
+m2	AUGRNNx	ATGNNNn	M?{N}	33.3	nNNNCAT
+```
+
+### Sequences from SAM
+
+SAM stores a read on the reverse strand reverse-complemented. `forward` with `isforward`
+gives the read as it was sequenced:
+
+```console
+$ pluk --sam 1 10 'read::,isforward,qry_seq,forward' @2/none/256 < align.sam
+read1	CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG	CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG
+read2	GGTTGCTAAAGTTCCACCC	GGGTGGAACTTTAGCAACC
+read3	ACGTTGCAAGGT	ACGTTGCAAGGT
+```
+
+### Writing FASTA and FASTQ
+
+`fasta`, `fastq` and `fastQ` give a whole record in one field, its lines separated by
+newlines, so that the output is FASTA or FASTQ when that field is the only column. The
+unmapped reads as FASTA:
+
+```console
+$ pluk --sam 'fa::1,qry_seq,fasta' @2/all/4 < align.sam
+>read3
+ACGTTGCAAGGT
+```
+
+All primary reads as FASTQ, as sequenced: the quality is reversed where the sequence is
+reverse-complemented (`ifelse` chooses), and a QUAL of `*` gives `Z` for every base.
+Secondary and supplementary records (FLAG 0x100 and 0x800, together 2304) are left out:
+
+```console
+$ pluk --sam 'fq::1,isforward,qry_seq,forward,isforward,qry_qual,qry_qual,rev,ifelse,fastQ' @2/none/2304 < align.sam
+@read1
+CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG
++
+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
+@read2
+GGGTGGAACTTTAGCAACC
++
+IIIIIIIIIIIIIIIIIII
+@read3
+ACGTTGCAAGGT
++
+ZZZZZZZZZZZZ
+```
+
+### Comparing sequences
+
+`strpair` lines up two sequences position by position. Over the matched part of an
+alignment without indels, it shows the mismatches against the reference:
+
+```console
+$ pluk -q --sam/transgene.fa 1 'ref::,ref_matched' 'read::,qry_matched' 'cmp::,ref_matched,qry_matched,strpair' @1=read2 < align.sam
+read2	GCTAAGGTTCCA	GCTAAAGTTCCA	|||||x||||||
+```
+
 
 
 ## 12. Recipes
