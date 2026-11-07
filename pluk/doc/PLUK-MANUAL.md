@@ -1323,11 +1323,103 @@ $ pluk --sam 1 'a::,aln_ref' < reads.sam
 pluk: [a::,aln_ref]: operator aln_ref needs the reference sequence (--sam/FILE or --sam-h/FILE)
 ```
 
-### Operators and alignment display
+### The parts of an alignment
 
-*This part of the section is being written.* Positions and counts, sequence parts,
-`sam_get` and `sam_put`, the alignment display and its options, edits, patchiness,
-`--sam-ND-adjust`, the region-bound tally.
+Most SAM operators divide an alignment in three: the *matched part*, from the first to
+the last aligned base (`M`, `=`, `X`), and the trails before and after it (clips, and any
+`I`, `D` or `N` outside the matched part). 5' and 3' mean left and right in the SAM
+record, that is along the reference, for reads on either strand. Each part can be had as
+CIGAR text, as a length on the reference or the read, and as sequence:
+
+- positions: `ref_posx` `ref_posy` (the matched part on the reference), `qry_posx`
+  `qry_posy` (on the read, as SEQ is written), `qry_len`, `ref_len`;
+- lengths: `ref_trail5p_N` `ref_matched_N` `ref_trail3p_N`, `qry_trail5p_N`
+  `qry_matched_N` `qry_trail3p_N`, and `ref_trail5p_V` `ref_trail3p_V`;
+- CIGAR parts: `aln_trail5p_cgr` `aln_matched_cgr` `aln_trail3p_cgr`, and the CIGAR
+  tallies `cgsum` `cgmax` `cgcount` (string operators that take any CIGAR string);
+- sequence: `qry_trail5p` `qry_matched` `qry_trail3p`, `qry_seq` `qry_qual`, and with
+  `--sam/FILE` the reference parts `ref_trail5p` `ref_matched` `ref_trail3p`;
+- the strand: `isforward`.
+
+All are described in section 15. Some uses:
+
+```console
+$ pluk --sam 1 6 'cgr5::,aln_trail5p_cgr' 'cgr::,aln_matched_cgr' 'cgr3::,aln_trail3p_cgr' @2/none/4 < align.sam
+read1	3S22M3I8M3D9M	3S	22M3I8M3D9M	
+read1	20S25M	20S	25M	
+read2	2H4S12M3S	2H4S	12M	3S
+$ pluk --sam 1 'strand::,isforward^+^-,ifelse' 'from::,ref_posx' 'to::,ref_posy' @2/none/4 < align.sam
+read1	+	9	50
+read1	+	20	44
+read2	-	30	41
+$ pluk --sam 1 6 'clip::,qry_trail5p' 'clip3::,qry_trail3p' 'soft::6^S,cgsum' '@soft/gt/5' < align.sam
+read1	20S25M	CCAGCTTAACGGTACAATGA		20
+read2	2H4S12M3S	GGTT	CCC	7
+$ pluk --sam/transgene.fa 1 'ref::,ref_matched' 'read::,qry_matched' < reads.sam
+read1	GCTTAACGGTACCATGAGCTAGCTAAGGTTCCATGCAATTCG	GCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG
+```
+
+The reads that cover a reference position, here 43, are found with the positions and an
+`@` filter (an `@@` filter cannot see computed columns):
+
+```console
+$ pluk --sam 1 4 6 'x:=,ref_posx' 'y:=,ref_posy' @x/le/43 @y/ge/43 < align.sam
+read1	9	3S22M3I8M3D9M
+read1	20	20S25M
+```
+
+### Counting differences
+
+`aln_nmatch` is the number of aligned bases (`M` `=` `X`) and `aln_nedit` the edit
+distance of the `NM:i` field. `aln_nmatchx` is the number of mismatches: NM minus the
+deleted and inserted bases of the matched part. With `--sam/FILE` the differences are
+counted on the alignment itself, `aln_nedit_pia` and `aln_nedit_piu` (with and without
+counting an `N` as an edit), and listed by `aln_posinfo`:
+
+```console
+$ pluk --sam 1 6 'm::,aln_nmatch' 'e::,aln_nedit' 'x::,aln_nmatchx' @2/none/260 < align.sam
+read1	3S22M3I8M3D9M	39	7	1
+read2	2H4S12M3S	12	1	1
+$ pluk --sam/transgene.fa 1 6 'pia::,aln_nedit_pia' 'piu::,aln_nedit_piu' 'where::^5,aln_posinfo' < spliced.sam
+intron1	9M20N12M	0	20	e=13,n=20
+intron1	2S7M20N12M	0	20	e=13,n=20
+ext1	14M2S	0	0	
+gap1	10M3N10M	0	3	e=40,n=3,s=CAT
+```
+
+In the second example `aln_posinfo` gives the sequence of an indel or N only if it is
+at most 5 bases long; the intron of intron1 is reported without it.
+
+`patchiness` and `patchiness2` score how clustered the differences of an alignment line
+are (section 15, and the alignment display below).
+
+### Optional fields: sam_get and sam_put
+
+`sam_get` gives the value of an optional field, with a default when it is absent;
+`sam_put` adds a field or replaces it. The tag is written `XX.T` or `XX-T` in a compute
+(TAG and type), as `:` separates the parts of a compute. `sam_put` takes effect after
+the computes and leaves nothing on the stack, so its compute is usually hidden (`:=`).
+With `--sam-h` and all columns, the output is SAM with the new field:
+
+```console
+$ pluk --sam 1 'nm::^NM.i^0,sam_get' 'as::^AS.i^none,sam_get' < align.sam
+read1	7	30
+read1	12	none
+read2	1	none
+read3	0	none
+$ pluk --sam-h -A 'x:=,aln_nmatchx^XM.i,xch,sam_put' < reads.sam
+@SQ	SN:transgene	LN:53
+read1	0	transgene	9	60	3S22M3I8M3D9M	*	0	0	CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG	*	NM:i:7	XM:i:1
+```
+
+The value is checked against the type (one of `A i f Z H B`); a value that is NA,
+contains a TAB or a newline, or does not fit the type is not put, and such rows are
+counted. Replacing a field that is already there is counted as well.
+
+### Alignment display
+
+*This part of the section is being written.* The alignment display and its options, the
+view options, `--sam-ND-adjust`, the region-bound tally.
 
 
 
