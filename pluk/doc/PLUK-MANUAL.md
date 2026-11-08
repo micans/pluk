@@ -132,7 +132,7 @@ The fields of the input and the output are separated by TABs. In this manual the
 of the examples is shown aligned in columns, with spaces.
 
 - `-k` the input has no header line; the columns are named 1, 2, ... .
-- `-K` as `-k`, and the output gets a header line with those names.
+- `-K` as `-k` but allows the user to specify output column names with `NAME::<k>` and `NAME::<compute>`.
 - `-h` no header line in the output.
 - `-R` the header line has one name fewer than the rows (a first column of row names
   without a name, as R writes tables): that column is named `_`.
