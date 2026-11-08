@@ -37,3 +37,21 @@ Item 3: doc/ at the top level
   doc/. doccheck.py needed no change: it copies a document's own directory, wherever
   that is. The documents themselves name no path to doc/ (the build instructions in
   manual section 1 are relative to the crate). Earlier plan files keep pluk/doc.
+
+
+Item 4: README.md is the introduction
+
+  git rm of the stub README.md ("# pluck"), git mv doc/INTRODUCTION.md README.md. In it:
+  every command names doc/harvest.txt, doc/reads.sam, --sam/doc/transgene.fa (--sam/FILE
+  takes a path with '/'); the links point into doc/; the sentence introducing the data
+  says the examples run from the top of the repository with pluk on the PATH; "The pluk
+  manual" under Where next is now a link. The title is unchanged ("Introduction to
+  pluk"). The demux example makes crates/ in the current directory, as before. Manual:
+  the two links [INTRODUCTION.md](INTRODUCTION.md) are now [README.md](../README.md).
+
+  doccheck.py: --copy DIR among the documents; the documents after it run in a fresh
+  directory holding a copy of DIR under its basename (cwd is that directory), instead of
+  a copy of the document's own directory. One call, so the total stays one count
+  (275 examples). The link check already resolved links relative to the document; only
+  its docstring and message changed. Without --copy README.md would also pass, but by
+  copying the whole repository; the Makefile always passes --copy for it.

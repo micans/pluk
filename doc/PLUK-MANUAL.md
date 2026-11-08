@@ -17,7 +17,7 @@ computes new columns with a small stack language, sends rows to different files,
 checks assertions about the data. It also reads SAM and BAM alignment files, with
 operators that take alignments apart, count their edits and draw them. pluk reads its
 input once, line by line, and keeps little more than the current row, so the size of the
-input does not matter. [INTRODUCTION.md](INTRODUCTION.md) gives a short tour; this manual
+input does not matter. [README.md](../README.md) gives a short tour; this manual
 describes everything.
 
 ### Building pluk
@@ -58,7 +58,7 @@ neither a serialisation framework nor an asynchronous runtime.
 ## 2. Quick start
 
 The examples use [harvest.txt](harvest.txt), a day in an orchard (the table is shown in
-[INTRODUCTION.md](INTRODUCTION.md)). Each line is one common task.
+[README.md](../README.md)). Each line is one common task.
 
 Columns by name; without the header line; by pattern; all but some:
 

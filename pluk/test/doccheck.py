@@ -2,13 +2,16 @@
 """Run the console examples of the pluk documents and compare their output
 (plan/MANUAL.design.txt section 4).
 
-    doccheck.py PLUK DOCUMENT..
+    doccheck.py PLUK [--copy DIR] DOCUMENT.. [--copy DIR] DOCUMENT..
 
 Every ```console block (any fence of three or more backticks) is run, except one
 preceded by a line <!-- notest -->. In a block, a line starting with '$ ' is a command
 (a trailing backslash joins the next line); the lines up to the next command are its
 expected output. The commands of one document run in order, in a fresh copy of the
-document's directory, with PLUK's directory first on the PATH.
+document's directory, with PLUK's directory first on the PATH. After --copy DIR the
+documents that follow run instead in a fresh directory that holds a copy of DIR under
+its own name (README.md at the top of the repository: --copy doc, so that its examples
+name doc/harvest.txt and the whole repository is not copied; plan/step34.txt decision 4).
 
 Expected lines starting with 'pluk:' are compared with stderr: each must occur, in order.
 The other lines are compared with stdout, all of them (in a command that contains 2>&1
@@ -16,7 +19,7 @@ every expected line is compared with stdout, where pluk's messages then are); a 
 of lines. Runs of white space count as one separator. The exit status is not compared.
 
 Outside the code blocks two references are checked as well (plan/step31.txt decision 5):
-a relative link [text](FILE) must name a file of the document's directory, and in a
+a relative link [text](FILE) must name an existing file relative to the document, and in a
 document with numbered sections (## N. Title, ### N.M ...) 'section N' and 'sections N,
 M and K' must name one of them; a reference preceded by a file name (plan/X.txt section
 6) is to that file and is not checked.
@@ -111,7 +114,7 @@ def references(path):
             if re.match(r'^[a-z]+:', target) or target.startswith('#'):
                 continue
             if not os.path.exists(os.path.join(here, target.split('#')[0])):
-                failures.append('%s:%d: link to [%s], which is not a file of %s' % (path, lineno, target, here))
+                failures.append('%s:%d: link to [%s], which does not exist relative to %s' % (path, lineno, target, here))
         if not sections:
             continue
         for m in SECTION.finditer(line):
@@ -142,13 +145,18 @@ def subsequence(expected, actual):
     return all(any(e == a for a in it) for e in expected)
 
 
-def check(pluk, document):
-    """Run the examples of one document; the list of failures (text)."""
+def check(pluk, document, copy=None):
+    """Run the examples of one document; the list of failures (text). With copy (a
+    directory) the commands run in a directory holding a copy of it under its own name."""
     failures = []
     work = tempfile.mkdtemp(prefix='doccheck-')
     try:
-        here = os.path.join(work, 'doc')
-        shutil.copytree(os.path.dirname(os.path.abspath(document)), here)
+        if copy is None:
+            here = os.path.join(work, 'doc')
+            shutil.copytree(os.path.dirname(os.path.abspath(document)), here)
+        else:
+            here = work
+            shutil.copytree(copy, os.path.join(work, os.path.basename(os.path.normpath(copy))))
         env = dict(os.environ)
         env['PATH'] = os.path.dirname(os.path.abspath(pluk)) + os.pathsep + env.get('PATH', '')
         runs = examples(document)
@@ -176,11 +184,18 @@ def check(pluk, document):
 def main():
     if len(sys.argv) < 3:
         sys.exit(__doc__)
-    pluk, documents = sys.argv[1], sys.argv[2:]
+    pluk, args = sys.argv[1], sys.argv[2:]
     total, failed = 0, []
-    for document in documents:
+    copy = None
+    while args:
+        document = args.pop(0)
+        if document == '--copy':
+            if not args or not os.path.isdir(args[0]):
+                sys.exit('doccheck.py: --copy needs a directory')
+            copy = args.pop(0)
+            continue
         failed.extend(references(document))
-        n, failures = check(pluk, document)
+        n, failures = check(pluk, document, copy)
         total += n
         failed.extend(failures)
     for f in failed:

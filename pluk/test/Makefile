@@ -15,13 +15,14 @@ p=../target/release/pluk
 test: runpluk runtestopt rundiff rundoc
 	@echo "--- All tests passed ---"
 
-# The console examples of the documents in ../../doc, run and compared, and the
+# The console examples of the documents in ../../doc and ../../README.md, run and compared, and the
 # operator reference of the manual checked against pluk --list-ops-tsv
 # (plan/MANUAL.design.txt sections 3 and 4; Python 3). After a change to an operator:
 # python3 opscheck.py --update $(p) ../../doc/PLUK-MANUAL.md
 # optcheck.py --strict: an option of pluk --help that the manual does not mention is an
 # error (plan/step29.txt decision 3; strict since step30 item 3).
-DOCS = ../../doc/INTRODUCTION.md ../../doc/SAM-NA.md ../../doc/PLUK-MANUAL.md
+# README.md (the introduction) names its files doc/..: it runs with --copy.
+DOCS = ../../doc/SAM-NA.md ../../doc/PLUK-MANUAL.md --copy ../../doc ../../README.md
 
 rundoc:
 	@python3 doccheck.py $(p) $(DOCS)
