@@ -1,25 +1,24 @@
 # Introduction to pluk
 
-*pluk is a Rust reimplementation of pick, a Perl program by Stijn van Dongen that
-served as its prototype. All of pluk's code was written by Claude (Anthropic) in dialogue with Stijn.
-The work was staged into steps, each a
-small set of items. Every step was discussed and its decisions written down before any
-code was written, then implemented item by item, tested against pick and committed
-by Stijn over a period of about three days. The `plan/` directory retains that history.
-Many corner/edge cases in pick were settled and sometimes fixed.*
+*pluk is a Rust reimplementation of [pick](http://github.com/micans/pick),
+a Perl program by Stijn van Dongen that served as pluk's prototype. All code was written by Claude (Anthropic) in
+dialogue with Stijn.  The work was staged into steps, each a small set of items.  Every step was discussed and its
+decisions written down before any code was written, then implemented item by item, tested against pick and committed by
+Stijn over a period of about three days. The `plan/` directory retains that history.  Many corner/edge cases in pick
+were settled and sometimes fixed, syntax was made cleaner in a few places, features were added.*
 
 
 ## What it is
 
-pluk is a column-name-aware `cut` combined with `grep` and can compute new columns from the data.
+|pluk is column-name-aware `cut` x column-name-aware `grep`, edits existing columns and computes new columns.|
+|---|
+||
 
-It reads a table, i.e. a file with a header line and tab-separated columns, and lets
-you manipulate rows using column names. It processes the table line by line and
-**munches through large data fast using almost no memory**.
-It supports
+pluk streams a table, i.e. a file with a header line and tab-separated columns, and lets you manipulate rows using column
+names. It processes the table line by line and **munches through large data fast using almost no memory**.  It supports
 
 -  filters and assertions over input data and (computed) output data
--  reading/writing compressed data transparently
+-  reading compressed data transparently
 -  tables without headers, including ragged data
 -  spliting a table into files
 -  SAM/BAM input with compute operators to extract alignment information
