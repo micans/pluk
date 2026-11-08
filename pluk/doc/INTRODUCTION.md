@@ -141,8 +141,8 @@ pear.txt
 plum.txt
 ```
 
-**And make the data behave.** An assertion stops the run, with the line, when a row
-breaks the rule. Eamon's cherries were picked a little early.
+**Make the data behave.** An assertion stops the run, with the line, when a row
+breaks the rule. Eamon's cherries were picked early.
 
 ```console
 $ pluk -A @assert@ripeness/ge/0.65 < harvest.txt
@@ -157,7 +157,7 @@ pluk: assertion @assert@ripeness/ge/0.65 failed: column ripeness value [0.61] at
 `pluk -l TERM` finds them by name.
 
 
-## And SAM. And Bam.
+## SAM and BAM support.
 
 pluk reads SAM and BAM. Given the reference sequences it computes the trailing and aligned parts of both
 query and reference, counts edits, and supports output of individual aligment parts.
