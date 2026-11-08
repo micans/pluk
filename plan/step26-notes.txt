@@ -60,6 +60,8 @@ Item 2: capture group 1 naming
   (+(fib)) is the in-place case and needs -i. Duplicates merged keep the first element's
   group. A non-capturing group ((?:..), written (?%3A..) in a NAME, as ':' separates list
   elements) leaves the plain map.
+  Changed in step34 (decision 2): a group names the column only in the renaming shapes;
+  without delimiters it is part of the regex and the compute is a plain map.
 
   Behaviour change, as decided: -i '+num(\d)::..' now creates columns 1 2 4 instead of
   redefining num1 num2 num4; no existing test depended on it.

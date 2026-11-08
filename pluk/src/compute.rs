@@ -286,21 +286,24 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, context: Context, dic
         let targets: Vec<(Vec<u8>, Option<usize>)> = match &spec.map {
             None => vec![(spec.name.clone(), None)],
             Some(cs) => {
-                // Capture group 1 of a '+' regex element names the column (decision 3).
+                // In a renaming compute capture group 1 of a '+' regex element names the
+                // column (step26.txt decision 3); without delimiters a group is part of
+                // the regex only (step34.txt decision 2).
                 let mut columns: Vec<(usize, Option<Vec<u8>>)> = Vec::new();
-                for (i, base) in cs.expand_bases(&names, "Compute", &format!("compute {}",
-                                                 String::from_utf8_lossy(&spec.name)))? {
+                let kind = format!("compute {}", String::from_utf8_lossy(&spec.name));
+                let selected = if spec.rename.is_some() { cs.expand_bases(&names, "Compute", &kind)? }
+                               else { cs.expand(&names, "Compute", &kind)?.into_iter().map(|i| (i, None)).collect() };
+                for (i, base) in selected {
                     if !columns.iter().any(|(c, _)| *c == i) {
                         columns.push((i, base));
                     }
                 }
                 let mut targets: Vec<(Vec<u8>, Option<usize>)> = Vec::with_capacity(columns.len());
-                let no_rename = Rename { prefix: Vec::new(), suffix: Vec::new(), keep: false };
                 for (i, group) in &columns {
                     let i = *i;
                     let source = names.name(i);
                     let base = group.as_deref().unwrap_or(source);
-                    let renaming = spec.rename.as_ref().or(group.as_ref().map(|_| &no_rename));
+                    let renaming = spec.rename.as_ref();
                     let target = match renaming {
                         None => source.to_vec(),
                         Some(r) => [&r.prefix[..], base, &r.suffix[..]].concat(),

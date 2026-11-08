@@ -153,15 +153,24 @@ impl ColSpec {
     // range maps a replaced column to its replacement. Every element must
     // select at least one column. label and kind make pick's messages, e.g.
     // "(Output) handle [x] in output does not reference ...".
+    // Capture groups play no part here: they are part of the regex only.
     pub fn expand(&self, names: &ColumnNames, label: &str, kind: &str) -> Result<Vec<usize>, String> {
-        Ok(self.expand_bases(names, label, kind)?.into_iter().map(|(i, _)| i).collect())
+        Ok(self.select(names, label, kind, false)?.into_iter().map(|(i, _)| i).collect())
     }
 
     // As expand, with capture group 1 of the '+' regex element that selected each
-    // column, if the regex has a capturing group (plan/step26.txt decision 3: it names
-    // the new column of a compute). A group that does not take part in the match, or
-    // matches the empty string, is an error: a column cannot be named by nothing.
+    // column, if the regex has a capturing group: it names the new column of a renaming
+    // compute (P/SPEC/S; plan/step26.txt decision 3, step34.txt decision 2). A group that
+    // does not take part in the match, or matches the empty string, is an error: a
+    // column cannot be named by nothing.
     pub fn expand_bases(&self, names: &ColumnNames, label: &str, kind: &str)
+        -> Result<Vec<(usize, Option<Vec<u8>>)>, String>
+    {
+        self.select(names, label, kind, true)
+    }
+
+    // expand and expand_bases; with_groups asks for capture group 1.
+    fn select(&self, names: &ColumnNames, label: &str, kind: &str, with_groups: bool)
         -> Result<Vec<(usize, Option<Vec<u8>>)>, String>
     {
         let mut offsets: Vec<(usize, Option<Vec<u8>>)> = Vec::new();
@@ -190,7 +199,7 @@ impl ColSpec {
                     let before = offsets.len();
                     for i in (0..names.len()).filter(|&i| names.is_current(i)) {
                         let Some(caps) = re.captures(names.name(i)) else { continue };
-                        let base = if re.captures_len() > 1 {
+                        let base = if with_groups && re.captures_len() > 1 {
                             match caps.get(1).map(|g| g.as_bytes()).filter(|g| !g.is_empty()) {
                                 Some(g) => Some(g.to_vec()),
                                 None => return Err(format!("({}) regex [{}] in {}: group 1 is empty or does not \
@@ -291,6 +300,18 @@ mod tests {
         assert_eq!(expand("+a|b", h), Ok(vec![0, 3]));
         // Duplicates are kept here; callers decide.
         assert_eq!(expand("a:a:+a", h), Ok(vec![0, 0, 0]));
+    }
+
+    #[test]
+    fn capture_groups() {
+        // expand ignores groups (step34.txt decision 2); expand_bases gives group 1 and
+        // refuses a group that does not take part.
+        let h = "a\tfoo1\tfoo22\tb";
+        let bases = |spec: &str| parse(spec.as_bytes(), false).unwrap()
+                                     .expand_bases(&names(h), "Compute", "compute");
+        assert_eq!(expand("+(x)?foo\\d+", h), Ok(vec![1, 2]));
+        assert_eq!(bases("+foo(\\d+):a"), Ok(vec![(1, Some(b"1".to_vec())), (2, Some(b"22".to_vec())), (0, None)]));
+        assert!(bases("+(x)?foo\\d+").is_err());
     }
 
     #[test]

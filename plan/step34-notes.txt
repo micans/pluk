@@ -1,0 +1,29 @@
+Item 1: -K with --sam and --sam-h
+
+  Done on main before the step (step34.txt decision 1): the option check in opt.rs is
+  removed; the header rules of main.rs needed no change. Checked against pick: --sam -K
+  with names and computes, --sam-h -K (the line of names follows the @ lines), -K -h,
+  -K -c, also on BAM input: identical apart from pick's report "reference sequence length
+  lookup failed". Test o.kheader-sam; o.kheader-errors keeps -KR.
+
+
+Item 2: capture group 1 only in the renaming shapes
+
+  colspec.rs: expand and expand_bases share a private select(.., with_groups). expand
+  (output selection, filters, plain maps) no longer looks at capture groups at all, so a
+  group that does not take part (+(x)?num\d) is no longer an error outside renaming;
+  before, expand went through expand_bases and refused it everywhere. expand_bases is
+  unchanged and still refuses an empty or non-participating group, now only for renaming
+  computes.
+
+  compute.rs: the per-column loop asks for groups only when the compute has a Rename
+  (P/SPEC/S, SPEC/S, P/SPEC/, /SPEC/, P//SPEC//S). The empty Rename that stood in for a
+  group-named column without delimiters is gone: without delimiters the target is the
+  column's own name, i.e. the plain map with its -i rule. /+(fib)/ (group equal to the
+  name) stays the in-place case of a renaming compute and needs -i.
+
+  Tests: o.rename-group reworked: the group cases moved to slashed forms; new cases for
+  -i +num(\d) (in place), -i +(num|fib)\d (alternation), +(x)?num\d as output columns
+  and as an -i map; +num(\d)::.. without -i is now the "already exists" error. Unit test
+  colspec::capture_groups. Manual section 6 (paragraph and example now /+(k)g/), 14.3
+  (new entry), guidelines.txt and the help text.

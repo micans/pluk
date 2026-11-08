@@ -739,11 +739,13 @@ Chen    488.4100000000001  0.7744
 ...
 ```
 
-When SPEC is a `+REGEX` with a capture group, group 1 replaces the whole name, with or
-without P and S:
+When SPEC is a `+REGEX` with a capture group, group 1 replaces the whole name, also when
+P and S are both empty (`/SPEC/`). Only the renaming shapes do this: without slashes a
+group is just part of the regex (as in `-i +(kg|ripeness)::..`), and the compute changes
+the columns in place.
 
 ```console
-$ pluk picker '+(k)g::__^10,mul' 'w_/+(r)ip.*/_x::__' < harvest.txt
+$ pluk picker '/+(k)g/::__^10,mul' 'w_/+(r)ip.*/_x::__' < harvest.txt
 picker  k    w_r_x
 Annie   145  0.92
 Bert    90   0.75
@@ -1950,6 +1952,9 @@ pluk does.
   generated name that equals an existing column is an error, also with `-i`, as are two
   equal generated names; a capture group that does not take part or matches empty is an
   error.
+- A capture group names the new columns only in the renaming shapes: `/+num(\d)/::..`
+  creates columns 1 2 4 (pick: also `+num(\d)::..`, which in pluk is a plain map that
+  needs `-i`).
 - A row rejected by an `@@` filter has empty computed columns in `--other`.
 
 #### Operators (section 15)
