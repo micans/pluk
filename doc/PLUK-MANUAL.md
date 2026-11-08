@@ -419,7 +419,7 @@ Dora    6.4
 
 ### Kinds of filters
 
-The operators, each described in section 15:
+The operators, each described in section 16:
 
 - numeric comparisons `/lt/ /le/ /eq/ /ge/ /gt/ /ne/`: a value that is not a number
   fails the test, and such values are counted at the end;
@@ -578,7 +578,7 @@ SPEC is read from left to right and works on a stack:
 - `:COLUMN` pushes the value of a column (a computed column too, if it was computed
   earlier);
 - `,OP` applies an operator: it takes its operands from the top of the stack and pushes
-  its result. Every operator is described in section 15 (`pluk -l` lists them).
+  its result. Every operator is described in section 16 (`pluk -l` lists them).
 
 A SPEC that does not start with `^`, `:` or `,` starts with a column, so `kg^2,mul` is
 `:kg^2,mul`. Constants and column names are %-decoded (section 3). When SPEC ends, what
@@ -770,7 +770,7 @@ Fenna   36    heavy load
 ## 7. Dictionaries and quantiles
 
 A dictionary maps keys to values. It is loaded from a file or from the command line
-before the input is read, and used by the operators `map` and `dord` (section 15) and by
+before the input is read, and used by the operators `map` and `dord` (section 16) and by
 the filters `~isin~`, `~hasval~` and their negations (section 5). A dictionary name
 consists of letters, digits and `_`.
 
@@ -883,7 +883,7 @@ pluk: --cd-PRICE=plum:4.75,apple:1.99: merging into existing dictionary PRICE
 ### Quantiles
 
 `--quant-NAME=FILE` reads quantile steps, one number per line in non-decreasing order
-(checked when the file is read). The operators `qnl` and `qnu` (section 15) say where a
+(checked when the file is read). The operators `qnl` and `qnu` (section 16) say where a
 value falls among them, as a fraction in (0, 1]: `qnl` counts the steps at or below the
 value, `qnu` those at or above it.
 
@@ -927,7 +927,7 @@ pluk: --group: 3 groups (the first row of each not output)
 ### Registers
 
 `save` stores a value in a register and leaves it on the stack; `fetch` pushes it again
-(section 15). A register is named by a constant and holds its value for the rest of the
+(section 16). A register is named by a constant and holds its value for the rest of the
 row, so that a value computed in one compute can be used in a later one without being
 output. Registers are cleared between rows; a `fetch` of a register that no earlier `save`
 stores is an error before the input is read.
@@ -1186,7 +1186,7 @@ $ pluk --progress=2/3 -c < harvest.txt 2>&1 > /dev/null
 - `-H` or `--help` prints a summary of the options, the stack language and the filters;
 - `--version` prints the version;
 - `-l` lists the operators (all of them, a category, or those whose name contains TERM:
-  `-l TERM..`); `--list-ops-tsv` lists them tab-separated, for scripts (section 15 is
+  `-l TERM..`); `--list-ops-tsv` lists them tab-separated, for scripts (section 16 is
   checked against it);
 - `-z ARG..` and `-zz ARG..` write the %-encoding and decoding of their arguments, and
   `-z` alone a table of the encoded characters (section 3).
@@ -1210,7 +1210,7 @@ kg net
 ## 10. SAM and BAM
 
 With `--sam` pluk reads SAM or BAM: the alignment records are rows, the fields are
-columns 1 to 12, and the operators of the `sam` category (section 15) compute from the
+columns 1 to 12, and the operators of the `sam` category (section 16) compute from the
 CIGAR string, the sequence and the reference. A column is named by its number, as with
 `-k`; filters work as on any table.
 
@@ -1259,7 +1259,7 @@ look like SAM is reported line by line and gives no output.
 ### Reference sequences: --sam/FILE
 
 Some operators need the reference sequence (the alignment display, edits, patchiness,
-the reference parts of a read; section 15 says which). `--sam/FILE` and `--sam-h/FILE`
+the reference parts of a read; section 16 says which). `--sam/FILE` and `--sam-h/FILE`
 read the references from fasta FILE into the dictionary `SAMFA`, keyed by name, with
 default `__EXIT__`. The lengths in the `@SQ` lines are compared with those in FILE; a
 message gives the number of references in the header and in FILE, the number in both,
@@ -1351,7 +1351,7 @@ CIGAR text, as a length on the reference or the read, and as sequence:
   `--sam/FILE` the reference parts `ref_trail5p` `ref_matched` `ref_trail3p`;
 - the strand: `isforward`.
 
-All are described in section 15. Some uses:
+All are described in section 16. Some uses:
 
 ```console
 $ pluk --sam 1 6 cgr5::,aln_trail5p_cgr cgr::,aln_matched_cgr cgr3::,aln_trail3p_cgr @2/none/4 < align.sam
@@ -1401,7 +1401,7 @@ In the second example `aln_posinfo` gives the sequence of an indel or N only if 
 at most 5 bases long; the intron of intron1 is reported without it.
 
 `patchiness` and `patchiness2` score how clustered the differences of an alignment line
-are (section 15, and the alignment display below).
+are (section 16, and the alignment display below).
 
 ### Optional fields: sam_get and sam_put
 
@@ -1433,7 +1433,7 @@ reference, a match line and the read, and optionally the quality. `aln_all` give
 lines in one field (separated by newlines), `aln_allq` adds the quality line, and
 `aln_ref` `aln_aln` `aln_qry` `aln_rlr` `aln_qlt` give the lines one by one. In the
 match line `|` is a match, `x` a mismatch, `~` an insertion, `-` a deletion and `=` an
-N; dangling ends are drawn `` ` `` and `_`, added context `.` (section 15 has the
+N; dangling ends are drawn `` ` `` and `_`, added context `.` (section 16 has the
 details). Soft clips are not drawn.
 
 ```console
@@ -1514,7 +1514,7 @@ CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTT---TGCAATTCG---
 The `rbt_` operators describe the alignment within a region of the reference: its
 positions on reference and read, the read's sequence, the numbers of matches,
 mismatches, insertions and deletions, and the alignment lines, all cut to the region
-(section 15). They need `--sam/FILE`. The region is set for every row with `--sam-rbt=X,Y`, or in a compute with
+(section 16). They need `--sam/FILE`. The region is set for every row with `--sam-rbt=X,Y`, or in a compute with
 `sam_rbt` (taking X and Y from the stack, so that they can come from columns), for the
 rest of the row. A region is clipped to the matched part; `rbt_dx` and `rbt_dy` say how
 much was cut off.
@@ -1533,7 +1533,7 @@ read2  40  41  0  4
 ## 11. Bio operators
 
 The bio operators work on sequences given as text: a column, a constant, or the result of
-a SAM operator. They do not need `--sam` (section 15 describes each).
+a SAM operator. They do not need `--sam` (section 16 describes each).
 
 - strand: `rc` (reverse complement, IUPAC codes included) and `forward` (a sequence or its
   reverse complement, depending on a flag such as `isforward`);
@@ -1719,7 +1719,7 @@ pluk: (Output) handle [nosuch] in output does not reference a known entity among
 
 An error ends the run with exit status 1; otherwise the exit status is 0. Most errors are
 found before any input is read: in the options and arguments, in a constant operand
-(section 15 says which are checked), in a dictionary or quantile file. Some can only
+(section 16 says which are checked), in a dictionary or quantile file. Some can only
 happen while rows are read, and then the rows before have been written:
 
 - a failed assertion (section 5), unless `--assert-other` is given;
@@ -1867,7 +1867,7 @@ Filters:
 
 - A filter on a list, a `+REGEX` or a `-k` range of columns: every column must pass
   (section 5).
-- The predicates `/ISINT`, `/NOTINT`, `/ISNUM`, `/NOTNUM` (section 15).
+- The predicates `/ISINT`, `/NOTINT`, `/ISNUM`, `/NOTNUM` (section 16).
 - `~notin~` and `~notval~`, synonyms of `~isnotin~` and `~hasnotval~`.
 
 Computes:
@@ -1957,7 +1957,7 @@ pluk does.
   needs `-i`).
 - A row rejected by an `@@` filter has empty computed columns in `--other`.
 
-#### Operators (section 15)
+#### Operators (section 16)
 
 - Arithmetic: division by zero gives `inf` or `nan` with `div`, NA with `idiv` and `mod`
   (pick dies); a float given to `idiv`, `mod` or `ipow` is NA (pick truncates); `ipow`
@@ -2150,7 +2150,117 @@ it as follows (the changes above that stem from these are not repeated).
 
 
 
-## 15. Operator reference
+## 15. Option reference
+
+Every option of `pluk --help`, in its order, with the section that explains it. Short
+options combine (`-kO12/^#`) and options take effect from left to right. The test suite
+checks that this list and `pluk --help` name the same options.
+
+### Header, columns and output
+
+- `-k`: the input has no header line; columns are named 1 2 .. N and can be given as
+  ranges (section 4).
+- `-K`: as `-k`, and output a header line with the output column names, e.g. `-K
+  name::1 len::2` (section 3).
+- `-h`: do not output the header line (section 9).
+- `-c`: output only the number of data rows that pass the filters (section 9).
+- `-E<N>`: the number of output rows must be N, else an error at the end (section 9).
+- `-e`: remove white space from filters and computes before reading them (section 6).
+- `-q`: quiet; no messages other than errors (section 13).
+- `-A`: output all columns (section 4).
+- `-A<N>`: as `-A`, with the new computed columns after the first N output columns
+  (section 4).
+- `--A=NAME`: as `-A`, with the new computed columns after input column NAME
+  (section 4).
+- `-x`: output all columns except the named ones (section 4).
+- `-/<pat>`: skip input lines that match the regular expression (section 9).
+- `-//<pat>`: output input lines that match unchanged (section 9).
+- `-u`: make duplicate input column names unique (section 4).
+- `-U`: output the selected columns in input order (section 4).
+- `-F`: accepted for compatibility with pick; no effect (section 9).
+- `-O<N>`: ragged input with N columns, the rest merged into column N; requires `-k`
+  (section 4).
+- `-R`: the header has no name for the first (row name) column, which is named `_`
+  (section 4).
+
+### Filters and other output files
+
+- `-o`: keep the rows that pass any `@` filter, instead of all (section 5).
+- `-s`: keep the rows that pass any `@@` filter, instead of all (section 5).
+- `--other=FILE`: write the rows rejected by `@` and `@@` filters to FILE (section 5).
+- `--assert-other=FILE`: write the rows that fail an assertion to FILE, and continue
+  (section 5).
+- `--demux=NAME`: write each output row to the file named by its value in column NAME
+  (section 9).
+- `--demux-dir=PATH`: the directory for the `--demux` files (section 9).
+- `--demux-buffer=N`: accepted for compatibility with pick; no effect (section 9).
+
+### SAM and BAM
+
+- `--sam`: SAM or BAM input; implies `-k` and `-O12`, skips the header lines
+  (section 10).
+- `--sam-h`: as `--sam`, and output the header lines unchanged (section 10).
+- `--sam/FILE`, `--sam-h/FILE`: as `--sam` and `--sam-h`, with the reference sequences
+  from FASTA FILE (section 10).
+- `--sam-nonf`: keep exterior deletions and insertions (no normal form) (section 10).
+- `--sam-seqmiss=skip|exit`: skip (default) or stop at a record with SEQ `*` whose
+  sequence is not found in an earlier record of the read (section 10).
+- `--sam-aln-prefix=STR`: put STR before every line of the alignment display
+  (section 10).
+- `--sam-aln-mrk`: end `aln_ref` and `aln_qry` in markers with the lengths of the
+  trailing parts (section 10).
+- `--sam-qlt-sim`: simplify quality symbols, five values per symbol (section 10).
+- `--sam-aln-context=N`: extend alignments by up to N bases of reference and read
+  (section 10).
+- `--sam-aln-xy=X,Y`: extend alignments to include reference positions X..Y
+  (section 10).
+- `--sam-narrow-xy=X,Y`: reduce alignments to reference positions X..Y (section 10).
+- `--sam-ND-adjust=NAME`: dictionary NAME gives intervals per reference; an N
+  operation that overlaps none of them becomes D (section 10).
+- `--sam-rbt=X,Y`: the region of the `rbt_` operators for every row (section 10).
+- `--threads=N`: threads for BAM decompression (section 10).
+
+### Column lists, quantiles, state, progress
+
+- `--idx-list`: write the input indexes of the output columns, and stop (section 9).
+- `--name-list`, `--idx-map`: write the output column names, or index and name per
+  line, and stop (section 9).
+- `--quant-NAME=FILE`: quantile steps for `qnl` and `qnu` (section 7).
+- `--pstore`: keep the columns of each row for the next, read with `pload`; also
+  `--pstore/LIST/DEFAULT` (section 8).
+- `--group=COL`: groups of consecutive rows with the same value in COL; `pload` reads
+  the previous row (section 8).
+- `--group-first-ref=COL`: as `--group`, and `pload` reads the group's first row
+  (section 8).
+- `--progress`: dots on stderr while reading, also `--progress=K/N` (section 9).
+
+### Computes
+
+- `--num-perl`: write numbers as Perl and pick do (section 3).
+- `--seed=N`: the seed for `rand`, for reproducible output (section 6).
+- `-i`: computes may redefine a name in place (section 6).
+
+### Dictionaries
+
+- `--kd-NAME=FILE`: keys from the first column of FILE, all values 1 (section 7).
+- `--fd-NAME=FILE`: keys and values from the first two columns of FILE (section 7).
+- `--cd-NAME=k1:v1,k2:v2`: keys and values from the list (section 7).
+- `--fasta-dict-NAME=FILE`: sequences from FASTA FILE, keyed by identifier (section 7).
+- `--td^KEY/DEFAULT=FILE`: a table with column names, one dictionary per column other
+  than KEY (section 7).
+- `--kdict-`, `--fdict-`, `--cdict-`, `--tdict`, `--table-dict`: synonyms of `--kd-`,
+  `--fd-`, `--cd-` and `--td` (section 7).
+
+### Listings and help
+
+- `-l TERM..`: list the operators, all or by category or name (section 9).
+- `-z ARG..`: write the %-encoding of each ARG; no ARG: a table (section 3).
+- `-zz ARG..`: write the %-decoding of each ARG (section 3).
+- `-H`, `--help`: print the help (section 9).
+- `--list-ops-tsv`: all operators, tab-separated, for scripts (section 9).
+- `--version`: print the version (section 9).
+
+## 16. Operator reference
 
 Every operator, by category, in the order of `pluk -l`. The line under each name (operands, result, short description) is generated from `pluk --list-ops-tsv` and checked by the test suite; the text below it is the description.
 

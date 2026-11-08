@@ -83,3 +83,21 @@ Item 5: doccheck.py --update, make docupdate
   other examples untouched); README.md itself is left for the user's rewrite. Tested by
   hand on a scratch document: plain output, '...', a stale 'pluk:' line (reported), 2>&1,
   a continued command, an indented fence, an example without output, a matching one.
+
+
+Item 6: option reference (manual section 15)
+
+  New section 15, one entry per option, '- `OPTION`: short text (section N)', in the
+  order of pluk --help. The help's long Options group is split under subheadings that
+  keep that order (header, columns and output; filters and other output files; SAM and
+  BAM; column lists, quantiles, state, progress); then Computes, Dictionaries, Listings
+  and help. The section of each entry was found by a script (where the option occurs,
+  outside sections 14 and 15) and chosen by hand. References are plain 'section N', so
+  doccheck.py checks them. The operator reference is now section 16; the 16 references
+  to section 15 were renumbered (opscheck.py does not depend on the number).
+
+  optcheck.py: finds the section by its title ('## N. Option reference'), reads each
+  entry's leading code spans (several allowed: `-H`, `--help`:) and applies the same word
+  and stem rules as to the help text. --strict fails on an option of pluk --help without
+  an entry and on an entry option pluk does not have (both tried on a scratch copy). The
+  former check (a mention anywhere in the manual) is gone.

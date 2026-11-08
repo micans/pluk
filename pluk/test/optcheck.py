@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
-"""Check that every option of pluk --help is mentioned in the manual (plan/step29.txt
-decision 3).
+"""Check the option reference of the manual against pluk --help (plan/step34.txt
+decision 6; before: a mention anywhere in the manual, step29.txt decision 3).
 
-    optcheck.py PLUK MANUAL            report the options the manual does not mention
+    optcheck.py PLUK MANUAL            report the differences
     optcheck.py --strict PLUK MANUAL   as above, and fail (exit 1) if there are any
+
+The option reference is the section '## N. Option reference'. Each of its entries is a
+line '- `OPTION`: ..', where the lead may hold several code spans (`-H`, `--help`: ..);
+the options of an entry are read from those code spans as from the help text. Every
+option of pluk --help must have an entry, and every entry must name options of pluk
+--help.
 
 An option is any word of the help text that starts with '-' or '--' followed by a letter
 (or '-/' and '-//'), not preceded by a letter, digit, '-' or '%'. It is reduced to its
 stem: what follows '=', '<', '/', '^' or ',' is dropped, as are digits (-A2 -O12) and a
 '-NAME' or '-Q' placeholder part (--kd-NAME, --quant-NAME); a trailing '-' is dropped
 (--kdict-). A single-dash word of different letters is a combination of short options
-(-kO12) and stands for each of them. The manual mentions the stem if it occurs there not
-followed by a letter or by '-' and a lower-case letter (so --sam-h does not count as a
-mention of --sam, while --kd-NAME counts for --kd and -A2 for -A).
+(-kO12) and stands for each of them.
 """
 
 import re
@@ -35,9 +39,32 @@ def stem(word):
     return s
 
 
-def options(pluk):
-    text = subprocess.run([pluk, '--help'], capture_output=True, text=True, check=True,
-                          stdin=subprocess.DEVNULL).stdout
+SECTION = re.compile(r'^## \d+\. Option reference\s*$')
+ENTRY = re.compile(r'^- ((?:`[^`]+`(?:,? (?:or )?)?)+):')
+
+
+def help_options(pluk):
+    return options(subprocess.run([pluk, '--help'], capture_output=True, text=True, check=True,
+                                  stdin=subprocess.DEVNULL).stdout)
+
+
+def reference_options(manual):
+    """The options of the entries of the option reference; None without that section."""
+    lines = manual.split('\n')
+    starts = [i for i, line in enumerate(lines) if SECTION.match(line)]
+    if not starts:
+        return None
+    text = []
+    for line in lines[starts[0] + 1:]:
+        if line.startswith('## '):
+            break
+        m = ENTRY.match(line)
+        if m:
+            text.extend(re.findall(r'`([^`]+)`', m.group(1)))
+    return options(' '.join(text))
+
+
+def options(text):
     found = []
     for w in WORD.findall(text):
         s = stem(w)
@@ -51,10 +78,6 @@ def options(pluk):
     return found
 
 
-def mentioned(stem_, manual):
-    return re.search(r'(?<![\w-])' + re.escape(stem_) + r'(?![A-Za-z]|-[a-z])', manual) is not None
-
-
 def main():
     args = sys.argv[1:]
     strict = args[:1] == ['--strict']
@@ -64,13 +87,20 @@ def main():
         sys.exit(__doc__)
     pluk, path = args
     manual = open(path, encoding='utf-8').read()
-    opts = options(pluk)
-    missing = [o for o in opts if not mentioned(o, manual)]
+    opts = help_options(pluk)
+    listed = reference_options(manual)
+    if listed is None:
+        print('%s: no section \'## N. Option reference\'' % path)
+        sys.exit(1)
+    missing = [o for o in opts if o not in listed]
+    unknown = [o for o in listed if o not in opts]
     for o in missing:
-        print('%s: option [%s] of pluk --help is not mentioned' % (path, o))
-    print('--- options: %d in pluk --help, %d not mentioned in the manual%s ---' % (
-        len(opts), len(missing), '' if strict else ' (report only)'))
-    if strict and missing:
+        print('%s: option [%s] of pluk --help has no entry in the option reference' % (path, o))
+    for o in unknown:
+        print('%s: option [%s] of the option reference is not in pluk --help' % (path, o))
+    print('--- options: %d in pluk --help, %d without an entry, %d unknown in the option reference%s ---' % (
+        len(opts), len(missing), len(unknown), '' if strict else ' (report only)'))
+    if strict and (missing or unknown):
         sys.exit(1)
 
 

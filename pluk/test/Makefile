@@ -19,8 +19,8 @@ test: runpluk runtestopt rundiff rundoc
 # operator reference of the manual checked against pluk --list-ops-tsv
 # (plan/MANUAL.design.txt sections 3 and 4; Python 3). After a change to an operator:
 # python3 opscheck.py --update $(p) ../../doc/PLUK-MANUAL.md
-# optcheck.py --strict: an option of pluk --help that the manual does not mention is an
-# error (plan/step29.txt decision 3; strict since step30 item 3).
+# optcheck.py --strict: the option reference of the manual (section 15) and pluk --help
+# must name the same options (plan/step34.txt decision 6).
 # README.md (the introduction) names its files doc/..: it runs with --copy.
 DOCS = ../../doc/SAM-NA.md ../../doc/PLUK-MANUAL.md --copy ../../doc ../../README.md
 
