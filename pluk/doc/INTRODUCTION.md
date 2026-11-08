@@ -18,15 +18,21 @@ you manipulate rows using column names. It processes the table line by line and
 **munches through large data fast using almost no memory**.
 It supports
 
--  assertions over input data and (computed) output data
+-  filters and assertions over input data and (computed) output data
 -  reading/writing compressed data transparently
--  tables without headers, including ragged data.
+-  tables without headers, including ragged data
 -  spliting a table into files
 -  SAM/BAM input with compute operators to extract alignment information
 
-Everything is specified on the command line. There is no script to write - pluk is expressive and concise.
+Everything is specified on the command line. Pluk aims for expressive and concise invocations.
 
-The examples below use [`harvest.txt`](harvest.txt):
+-  Short options set often-used modalities, e.g. `-A` (select all), `-k` (headerless input).
+-  Short options combine, e.g. `-Ak/^#` (as above, skip lines starting with `#`).
+-  A column is selected simply by naming it.
+-  A filter is indicated by `@`, e.g. `@weight/gt/1.0`, filtering column `weight`.
+-  A new column looks like this: `gram::kg^1000,div`.
+
+These are illustrated below using the data [`harvest.txt`](harvest.txt):
 
 ```text
 picker  fruit   tree  kg    bruised  ripeness
@@ -41,7 +47,7 @@ Hilde   plum    U02   7.9   0        0.70
 ```
 
 
-## A five-minute tour
+## A quick tour
 
 **Pick columns by name**, in the order you want them.
 
@@ -79,7 +85,7 @@ $ pluk -c @fruit=apple < harvest.txt
 
 **Make new columns.** A compute is `NAME::` followed by a small stack program: `:` pushes a
 column, `^` a constant, `,` applies an operator. Here, pounds (to one decimal) and
-bruises per kilo (to two). No quotes are needed: `:` `^` `,` `@` and `/` mean nothing to
+bruises per kilo (to two decimals). No quotes are needed: `:` `^` `,` `@` and `/` mean nothing to
 the shell. An argument with `*`, `?`, `[`, `\`, `(`, `$` or a space does need them.
 
 ```console
