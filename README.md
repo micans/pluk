@@ -164,10 +164,10 @@ pluk reads SAM and BAM. Given the reference sequences it computes the trailing a
 query and reference, counts edits, and supports output of individual aligment parts.
 It is intended for relatively short non-genomic references such as transcripts, transgenes, plasmids and amplicons.
 Here is [one read](doc/reads.sam) against a [53-base transgene](doc/transgene.fa) in this case showing
-the full alignment:
+the full alignment. Below `aln_posinfo` gives _Mismatch and indel positions; indel sequences up to length n_.
 
 ```console
-$ pluk --sam/doc/transgene.fa 1 6 n::,aln_nedit_pia p::^0,aln_posinfo < doc/reads.sam
+$ pluk --sam/doc/transgene.fa 1 6 n::,aln_nedit p::^0,aln_posinfo < doc/reads.sam
 read1   3S22M3I8M3D9M   7   x=21,c=CA:i=31,n=3,s=TTT:d=39,n=3,s=CCA
 ```
 
