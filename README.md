@@ -10,9 +10,7 @@ were settled and sometimes fixed, syntax was made cleaner in a few places, featu
 
 ## What it is
 
-|pluk is column-name-aware `cut` x column-name-aware `grep`, edits existing columns and computes new columns.|
-|---|
-||
+pluk is akin to column-name-aware `cut` x column-name-aware `grep`, edits existing columns and computes new columns.
 
 pluk streams a table, i.e. a file with a header line and tab-separated columns, and lets you manipulate rows using column
 names. It processes the table line by line and **munches through large data fast using almost no memory**.  It supports
