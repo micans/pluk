@@ -1,9 +1,9 @@
 # Introduction to pluk
 
 *pluk is a Rust reimplementation of pick, a Perl program by Stijn van Dongen that
-served as its prototype. All of pluk's code was written by Claude (Anthropic), in a
-continuous dialogue with Stijn. The work was staged into steps, each a
-small set of items; every step was discussed and its decisions written down before any
+served as its prototype. All of pluk's code was written by Claude (Anthropic) in dialogue with Stijn.
+The work was staged into steps, each a
+small set of items. Every step was discussed and its decisions written down before any
 code was written, then implemented item by item, tested against pick and committed
 by Stijn over a period of about three days. The `plan/` directory retains that history.
 Many corner/edge cases in pick were settled and sometimes fixed.*
@@ -11,15 +11,20 @@ Many corner/edge cases in pick were settled and sometimes fixed.*
 
 ## What it is
 
-pluk reads a table, i.e. a file with a header line and tab-separated columns, and lets
+pluk is a column-name-aware `cut` combined with `grep` and can compute new columns from the data.
+
+It reads a table, i.e. a file with a header line and tab-separated columns, and lets
 you manipulate rows using column names. It processes the table line by line and
-munches through large data fast using almost no memory.
-It is `cut` that knows names, `grep` that knows
-which column it is looking at, and `sed` for field values. Besides that it computes
-new columns, splits a table into files, supports assertions over the data,
-reads/writes compressed data transparently and supports tables without headers, including ragged data.
-Everything happens on the command line. There is
-no script to write - pluk is expressive and concise.
+**munches through large data fast using almost no memory**.
+It supports
+
+-  assertions over input data and (computed) output data
+-  reading/writing compressed data transparently
+-  tables without headers, including ragged data.
+-  spliting a table into files
+-  SAM/BAM input with compute operators to extract alignment information
+
+Everything is specified on the command line. There is no script to write - pluk is expressive and concise.
 
 The examples below use [`harvest.txt`](harvest.txt):
 
