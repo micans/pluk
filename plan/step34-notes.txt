@@ -55,3 +55,31 @@ Item 4: README.md is the introduction
   (275 examples). The link check already resolved links relative to the document; only
   its docstring and message changed. Without --copy README.md would also pass, but by
   copying the whole repository; the Makefile always passes --copy for it.
+
+
+Item 5: doccheck.py --update, make docupdate
+
+  examples() also returns where the expected lines of each command are in the document
+  (0-based start and end, after trailing blank lines are dropped; with no expected lines
+  start is the line of the next command or the closing fence) and the fence's indent.
+  check() with update collects (start, end, indent, lines) for each example whose stdout
+  does not match; main() applies them bottom-up, so earlier positions stay valid, and
+  calls docalign.align_document on the document (imported; python3 -B so that no
+  __pycache__ appears, as with optcheck).
+
+  refill(): '...' keeps the count of lines shown before the first and after the last
+  '...' (one '...' in the result; all actual lines if they are not more than those);
+  'pluk:' lines stay as written, each after as many new lines as preceded it before. A
+  stderr mismatch stays a failure: messages are not rewritten (decision 5). With 2>&1
+  everything is stdout and rewritten.
+
+  Guard, added after a trial: an example whose stdout is now empty while output was
+  shown is reported and not rewritten. Without it a missing data file wiped the output
+  of every example of a document.
+
+  Targets: docupdate in pluk/Makefile builds pluk (as test does) and runs docupdate in
+  test/Makefile; the workflow is in the comment there. Tried on a scratch copy of
+  README.md with the aln_nedit_pia example changed (output rewritten and aligned; the
+  other examples untouched); README.md itself is left for the user's rewrite. Tested by
+  hand on a scratch document: plain output, '...', a stale 'pluk:' line (reported), 2>&1,
+  a continued command, an indented fence, an example without output, a matching one.

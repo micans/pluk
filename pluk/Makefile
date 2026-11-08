@@ -1,4 +1,4 @@
-.PHONY: rel test test-int128 clean
+.PHONY: rel test docupdate test-int128 clean
 
 rel:
 	cargo build --release
@@ -6,6 +6,10 @@ rel:
 test: rel
 	cargo test --release -q
 	$(MAKE) -C test
+
+# Rewrite the output shown in the documents' examples (test/Makefile, docupdate).
+docupdate: rel
+	$(MAKE) -C test docupdate
 
 # The suite with Int = i128 (plan/NUMERIC.design.txt section 6). Built in its
 # own target directory, so that target/release/pluk stays the default build; the

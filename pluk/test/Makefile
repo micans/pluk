@@ -10,7 +10,7 @@ SHELL=/bin/bash
 
 p=../target/release/pluk
 
-.PHONY: test runpluk runtestopt rundiff rundoc runretired accept clean
+.PHONY: test runpluk runtestopt rundiff rundoc docupdate runretired accept clean
 
 test: runpluk runtestopt rundiff rundoc
 	@echo "--- All tests passed ---"
@@ -28,6 +28,16 @@ rundoc:
 	@python3 doccheck.py $(p) $(DOCS)
 	@python3 opscheck.py $(p) ../../doc/PLUK-MANUAL.md
 	@python3 -B optcheck.py --strict $(p) ../../doc/PLUK-MANUAL.md
+
+# Changing an example in a document (plan/step34.txt decision 5):
+#   a. edit the command in the document;
+#   b. make docupdate in pluk/ (builds pluk; rewrites the output shown for each example
+#      that no longer matches, keeping '...' and 'pluk:' lines, then aligns it; a 'pluk:'
+#      line that no longer matches is reported, to be fixed by hand);
+#   c. git diff doc README.md, to review the new output;
+#   d. make test.
+docupdate:
+	@python3 -B doccheck.py --update $(p) $(DOCS)
 
 # A failing invocation does not stop the others; its output is compared as usual.
 .IGNORE: runpluk runtestopt
