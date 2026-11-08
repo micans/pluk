@@ -48,6 +48,15 @@ Hilde   plum    U02   7.9   0        0.70
 ```
 
 
+## Install
+
+```sh
+cargo build --release     # the program: target/release/pluk
+make test                 # build, unit tests, the test suite, the manual's examples
+make test-int128          # the same with 128-bit integers; binary target/release/pluk7
+```
+
+
 ## A quick tour
 
 **Pick columns by name**, in the order you want them.
