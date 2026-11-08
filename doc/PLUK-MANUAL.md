@@ -626,7 +626,7 @@ H   1e300                5e+299
 reproducible.
 
 ```console
-$ pluk --seed=7 picker die::^6,rand,floor^1,add < harvest.txt
+$ pluk --seed=7 picker die::^6,rand,floor,incr < harvest.txt
 picker  die
 Annie   3
 Bert    1

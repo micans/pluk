@@ -2,7 +2,20 @@
 """Run the console examples of the pluk documents and compare their output
 (plan/MANUAL.design.txt section 4).
 
-    doccheck.py [--update] PLUK [--copy DIR] DOCUMENT.. [--copy DIR] DOCUMENT..
+    doccheck.py [--update] PLUK DOCUMENT.. [--copy DIR DOCUMENT..]
+
+    PLUK      path of the pluk binary to test, e.g. ../target/release/pluk; its
+              directory is put first on the PATH, so that 'pluk' in the examples is it.
+    DOCUMENT  a markdown file whose ```console examples are run. By default each runs
+              in a scratch copy of the document's own directory, so its examples name
+              files as 'harvest.txt'.
+    --copy DIR  the documents after it run instead in a scratch directory that contains
+              a copy of DIR as a subdirectory, so their examples name files as
+              'DIR/harvest.txt'. For README.md, whose examples say doc/harvest.txt.
+    --update  rewrite the expected output of failing examples in place (see below).
+
+    Usually run via make (in pluk/): make test, or make docupdate after editing an
+    example. See README.txt in this directory.
 
 Every ```console block (any fence of three or more backticks) is run, except one
 preceded by a line <!-- notest -->. In a block, a line starting with '$ ' is a command
@@ -239,6 +252,8 @@ def main():
         if len(sys.argv) < 3:
             sys.exit(__doc__)
     pluk, args = sys.argv[1], sys.argv[2:]
+    if not (os.path.isfile(pluk) and os.access(pluk, os.X_OK)):
+        sys.exit('doccheck.py: PLUK [%s] is not an executable file (e.g. ../target/release/pluk)' % pluk)
     total, failed = 0, []
     copy = None
     while args:
