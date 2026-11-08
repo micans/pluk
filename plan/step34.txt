@@ -1,0 +1,74 @@
+- Issues: -K with SAM, renaming by capture group, documents at the top, doc example workflow, option reference
+
+  From issues.txt (the items not marked [defer]). One code change in behaviour (decision 2),
+  the rest is layout of the repository, test tooling and the manual.
+
+
+  Outcome of the discussion
+
+  Decisions:
+   1. -K can be combined with --sam and --sam-h, as in pick (pluk --sam -K qry::1 ref::3
+      names the columns; with --sam-h the line of names follows the @ header lines). The
+      onus is on the user; the output is then no longer SAM. Reverses step11-notes.txt
+      item 5; the difference is removed from guidelines.txt and manual section 14.
+   2. Capture group 1 names a new column only in the renaming shapes (P/SPEC/S, SPEC/S,
+      P/SPEC/, /SPEC/, P//SPEC//S): '/+num(\d)/::__^10,add' creates columns 1 2 4. Without
+      delimiters a group is part of the regex only and the compute is a plain map:
+      '+num(\d)::__^10,add' redefines num1 num2 num4 and needs -i, like '+num\d::..'.
+      Rule: a name changes only where there are slashes. Groups used for alternation
+      (+(num|fib)\d) no longer need the non-capturing form (?%3A..). Changes step26
+      decision 3 (which followed pick); a new entry in manual section 14.3 and in
+      guidelines.txt; manual section 6 and the help text adjusted.
+   3. The documents move up one level: pluk/doc becomes doc/ at the top of the repository,
+      data files included (git mv). Updated: test/Makefile (DOCS and the opscheck/optcheck
+      paths, ../../doc), test/mkbam.py (doc/reads.bam), comments naming ../doc, CLAUDE.md.
+      Plan files of earlier steps keep the paths of their time.
+   4. The introduction becomes the top-level README.md (option B): git mv of
+      doc/INTRODUCTION.md over the stub README.md. Its examples are written from the top
+      of the repository (pluk ... < doc/harvest.txt) so that they run from a fresh clone;
+      its links point into doc/ (doc/SAM-NA.md, doc/reads.sam, ...), and the manual's two
+      links to INTRODUCTION.md become ../README.md. doccheck.py gets an option
+      --copy DIR: the commands of the documents that follow run in a fresh temporary
+      directory holding a copy of DIR under its own name (README.md: --copy ../../doc), so
+      that the whole repository is not copied. Its link check accepts a relative path
+      into a subdirectory (it checks that the file exists relative to the document). The
+      untracked file README (an old note) is the user's to remove.
+   5. Workflow for changing an example: doccheck.py --update rewrites the expected output
+      of each example whose output no longer matches, with the actual stdout (stdout and
+      stderr with 2>&1). A '...' elision is kept: the lines shown before and after it keep
+      their count and are refilled from the actual output. Expected 'pluk:' lines are not
+      rewritten; a mismatch there is reported for the author to fix. Then docalign.py runs
+      on the changed documents. A make target docupdate in test/Makefile does both for all
+      documents. The workflow, written in the header comment of test/Makefile:
+          a. edit the command in the document;
+          b. make -C pluk/test docupdate;
+          c. git diff doc README.md to review the new output;
+          d. make test.
+   6. An option reference in the manual: a new section just before the operator
+      reference, listing every option of pluk --help, grouped as in the help, one line
+      each with a link to the section that explains it. The operator reference becomes
+      section 16 (references to section 15 updated). optcheck.py --strict then requires
+      every option of pluk --help to have its line in this section (and reports lines for
+      options pluk does not have), instead of a mention anywhere in the manual.
+
+
+  Items
+
+  1   Decision 1: -K with --sam/--sam-h; test o.kheader-sam; manual sections 10 and 14,
+      guidelines.txt, step11-notes.txt. Implemented on main before the step. Commit.
+
+  2   Decision 2: capture group naming only with delimiters (colspec.rs/compute.rs), tests
+      (o.map and related refs, new cases), manual sections 6 and 14.3, guidelines.txt,
+      help text. Commit.
+
+  3   Decision 3: pluk/doc to doc/, paths in Makefile, scripts, comments and CLAUDE.md.
+      Commit.
+
+  4   Decision 4: README.md from INTRODUCTION.md, examples and links from the top level,
+      doccheck.py --copy and the link check, manual links. Commit.
+
+  5   Decision 5: doccheck.py --update, make docupdate, the workflow comment; tried on the
+      aln_nedit_pia example in README.md (the user rewrites that example). Commit.
+
+  6   Decision 6: option reference section, renumbering, optcheck.py --strict against the
+      section. Commit.

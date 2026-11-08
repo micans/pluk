@@ -836,9 +836,6 @@ fn check_combinations(config: &Config) -> Result<(), String> {
             return Err(format!("{} requires --sam or --sam-h", name));
         }
     }
-    if config.big_k && (config.sam || config.sam_h) {
-        return Err("-K cannot be combined with --sam or --sam-h".to_string());
-    }
     // -x takes precedence over -A, so an insert position would have no effect.
     if config.insert_offset.is_some() && config.excise {
         return Err("-A<N> cannot be combined with -x".to_string());

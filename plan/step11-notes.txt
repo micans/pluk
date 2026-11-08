@@ -123,6 +123,8 @@ Item 5: -K
   except for -c (which concerns stdout only), so they get the -K header too. Being -k, -K
   satisfies -O<N> and is refused with -R. Decided in the discussion: -K with --sam or
   --sam-h is an option error (a header line of numbers does not belong in SAM output).
+  Reversed after step33 (issues.txt): -K with --sam and --sam-h is allowed, as in pick
+  (pluk --sam -K qry::1 ref::3 names the columns); the onus is on the user.
   pick's -U (unique output columns in input order with -k/-K) and the --inames family stay
   out of scope (plan/sketch).
 

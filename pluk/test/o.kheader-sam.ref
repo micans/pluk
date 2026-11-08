@@ -1,0 +1,57 @@
+--sam -K qry::1 ref::3
+qry	ref
+r001	chr1
+r002	chr1
+r004	chr2
+r005	*
+r006	chr2
+qry	ref
+r001	chr1
+r002	chr1
+r004	chr2
+r005	*
+r006	chr2
+-K --sam-h qry::1 ref::3
+@HD	VN:1.6	SO:unsorted
+@SQ	SN:chr1	LN:1000
+@SQ	SN:chr2	LN:500
+@PG	ID:hand	PN:handwritten
+qry	ref
+r001	chr1
+r002	chr1
+r004	chr2
+@HD	VN:1.6	SO:unsorted
+@SQ	SN:chr1	LN:1000
+@SQ	SN:chr2	LN:500
+@PG	ID:hand	PN:handwritten
+qry	ref
+r001	chr1
+r002	chr1
+r004	chr2
+--sam -K 1 4
+1	4
+r001	7
+r002	9
+r004	16
+r005	0
+r006	29
+1	4
+r001	7
+r002	9
+r004	16
+r005	0
+r006	29
+--sam -K -h 1
+r001
+r002
+r004
+r005
+r006
+r001
+r002
+r004
+r005
+r006
+--sam -K -c 1
+5
+5

@@ -1250,8 +1250,9 @@ $ pluk --sam-h -A @1=read2 < align.sam
 read2  16  transgene  30  60  2H4S12M3S  *  0  0  GGTTGCTAAAGTTCCACCC  IIIIIIIIIIIIIIIIIII  NM:i:1
 ```
 
-`-K` cannot be combined with `--sam`. Input that does not look like SAM is reported line
-by line and gives no output.
+`-K` can be combined with `--sam` and `--sam-h`; it prints a line with the output column
+names (with `--sam-h` after the header lines), which is no longer SAM. Input that does not
+look like SAM is reported line by line and gives no output.
 
 ### Reference sequences: --sam/FILE
 
@@ -2049,9 +2050,8 @@ pluk does.
 - BAM input is read with `--sam` and `--sam-h` (pick has no BAM support). A BAM header
   without `@SQ` lines gets them from the binary reference list; `@SQ` lines that differ
   from it are an error.
-- `-K` cannot be combined with `--sam`; `--sam-nonf`, `--sam-aln-mrk`, `--sam-qlt-sim`
-  and `--sam-aln-prefix` require `--sam` or `--sam-h`; SAM operators without them are an
-  error before input is read.
+- `--sam-nonf`, `--sam-aln-mrk`, `--sam-qlt-sim` and `--sam-aln-prefix` require `--sam`
+  or `--sam-h`; SAM operators without them are an error before input is read.
 - The normal form is not applied where it would leave an empty CIGAR (pick turns a
   CIGAR `5D` into an empty one and moves POS).
 - Values that cannot be computed are NA, the row is kept, and the NA is counted by

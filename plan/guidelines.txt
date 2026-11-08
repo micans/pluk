@@ -101,7 +101,6 @@
       P//SPEC//S with ':=' is an error. Capture group 1 of a '+' regex names the new
       column (as pick); a group that does not take part or matches empty is an error;
       -i +num(\d)::.. creates new columns (until step26 it redefined in place).
-    - -K cannot be combined with --sam or --sam-h (step11-notes.txt item 5).
     - Arithmetic (step12.txt): division by zero gives inf or nan (div) or NA (idiv, mod)
       where pick dies; a float given to idiv, mod or ipow is NA (pick truncates); ipow
       overflow is NA; sign of nan is nan (pick: 0); /ISNUM fails on nan; log, sqrt of 0 or
