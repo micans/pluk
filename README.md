@@ -18,13 +18,17 @@ and warnings as necessary. Errors propagate to NA and are summarised in diagnost
 pluk streams a table, i.e. a file with a header line and tab-separated columns, and lets you manipulate rows using column
 names. It processes the table line by line and **munches through large data fast using almost no memory**.  It supports
 
--  filters and assertions over input data and (computed) output data
+-  filters and assertions over input data and output data
+-  editing/changing existing columns
+-  computing new columns
 -  reading compressed data transparently
 -  tables without headers, including ragged data
 -  spliting a table into files
 -  SAM/BAM input with compute operators to extract alignment information
 
 Everything is specified on the command line. Pluk aims for expressive and concise invocations.
+The new column syntax is stack based. It is idiosyncratic but simple and effective, or
+possibly simple and effective but idiosyncratic.
 
 -  Short options set often-used modalities, e.g. `-A` (select all), `-k` (headerless input).
 -  Short options combine, e.g. `-Ak/^#` (as above, skip lines starting with `#`).

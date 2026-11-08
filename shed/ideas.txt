@@ -1,0 +1,16 @@
+
+[defer] Releases and versioning.
+
+[defer] Timing.
+
+[defer] Syntax/support for joining columns from the table dictionary. Somehwat invasive.
+Introduce columns x y z from table T by joining input.key1 with T.key with input.key2.
+ 
+[defer] Ambitious / dubious pay-off / fun. Convert .md sources to zoem manual page sources. This would require
+a new zoem PUD man macro target (in addition to .roff and .html targets) of .md  or a subset of the man macros.
+Maybe something to investigate on a rainy day with Claude. Zoem is fun.
+
+[defer] when -i redefines a name that is also output, pluk writes -- Identical output column names exist (will make unique) to
+stderr. Two cases do this: -i picker kg 'kg::…', and v:= followed by two v:: computes. Yet the output has that column
+only once and nothing is made unique, so the notice looks spurious. Recorded it in plan/step29-notes.txt.
+
