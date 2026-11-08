@@ -5,7 +5,7 @@
 #   bam-sqdiff.bam   @SQ line whose length differs from the binary list
 #   bam-cg.bam       a CIGAR stored in a CG:B:I tag (as for more than 65535 operations)
 #   bam-empty.bam    header only, no records
-#   ../doc/reads.bam doc/reads.sam as BAM, for the manual (plan/step30.txt decision 4)
+#   ../../doc/reads.bam: doc/reads.sam as BAM, for the manual (plan/step30.txt decision 4)
 # BGZF is written here as well, since bgzip may not be installed.
 
 import struct
@@ -82,4 +82,4 @@ write('bam-empty.bam', bam(b'@HD\tVN:1.6\n@SQ\tSN:chr1\tLN:1000\n@SQ\tSN:chr2\tL
 # The manual's reads.sam as BAM (MAPQ 60, QUAL absent, NM:i:7 stored as an unsigned byte).
 read1 = record('read1', 0, 0, 9, [(3, 'S'), (22, 'M'), (3, 'I'), (8, 'M'), (3, 'D'), (9, 'M')],
                'CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG', b'NMC\x07')
-write('../doc/reads.bam', bam(b'@SQ\tSN:transgene\tLN:53\n', [('transgene', 53)], [read1]))
+write('../../doc/reads.bam', bam(b'@SQ\tSN:transgene\tLN:53\n', [('transgene', 53)], [read1]))

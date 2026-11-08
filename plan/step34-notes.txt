@@ -27,3 +27,13 @@ Item 2: capture group 1 only in the renaming shapes
   and as an -i map; +num(\d)::.. without -i is now the "already exists" error. Unit test
   colspec::capture_groups. Manual section 6 (paragraph and example now /+(k)g/), 14.3
   (new entry), guidelines.txt and the help text.
+
+
+Item 3: doc/ at the top level
+
+  git mv pluk/doc doc (16 tracked files; nothing untracked was there). Paths updated in
+  pluk/test/Makefile (DOCS, opscheck, optcheck, comments: ../../doc) and
+  pluk/test/mkbam.py (doc/reads.bam; rerun, all BAMs byte-identical). CLAUDE.md names
+  doc/. doccheck.py needed no change: it copies a document's own directory, wherever
+  that is. The documents themselves name no path to doc/ (the build instructions in
+  manual section 1 are relative to the crate). Earlier plan files keep pluk/doc.

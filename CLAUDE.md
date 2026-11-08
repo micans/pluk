@@ -28,5 +28,7 @@ documentation.
 - Build: `cd pluk && cargo build --release`
 - Tests: `cd pluk && make test` (builds pluk, runs pluk/test/Makefile, compares o.*.test with
   o.*.ref) plus `cargo test` for unit tests.
+- Documentation: doc/ at the top level (manual, SAM-NA, data files); its console examples
+  are run by `make test` (pluk/test/doccheck.py).
 - Reference behaviour: compare against pick (pick/pick) on the same input.
 - shed/ is a scratch Cargo project for small Rust exercises.
