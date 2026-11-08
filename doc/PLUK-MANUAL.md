@@ -1,12 +1,11 @@
 # The pluk manual
 
-*pluk is a Rust reimplementation of pick, a Perl program by Stijn van Dongen that
-served as its prototype. All of pluk's code was written by Claude (Anthropic), in a
-continuous dialogue with Stijn. The work was staged into steps, each a
-small set of items; every step was discussed and its decisions written down before any
-code was written, then implemented item by item, tested against pick and committed
-by Stijn over a period of about three days. The `plan/` directory retains that history.
-Many corner/edge cases in pick were settled and sometimes fixed.*
+*pluk is a Rust reimplementation of [pick](http://github.com/micans/pick),
+a Perl program by Stijn van Dongen that served as pluk's prototype. All code was written by Claude (Anthropic) in
+dialogue with Stijn.  The work was staged into steps, each a small set of items.  Every step was discussed and its
+decisions written down before any code was written, then implemented item by item, tested against pick and committed by
+Stijn over a period of about three days. The `plan/` directory retains that history.  Many corner/edge cases in pick
+were settled and sometimes fixed, syntax was made cleaner in a few places, features were added.*
 
 
 ## 1. Introduction

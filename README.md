@@ -12,6 +12,9 @@ were settled and sometimes fixed, syntax was made cleaner in a few places, featu
 
 pluk is akin to column-name-aware `cut` x column-name-aware `grep`, edits existing columns and computes new columns.
 
+It distinguishes strings, integer and floats, infers types from operators and issues appropriate conversions
+and warnings as necessary. Errors propagate to NA and are summarised in diagnostic messages.
+
 pluk streams a table, i.e. a file with a header line and tab-separated columns, and lets you manipulate rows using column
 names. It processes the table line by line and **munches through large data fast using almost no memory**.  It supports
 
@@ -26,7 +29,7 @@ Everything is specified on the command line. Pluk aims for expressive and concis
 -  Short options set often-used modalities, e.g. `-A` (select all), `-k` (headerless input).
 -  Short options combine, e.g. `-Ak/^#` (as above, skip lines starting with `#`).
 -  A column is selected simply by naming it.
--  A filter is indicated by `@`, e.g. `@weight/gt/1.0`, filtering column `weight`.
+-  A filter is indicated by `@`, e.g. `@weight/gt/1.0`, filtering rows by column `weight`.
 -  A new column looks like this: `gram::kg^1000,div`.
 
 These are illustrated below using the data [`doc/harvest.txt`](doc/harvest.txt) (the
