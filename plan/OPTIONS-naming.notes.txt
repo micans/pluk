@@ -8,6 +8,8 @@ filters), -% and -%% (plan/zz-notes.txt). Names only; option syntax is out of sc
 Ranked first: -e, -E and -o. They are the most entrenched meanings, and the ones users
 are most likely to try without reading the help.
 
+What became of the brainstorm below: see "Outcome" at the end (step35).
+
 
 Short options
 -------------
@@ -149,3 +151,43 @@ at least until release; -e and -E could stay reserved after that.
 Minimal set: -e -> -w and -E -> -C (strong precedent, frees two entrenched letters),
 plus the --sam-aln-* family. The -H idea is the most interesting of the rest but
 reaches furthest: it changes help, -K and a pick habit at once.
+
+
+Outcome: step35 (plan/step35.txt, rationale in plan/step35-notes.txt)
+-----------------------------------------------------------------------
+
+The brainstorm was implemented in full, except for the lines marked * above.
+
+Done, old name an error naming the new:
+    -e -> -w; -E<N> -> -C<N> (-e and -E stay reserved)
+    -U -> -p
+    --A=NAME -> --after=NAME; --other -> --rejected; --assert-other -> --assert-failed
+    --sam-aln-mrk -> --sam-aln-mark (not -markers); --sam-aln-xy -> --sam-aln-extend;
+    --sam-narrow-xy -> --sam-aln-narrow; --sam-qlt-sim -> --sam-qual-simple
+
+Done, old name kept as a synonym:
+    --sam-h (and /FILE) of --sam-header: short to type, pick's name
+    --sam-rbt of --sam-rbt-region: meshes with the sam_rbt operator
+    (both first made errors, then reinstated)
+
+Done, new meaning:
+    -H outputs a header line, also with -k; -K is -kH and stays; help is --help only
+
+Done, documentation only:
+    help and manual lead with --kdict- --fdict- --cdict- --tdict --fasta-dict;
+    --kd- --fd- --cd- --td remain as short forms
+
+Not done (the * lines):
+    --sam-nonf kept; --sam-keep-flanks added as a synonym (not --sam-keep-ends)
+    --pstore kept (matches the pstore/pload operators)
+
+Considered and not taken:
+    -#<N> for the row count (-C<N> chosen)
+    -I for input order (an unrelated -i/-I pair)
+    -? for help (a glob)
+
+Open:
+    -e ARG for an argument starting with '-' (as grep -e); -- covers it for now
+    -z, -e and -E are reserved; when a reserved letter may be freed or reused (for
+    example -z for compressed output, see the --out note in shed/ideas.txt) is
+    undecided

@@ -64,3 +64,9 @@ Item 4.
     to the old refs).
   Line width: the manual and guidelines already have many lines over 90 columns, so
     lines lengthened by the longer names were not rewrapped.
+
+Item 5.
+  plan/OPTIONS-naming.notes.txt has an "Outcome" section: what was done, what was kept
+    (--sam-nonf, --pstore), what was considered and not taken, and what is open (-e
+    ARG; when reserved letters may be reused). Nothing went to deferred.txt: the open
+    points are ideas, not deferred work, and they are recorded in the notes file.

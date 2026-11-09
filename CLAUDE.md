@@ -12,7 +12,7 @@ documentation.
    Read plan/step<N>.txt, plan/step<N>-notes.txt and plan/step<N>-context.txt where present,
    and the notes of the previous step.
 3. Read the relevant design files in plan/ (*.design.txt) and their seeds (*.notes.txt).
-4. Also read deferred.txt (items moved to later steps) and plan/sketch (draft of future steps).
+4. Also read plan/deferred.txt (items moved to later steps) and plan/sketch (draft of future steps).
 5. Check `git status` and `git log --oneline` to see which step items are committed.
 
 ## Working rules (details in plan/guidelines.txt)
