@@ -22,3 +22,21 @@ Item 2.
     SAM, with --threads last (it concerns BAM only).
   -K moved from the front into the third group; its text ("as -k ...") reads after -k.
   Only the order changed: the sorted lines of the old and new help are equal.
+
+Item 3.
+  The help text is wrapped at 120 columns (was about 85); 215 lines became 168. The
+    rewrap was done once by a script on the output of --help (not kept): entries keep
+    their description column (14 for options, 18 for computes and filters, 28 for
+    dictionaries, 16 for the operator categories); paragraphs keep their indent;
+    section headings and the usage line stay as they are. An option text wider than
+    its column gets its description on the same line after two spaces, also for the
+    lists of synonyms (--sam-header, --sam-h  ...), which had the description on the
+    next line.
+  Check: the words of the old and new help are the same, in the same order; the only
+    change in wording is a semicolon in the @NAME/om/ entry ("(default 2, K >= 1);
+    /E and /K are optional"), since that note, about /ep/ and /om/ both, was on a line
+    of its own and is now joined to the om entry.
+  Paragraphs that were separate lines of the same indent are joined (e.g. the three
+    lines after the dictionary entries); "(on bytes)" now follows the string operators
+    on the same line.
+  Future edits of the help keep the 120-column limit by hand.

@@ -1,22 +1,19 @@
 Usage: pluk [options] <column|filter>+ < FILE
-Output the named columns of TAB-separated input (plain or gzip-compressed),
-optionally only the rows that pass the filters.
+Output the named columns of TAB-separated input (plain or gzip-compressed), optionally only the rows that pass the
+filters.
 
-Columns: a name, a list a:b:c, or +REGEX for all columns whose whole name
-matches REGEX (Rust regex syntax; \Q...\E quotes literal text, in every pluk
-regex), e.g. +num\d or name:+.*_p. Each part is
-%-decoded after splitting on ':' (%3A for ':', %2B for a leading '+').
+Columns: a name, a list a:b:c, or +REGEX for all columns whose whole name matches REGEX (Rust regex syntax; \Q...\E
+quotes literal text, in every pluk regex), e.g. +num\d or name:+.*_p. Each part is %-decoded after splitting on ':' (%3A
+for ':', %2B for a leading '+').
 
 Options:
-  -k          input has no header line; columns are named 1 2 .. N, and can be
-              given as ranges S-E, S- (to the last), O+S-E (offset), S-E*M
-              (multiplier): columns O + i*M for i = S..E
+  -k          input has no header line; columns are named 1 2 .. N, and can be given as ranges S-E, S- (to the last),
+              O+S-E (offset), S-E*M (multiplier): columns O + i*M for i = S..E
   -h          do not output the header line
   -A          output all columns
-  -A<N>       as -A, with the new computed columns inserted after the first N
-              input columns (N < 0: counted from the right)
-  --after=NAME  as -A, with the new computed columns inserted after input
-              column NAME
+  -A<N>       as -A, with the new computed columns inserted after the first N input columns (N < 0: counted from the
+              right)
+  --after=NAME  as -A, with the new computed columns inserted after input column NAME
   -x          output all columns except the named ones
   -c          output only the number of data rows (that pass the filters)
 
@@ -24,102 +21,78 @@ Options:
   -o          keep rows that pass any @ filter (default: all)
   -s          keep rows that pass any @@ filter (default: all)
 
-  -K          as -k, and output a header line with the output column names
-              (the numbers, or compute names: -K name::1 len::2); -K is -kH
+  -K          as -k, and output a header line with the output column names (the numbers, or compute names: -K name::1
+              len::2); -K is -kH
   -H          output a header line, also with -k (-h takes precedence)
   -u          make duplicate input column names unique (suffixes _v02, _v03, ..)
   -R          header has no name for the first (row name) column; it is named _
-  -p          output the selected columns in input order (computed columns after
-              them, in the order of the computes); a column given twice is output
-              once, as without -p
+  -p          output the selected columns in input order (computed columns after them, in the order of the computes); a
+              column given twice is output once, as without -p
 
   -/<pat>     skip lines matching regular expression <pat>, e.g. -/^#
   -//<pat>    output lines matching <pat> unchanged
 
   -q          quiet: no messages other than errors (counts, tallies, warnings)
-  -C<N>       the number of output rows must be N, else an error (exit 1) at
-              the end, once the rows have been written
-  -w          remove white space from filters and computes before parsing them
-              (write a space in a value as %20)
+  -C<N>       the number of output rows must be N, else an error (exit 1) at the end, once the rows have been written
+  -w          remove white space from filters and computes before parsing them (write a space in a value as %20)
 
-  --rejected=FILE  write the rows rejected by @ and @@ filters to FILE (header and
-              columns as the output; .gz or .gzip: gzip-compressed)
-  --assert-failed=FILE  write rows that fail an @assert@ or @@assert@ to FILE
-              instead of stopping; such rows go nowhere else
-  --demux=NAME  write each output row to the file named by its value in column
-              NAME (a relative path; .gz or .gzip: gzip-compressed); a tally of
-              files goes to stderr. Rows rejected by @ filters create their file.
+  --rejected=FILE  write the rows rejected by @ and @@ filters to FILE (header and columns as the output; .gz or .gzip:
+              gzip-compressed)
+  --assert-failed=FILE  write rows that fail an @assert@ or @@assert@ to FILE instead of stopping; such rows go nowhere
+              else
+  --demux=NAME  write each output row to the file named by its value in column NAME (a relative path; .gz or .gzip:
+              gzip-compressed); a tally of files goes to stderr. Rows rejected by @ filters create their file.
   --demux-dir=PATH  directory for the --demux files (must exist)
 
-  --pstore    keep columns of each row for the next: ^c,pload reads column c of
-              the previous row (also computed columns, as computed);
-              --pstore/LIST/DEFAULT: LIST k:v,k:v and DEFAULT give the values
-              before the first row (else NA); counting: --pstore//0 n::^n,pload,incr
-  --group=COL groups of consecutive rows with the same value in COL (input or
-              computed); the first row of each group is not output, pload reads
-              the previous row; groupi groupno give the position and the group;
-              --group-first-ref=COL: pload reads the group's first row (implies
-              --pstore, whose LIST/DEFAULT apply before the first group)
-  --quant-NAME=FILE  quantile steps for qnl and qnu: one number per line, in
-              non-decreasing order
-  --progress  a dot on stderr every 1000000 input rows; --progress=K/N: every
-              K rows, and the row count after every N dots
-  --idx-list  write the input indexes of the output columns (computed columns
-              are numbered after the input columns) and stop after the header
+  --pstore    keep columns of each row for the next: ^c,pload reads column c of the previous row (also computed columns,
+              as computed); --pstore/LIST/DEFAULT: LIST k:v,k:v and DEFAULT give the values before the first row (else
+              NA); counting: --pstore//0 n::^n,pload,incr
+  --group=COL  groups of consecutive rows with the same value in COL (input or computed); the first row of each group is
+              not output, pload reads the previous row; groupi groupno give the position and the group;
+              --group-first-ref=COL: pload reads the group's first row (implies --pstore, whose LIST/DEFAULT apply
+              before the first group)
+  --quant-NAME=FILE  quantile steps for qnl and qnu: one number per line, in non-decreasing order
+  --progress  a dot on stderr every 1000000 input rows; --progress=K/N: every K rows, and the row count after every N
+              dots
+  --idx-list  write the input indexes of the output columns (computed columns are numbered after the input columns) and
+              stop after the header
   --name-list write the output column names; --idx-map: index and name per line
 
-  --sam       SAM input: implies -k and -O12, skips lines starting with @.
-              BAM input is recognised and read as SAM
-  --sam-header, --sam-h
-              as --sam, but outputs lines starting with @ unchanged
-  --sam/FILE, --sam-header/FILE, --sam-h/FILE
-              as --sam and --sam-header; reference sequences are read from fasta
-              FILE into the dictionary SAMFA (default __EXIT__)
-  --sam-nonf, --sam-keep-flanks
-              keep exterior deletions and insertions; by default a leading or
-              trailing nD is removed (POS adjusted) and a leading or trailing nI
-              becomes nS, as pick (vsearch writes such alignments)
-  --sam-seqmiss=skip|exit  a row with SEQ '*' whose sequence is not found in an
-              earlier row of the read (needed by qry_seq qry_qual) is skipped
-              (default) or ends pluk with an error
-  --sam-aln-prefix=STR  put STR before every line of aln_all aln_allq
-              aln_all_pack
-  --sam-aln-mark  aln_ref and aln_qry end in markers and the lengths of the
-              5' trail, the matched part and the 3' trail
-  --sam-qual-simple  simplify quality symbols, five values per symbol:
-              .,aAbB..iI (qry_qual aln_qlt)
-  --sam-aln-context=N  extend alignments by up to N bases of reference and
-              soft-clipped query at each end; changes POS and CIGAR (the
-              context is written as X, D, I)
-  --sam-aln-extend=X,Y  extend alignments to include reference positions X..Y
-              (never reduces; with --sam-aln-context the larger per side)
-  --sam-aln-narrow=X,Y  reduce alignments to reference positions X..Y (before
-              the extension); a record outside X..Y gets FLAG 0x4 and CIGAR *
-  --sam-ND-adjust=NAME  dictionary NAME gives per reference intervals a-b,c-d;
-              an N operation that overlaps none of them becomes D, and NM:i is
-              increased by its length (first of the rewrites)
-  --sam-rbt-region=X,Y, --sam-rbt=X,Y
-              the region of the rbt_ operators (region-bound tally) for every
-              row; sam_rbt x y in a compute sets it for the rest of the row
-  --threads=N threads for BAM decompression (default 4, at most the number
-              of processors; 1: no separate threads)
+  --sam       SAM input: implies -k and -O12, skips lines starting with @. BAM input is recognised and read as SAM
+  --sam-header, --sam-h  as --sam, but outputs lines starting with @ unchanged
+  --sam/FILE, --sam-header/FILE, --sam-h/FILE  as --sam and --sam-header; reference sequences are read from fasta FILE
+              into the dictionary SAMFA (default __EXIT__)
+  --sam-nonf, --sam-keep-flanks  keep exterior deletions and insertions; by default a leading or trailing nD is removed
+              (POS adjusted) and a leading or trailing nI becomes nS, as pick (vsearch writes such alignments)
+  --sam-seqmiss=skip|exit  a row with SEQ '*' whose sequence is not found in an earlier row of the read (needed by
+              qry_seq qry_qual) is skipped (default) or ends pluk with an error
+  --sam-aln-prefix=STR  put STR before every line of aln_all aln_allq aln_all_pack
+  --sam-aln-mark  aln_ref and aln_qry end in markers and the lengths of the 5' trail, the matched part and the 3' trail
+  --sam-qual-simple  simplify quality symbols, five values per symbol: .,aAbB..iI (qry_qual aln_qlt)
+  --sam-aln-context=N  extend alignments by up to N bases of reference and soft-clipped query at each end; changes POS
+              and CIGAR (the context is written as X, D, I)
+  --sam-aln-extend=X,Y  extend alignments to include reference positions X..Y (never reduces; with --sam-aln-context the
+              larger per side)
+  --sam-aln-narrow=X,Y  reduce alignments to reference positions X..Y (before the extension); a record outside X..Y gets
+              FLAG 0x4 and CIGAR *
+  --sam-ND-adjust=NAME  dictionary NAME gives per reference intervals a-b,c-d; an N operation that overlaps none of them
+              becomes D, and NM:i is increased by its length (first of the rewrites)
+  --sam-rbt-region=X,Y, --sam-rbt=X,Y  the region of the rbt_ operators (region-bound tally) for every row; sam_rbt x y
+              in a compute sets it for the rest of the row
+  --threads=N  threads for BAM decompression (default 4, at most the number of processors; 1: no separate threads)
 
 Computes (given among the columns; a stack language, as pick):
-  NAME::SPEC      compute column NAME and output it; NAME:=SPEC computes it
-                  without output; ::SPEC is output as PLUKAAAAA, PLUKAAAAB, ..
-  SPEC is a sequence of ^VALUE (constant), :COLUMN (pushes the column; a
-  +REGEX or -k range pushes several) and ,OP (operator). A SPEC that does not
-  start with ^ : , starts with a column. The result is what is left on the
-  stack, concatenated. Operators so far:
+  NAME::SPEC      compute column NAME and output it; NAME:=SPEC computes it without output; ::SPEC is output as
+                  PLUKAAAAA, PLUKAAAAB, ..
+  SPEC is a sequence of ^VALUE (constant), :COLUMN (pushes the column; a +REGEX or -k range pushes several) and ,OP
+  (operator). A SPEC that does not start with ^ : , starts with a column. The result is what is left on the stack,
+  concatenated. Operators so far:
     stack       dup pop xch
-    string      cat len lc uc rev rot13 substr head tail skip shed strim ppl
-                ppr zp nchar catall joinall join uie urlec urldc md5 fmtall cgsum
-                cgmax cgcount
-                (on bytes)
-    arithmetic  add sub mul div idiv mod pow ipow max min neg abs sign sq incr
-                decr rand addall mulall maxall minall meanall hmeanall gmeanall
-    math        int floor ceil round sqrt exp exp2 exp10 log log2 log10 sin cos
-                tan
+    string      cat len lc uc rev rot13 substr head tail skip shed strim ppl ppr zp nchar catall joinall join uie urlec
+                urldc md5 fmtall cgsum cgmax cgcount (on bytes)
+    arithmetic  add sub mul div idiv mod pow ipow max min neg abs sign sq incr decr rand addall mulall maxall minall
+                meanall hmeanall gmeanall
+    math        int floor ceil round sqrt exp exp2 exp10 log log2 log10 sin cos tan
     precision   dd sn frac pct pml
     dictionary  map dord
     branch      ifelse test (test x y T: T a filter operator, e.g. ^/gt/)
@@ -128,88 +101,68 @@ Computes (given among the columns; a stack language, as pick):
     bit         bitand bitor bitxor bitoff bitlsh bitrsh (on |x| |y|; integers)
     radix       tobin tohex tooct binto hexto octto
     regex       del delg ed edg edbr edgbr get npat (the pattern is a constant)
-    sam         (with --sam) isforward sam_get ref_len ref_posx ref_posy qry_len
-                qry_posx qry_posy ref_trail5p_N ref_matched_N ref_trail3p_N
-                ref_trail5p_V ref_trail3p_V qry_trail5p_N qry_matched_N
-                qry_trail3p_N aln_trail5p_cgr aln_matched_cgr aln_trail3p_cgr
-                aln_nmatch aln_nedit aln_nmatchx (pluk -l sam)
+    sam         (with --sam) isforward sam_get ref_len ref_posx ref_posy qry_len qry_posx qry_posy ref_trail5p_N
+                ref_matched_N ref_trail3p_N ref_trail5p_V ref_trail3p_V qry_trail5p_N qry_matched_N qry_trail3p_N
+                aln_trail5p_cgr aln_matched_cgr aln_trail3p_cgr aln_nmatch aln_nedit aln_nmatchx (pluk -l sam)
   Numbers are written exactly (round-trip); NA where a number was needed.
   --num-perl  write numbers as Perl and pick do (%.15g, Inf, NaN)
   --seed=N    seed for rand (default: from the clock), for reproducible output
-  -i          computes may redefine a name (in place): an input column once,
-              a computed name any number of times. Earlier references see the
-              old value, later ones and the output the new value. __ in SPEC is
-              the compute's own name (the value being replaced). With -i, NAME
-              can be a list, +REGEX or (-k) range of existing columns: the
-              compute is applied to each, e.g. -i +num\d::__^1,add.
-  P/SPEC/S::..    renaming: the compute is applied to each column of SPEC (a
-              name, list, +REGEX or range), __ being that column, and gives a new
-              column named P + name + S (P or S may be empty: P/SPEC/, SPEC/S);
-              P//SPEC//S also outputs each original before its new column. A
-              literal / in a name is written %2F. Capture group 1 of a +REGEX
-              names the new column instead of the whole name, also without P and
-              S: /+num(\d)/::__^10,add creates columns 1 2 4 (without slashes a
-              group is part of the regex only).
+  -i          computes may redefine a name (in place): an input column once, a computed name any number of times.
+              Earlier references see the old value, later ones and the output the new value. __ in SPEC is the compute's
+              own name (the value being replaced). With -i, NAME can be a list, +REGEX or (-k) range of existing
+              columns: the compute is applied to each, e.g. -i +num\d::__^1,add.
+  P/SPEC/S::..  renaming: the compute is applied to each column of SPEC (a name, list, +REGEX or range), __ being that
+              column, and gives a new column named P + name + S (P or S may be empty: P/SPEC/, SPEC/S); P//SPEC//S also
+              outputs each original before its new column. A literal / in a name is written %2F. Capture group 1 of a
+              +REGEX names the new column instead of the whole name, also without P and S: /+num(\d)/::__^10,add creates
+              columns 1 2 4 (without slashes a group is part of the regex only).
 
 Filters (given among the columns; VALUE is %-decoded, e.g. %2F for '/'):
-  @NAME/op/VALUE  numeric comparison of column NAME with VALUE, op one of
-                  lt le eq ge gt ne. A value that is not a number fails.
+  @NAME/op/VALUE  numeric comparison of column NAME with VALUE, op one of lt le eq ge gt ne. A value that is not a
+                  number fails.
   @NAME~op~VALUE  string (byte) comparison, op as above
   @NAME=VALUE     string equal; @NAME/=VALUE not equal
-  @NAME~REGEX     REGEX matches (anywhere); @NAME/~REGEX does not match.
-                  Rust regex syntax, as -/PAT. With :NAME2 the value of
-                  column NAME2 is matched as a fixed string, not a regex.
+  @NAME~REGEX     REGEX matches (anywhere); @NAME/~REGEX does not match. Rust regex syntax, as -/PAT. With :NAME2 the
+                  value of column NAME2 is matched as a fixed string, not a regex.
   @NAME~isin~DICT the value is a key of dictionary DICT; ~isnotin~ is not
-  @NAME~hasval~DICT~V  the value is a key of DICT with value V; ~hasnotval~
-                  negates. Dictionary defaults play no part. ~notin~ and
-                  ~notval~ are synonyms of ~isnotin~ and ~hasnotval~.
+  @NAME~hasval~DICT~V  the value is a key of DICT with value V; ~hasnotval~ negates. Dictionary defaults play no part.
+                  ~notin~ and ~notval~ are synonyms of ~isnotin~ and ~hasnotval~.
   @NAME/ep/VALUE/E  value within E of VALUE (default 0.0001, E >= 0)
-  @NAME/om/VALUE/K  |value| within a factor K of |VALUE| (default 2, K >= 1)
-                  /E and /K are optional; /epx/ and /omx/ negate.
-  @NAME/all/MASK  all bits of MASK set in |value|; /any/: at least one;
-                  /notall/ and /none/ negate. MASK a non-negative integer;
-                  a value that is not an integer fails.
+  @NAME/om/VALUE/K  |value| within a factor K of |VALUE| (default 2, K >= 1); /E and /K are optional; /epx/ and /omx/
+                  negate.
+  @NAME/all/MASK  all bits of MASK set in |value|; /any/: at least one; /notall/ and /none/ negate. MASK a non-negative
+                  integer; a value that is not an integer fails.
   @NAME/op/:NAME2 compare with column NAME2; ^VALUE is VALUE taken literally
-  @NAME/ISINT     the value is an integer; /ISNUM: a number (also 1e3, inf;
-                  not nan); /NOTINT and /NOTNUM negate. No VALUE.
+  @NAME/ISINT     the value is an integer; /ISNUM: a number (also 1e3, inf; not nan); /NOTINT and /NOTNUM negate. No
+                  VALUE.
   @@NAME...       as @, applied before computes (input columns only)
-  @assert@..., @@assert@...  assertions: as @ and @@, but a row that fails ends
-                  pluk with an error. Checked before the filters of the same
-                  stage; -o and -s do not apply.
-  NAME can be a list, +REGEX or (-k) range, as for columns: the test must
-  hold for every column, e.g. @+num\d/gt/0. A single name follows ':'.
+  @assert@..., @@assert@...  assertions: as @ and @@, but a row that fails ends pluk with an error. Checked before the
+                  filters of the same stage; -o and -s do not apply.
+  NAME can be a list, +REGEX or (-k) range, as for columns: the test must hold for every column, e.g. @+num\d/gt/0. A
+  single name follows ':'.
 
 Dictionaries (NAME: letters, digits, _; used by ~isin~ ~hasval~ map dord):
   --kdict-NAME=FILE         keys from the first column of FILE, all values 1
   --fdict-NAME=FILE         keys and values from the first two columns of FILE
-  --cdict-NAME=k1:v1,k2:v2  keys and values from the list; k without :v has
-                            value 1
-  --kdict-NAME/DEFAULT=...  as above, DEFAULT is the value for keys not found;
-                            __EXIT__ makes a failed lookup an error. Without
-                            DEFAULT a key not found maps to itself.
-  --fasta-dict-NAME=FILE    sequences from fasta FILE, keyed by the identifier
-                            (up to the first white space); DEFAULT is __EXIT__
-                            unless given, '*' maps to the empty sequence.
-  --tdict^KEY/DEFAULT=FILE  table with column names: every column other than
-                            KEY becomes a dictionary named after the column,
-                            mapping the KEY value to the value in that column.
-                            ^KEY and /DEFAULT are optional; KEY defaults to the
-                            first column.
-  --kd- --fd- --cd- are short forms of --kdict- --fdict- --cdict-, as are --td
-  and --table-dict of --tdict.
-  A repeated NAME adds to the dictionary. FILE may be gzip-compressed.
-  In KEY write / and = as %2F and %3D, in DEFAULT = as %3D; in --cdict , and : as
-  %2C and %3A.
+  --cdict-NAME=k1:v1,k2:v2  keys and values from the list; k without :v has value 1
+  --kdict-NAME/DEFAULT=...  as above, DEFAULT is the value for keys not found; __EXIT__ makes a failed lookup an error.
+                            Without DEFAULT a key not found maps to itself.
+  --fasta-dict-NAME=FILE    sequences from fasta FILE, keyed by the identifier (up to the first white space); DEFAULT is
+                            __EXIT__ unless given, '*' maps to the empty sequence.
+  --tdict^KEY/DEFAULT=FILE  table with column names: every column other than KEY becomes a dictionary named after the
+                            column, mapping the KEY value to the value in that column. ^KEY and /DEFAULT are optional;
+                            KEY defaults to the first column.
+  --kd- --fd- --cd- are short forms of --kdict- --fdict- --cdict-, as are --td and --table-dict of --tdict. A repeated
+  NAME adds to the dictionary. FILE may be gzip-compressed. In KEY write / and = as %2F and %3D, in DEFAULT = as %3D; in
+  --cdict , and : as %2C and %3A.
 
-  -l TERM..   list the operators (compute and filter) in a category, or whose
-              name contains TERM; no TERM: all
-  -% ARG..    write each ARG (on one line) with the characters that pluk treats
-              specially %-encoded; no ARG: a table of those characters
+  -l TERM..   list the operators (compute and filter) in a category, or whose name contains TERM; no TERM: all
+  -% ARG..    write each ARG (on one line) with the characters that pluk treats specially %-encoded; no ARG: a table of
+              those characters
   -%% ARG..   write the %-decoding of each ARG (one per line)
   --help      print this help
-  --list-ops-tsv  all operators (compute and filter), one per line, tab-separated:
-              name, category, operands, result, description (for scripts)
+  --list-ops-tsv  all operators (compute and filter), one per line, tab-separated: name, category, operands, result,
+              description (for scripts)
   --version   print the version
 
-Short options combine, e.g. -kO12/^#. Options take effect from left to right.
-In <pat>, write / as %2F.
+Short options combine, e.g. -kO12/^#. Options take effect from left to right. In <pat>, write / as %2F.
