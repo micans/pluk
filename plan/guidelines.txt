@@ -151,6 +151,8 @@
       leading _ or one after the prefix); anything else, including a plus, whitespace, the
       empty string or a value beyond Int, is NA (Perl: stops at the first invalid
       character, 0 for nothing read).
+    - -w removes white space (pick: -e), -C<N> checks the number of output rows (pick:
+      -E<N>); -e and -E are reserved and give an error naming -w and -C (step35).
     - -% and -%% encode and decode (pick: -z and -zz); -z, -zz etc. are reserved and
       give an error naming -% and -%% (plan/zz-notes.txt).
     - -% encodes only % : ^ , / ~ = @ + and white space or control bytes (pick: all but
@@ -161,7 +163,7 @@
       names); the filter operators are listed too (category filter); no match is exit 1;
       -ll is not supported.
     - -q has one level (-qq is -q) and silences every message that is not an error; -v
-      and -d are not taken over. -E<N> counts the rows that pass the filters (stdout or
+      and -d are not taken over. -C<N> counts the rows that pass the filters (stdout or
       --demux, the -c count), not those diverted to --other or --assert-other.
     - --progress counts input data rows, rejected or not, and also with -c (pick counts
       at the output, so rejected rows give no dot, and -c gives no progress).

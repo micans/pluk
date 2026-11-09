@@ -1,6 +1,6 @@
 pluk: -O<N> requires an attached number N, e.g. -O12
 pluk: -O<N> N must be positive
-pluk: Option string not fully parsed: -w remains
+pluk: Option string not fully parsed: -j remains
 pluk: Unrecognised long option --nosuch
 pluk: -//PAT: write '/' inside a pattern as %2F [a/b]
 pluk: -/PAT: write '/' inside a pattern as %2F [a/b]

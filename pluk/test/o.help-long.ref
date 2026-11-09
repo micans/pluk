@@ -15,9 +15,9 @@ Options:
               (multiplier): columns O + i*M for i = S..E
   -h          do not output the header line
   -c          output only the number of data rows (that pass the filters)
-  -E<N>       the number of output rows must be N, else an error (exit 1) at
+  -C<N>       the number of output rows must be N, else an error (exit 1) at
               the end, once the rows have been written
-  -e          remove white space from filters and computes before parsing them
+  -w          remove white space from filters and computes before parsing them
               (write a space in a value as %20)
   -q          quiet: no messages other than errors (counts, tallies, warnings)
   -A          output all columns

@@ -1,0 +1,38 @@
+Step 35: option renames (plan/OPTIONS-naming.notes.txt, brainstorm section)
+
+Breaking changes; pluk has no users yet. Every old name gives an error naming its
+replacement ("-e: use -w"), as -z does since branch zz; -e and -E stay reserved. Each
+item updates opt.rs (parser, help, messages), the tests (refs, unit tests), the manual
+(text, examples, option reference, pick differences), README.md and doc/ where they use
+the names, and plan/guidelines.txt. Rationale in plan/step35-notes.txt.
+
+1. -e -> -w (remove white space from filters and computes; diff -w).
+   -E<N> -> -C<N> (the number of output rows must be N; pairs with -c as -K with -k).
+   -e and -E: reserved, error naming -w / -C. Commit.
+
+2. -U -> -p (output the selected columns in input order; "preserve"). -U: error naming
+   -p.
+   -H: output a header line, also with -k (columns named 1 2 .. N); -K is -k plus -H.
+   -h still overrides, as it overrides -K now; -c concerns stdout as before. Bundles
+   (-kH). Help: --help only; -H no longer prints help (pluk without arguments still
+   prints its usage note, which names --help). Commit.
+
+3. General long options:
+   --A=NAME       -> --after=NAME (implies -A; -A<N> stays)
+   --other        -> --rejected=FILE
+   --assert-other -> --assert-failed=FILE
+   Dictionaries: help and manual lead with --kdict --fdict --cdict --tdict
+   --fasta-dict; --kd --fd --cd --td stay accepted. Commit.
+
+4. SAM options:
+   --sam-h (and --sam-h/FILE) -> --sam-header (--sam-header/FILE)
+   --sam-aln-mrk       -> --sam-aln-mark
+   --sam-aln-xy=X,Y    -> --sam-aln-extend=X,Y
+   --sam-narrow-xy=X,Y -> --sam-aln-narrow=X,Y
+   --sam-qlt-sim       -> --sam-qual-simple
+   --sam-rbt=X,Y       -> --sam-rbt-region=X,Y
+   --sam-nonf stays; --sam-keep-flanks is an alias.
+   --sam-aln-prefix, --sam-aln-context, --sam-ND-adjust unchanged. Commit.
+
+5. plan/OPTIONS-naming.notes.txt: mark what was done; deferred.txt or the notes for
+   what was not (-# considered for -C, --pstore kept). Commit.

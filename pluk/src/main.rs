@@ -330,7 +330,7 @@ fn run() -> std::io::Result<()> {
         _ => None,
     };
 
-    // Output rows: those that pass the filters, to stdout or --demux (for -E<N>).
+    // Output rows: those that pass the filters, to stdout or --demux (for -C<N>).
     let mut n_output: u64 = 0;
     let mut progress = config.progress.map(|(every, per_line)| Progress { every, per_line, rows: 0 });
     if config.c {
@@ -400,11 +400,11 @@ fn run() -> std::io::Result<()> {
     }
     stages.report();
 
-    // -E<N>: checked at the end; the rows have been written (as pick).
+    // -C<N>: checked at the end; the rows have been written (as pick).
     if let Some(n) = config.expect {
         if n != n_output && !lineno_mode {
             return Err(std::io::Error::new(ErrorKind::InvalidData,
-                       format!("-E{}: expected {} output row{}, found {}", n, n, if n == 1 { "" } else { "s" }, n_output)));
+                       format!("-C{}: expected {} output row{}, found {}", n, n, if n == 1 { "" } else { "s" }, n_output)));
         }
     }
 

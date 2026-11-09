@@ -234,19 +234,19 @@ through the most likely cases.
 
 Errors are written to stderr, as `pluk: ...`, and end the run with exit status 1: an
 option or argument that is not valid, a name that is not a column, a failed assertion,
-a dictionary lookup with `__EXIT__`, an `-E<N>` count that does not match. Otherwise
+a dictionary lookup with `__EXIT__`, an `-C<N>` count that does not match. Otherwise
 the exit status is 0. At the end of a run pluk reports counts on stderr where something
 deserves attention (values that were not numbers, NA in SAM values, rows skipped,
-groups, ...); `-q` silences everything except errors. `-E<N>` makes the run an error
+groups, ...); `-q` silences everything except errors. `-C<N>` makes the run an error
 unless exactly N rows are output:
 
 ```console
-$ pluk -E2 @fruit=apple picker < harvest.txt
+$ pluk -C2 @fruit=apple picker < harvest.txt
 picker
 Annie
 Chen
 Fenna
-pluk: -E2: expected 2 output rows, found 3
+pluk: -C2: expected 2 output rows, found 3
 ```
 
 
@@ -754,11 +754,11 @@ Chen    221  0.88
 
 ### White space: -e
 
-With `-e` white space is removed from filters and computes before they are read, so that
+With `-w` white space is removed from filters and computes before they are read, so that
 a long SPEC can be spaced out. (A value that contains white space must then use `%20`.)
 
 ```console
-$ pluk -e picker 'lb :: kg ^2 ,mul' '@lb / gt / 30' 'note :: ^heavy%20load' < harvest.txt
+$ pluk -w picker 'lb :: kg ^2 ,mul' '@lb / gt / 30' 'note :: ^heavy%20load' < harvest.txt
 picker  lb    note
 Chen    44.2  heavy load
 Fenna   36    heavy load
@@ -1080,16 +1080,16 @@ Bert
 
 - `-h` leaves out the header line;
 - `-c` writes only the number of rows that pass the filters;
-- `-E<N>` makes it an error (exit status 1) if the number of output rows is not N; the
+- `-C<N>` makes it an error (exit status 1) if the number of output rows is not N; the
   check is made at the end, once the rows have been written. It suits scripts that
   expect, say, exactly one match.
 
 ```console
-$ pluk -E3 picker @kg/gt/15 < harvest.txt
+$ pluk -C3 picker @kg/gt/15 < harvest.txt
 picker
 Chen
 Fenna
-pluk: -E3: expected 3 output rows, found 2
+pluk: -C3: expected 3 output rows, found 2
 ```
 
 ### Other output files: --other, --assert-other, --demux
@@ -1625,7 +1625,7 @@ index of them, followed by a few that combine several sections.
 - Intron coordinates from exon coordinates, the span of a gene (`--group`,
   `--group-first-ref`): section 8.
 - Skipping comment lines, splitting a file by a column (`-/PAT`, `--demux`), insisting
-  on exactly N matches (`-E<N>`): section 9.
+  on exactly N matches (`-C<N>`): section 9.
 - Strand and span of each read, soft-clipped sequence, the reads that cover a position,
   a new SAM tag: section 10.
 - Reads as sequenced, unmapped reads as FASTA, all reads as FASTQ: section 11.
@@ -1724,18 +1724,18 @@ happen while rows are read, and then the rows before have been written:
 - a failed assertion (section 5), unless `--assert-other` is given;
 - a key not found in a dictionary with default `__EXIT__` (section 7);
 - a SEQ `*` that cannot be filled, with `--sam-seqmiss=exit` (section 10);
-- `-E<N>` when the number of output rows differs, checked at the end (section 9).
+- `-C<N>` when the number of output rows differs, checked at the end (section 9).
 
 ```console
-$ pluk -E1 picker @kg/gt/20 < harvest.txt; echo "exit $?"
+$ pluk -C1 picker @kg/gt/20 < harvest.txt; echo "exit $?"
 picker
 Chen
 exit 0
-$ pluk -E2 picker @kg/gt/20 < harvest.txt; echo "exit $?"
+$ pluk -C2 picker @kg/gt/20 < harvest.txt; echo "exit $?"
 picker
 Chen
 exit 1
-pluk: -E2: expected 2 output rows, found 1
+pluk: -C2: expected 2 output rows, found 1
 ```
 
 Two errors found while the options and arguments are read:
@@ -2031,7 +2031,7 @@ pluk does.
   their header. `--demux` file names cannot be empty, absolute or contain `.` or `..`
   parts; too many open files is an error; the tally has a title line and no LastFlush
   column; `-c` with `--demux` is refused; `--demux-buffer` has no effect.
-- `-E<N>` counts the rows that pass the filters (written to standard output or to
+- `-C<N>` counts the rows that pass the filters (written to standard output or to
   `--demux` files), not those written to `--other` or `--assert-other`.
 - `--progress` counts input rows, rejected or not, also with `-c` (pick counts output
   rows).
@@ -2041,6 +2041,8 @@ pluk does.
   starts with `pluk:`.
 - pluk without column arguments writes its usage note and exits with status 1 (pick:
   0).
+- `-w` removes white space (pick: `-e`) and `-C<N>` checks the number of output rows
+  (pick: `-E<N>`); in pluk `-e` and `-E` are reserved.
 - `-%` and `-%%` encode and decode (pick: `-z` and `-zz`; in pluk `-z` is reserved).
   `-%` encodes only the characters that mean something in a pluk argument (`% : ^ , /
   ~ = @ +`) and white space and control bytes (pick: everything but letters, digits and
@@ -2164,8 +2166,8 @@ checks that this list and `pluk --help` name the same options.
   name::1 len::2` (section 3).
 - `-h`: do not output the header line (section 9).
 - `-c`: output only the number of data rows that pass the filters (section 9).
-- `-E<N>`: the number of output rows must be N, else an error at the end (section 9).
-- `-e`: remove white space from filters and computes before reading them (section 6).
+- `-C<N>`: the number of output rows must be N, else an error at the end (section 9).
+- `-w`: remove white space from filters and computes before reading them (section 6).
 - `-q`: quiet; no messages other than errors (section 13).
 - `-A`: output all columns (section 4).
 - `-A<N>`: as `-A`, with the new computed columns after the first N output columns

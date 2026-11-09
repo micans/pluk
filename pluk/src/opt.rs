@@ -30,8 +30,8 @@ pub struct Config {
     pub excise: bool,                   // -x
     pub c: bool,                        // -c
     pub omega: Option<u32>,             // -O<N>
-    pub expect: Option<u64>,            // -E<N>: the number of output rows must be N
-    pub squash: bool,                   // -e: remove white space from filters and computes
+    pub expect: Option<u64>,            // -C<N>: the number of output rows must be N
+    pub squash: bool,                   // -w: remove white space from filters and computes
     pub quiet: bool,                    // -q: no messages other than errors
     pub add_row_column: bool,           // -R
     pub make_unique: bool,              // -u
@@ -146,9 +146,9 @@ Options:
               (multiplier): columns O + i*M for i = S..E
   -h          do not output the header line
   -c          output only the number of data rows (that pass the filters)
-  -E<N>       the number of output rows must be N, else an error (exit 1) at
+  -C<N>       the number of output rows must be N, else an error (exit 1) at
               the end, once the rows have been written
-  -e          remove white space from filters and computes before parsing them
+  -w          remove white space from filters and computes before parsing them
               (write a space in a value as %20)
   -q          quiet: no messages other than errors (counts, tallies, warnings)
   -A          output all columns
@@ -412,7 +412,7 @@ pub fn parse(args: &[Vec<u8>]) -> Result<Parsed, String> {
     // The trailing arguments: column names, filters and computes, mixed as in pick.
     let mut unnamed = UnnamedNames::new();
     for arg in &args[i..] {
-        // -e: white space is removed from filters and computes (as pick: arguments
+        // -w: white space is removed from filters and computes (as pick: arguments
         // starting with @ or containing :: or :=), not from column arguments.
         let squashed;
         let arg = if config.squash && (arg.starts_with(b"@") || compute::is_compute(arg)) {
@@ -748,15 +748,18 @@ fn parse_bundle(chars: &[u8], config: &mut Config) -> Result<(), String> {
                     j += len;
                 }
             }
-            b'E' => {
+            b'C' => {
                 let len = number_len(&chars[j..], false);
                 match parse_number::<u64>(&chars[j..j + len]) {
                     Some(n) if len > 0 => config.expect = Some(n),
-                    _ => return Err("-E<N> requires an attached non-negative number N, e.g. -E10".to_string()),
+                    _ => return Err("-C<N> requires an attached non-negative number N, e.g. -C10".to_string()),
                 }
                 j += len;
             }
-            b'e' => config.squash = true,
+            b'w' => config.squash = true,
+            // Renamed in step35; reserved (plan/step35-notes.txt).
+            b'E' => return Err("-E: reserved; use -C<N> for the number of output rows".to_string()),
+            b'e' => return Err("-e: reserved; use -w to remove white space".to_string()),
             b'q' => config.quiet = true,
             b'O' => {
                 // Required attached number: -O8, not -O 8.
@@ -1054,6 +1057,16 @@ mod tests {
         parse(&words.iter().map(|w| w.as_bytes().to_vec()).collect::<Vec<_>>())
     }
 
+    // step35 item 1: -w and -C<N>; -e and -E reserved.
+    #[test]
+    fn renamed_w_c() {
+        let c = parsed(&["-kwC12"]);
+        assert!(matches!(c, Ok(Parsed::Run(c)) if c.squash && c.expect == Some(12) && c.k));
+        assert_eq!(parsed(&["-C"]).err().unwrap(), "-C<N> requires an attached non-negative number N, e.g. -C10");
+        assert_eq!(parsed(&["-ke"]).err().unwrap(), "-e: reserved; use -w to remove white space");
+        assert_eq!(parsed(&["-E3"]).err().unwrap(), "-E: reserved; use -C<N> for the number of output rows");
+    }
+
     #[test]
     fn encode_options() {
         let w = |v: &[&str]| v.iter().map(|s| s.as_bytes().to_vec()).collect::<Vec<_>>();
@@ -1078,7 +1091,7 @@ mod tests {
 
     #[test]
     fn unknown_options() {
-        assert_eq!(run(&["-kw"]).unwrap_err(), "Option string not fully parsed: -w remains");
+        assert_eq!(run(&["-kj"]).unwrap_err(), "Option string not fully parsed: -j remains");
         assert_eq!(run(&["--nosuch"]).unwrap_err(), "Unrecognised long option --nosuch");
     }
 

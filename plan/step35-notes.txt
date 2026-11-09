@@ -1,0 +1,16 @@
+Step 35 notes: option renames. Background: plan/OPTIONS-naming.notes.txt (collation and
+brainstorm), plan/zz-notes.txt (-% and -%%, the model for reserved names).
+
+General. Old names are not silent no-ops and not aliases: each gives an error naming its
+replacement, at least until release. -e and -E stay reserved after that (grep, sed and
+perl users expect "expression" and "extended regex" there).
+
+Item 1.
+  -w (was -e): diff -w, "ignore all white space", is an exact precedent; grep -w (whole
+    words) is the only rival meaning, and pluk has no word matching.
+  -C<N> (was -E<N>): pairs with -c as -K with -k: -c writes the count, -C<N> requires
+    it. grep -C (context lines) has no pluk equivalent. -#<N> was considered (more
+    idiosyncratic).
+  Messages: "-e: reserved; use -w to remove white space", "-E: reserved; use -C<N> for
+    the number of output rows"; also inside a bundle (-ke).
+  The unknown-option example of the tests was -kw; it is now -kj.
