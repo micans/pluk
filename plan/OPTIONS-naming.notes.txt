@@ -77,3 +77,75 @@ Long options
 
 Fine: --threads, --seed, --progress, --version, --help, --group, --demux*, --num-perl,
 --list-ops-tsv, --quant-NAME.
+
+
+Brainstorm: renames if breaking changes are allowed (2026-11-09)
+------------------------------------------------------------------
+
+Kept as they are: -h, -o, -O, -u, the mild cases 8-13, and -s. That leaves -e, -E, -U,
+-H and the long options. Free letters used below: -w, -C, -p, and -H if help moves.
+
+Short options
+
+-e (remove white space) -> -w
+    diff -w means "ignore all white space" (diff -b: changes in its amount), an exact
+    precedent. grep -w (whole words) is the only rival meaning; pluk has no word
+    matching. -e becomes free and could be reserved, as -z. An idea for later: -e ARG
+    for a column, filter or compute argument starting with '-', as grep -e; -- already
+    covers that.
+
+-E<N> (expected row count) -> -C<N>
+    Pairs with -c as -K with -k: -c writes the count, -C<N> requires it; follows
+    pluk's convention for upper-case variants. Competitor: grep -C (context lines),
+    which pluk has no equivalent of. Alternative: -#<N> ("number"), more idiosyncratic;
+    # is a shell comment only at the start of a word, so -#5 is safe. -E becomes free
+    and could be reserved: grep users expect extended regexes there, and pluk's
+    regexes already are.
+
+-U (input order) -> -p
+    "preserve order", as cp -p preserves attributes; lower case, no partner. Ruled out
+    -I ("input order"): the -i/-I pair would be unrelated, the same flaw again. Keeping
+    -U is fine too now that -u is fixed; its flaw was only the pairing.
+
+-H (help) -> "output a header line"
+    Gives the pair a meaning: -h drops the header, -H writes one. -K becomes shorthand
+    for -kH (a simplification, or a redundancy to remove later). Help: --help only;
+    pluk without arguments already prints its usage note. -? is a poor alternative
+    for help: it is a glob matching two-character file names.
+
+Long options
+
+SAM alignment options as one family, --sam-aln-*:
+    --sam-aln-prefix        (unchanged)
+*   --sam-aln-mrk           -> --sam-aln-markers
+    --sam-aln-context=N     (unchanged)
+    --sam-aln-xy=X,Y        -> --sam-aln-extend=X,Y
+    --sam-narrow-xy=X,Y     -> --sam-aln-narrow=X,Y
+
+Other SAM options:
+    --sam-h        -> --sam-header (no clash with -h; still reads as samtools view -h)
+*   --sam-nonf     -> --sam-keep-ends or --sam-keep-flanks (keep exterior deletions
+                      and insertions)
+    --sam-qlt-sim  -> --sam-qual-simple
+    --sam-rbt      -> --sam-rbt-region (rbt names the rbt_ operators)
+    --sam-ND-adjust   keep (the capitals are the CIGAR operations N and D)
+
+General:
+    --A=NAME       -> --after=NAME (implies -A); reads "insert after NAME"; -A<N>
+                      stays
+*   --pstore       -> --prev-row or --carry; keeping pstore matches the operator
+                      names, so this is the weakest suggestion
+    --other        -> --rejected=FILE
+    --assert-other -> --assert-failed=FILE
+    --kd --fd --cd --td: keep as accepted short spellings, but let help and manual
+                      lead with --kdict --fdict --cdict --tdict --fasta-dict, so that
+                      --fasta-dict is no longer the odd one out
+
+Transition
+
+As with -z, every old name gives an error naming its replacement (e.g. "-e: use -w"),
+at least until release; -e and -E could stay reserved after that.
+
+Minimal set: -e -> -w and -E -> -C (strong precedent, frees two entrenched letters),
+plus the --sam-aln-* family. The -H idea is the most interesting of the rest but
+reaches furthest: it changes help, -K and a pick habit at once.
