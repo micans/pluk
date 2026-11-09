@@ -2169,43 +2169,69 @@ Every option of `pluk --help`, in its order, with the section that explains it. 
 options combine (`-kO12/^#`) and options take effect from left to right. The test suite
 checks that this list and `pluk --help` name the same options.
 
-### Header, columns and output
+### Input, header and columns
 
 - `-k`: the input has no header line; columns are named 1 2 .. N and can be given as
   ranges (section 4).
-- `-K`: as `-k`, and output a header line with the output column names, e.g. `-K
-  name::1 len::2` (section 3).
 - `-h`: do not output the header line (section 9).
-- `-H`: output a header line, also with `-k`; `-h` takes precedence (section 3).
-- `-c`: output only the number of data rows that pass the filters (section 9).
-- `-C<N>`: the number of output rows must be N, else an error at the end (section 9).
-- `-w`: remove white space from filters and computes before reading them (section 6).
-- `-q`: quiet; no messages other than errors (section 13).
 - `-A`: output all columns (section 4).
 - `-A<N>`: as `-A`, with the new computed columns after the first N output columns
   (section 4).
 - `--after=NAME`: as `-A`, with the new computed columns after input column NAME
   (section 4).
 - `-x`: output all columns except the named ones (section 4).
-- `-/<pat>`: skip input lines that match the regular expression (section 9).
-- `-//<pat>`: output input lines that match unchanged (section 9).
-- `-u`: make duplicate input column names unique (section 4).
-- `-p`: output the selected columns in input order (section 4).
+- `-c`: output only the number of data rows that pass the filters (section 9).
+
+### Ragged input and combining filters
+
 - `-O<N>`: ragged input with N columns, the rest merged into column N; requires `-k`
   (section 4).
-- `-R`: the header has no name for the first (row name) column, which is named `_`
-  (section 4).
-
-### Filters and other output files
-
 - `-o`: keep the rows that pass any `@` filter, instead of all (section 5).
 - `-s`: keep the rows that pass any `@@` filter, instead of all (section 5).
+
+### Header and column variants
+
+- `-K`: as `-k`, and output a header line with the output column names, e.g. `-K
+  name::1 len::2` (section 3).
+- `-H`: output a header line, also with `-k`; `-h` takes precedence (section 3).
+- `-u`: make duplicate input column names unique (section 4).
+- `-R`: the header has no name for the first (row name) column, which is named `_`
+  (section 4).
+- `-p`: output the selected columns in input order (section 4).
+
+### Input lines
+
+- `-/<pat>`: skip input lines that match the regular expression (section 9).
+- `-//<pat>`: output input lines that match unchanged (section 9).
+
+### Messages and checks
+
+- `-q`: quiet; no messages other than errors (section 13).
+- `-C<N>`: the number of output rows must be N, else an error at the end (section 9).
+- `-w`: remove white space from filters and computes before reading them (section 6).
+
+### Other output files
+
 - `--rejected=FILE`: write the rows rejected by `@` and `@@` filters to FILE (section 5).
 - `--assert-failed=FILE`: write the rows that fail an assertion to FILE, and continue
   (section 5).
 - `--demux=NAME`: write each output row to the file named by its value in column NAME
   (section 9).
 - `--demux-dir=PATH`: the directory for the `--demux` files (section 9).
+
+### State, quantiles, progress, column lists
+
+- `--pstore`: keep the columns of each row for the next, read with `pload`; also
+  `--pstore/LIST/DEFAULT` (section 8).
+- `--group=COL`: groups of consecutive rows with the same value in COL; `pload` reads
+  the previous row (section 8).
+- `--group-first-ref=COL`: as `--group`, and `pload` reads the group's first row
+  (section 8).
+- `--quant-NAME=FILE`: quantile steps for `qnl` and `qnu` (section 7).
+- `--progress`: dots on stderr while reading, also `--progress=K/N` (section 9).
+- `--idx-list`: write the input indexes of the output columns, and stop (section 9).
+- `--name-list`, `--idx-map`: write the output column names, or index and name per
+  line, and stop (section 9).
 
 ### SAM and BAM
 
@@ -2234,20 +2260,6 @@ checks that this list and `pluk --help` name the same options.
 - `--sam-rbt-region=X,Y`, `--sam-rbt=X,Y`: the region of the `rbt_` operators for every
   row (section 10).
 - `--threads=N`: threads for BAM decompression (section 10).
-
-### Column lists, quantiles, state, progress
-
-- `--idx-list`: write the input indexes of the output columns, and stop (section 9).
-- `--name-list`, `--idx-map`: write the output column names, or index and name per
-  line, and stop (section 9).
-- `--quant-NAME=FILE`: quantile steps for `qnl` and `qnu` (section 7).
-- `--pstore`: keep the columns of each row for the next, read with `pload`; also
-  `--pstore/LIST/DEFAULT` (section 8).
-- `--group=COL`: groups of consecutive rows with the same value in COL; `pload` reads
-  the previous row (section 8).
-- `--group-first-ref=COL`: as `--group`, and `pload` reads the group's first row
-  (section 8).
-- `--progress`: dots on stderr while reading, also `--progress=K/N` (section 9).
 
 ### Computes
 

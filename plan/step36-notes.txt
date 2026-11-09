@@ -40,3 +40,15 @@ Item 3.
     lines after the dictionary entries); "(on bytes)" now follows the string operators
     on the same line.
   Future edits of the help keep the 120-column limit by hand.
+
+Item 4.
+  Section 15 (option reference) follows the order of --help. Its first three
+    subsections became six, after the groups of the help: Input, header and columns;
+    Ragged input and combining filters; Header and column variants; Input lines;
+    Messages and checks; Other output files; then State, quantiles, progress, column
+    lists (moved from after SAM to before it, as in the help). SAM and BAM, Computes,
+    Dictionaries, Listings and help are unchanged. The entries' texts are unchanged.
+  No links pointed to the old subsection headings.
+  Check (not part of the test suite): the options of the help and of the reference, as
+    read by optcheck.py, are the same set in the same order, apart from -l, which the
+    help first mentions inside the Computes section ("pluk -l sam").
