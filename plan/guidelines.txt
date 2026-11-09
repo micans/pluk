@@ -153,6 +153,8 @@
       character, 0 for nothing read).
     - -w removes white space (pick: -e), -C<N> checks the number of output rows (pick:
       -E<N>); -e and -E are reserved and give an error naming -w and -C (step35).
+    - -H outputs a header line, also with -k (-K is -kH; -h takes precedence); pick: -H
+      prints the help, pluk: --help only. -U gives an error naming -p (step35).
     - -% and -%% encode and decode (pick: -z and -zz); -z, -zz etc. are reserved and
       give an error naming -% and -%% (plan/zz-notes.txt).
     - -% encodes only % : ^ , / ~ = @ + and white space or control bytes (pick: all but
@@ -252,9 +254,10 @@
       conversion); Q must be a constant naming a --quant (pick: checked per row); a
       repeated --quant-NAME is an error (pick: the later replaces the earlier); a step
       file with an empty line or inf/nan is an error naming the line.
-    - -U orders the output columns by input position also with a header line (pick sorts
-      the names numerically, meaningful with -k and -K only); computed columns follow the
-      input columns in compute order (pick: first, as their names count as 0).
+    - -p (pick: -U) orders the output columns by input position also with a header line
+      (pick sorts the names numerically, meaningful with -k and -K only); computed
+      columns follow the input columns in compute order (pick: first, as their names
+      count as 0).
     - sam_put (step25): the tag is a constant (pick: also from a column); a tag already in
       the record is replaced, matched by name (pick: a second one is added), counted with a
       diagnostic for the first rows; the same tag put twice in a row: the last wins; a

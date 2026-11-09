@@ -21,7 +21,7 @@ use crate::filter::{parse_filter, FilterSpec};
 pub struct Config {
     pub no_header: bool,                // -h
     pub k: bool,                        // -k (also set by -K, --sam, --sam-h)
-    pub big_k: bool,                    // -K: as -k, and output a header line of the output names
+    pub header: bool,                   // -H (and -K, which is -kH): output a header line, also with -k
     pub all: bool,                      // -A
     pub insert_offset: Option<i64>,     // -A<N>
     pub insert_after: Option<Vec<u8>>,  // --A=NAME (%-decoded): as -A<N>, N the position of NAME
@@ -35,7 +35,7 @@ pub struct Config {
     pub quiet: bool,                    // -q: no messages other than errors
     pub add_row_column: bool,           // -R
     pub make_unique: bool,              // -u
-    pub input_order: bool,              // -U: output columns in input order (plan/step24.txt decision 2)
+    pub input_order: bool,              // -p: output columns in input order (plan/step24.txt decision 2)
     pub sam: bool,                      // --sam
     pub sam_h: bool,                    // --sam-h
     pub sam_seqmiss_exit: bool,         // --sam-seqmiss=exit (default skip; SAMSEQ.design.txt section 5)
@@ -127,7 +127,7 @@ pub fn parse_args() -> Config {
     }
 }
 
-// Output of -H and --help. Options are listed in order of importance (plan/step3.txt item 5).
+// Output of --help. Options are listed in order of importance (plan/step3.txt item 5).
 const HELP: &str = "\
 Usage: pluk [options] <column|filter>+ < FILE
 Output the named columns of TAB-separated input (plain or gzip-compressed),
@@ -140,11 +140,12 @@ regex), e.g. +num\\d or name:+.*_p. Each part is
 
 Options:
   -K          as -k, and output a header line with the output column names
-              (the numbers, or compute names: -K name::1 len::2)
+              (the numbers, or compute names: -K name::1 len::2); -K is -kH
   -k          input has no header line; columns are named 1 2 .. N, and can be
               given as ranges S-E, S- (to the last), O+S-E (offset), S-E*M
               (multiplier): columns O + i*M for i = S..E
   -h          do not output the header line
+  -H          output a header line, also with -k (-h takes precedence)
   -c          output only the number of data rows (that pass the filters)
   -C<N>       the number of output rows must be N, else an error (exit 1) at
               the end, once the rows have been written
@@ -160,9 +161,9 @@ Options:
   -/<pat>     skip lines matching regular expression <pat>, e.g. -/^#
   -//<pat>    output lines matching <pat> unchanged
   -u          make duplicate input column names unique (suffixes _v02, _v03, ..)
-  -U          output the selected columns in input order (computed columns after
+  -p          output the selected columns in input order (computed columns after
               them, in the order of the computes); a column given twice is output
-              once, as without -U
+              once, as without -p
   -F          accepted for compatibility with pick; no effect
   -O<N>       ragged input: <N> columns, merge columns at and after <N> (requires -k)
   -R          header has no name for the first (row name) column; it is named _
@@ -325,7 +326,7 @@ Dictionaries (NAME: letters, digits, _; used by ~isin~ ~hasval~ map dord):
   -% ARG..    write each ARG (on one line) with the characters that pluk treats
               specially %-encoded; no ARG: a table of those characters
   -%% ARG..   write the %-decoding of each ARG (one per line)
-  -H, --help  print this help
+  --help      print this help
   --list-ops-tsv  all operators (compute and filter), one per line, tab-separated:
               name, category, operands, result, description (for scripts)
   --version   print the version
@@ -396,10 +397,6 @@ pub fn parse(args: &[Vec<u8>]) -> Result<Parsed, String> {
         }
         if word.len() > 2 && word[1..].iter().all(|&b| b == b'l') {
             return Err(format!("{}: not supported; -l lists operands and results", String::from_utf8_lossy(word)));
-        }
-        // As in pick, -H must be a word of its own.
-        if word == b"-H" {
-            return Ok(Parsed::Help);
         }
         if let Some(long) = word.strip_prefix(b"--") {
             if let Some(parsed) = parse_long(long, &mut config)? {
@@ -724,8 +721,9 @@ fn parse_bundle(chars: &[u8], config: &mut Config) -> Result<(), String> {
             b'k' => config.k = true,
             b'K' => {
                 config.k = true;
-                config.big_k = true;
+                config.header = true;
             }
+            b'H' => config.header = true,
             b'h' => config.no_header = true,
             b'c' => config.c = true,
             b'o' => config.or_post = true,
@@ -734,7 +732,8 @@ fn parse_bundle(chars: &[u8], config: &mut Config) -> Result<(), String> {
             b'i' => config.inplace = true,
             b'R' => config.add_row_column = true,
             b'u' => config.make_unique = true,
-            b'U' => config.input_order = true,
+            b'p' => config.input_order = true,
+            b'U' => return Err("-U: use -p to output the selected columns in input order".to_string()),
             b'F' => (),     // pick: names are not regexes; pluk: accepted, no effect (COLSPEC.design.txt)
             b'A' => {
                 // Optional attached number, possibly negative: -A, -A4, -A-1.
@@ -1055,6 +1054,19 @@ mod tests {
 
     fn parsed(words: &[&str]) -> Result<Parsed, String> {
         parse(&words.iter().map(|w| w.as_bytes().to_vec()).collect::<Vec<_>>())
+    }
+
+    // step35 item 2: -p (was -U); -H outputs a header line (help: --help only).
+    #[test]
+    fn renamed_p_h() {
+        let c = run(&["-kHp"]).unwrap();
+        assert!(c.k && c.header && c.input_order && !c.no_header);
+        let c = run(&["-K"]).unwrap();
+        assert!(c.k && c.header);
+        let c = run(&["-H"]).unwrap();
+        assert!(!c.k && c.header);
+        assert!(matches!(parsed(&["--help"]), Ok(Parsed::Help)));
+        assert_eq!(parsed(&["-kU"]).err().unwrap(), "-U: use -p to output the selected columns in input order");
     }
 
     // step35 item 1: -w and -C<N>; -e and -E reserved.

@@ -9,11 +9,12 @@ regex), e.g. +num\d or name:+.*_p. Each part is
 
 Options:
   -K          as -k, and output a header line with the output column names
-              (the numbers, or compute names: -K name::1 len::2)
+              (the numbers, or compute names: -K name::1 len::2); -K is -kH
   -k          input has no header line; columns are named 1 2 .. N, and can be
               given as ranges S-E, S- (to the last), O+S-E (offset), S-E*M
               (multiplier): columns O + i*M for i = S..E
   -h          do not output the header line
+  -H          output a header line, also with -k (-h takes precedence)
   -c          output only the number of data rows (that pass the filters)
   -C<N>       the number of output rows must be N, else an error (exit 1) at
               the end, once the rows have been written
@@ -29,9 +30,9 @@ Options:
   -/<pat>     skip lines matching regular expression <pat>, e.g. -/^#
   -//<pat>    output lines matching <pat> unchanged
   -u          make duplicate input column names unique (suffixes _v02, _v03, ..)
-  -U          output the selected columns in input order (computed columns after
+  -p          output the selected columns in input order (computed columns after
               them, in the order of the computes); a column given twice is output
-              once, as without -U
+              once, as without -p
   -F          accepted for compatibility with pick; no effect
   -O<N>       ragged input: <N> columns, merge columns at and after <N> (requires -k)
   -R          header has no name for the first (row name) column; it is named _
@@ -194,7 +195,7 @@ Dictionaries (NAME: letters, digits, _; used by ~isin~ ~hasval~ map dord):
   -% ARG..    write each ARG (on one line) with the characters that pluk treats
               specially %-encoded; no ARG: a table of those characters
   -%% ARG..   write the %-decoding of each ARG (one per line)
-  -H, --help  print this help
+  --help      print this help
   --list-ops-tsv  all operators (compute and filter), one per line, tab-separated:
               name, category, operands, result, description (for scripts)
   --version   print the version

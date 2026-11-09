@@ -19,7 +19,7 @@ impl OutputSelection {
 
     // Output the named columns and '::' computes, in the given order. A column
     // given more than once is kept once, at its first position; this is reported
-    // on STDERR as pick does, unless -U asks for unique columns (quiet). A compute
+    // on STDERR as pick does, unless -p asks for input order (quiet). A compute
     // shows its name's final binding (INPLACE.design.txt section 2), as do names
     // given as column arguments.
     pub fn from_names(args: &[ColSpec], computed: &[(usize, usize)], names: &ColumnNames, quiet: bool)
@@ -51,7 +51,7 @@ impl OutputSelection {
         Ok(OutputSelection::from_offsets(output_offset, names))
     }
 
-    // -U (plan/step24.txt decision 2): the selected columns in input order. A column
+    // -p (plan/step24.txt decision 2): the selected columns in input order. A column
     // that is (the current binding of) an input column sorts by that input position,
     // a redefined one included; the other computed columns follow in the order of
     // the computes. With -A and -x the order is the input order already.

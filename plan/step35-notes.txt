@@ -14,3 +14,15 @@ Item 1.
   Messages: "-e: reserved; use -w to remove white space", "-E: reserved; use -C<N> for
     the number of output rows"; also inside a bundle (-ke).
   The unknown-option example of the tests was -kw; it is now -kj.
+
+Item 2.
+  -p (was -U): "preserve order", as cp -p; lower case, as it has no partner. -I was
+    ruled out: -i/-I would be an unrelated pair. -U: error naming -p.
+  -H: output a header line, also with -k. It is the header half of -K: -K is -kH (the
+    Config field big_k became header). -h takes precedence, as over -K before; -c
+    concerns stdout as before. -H no longer prints help (pick: it does): help is
+    --help only; the usage note of pluk without arguments already names --help. A pick
+    user typing -H gets the normal output (with a header line), which was judged
+    acceptable; no special case for -H as a word of its own.
+  Tests: o.help now checks that -H alone is a normal run (no columns: usage note,
+    exit 1); o.help-bundle (-kH was an error) is replaced by o.header-H.

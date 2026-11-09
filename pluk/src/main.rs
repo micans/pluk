@@ -101,14 +101,14 @@ fn run() -> std::io::Result<()> {
         }
     }
 
-    // As in pick: header output on by default, off with -k (not with -K); -h and -c always
-    // switch it off.
+    // As in pick: header output on by default, off with -k (not with -K, or -H, step35);
+    // -h and -c always switch it off.
     #[allow(non_snake_case)]
-    // -K asks for the output header line that -k would leave out.
-    let B_print_header = (!config.k || config.big_k) && !config.no_header && !config.c;
+    // -H (and -K) asks for the output header line that -k would leave out.
+    let B_print_header = (!config.k || config.header) && !config.no_header && !config.c;
     // The header rule for the files of --other, --assert-other and --demux: as
     // stdout, except that -c concerns stdout only.
-    let file_header = (!config.k || config.big_k) && !config.no_header;
+    let file_header = (!config.k || config.header) && !config.no_header;
 
     // -/PAT and -//PAT; an invalid pattern is reported like an option error.
     let compile = |pat: &Option<Vec<u8>>, what: &str| match pat {

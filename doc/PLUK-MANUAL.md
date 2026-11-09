@@ -133,6 +133,8 @@ of the examples is shown aligned in columns, with spaces.
 - `-k` the input has no header line; the columns are named 1, 2, ... .
 - `-K` as `-k` but allows the user to specify output column names with `NAME::<k>` and `NAME::<compute>`.
 - `-h` no header line in the output.
+- `-H` a header line in the output, also with `-k` (`-K` is `-kH`); `-h` takes
+  precedence.
 - `-R` the header line has one name fewer than the rows (a first column of row names
   without a name, as R writes tables): that column is named `_`.
 - `-u` make repeated names in the header unique (`kg`, `kg_v02`, ...); without it, a
@@ -292,7 +294,7 @@ pluk: (Output) regex [+r] in output matches no column among picker,fruit,tree,kg
 ```
 
 A column that is selected more than once is output once, at its first place (with a
-message; `-U` asks for this without one):
+message; `-p` asks for this without one):
 
 ```console
 $ pluk picker kg picker < harvest.txt
@@ -337,7 +339,7 @@ Dora   11  0.99
   `-A<N>` after the first N input columns (a negative N counts from the right), or with
   `--A=NAME` after column NAME.
 - `-x` outputs every input column except the ones named (names, lists and patterns alike).
-- `-U` outputs the selected columns in their input order, whatever the order of the
+- `-p` outputs the selected columns in their input order, whatever the order of the
   arguments (computed columns after them).
 
 ```console
@@ -359,7 +361,7 @@ apple  14.5
 pear   9.0
 apple  22.1
 ...
-$ pluk -U kg picker fruit < harvest.txt
+$ pluk -p kg picker fruit < harvest.txt
 picker  fruit  kg
 Annie   apple  14.5
 Bert    pear   9.0
@@ -1078,7 +1080,7 @@ Bert
 
 ### What is written
 
-- `-h` leaves out the header line;
+- `-h` leaves out the header line, and `-H` asks for one also with `-k`;
 - `-c` writes only the number of rows that pass the filters;
 - `-C<N>` makes it an error (exit status 1) if the number of output rows is not N; the
   check is made at the end, once the rows have been written. It suits scripts that
@@ -1182,7 +1184,7 @@ $ pluk --progress=2/3 -c < harvest.txt 2>&1 > /dev/null
 
 ### Help and listings
 
-- `-H` or `--help` prints a summary of the options, the stack language and the filters;
+- `--help` prints a summary of the options, the stack language and the filters;
 - `--version` prints the version;
 - `-l` lists the operators (all of them, a category, or those whose name contains TERM:
   `-l TERM..`); `--list-ops-tsv` lists them tab-separated, for scripts (section 16 is
@@ -1898,9 +1900,9 @@ pluk does.
 - `-R` cannot be combined with `-k`.
 - `-k` ranges: a range that selects no column, or a multiplier 0 (`1-3*0`), is an
   error (pick: an empty or repeated selection).
-- `-U` orders the output columns by input position also with a header line, computed
-  columns after them in compute order (pick sorts the names numerically, which is
-  meaningful with `-k` and `-K` only, and puts computed columns first).
+- `-p` (pick: `-U`) orders the output columns by input position also with a header
+  line, computed columns after them in compute order (pick sorts the names numerically,
+  which is meaningful with `-k` and `-K` only, and puts computed columns first).
 - `--A=NAME` must name an input column (pick: any output column); `-A<N>` cannot be
   combined with `-x`.
 
@@ -2043,6 +2045,8 @@ pluk does.
   0).
 - `-w` removes white space (pick: `-e`) and `-C<N>` checks the number of output rows
   (pick: `-E<N>`); in pluk `-e` and `-E` are reserved.
+- `-H` outputs a header line, also with `-k` (pick: `-H` prints the help); help is
+  `--help` only.
 - `-%` and `-%%` encode and decode (pick: `-z` and `-zz`; in pluk `-z` is reserved).
   `-%` encodes only the characters that mean something in a pluk argument (`% : ^ , /
   ~ = @ +`) and white space and control bytes (pick: everything but letters, digits and
@@ -2165,6 +2169,7 @@ checks that this list and `pluk --help` name the same options.
 - `-K`: as `-k`, and output a header line with the output column names, e.g. `-K
   name::1 len::2` (section 3).
 - `-h`: do not output the header line (section 9).
+- `-H`: output a header line, also with `-k`; `-h` takes precedence (section 3).
 - `-c`: output only the number of data rows that pass the filters (section 9).
 - `-C<N>`: the number of output rows must be N, else an error at the end (section 9).
 - `-w`: remove white space from filters and computes before reading them (section 6).
@@ -2178,7 +2183,7 @@ checks that this list and `pluk --help` name the same options.
 - `-/<pat>`: skip input lines that match the regular expression (section 9).
 - `-//<pat>`: output input lines that match unchanged (section 9).
 - `-u`: make duplicate input column names unique (section 4).
-- `-U`: output the selected columns in input order (section 4).
+- `-p`: output the selected columns in input order (section 4).
 - `-F`: accepted for compatibility with pick; no effect (section 9).
 - `-O<N>`: ragged input with N columns, the rest merged into column N; requires `-k`
   (section 4).
@@ -2259,7 +2264,7 @@ checks that this list and `pluk --help` name the same options.
 - `-% ARG..`: write each ARG with the characters that pluk treats specially %-encoded;
   no ARG: a table of those characters (section 3).
 - `-%% ARG..`: write the %-decoding of each ARG (section 3).
-- `-H`, `--help`: print the help (section 9).
+- `--help`: print the help (section 9).
 - `--list-ops-tsv`: all operators, tab-separated, for scripts (section 9).
 - `--version`: print the version (section 9).
 
