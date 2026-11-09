@@ -8,35 +8,40 @@ regex), e.g. +num\d or name:+.*_p. Each part is
 %-decoded after splitting on ':' (%3A for ':', %2B for a leading '+').
 
 Options:
-  -K          as -k, and output a header line with the output column names
-              (the numbers, or compute names: -K name::1 len::2); -K is -kH
   -k          input has no header line; columns are named 1 2 .. N, and can be
               given as ranges S-E, S- (to the last), O+S-E (offset), S-E*M
               (multiplier): columns O + i*M for i = S..E
   -h          do not output the header line
-  -H          output a header line, also with -k (-h takes precedence)
-  -c          output only the number of data rows (that pass the filters)
-  -C<N>       the number of output rows must be N, else an error (exit 1) at
-              the end, once the rows have been written
-  -w          remove white space from filters and computes before parsing them
-              (write a space in a value as %20)
-  -q          quiet: no messages other than errors (counts, tallies, warnings)
   -A          output all columns
   -A<N>       as -A, with the new computed columns inserted after the first N
               input columns (N < 0: counted from the right)
   --after=NAME  as -A, with the new computed columns inserted after input
               column NAME
   -x          output all columns except the named ones
-  -/<pat>     skip lines matching regular expression <pat>, e.g. -/^#
-  -//<pat>    output lines matching <pat> unchanged
+  -c          output only the number of data rows (that pass the filters)
+
+  -O<N>       ragged input: <N> columns, merge columns at and after <N> (requires -k)
+  -o          keep rows that pass any @ filter (default: all)
+  -s          keep rows that pass any @@ filter (default: all)
+
+  -K          as -k, and output a header line with the output column names
+              (the numbers, or compute names: -K name::1 len::2); -K is -kH
+  -H          output a header line, also with -k (-h takes precedence)
   -u          make duplicate input column names unique (suffixes _v02, _v03, ..)
+  -R          header has no name for the first (row name) column; it is named _
   -p          output the selected columns in input order (computed columns after
               them, in the order of the computes); a column given twice is output
               once, as without -p
-  -O<N>       ragged input: <N> columns, merge columns at and after <N> (requires -k)
-  -R          header has no name for the first (row name) column; it is named _
-  -o          keep rows that pass any @ filter (default: all)
-  -s          keep rows that pass any @@ filter (default: all)
+
+  -/<pat>     skip lines matching regular expression <pat>, e.g. -/^#
+  -//<pat>    output lines matching <pat> unchanged
+
+  -q          quiet: no messages other than errors (counts, tallies, warnings)
+  -C<N>       the number of output rows must be N, else an error (exit 1) at
+              the end, once the rows have been written
+  -w          remove white space from filters and computes before parsing them
+              (write a space in a value as %20)
+
   --rejected=FILE  write the rows rejected by @ and @@ filters to FILE (header and
               columns as the output; .gz or .gzip: gzip-compressed)
   --assert-failed=FILE  write rows that fail an @assert@ or @@assert@ to FILE
@@ -45,6 +50,24 @@ Options:
               NAME (a relative path; .gz or .gzip: gzip-compressed); a tally of
               files goes to stderr. Rows rejected by @ filters create their file.
   --demux-dir=PATH  directory for the --demux files (must exist)
+
+  --pstore    keep columns of each row for the next: ^c,pload reads column c of
+              the previous row (also computed columns, as computed);
+              --pstore/LIST/DEFAULT: LIST k:v,k:v and DEFAULT give the values
+              before the first row (else NA); counting: --pstore//0 n::^n,pload,incr
+  --group=COL groups of consecutive rows with the same value in COL (input or
+              computed); the first row of each group is not output, pload reads
+              the previous row; groupi groupno give the position and the group;
+              --group-first-ref=COL: pload reads the group's first row (implies
+              --pstore, whose LIST/DEFAULT apply before the first group)
+  --quant-NAME=FILE  quantile steps for qnl and qnu: one number per line, in
+              non-decreasing order
+  --progress  a dot on stderr every 1000000 input rows; --progress=K/N: every
+              K rows, and the row count after every N dots
+  --idx-list  write the input indexes of the output columns (computed columns
+              are numbered after the input columns) and stop after the header
+  --name-list write the output column names; --idx-map: index and name per line
+
   --sam       SAM input: implies -k and -O12, skips lines starting with @.
               BAM input is recognised and read as SAM
   --sam-header, --sam-h
@@ -80,22 +103,6 @@ Options:
               row; sam_rbt x y in a compute sets it for the rest of the row
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
-  --idx-list  write the input indexes of the output columns (computed columns
-              are numbered after the input columns) and stop after the header
-  --name-list write the output column names; --idx-map: index and name per line
-  --quant-NAME=FILE  quantile steps for qnl and qnu: one number per line, in
-              non-decreasing order
-  --pstore    keep columns of each row for the next: ^c,pload reads column c of
-              the previous row (also computed columns, as computed);
-              --pstore/LIST/DEFAULT: LIST k:v,k:v and DEFAULT give the values
-              before the first row (else NA); counting: --pstore//0 n::^n,pload,incr
-  --group=COL groups of consecutive rows with the same value in COL (input or
-              computed); the first row of each group is not output, pload reads
-              the previous row; groupi groupno give the position and the group;
-              --group-first-ref=COL: pload reads the group's first row (implies
-              --pstore, whose LIST/DEFAULT apply before the first group)
-  --progress  a dot on stderr every 1000000 input rows; --progress=K/N: every
-              K rows, and the row count after every N dots
 
 Computes (given among the columns; a stack language, as pick):
   NAME::SPEC      compute column NAME and output it; NAME:=SPEC computes it

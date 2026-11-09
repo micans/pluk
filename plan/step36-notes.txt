@@ -12,3 +12,13 @@ Item 1.
   Tests: o.colspec-x-A-k (-F), o.demux-other (--demux-buffer=10 was given to a demux
     run; now its error, and the run without it), o.demux-errors (a bad N now gets the
     same error); unit test dropped_f_demux_buffer.
+
+Item 2.
+  Groups, separated by blank lines: input, header and columns (-k -h -A -x -c, in the
+    order of the manual: input, header, columns, counting); ragged input and OR
+    filters (-O -o -s); header and name variants (-K -H -u -R -p); input lines
+    (-/ -//); messages and checks (-q -C -w, -q first as the most used); output
+    files; rows and state (--pstore --group --quant-NAME --progress --idx-list);
+    SAM, with --threads last (it concerns BAM only).
+  -K moved from the front into the third group; its text ("as -k ...") reads after -k.
+  Only the order changed: the sorted lines of the old and new help are equal.
