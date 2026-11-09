@@ -1,0 +1,85 @@
+Towards a professional product: recommendations (2026-11-09, after step36)
+
+A collation, not a plan. State at the time: LICENSE present; no CI configuration, no git
+tags; Cargo.toml has only name, version, edition, features and dependencies; cargo
+clippy gives 24 warnings; the code is not rustfmt-formatted (cargo fmt --check: 654
+hunks), which appears to be a deliberate style.
+
+Suggested priority: 2 (CI) and 1 (release basics: CHANGES, tags, Cargo.toml metadata)
+first; then exit statuses (3) and a man page (3); then fuzzing (4). Groups 1 and 2 are
+mostly mechanical; exit statuses are a design decision that is harder to change after
+1.0.
+
+
+1. Releases and versioning
+--------------------------
+
+- Compatibility promise. Steps 35-36 settled the option names, the natural point to say
+  "from 1.0, options change only with deprecation". The reserved-name errors (-z, -e,
+  -U, ...) are already the mechanism.
+- CHANGES file with a "for pick users" section listing every rename and removal (-z ->
+  -%, -e -> -w, --other -> --rejected, ...). The manual's pick differences cover this,
+  but a short migration list is what someone moving scripts needs.
+- Tagged releases with prebuilt binaries: a static Linux build (musl) and macOS. pluk is
+  Unix-only (it uses OsStrExt); say so.
+- Packaging: bioconda is the obvious channel for SAM/BAM users; Homebrew and cargo
+  install are cheap extras. For crates.io, Cargo.toml needs description, license,
+  repository, readme, keywords and rust-version.
+
+
+2. Continuous integration
+-------------------------
+
+- A small GitHub Actions workflow: cargo test and make test on Linux and macOS, plus the
+  int128 build. The regression suite is strong enough to make this worthwhile; at
+  present only the author runs it.
+- cargo clippy (24 warnings to triage first) and cargo audit for the dependencies.
+- rustfmt is a matter of taste: adopt it once, or leave it and record the decision in
+  plan/guidelines.txt.
+
+
+3. Command-line conventions
+---------------------------
+
+- Exit statuses. Many tools use 2 for usage errors and 1 for data or runtime errors
+  (grep does). pluk uses 1 for everything, as far as seen, so scripts cannot tell a
+  mistyped option from a bad row. Whatever the choice, document it in one place in the
+  manual.
+- A man page: Unix users expect man pluk. Generate it from the manual (pandoc, or the
+  zoem idea in shed/ideas.txt); a short pluk.1 with the options and a pointer to the
+  manual would do.
+- Shell completion for bash and zsh, generated from --help; the long SAM and dictionary
+  option names make completion genuinely useful.
+- --version could include the git commit and whether the build is int128, which helps
+  with bug reports.
+
+
+4. Robustness
+-------------
+
+- Fuzzing (cargo fuzz) of the parsers for computes, filters, column specs and
+  %-decoding. Hand-written parsers are where a crash is most likely to hide; a
+  professional tool should never panic on user input.
+- Unusual input: CRLF line endings, NUL bytes, invalid UTF-8 in names, very long lines.
+  Even if the behaviour is "bytes in, bytes out", one test each and one sentence in the
+  manual close the question.
+- Performance tracking: keep the timing setup of the 2026-11-08 timing discussion
+  (hyperfine on the tempest files, test/mkdata.py) as a script, so that a slowdown shows
+  up as a number.
+
+
+5. Documentation for newcomers
+------------------------------
+
+The manual is complete; what is missing is the first ten minutes:
+- a quick-start or cookbook page with about 10 everyday tasks (select columns, filter,
+  compute, join with a dictionary, SAM basics);
+- a short "pluk for pick users" page (see CHANGES in 1).
+README.md partly does the first job; a cookbook can be searched by task.
+
+
+6. Already on the list
+----------------------
+
+- --out=FILE (shed/ideas.txt).
+- Merging plan/remaining.txt with plan/deferred.txt.
