@@ -1,0 +1,79 @@
+Option names in the light of UNIX history (2026-11-09, branch zz)
+
+A collation, not a plan: pluk options whose names may seem slightly unnatural to a
+UNIX user. Settled and not listed: -h (no header; clear motivation), -s (OR for @@
+filters), -% and -%% (plan/zz-notes.txt). Names only; option syntax is out of scope.
+(pick) marks names inherited from pick.
+
+Ranked first: -e, -E and -o. They are the most entrenched meanings, and the ones users
+are most likely to try without reading the help.
+
+
+Short options
+-------------
+
+Clashes with a strong existing meaning
+
+ 1. -e (remove white space). In grep, sed and perl, -e means "an expression follows". A
+    pluk user writes expressions all the time, so -e is where they'd look for that
+    meaning. Probably the strongest clash. (pick)
+ 2. -E<N> (expected row count). In grep and sed, -E means extended regular expressions,
+    and pluk has regexes (-/, ^...^). It also has nothing to do with -e.
+ 3. -o (OR for @ filters). In sort -o, cc -o and many other tools, -o names the output
+    file. find -o and test -o are precedent for "or", so the name is defensible. But if
+    --out=FILE ever arrives, its natural short name is already taken.
+ 4. -O<N> (ragged input, merge from column N). Upper-case -O usually means optimisation
+    level (cc) or an output setting. The pair -o/-O is also unrelated, unlike -k/-K.
+
+Pairs that break the -k/-K pattern
+(-k/-K sets up the expectation that an upper-case letter is a variant of its
+lower-case partner.)
+
+ 5. -u/-U: "make names unique" and "input order". -u also invites the sort -u reading,
+    "drop duplicate rows", when it acts on column names.
+ 6. -h/-H: "no header" and "help". -H looks like it should be the opposite of -h ("with
+    header"); -K does that job. (pick)
+ 7. -e/-E and -o/-O, as above.
+
+Mild
+
+ 8. -x (exclude columns). Traditionally -x means extract (tar) or whole-line match
+    (grep -x); inverting a selection is -v (grep) or --complement (cut). "Exclude" is
+    still a reasonable guess.
+ 9. -i (in place). Follows sed -i and perl -i, so well founded. But with regexes
+    around, some users will read it as grep -i, case-insensitive.
+10. -F (no effect, pick compatibility). awk -F sets the field separator, so a user may
+    try -F, and see it silently ignored.
+11. -l (list operators). -l usually means "long" (ls) or "files with matches" (grep).
+    Using it for a listing is fine.
+12. -R (row-name column). -R almost always means recursive. pluk takes no file
+    arguments, so the clash is harmless. R's row.names is a fitting precedent.
+13. -/<pat>, -//<pat>: punctuation options with an attached pattern; unusual but easy
+    to remember from sed and vi. Doubling the slash to mean "pass through unchanged"
+    is not self-explanatory.
+
+Fine: -k (sort -k), -K, -c (grep -c), -q, -A; -A<N> even matches grep -A, "after".
+
+
+Long options
+------------
+
+14. --sam-h (keep the header) against -h (drop the header): within pluk the same letter
+    means opposite things. Justified by samtools view -h, but users will notice.
+15. --A=NAME: a long option named by one capital letter. Long options are normally
+    words.
+16. Abbreviations with vowels dropped: --sam-nonf, --sam-aln-mrk, --sam-qlt-sim,
+    --sam-rbt, --pstore, and --idx-* to a lesser degree. GNU long options are usually
+    full words. --sam-nonf and --pstore are hard to work out without the manual.
+17. --sam-aln-xy against --sam-narrow-xy: the second lacks the aln- part, although both
+    act on alignments.
+18. --sam-ND-adjust: capitals in a long option are unusual; justified by the CIGAR
+    operations N and D.
+19. --kd, --fd, --cd, --td: two-letter long options. cd and fd already mean "change
+    directory" and "file descriptor" to many people; the longer synonyms soften this.
+    --fasta-dict-NAME has no short form while its siblings do. (pick)
+20. --other: vague about what the "other" rows are; a name like --rejected would say
+    it.
+
+Fine: --threads, --seed, --progress, --version, --help, --group, --demux*, --num-perl,
+--list-ops-tsv, --quant-NAME.
