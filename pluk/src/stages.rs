@@ -1,7 +1,7 @@
 // The row pipeline (plan/COMPUTE.design.txt section 1, SAMVIEW.design.txt section 2):
 // for each data row the fill, the @@ stage, the SAM rewrites, the computes, the kept
 // state of --pstore and --group, the @ stage; and where a row goes when it is not kept
-// (--other, --assert-other, --demux).
+// (--rejected, --assert-failed, --demux).
 
 use std::io::ErrorKind;
 
@@ -86,7 +86,7 @@ impl Stages<'_> {
     }
 }
 
-// Why a row was not judged: an assertion failed (diverted with --assert-other), an
+// Why a row was not judged: an assertion failed (diverted with --assert-failed), an
 // operator failed (map with __EXIT__), which ends the run, or the row is skipped.
 enum Failure {
     Assertion(String),
@@ -95,8 +95,8 @@ enum Failure {
 }
 
 // Whether the current data row is kept. A row rejected by a filter is written to
-// --other, and if rejected by an @ filter also counted by --demux (which opens
-// its file); a row that fails an assertion is written to --assert-other, or else
+// --rejected, and if rejected by an @ filter also counted by --demux (which opens
+// its file); a row that fails an assertion is written to --assert-failed, or else
 // ends the run with an error giving the line number.
 pub fn route(stages: &mut Stages, row: &mut row::Row, lineno: u64,
          other: &mut Option<sink::SideFile>, assert_other: &mut Option<sink::SideFile>,
@@ -122,7 +122,7 @@ pub fn route(stages: &mut Stages, row: &mut row::Row, lineno: u64,
             None => Err(std::io::Error::new(ErrorKind::InvalidData, format!("{} at line {}", msg, lineno))),
         },
         Err(Failure::Fatal(msg)) => Err(std::io::Error::new(ErrorKind::InvalidData, format!("{} at line {}", msg, lineno))),
-        // Not a filter rejection: not written to --other (SAMSEQ.design.txt section 5,
+        // Not a filter rejection: not written to --rejected (SAMSEQ.design.txt section 5,
         // plan/step23.txt decision 3).
         Err(Failure::Skipped) => Ok(false),
     }

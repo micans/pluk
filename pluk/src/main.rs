@@ -89,11 +89,11 @@ fn run() -> std::io::Result<()> {
         },
     };
 
-    // --other and --assert-other are created before input is read, so that a bad
+    // --rejected and --assert-failed are created before input is read, so that a bad
     // path is reported early.
-    let mut other = config.other.as_deref().map(|n| sink::SideFile::create("--other", n)).transpose()?;
+    let mut other = config.other.as_deref().map(|n| sink::SideFile::create("--rejected", n)).transpose()?;
     let mut assert_other = config.assert_other.as_deref()
-        .map(|n| sink::SideFile::create("--assert-other", n)).transpose()?;
+        .map(|n| sink::SideFile::create("--assert-failed", n)).transpose()?;
     if let Some(dir) = &config.demux_dir {
         if !std::path::Path::new(std::ffi::OsStr::from_bytes(dir)).is_dir() {
             return Err(std::io::Error::new(ErrorKind::NotFound,
@@ -106,7 +106,7 @@ fn run() -> std::io::Result<()> {
     #[allow(non_snake_case)]
     // -H (and -K) asks for the output header line that -k would leave out.
     let B_print_header = (!config.k || config.header) && !config.no_header && !config.c;
-    // The header rule for the files of --other, --assert-other and --demux: as
+    // The header rule for the files of --rejected, --assert-failed and --demux: as
     // stdout, except that -c concerns stdout only.
     let file_header = (!config.k || config.header) && !config.no_header;
 
@@ -187,11 +187,11 @@ fn run() -> std::io::Result<()> {
 
     // As in pick, the names are checked once the first line has been read;
     // with empty input there is nothing to check against.
-    // --A=NAME: as -A<N> with N the position of input column NAME.
+    // --after=NAME: as -A<N> with N the position of input column NAME.
     let insert_offset = match &config.insert_after {
         Some(name) if !input.is_empty => {
             let at = (0..names.n_input()).find(|&i| names.name(i) == &name[..]).ok_or_else(||
-                std::io::Error::new(ErrorKind::InvalidInput, format!("--A={}: no input column [{}] among {}",
+                std::io::Error::new(ErrorKind::InvalidInput, format!("--after={}: no input column [{}] among {}",
                     String::from_utf8_lossy(name), String::from_utf8_lossy(name), input.names.joined())))?;
             Some(at as i64 + 1)
         }
@@ -297,7 +297,7 @@ fn run() -> std::io::Result<()> {
         output::write_line(&mut out, line)?;
     }
 
-    // --other and --assert-other: the preamble, then the header following -h and
+    // --rejected and --assert-failed: the preamble, then the header following -h and
     // -k (not -c, which concerns stdout), then their rows. With -c and no column
     // arguments the rows are written whole (pick writes empty lines).
     if !input.is_empty {

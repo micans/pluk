@@ -26,3 +26,16 @@ Item 2.
     acceptable; no special case for -H as a word of its own.
   Tests: o.help now checks that -H alone is a normal run (no columns: usage note,
     exit 1); o.help-bundle (-kH was an error) is replaced by o.header-H.
+
+Item 3.
+  --after=NAME (was --A=NAME): reads "insert after NAME"; a long option named by one
+    capital letter was unusual. -A<N> stays.
+  --rejected=FILE (was --other), --assert-failed=FILE (was --assert-other): each says
+    what goes into the file.
+  Old names: errors naming the replacement ("--other: use --rejected=FILE").
+  Only the option names changed; the identifiers in the code (config.other,
+    assert_other, insert_after) and the test names (o.other*, o.assert-other*) are
+    kept. Messages name the new options.
+  Dictionaries: help, manual section 7 and the option reference lead with --kdict-
+    --fdict- --cdict- --tdict (and --fasta-dict); --kd- --fd- --cd- --td are short
+    forms. The examples keep the short forms (the manual says so).

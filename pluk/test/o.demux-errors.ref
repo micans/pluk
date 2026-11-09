@@ -12,7 +12,7 @@ pluk: --demux: value [./x] at line 2 is not a valid file name ('.' or '..' path 
 exit 1
 pluk: --demux: cannot create out/dm7/nodir/x: No such file or directory (os error 2)
 exit 1
-pluk: --demux: value [x] at line 2 names the file of --other or --assert-other
+pluk: --demux: value [x] at line 2 names the file of --rejected or --assert-failed
 exit 1
 pluk: --demux cannot be combined with -c
 exit 1

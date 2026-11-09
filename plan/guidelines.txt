@@ -77,9 +77,9 @@
       ~notin~ and ~notval~ as synonyms of ~isnotin~ and ~hasnotval~ (step22.txt).
     - Assertions: @@assert@ (before computes) is new; a failed assertion ends pluk with exit
       status 1 (pick: 255, Perl die) and the message 'assertion A failed: column C value [V]
-      at line N'. --assert-other diverts failing rows instead (step9.txt item 2).
-    - Output files (--other, --assert-other, --demux): never opened through a shell; --other
-      also receives rows rejected by @@ filters; --assert-other covers @@assert@ too and
+      at line N'. --assert-failed diverts failing rows instead (step9.txt item 2).
+    - Output files (--rejected, --assert-failed, --demux): never opened through a shell;
+      --rejected also receives rows rejected by @@ filters; --assert-failed covers @@assert@ too and
       combines with @ filters (pick refuses them); the pass-through preamble is written to every
       output file; with -c the files keep their header, and without column arguments get
       whole rows; demux file names are restricted (no empty, absolute, '.' or '..' parts),
@@ -90,7 +90,7 @@
       0.30000000000000004; --num-perl writes them as Perl, approximately, step10-notes.txt
       item 4); unnamed computes are PLUKAAAAA, ... (pick: PICKAAAAA); a regex operand must be
       a constant; integer overflow goes to a float directly (Perl first uses unsigned 64-bit
-      integers); rows rejected by @@ filters have empty computed columns in --other.
+      integers); rows rejected by @@ filters have empty computed columns in --rejected.
     - In-place computes (INPLACE.design.txt): an input column can be redefined once (pick:
       any number of times); a list NAME cannot create new columns, a repeated column in a
       map NAME is applied once; -A<N> cannot be combined with -x.
@@ -155,6 +155,8 @@
       -E<N>); -e and -E are reserved and give an error naming -w and -C (step35).
     - -H outputs a header line, also with -k (-K is -kH; -h takes precedence); pick: -H
       prints the help, pluk: --help only. -U gives an error naming -p (step35).
+    - --after=NAME, --rejected=FILE, --assert-failed=FILE (pick: --A=NAME, --other=FILE,
+      --assert-other=FILE); the old names give an error naming the new (step35).
     - -% and -%% encode and decode (pick: -z and -zz); -z, -zz etc. are reserved and
       give an error naming -% and -%% (plan/zz-notes.txt).
     - -% encodes only % : ^ , / ~ = @ + and white space or control bytes (pick: all but
@@ -166,12 +168,12 @@
       -ll is not supported.
     - -q has one level (-qq is -q) and silences every message that is not an error; -v
       and -d are not taken over. -C<N> counts the rows that pass the filters (stdout or
-      --demux, the -c count), not those diverted to --other or --assert-other.
+      --demux, the -c count), not those diverted to --rejected or --assert-failed.
     - --progress counts input data rows, rejected or not, and also with -c (pick counts
       at the output, so rejected rows give no dot, and -c gives no progress).
       --idx-list --name-list --idx-map cannot be combined with each other, -c, --demux,
-      --other or --assert-other; --A=NAME must name an input column (pick: any output
-      column).
+      --rejected or --assert-failed; --after=NAME must name an input column (pick: any
+      output column).
     - SAM normal form: a rule that would leave an empty CIGAR is not applied (pick turns a
       CIGAR 5D into an empty CIGAR and moves POS); --sam-nonf requires --sam or --sam-h.
     - SAM operators (step17) need --sam or --sam-h (compile-time error). Values that cannot be

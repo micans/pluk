@@ -25,7 +25,7 @@ pub struct Demux {
     dir:     Option<Vec<u8>>,           // --demux-dir
     writer:  RowWriter,                 // the output columns, as stdout
     start:   Vec<u8>,                   // preamble and header, written to each new file
-    taken:   Vec<Vec<u8>>,              // --other and --assert-other names
+    taken:   Vec<Vec<u8>>,              // --rejected and --assert-failed names
     files:   Vec<DemuxFile>,
     index:   HashMap<Vec<u8>, usize>,   // value -> position in files
 }
@@ -70,7 +70,7 @@ impl Demux {
             None => value.to_vec(),
         };
         if self.taken.contains(&path) {
-            return Err(error(format!("--demux: value [{}] at line {} names the file of --other or --assert-other",
+            return Err(error(format!("--demux: value [{}] at line {} names the file of --rejected or --assert-failed",
                                      String::from_utf8_lossy(value), lineno)));
         }
         let mut sink = FileSink::create(&path).map_err(|e| {

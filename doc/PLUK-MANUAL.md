@@ -337,7 +337,7 @@ Dora   11  0.99
 - `-A` outputs every input column, in input order; this is the usual way to keep whole
   rows while filtering them (section 5). New computed columns follow at the end, or with
   `-A<N>` after the first N input columns (a negative N counts from the right), or with
-  `--A=NAME` after column NAME.
+  `--after=NAME` after column NAME.
 - `-x` outputs every input column except the ones named (names, lists and patterns alike).
 - `-p` outputs the selected columns in their input order, whatever the order of the
   arguments (computed columns after them).
@@ -349,7 +349,7 @@ Annie   apple  32.0  A12   14.5  2        0.92
 Bert    pear   19.8  P03   9.0   0        0.75
 Chen    apple  48.7  A07   22.1  5        0.88
 ...
-$ pluk --A=picker n::picker,len < harvest.txt
+$ pluk --after=picker n::picker,len < harvest.txt
 picker  n  fruit  tree  kg    bruised  ripeness
 Annie   5  apple  A12   14.5  2        0.92
 Bert    4  pear   P03   9.0   0        0.75
@@ -494,13 +494,13 @@ Dora    plum   6.4
 Hilde   plum   7.9
 ```
 
-### Rejected rows: --other
+### Rejected rows: --rejected
 
-`--other=FILE` writes the rows that the filters reject to FILE, with the header line
+`--rejected=FILE` writes the rows that the filters reject to FILE, with the header line
 (section 9 has the details shared by all output files).
 
 ```console
-$ pluk --other=light.txt picker kg @kg/gt/12 < harvest.txt
+$ pluk --rejected=light.txt picker kg @kg/gt/12 < harvest.txt
 picker  kg
 Annie   14.5
 Chen    22.1
@@ -520,7 +520,7 @@ An assertion is a filter that must hold for every row: `@assert@COLUMN...` after
 computes, `@@assert@COLUMN...` before them. Assertions are checked before the filters of the same stage, and `-o` and `-s` do
 not apply to them. The first row that fails it ends the run with
 an error naming the assertion, the column, the value and the line (exit status 1). With
-`--assert-other=FILE` such rows are written to FILE instead and the run goes on.
+`--assert-failed=FILE` such rows are written to FILE instead and the run goes on.
 
 ```console
 $ pluk -A @assert@ripeness/ge/0.65 < harvest.txt
@@ -530,7 +530,7 @@ Bert    pear   P03   9.0   0        0.75
 Chen    apple  A07   22.1  5        0.88
 Dora    plum   U11   6.4   11       0.99
 pluk: assertion @assert@ripeness/ge/0.65 failed: column ripeness value [0.61] at line 6
-$ pluk --assert-other=unripe.txt -A @assert@ripeness/ge/0.65 < harvest.txt
+$ pluk --assert-failed=unripe.txt -A @assert@ripeness/ge/0.65 < harvest.txt
 picker  fruit  tree  kg    bruised  ripeness
 Annie   apple  A12   14.5  2        0.92
 Bert    pear   P03   9.0   0        0.75
@@ -653,7 +653,7 @@ Chen    44.2       6
 
 A computed column is output where its argument stands among the column arguments. With
 `-A` (all input columns) the computed columns follow the input columns; `-A<N>` inserts
-them after the first N input columns, `--A=NAME` after the input column NAME.
+them after the first N input columns, `--after=NAME` after the input column NAME.
 
 ```console
 $ pluk picker lb::kg^2.2,mul^1,dd kg < harvest.txt
@@ -674,7 +674,7 @@ Annie   apple  31.9  A12   14.5  2        0.92
 Bert    pear   19.8  P03   9.0   0        0.75
 Chen    apple  48.6  A07   22.1  5        0.88
 ...
-$ pluk --A=kg lb::kg^2.2,mul^1,dd < harvest.txt
+$ pluk --after=kg lb::kg^2.2,mul^1,dd < harvest.txt
 picker  fruit  tree  kg    lb    bruised  ripeness
 Annie   apple  A12   14.5  31.9  2        0.92
 Bert    pear   P03   9.0   19.8  0        0.75
@@ -799,21 +799,21 @@ Hilde   plum
 
 ### Loading a dictionary
 
-- `--kd-NAME=FILE` keys from the first column of FILE, each with value 1;
-- `--fd-NAME=FILE` keys and values from the first two columns of FILE (further columns
-  are ignored);
-- `--cd-NAME=k1:v1,k2:v2` keys and values from the list; a key without `:v` has value 1;
-  in the list a comma and a colon are written `%2C` and `%3A`;
+- `--kdict-NAME=FILE` keys from the first column of FILE, each with value 1;
+- `--fdict-NAME=FILE` keys and values from the first two columns of FILE (further
+  columns are ignored);
+- `--cdict-NAME=k1:v1,k2:v2` keys and values from the list; a key without `:v` has value
+  1; in the list a comma and a colon are written `%2C` and `%3A`;
 - `--fasta-dict-NAME=FILE` sequences from a fasta file, keyed by the identifier (up to
   the first white space); a sequence over several lines is joined, and the key `*` maps
   to the empty sequence;
-- `--td=FILE` a table with a header: every column other than the key column (the first)
-  becomes a dictionary named after the column, mapping the key to the value in that
-  column. `--td^KEY=FILE` takes column KEY as the key column. In a table a repeated key
-  is an error.
+- `--tdict=FILE` a table with a header: every column other than the key column (the
+  first) becomes a dictionary named after the column, mapping the key to the value in
+  that column. `--tdict^KEY=FILE` takes column KEY as the key column. In a table a
+  repeated key is an error.
 
-`--kdict-`, `--fdict-` and `--cdict-` are synonyms of `--kd-`, `--fd-` and `--cd-`, and
-`--tdict` and `--table-dict` of `--td`. A FILE may be gzip-compressed. In a file a later
+`--kd-`, `--fd-` and `--cd-` are short forms of `--kdict-`, `--fdict-` and `--cdict-`,
+and `--td` and `--table-dict` of `--tdict`; the examples use the short forms. A FILE may be gzip-compressed. In a file a later
 line with the same key replaces the earlier value.
 
 ```console
@@ -1094,11 +1094,11 @@ Fenna
 pluk: -C3: expected 3 output rows, found 2
 ```
 
-### Other output files: --other, --assert-other, --demux
+### Other output files: --rejected, --assert-failed, --demux
 
-`--other=FILE` (rows rejected by the filters) and `--assert-other=FILE` (rows that fail
-an assertion) are described in section 5. Their files have a header line and the same
-columns as the output.
+`--rejected=FILE` (rows rejected by the filters) and `--assert-failed=FILE` (rows that
+fail an assertion) are described in section 5. Their files have a header line and the
+same columns as the output.
 
 `--demux=NAME` writes each output row to the file named by the row's value in column
 NAME, instead of to standard output. The value is a relative path; with
@@ -1133,10 +1133,10 @@ Fenna   18.0
 ```
 
 An output file whose name ends in `.gz` or `.gzip` is written gzip-compressed; this
-holds for `--other`, `--assert-other` and `--demux`.
+holds for `--rejected`, `--assert-failed` and `--demux`.
 
 ```console
-$ pluk -q --other=light.txt.gz picker kg @kg/gt/12 < harvest.txt
+$ pluk -q --rejected=light.txt.gz picker kg @kg/gt/12 < harvest.txt
 picker  kg
 Annie   14.5
 Chen    22.1
@@ -1617,7 +1617,7 @@ index of them, followed by a few that combine several sections.
 
 - A few common tasks, one line each: section 2.
 - Every column but a few (`-x`), all columns with a computed one inserted (`-A<N>`,
-  `--A=NAME`): sections 4 and 6.
+  `--after=NAME`): sections 4 and 6.
 - Rows where any of several conditions holds (`-o`): section 5.
 - Converting a family of columns at once, keeping or replacing the originals (renaming,
   `-i`): section 6.
@@ -1723,7 +1723,7 @@ found before any input is read: in the options and arguments, in a constant oper
 (section 16 says which are checked), in a dictionary or quantile file. Some can only
 happen while rows are read, and then the rows before have been written:
 
-- a failed assertion (section 5), unless `--assert-other` is given;
+- a failed assertion (section 5), unless `--assert-failed` is given;
 - a key not found in a dictionary with default `__EXIT__` (section 7);
 - a SEQ `*` that cannot be filled, with `--sam-seqmiss=exit` (section 10);
 - `-C<N>` when the number of output rows differs, checked at the end (section 9).
@@ -1778,7 +1778,7 @@ count is not zero:
 | Report | Counts | Section |
 |---|---|---|
 | `FILTER: N values not a number` | values a numeric or bit filter could not test; the rows are not kept | 5 |
-| `N rows failed an assertion (written to FILE)` | rows diverted by `--assert-other` | 5 |
+| `N rows failed an assertion (written to FILE)` | rows diverted by `--assert-failed` | 5 |
 | `merging into existing dictionary NAME` | a dictionary given more than once (written when it is loaded) | 7 |
 | `--group: N groups` | groups of `--group` and `--group-first-ref` | 8 |
 | `--demux: rows written and filtered per file` | the `--demux` tally: a table follows, one line per file with the rows written and the rows rejected by `@` filters | 9 |
@@ -1903,7 +1903,7 @@ pluk does.
 - `-p` (pick: `-U`) orders the output columns by input position also with a header
   line, computed columns after them in compute order (pick sorts the names numerically,
   which is meaningful with `-k` and `-K` only, and puts computed columns first).
-- `--A=NAME` must name an input column (pick: any output column); `-A<N>` cannot be
+- `--after=NAME` must name an input column (pick: any output column); `-A<N>` cannot be
   combined with `-x`.
 
 #### Regular expressions
@@ -1933,7 +1933,7 @@ pluk does.
   floats); a negative constant mask is refused; a mask from a column is used as its
   absolute value by all four operators (pick: `/all/` and `/notall/` use it as it is).
 - A failed assertion ends pluk with exit status 1 and the message `assertion A failed:
-  column C value [V] at line N` (pick: exit status 255). `--assert-other` also covers
+  column C value [V] at line N` (pick: exit status 255). `--assert-failed` also covers
   `@@assert@` and combines with `@` filters (pick refuses the combination).
 
 #### Computes and numbers (sections 3 and 6)
@@ -1956,7 +1956,7 @@ pluk does.
 - A capture group names the new columns only in the renaming shapes: `/+num(\d)/::..`
   creates columns 1 2 4 (pick: also `+num(\d)::..`, which in pluk is a plain map that
   needs `-i`).
-- A row rejected by an `@@` filter has empty computed columns in `--other`.
+- A row rejected by an `@@` filter has empty computed columns in `--rejected`.
 
 #### Operators (section 16)
 
@@ -2027,18 +2027,18 @@ pluk does.
   refused. `--sam` and `--sam-h` keep skipping or passing the `@` lines when either is
   given.
 - A repeated letter in a bundle of short options is accepted.
-- Output files (`--other`, `--assert-other`, `--demux`) are never opened through a
-  shell. `--other` also receives the rows rejected by `@@` filters; the pass-through
+- Output files (`--rejected`, `--assert-failed`, `--demux`) are never opened through a
+  shell. `--rejected` also receives the rows rejected by `@@` filters; the pass-through
   lines of `-//PAT` before the header go to every output file; with `-c` the files keep
   their header. `--demux` file names cannot be empty, absolute or contain `.` or `..`
   parts; too many open files is an error; the tally has a title line and no LastFlush
   column; `-c` with `--demux` is refused; `--demux-buffer` has no effect.
 - `-C<N>` counts the rows that pass the filters (written to standard output or to
-  `--demux` files), not those written to `--other` or `--assert-other`.
+  `--demux` files), not those written to `--rejected` or `--assert-failed`.
 - `--progress` counts input rows, rejected or not, also with `-c` (pick counts output
   rows).
 - `--idx-list`, `--name-list` and `--idx-map` cannot be combined with each other, with
-  `-c`, `--demux`, `--other` or `--assert-other`.
+  `-c`, `--demux`, `--rejected` or `--assert-failed`.
 - `-q` has one level and silences every message that is not an error. Every message
   starts with `pluk:`.
 - pluk without column arguments writes its usage note and exits with status 1 (pick:
@@ -2047,6 +2047,8 @@ pluk does.
   (pick: `-E<N>`); in pluk `-e` and `-E` are reserved.
 - `-H` outputs a header line, also with `-k` (pick: `-H` prints the help); help is
   `--help` only.
+- `--after=NAME`, `--rejected=FILE` and `--assert-failed=FILE` are pick's `--A=NAME`,
+  `--other=FILE` and `--assert-other=FILE`.
 - `-%` and `-%%` encode and decode (pick: `-z` and `-zz`; in pluk `-z` is reserved).
   `-%` encodes only the characters that mean something in a pluk argument (`% : ^ , /
   ~ = @ +`) and white space and control bytes (pick: everything but letters, digits and
@@ -2177,7 +2179,7 @@ checks that this list and `pluk --help` name the same options.
 - `-A`: output all columns (section 4).
 - `-A<N>`: as `-A`, with the new computed columns after the first N output columns
   (section 4).
-- `--A=NAME`: as `-A`, with the new computed columns after input column NAME
+- `--after=NAME`: as `-A`, with the new computed columns after input column NAME
   (section 4).
 - `-x`: output all columns except the named ones (section 4).
 - `-/<pat>`: skip input lines that match the regular expression (section 9).
@@ -2194,8 +2196,8 @@ checks that this list and `pluk --help` name the same options.
 
 - `-o`: keep the rows that pass any `@` filter, instead of all (section 5).
 - `-s`: keep the rows that pass any `@@` filter, instead of all (section 5).
-- `--other=FILE`: write the rows rejected by `@` and `@@` filters to FILE (section 5).
-- `--assert-other=FILE`: write the rows that fail an assertion to FILE, and continue
+- `--rejected=FILE`: write the rows rejected by `@` and `@@` filters to FILE (section 5).
+- `--assert-failed=FILE`: write the rows that fail an assertion to FILE, and continue
   (section 5).
 - `--demux=NAME`: write each output row to the file named by its value in column NAME
   (section 9).
@@ -2249,14 +2251,14 @@ checks that this list and `pluk --help` name the same options.
 
 ### Dictionaries
 
-- `--kd-NAME=FILE`: keys from the first column of FILE, all values 1 (section 7).
-- `--fd-NAME=FILE`: keys and values from the first two columns of FILE (section 7).
-- `--cd-NAME=k1:v1,k2:v2`: keys and values from the list (section 7).
+- `--kdict-NAME=FILE`: keys from the first column of FILE, all values 1 (section 7).
+- `--fdict-NAME=FILE`: keys and values from the first two columns of FILE (section 7).
+- `--cdict-NAME=k1:v1,k2:v2`: keys and values from the list (section 7).
 - `--fasta-dict-NAME=FILE`: sequences from FASTA FILE, keyed by identifier (section 7).
-- `--td^KEY/DEFAULT=FILE`: a table with column names, one dictionary per column other
-  than KEY (section 7).
-- `--kdict-`, `--fdict-`, `--cdict-`, `--tdict`, `--table-dict`: synonyms of `--kd-`,
-  `--fd-`, `--cd-` and `--td` (section 7).
+- `--tdict^KEY/DEFAULT=FILE`: a table with column names, one dictionary per column
+  other than KEY (section 7).
+- `--kd-`, `--fd-`, `--cd-`, `--td`, `--table-dict`: short forms of `--kdict-`,
+  `--fdict-`, `--cdict-` and `--tdict` (section 7).
 
 ### Listings and help
 

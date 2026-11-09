@@ -24,7 +24,7 @@ pub struct Config {
     pub header: bool,                   // -H (and -K, which is -kH): output a header line, also with -k
     pub all: bool,                      // -A
     pub insert_offset: Option<i64>,     // -A<N>
-    pub insert_after: Option<Vec<u8>>,  // --A=NAME (%-decoded): as -A<N>, N the position of NAME
+    pub insert_after: Option<Vec<u8>>,  // --after=NAME (%-decoded): as -A<N>, N the position of NAME
     pub list: Option<ListKind>,         // --idx-list, --name-list, --idx-map
     pub progress: Option<(u64, u64)>,   // --progress[=K/N]: a dot every K rows, a count every N dots
     pub excise: bool,                   // -x
@@ -72,8 +72,8 @@ pub struct Config {
     pub filters: Vec<FilterSpec>,       // @ and @@ filters, in command line order
     pub or_post: bool,                  // -o: OR the @ filters
     pub or_pre: bool,                   // -s: OR the @@ filters
-    pub other: Option<Vec<u8>>,         // --other=FILE: rows rejected by filters
-    pub assert_other: Option<Vec<u8>>,  // --assert-other=FILE: rows failing an assertion
+    pub other: Option<Vec<u8>>,         // --rejected=FILE: rows rejected by filters
+    pub assert_other: Option<Vec<u8>>,  // --assert-failed=FILE: rows failing an assertion
     pub demux: Option<Vec<u8>>,         // --demux=NAME (%-decoded column name)
     pub demux_dir: Option<Vec<u8>>,     // --demux-dir=PATH
 }
@@ -155,8 +155,8 @@ Options:
   -A          output all columns
   -A<N>       as -A, with the new computed columns inserted after the first N
               input columns (N < 0: counted from the right)
-  --A=NAME    as -A, with the new computed columns inserted after input column
-              NAME
+  --after=NAME  as -A, with the new computed columns inserted after input
+              column NAME
   -x          output all columns except the named ones
   -/<pat>     skip lines matching regular expression <pat>, e.g. -/^#
   -//<pat>    output lines matching <pat> unchanged
@@ -169,9 +169,9 @@ Options:
   -R          header has no name for the first (row name) column; it is named _
   -o          keep rows that pass any @ filter (default: all)
   -s          keep rows that pass any @@ filter (default: all)
-  --other=FILE  write the rows rejected by @ and @@ filters to FILE (header and
+  --rejected=FILE  write the rows rejected by @ and @@ filters to FILE (header and
               columns as the output; .gz or .gzip: gzip-compressed)
-  --assert-other=FILE  write rows that fail an @assert@ or @@assert@ to FILE
+  --assert-failed=FILE  write rows that fail an @assert@ or @@assert@ to FILE
               instead of stopping; such rows go nowhere else
   --demux=NAME  write each output row to the file named by its value in column
               NAME (a relative path; .gz or .gzip: gzip-compressed); a tally of
@@ -303,22 +303,25 @@ Filters (given among the columns; VALUE is %-decoded, e.g. %2F for '/'):
   hold for every column, e.g. @+num\\d/gt/0. A single name follows ':'.
 
 Dictionaries (NAME: letters, digits, _; used by ~isin~ ~hasval~ map dord):
-  --kd-NAME=FILE          keys from the first column of FILE, all values 1
-  --fd-NAME=FILE          keys and values from the first two columns of FILE
-  --cd-NAME=k1:v1,k2:v2   keys and values from the list; k without :v has value 1
-  --kd-NAME/DEFAULT=...   as above, DEFAULT is the value for keys not found;
-                          __EXIT__ makes a failed lookup an error. Without
-                          DEFAULT a key not found maps to itself.
-  --fasta-dict-NAME=FILE  sequences from fasta FILE, keyed by the identifier (up
-                          to the first white space); DEFAULT is __EXIT__ unless
-                          given, '*' maps to the empty sequence.
-  --td^KEY/DEFAULT=FILE   table with column names: every column other than KEY
-                          becomes a dictionary named after the column, mapping
-                          the KEY value to the value in that column. ^KEY and
-                          /DEFAULT are optional; KEY defaults to the first column.
-  --kdict- --fdict- --cdict- are synonyms, as are --tdict --table-dict for --td.
+  --kdict-NAME=FILE         keys from the first column of FILE, all values 1
+  --fdict-NAME=FILE         keys and values from the first two columns of FILE
+  --cdict-NAME=k1:v1,k2:v2  keys and values from the list; k without :v has
+                            value 1
+  --kdict-NAME/DEFAULT=...  as above, DEFAULT is the value for keys not found;
+                            __EXIT__ makes a failed lookup an error. Without
+                            DEFAULT a key not found maps to itself.
+  --fasta-dict-NAME=FILE    sequences from fasta FILE, keyed by the identifier
+                            (up to the first white space); DEFAULT is __EXIT__
+                            unless given, '*' maps to the empty sequence.
+  --tdict^KEY/DEFAULT=FILE  table with column names: every column other than
+                            KEY becomes a dictionary named after the column,
+                            mapping the KEY value to the value in that column.
+                            ^KEY and /DEFAULT are optional; KEY defaults to the
+                            first column.
+  --kd- --fd- --cd- are short forms of --kdict- --fdict- --cdict-, as are --td
+  and --table-dict of --tdict.
   A repeated NAME adds to the dictionary. FILE may be gzip-compressed.
-  In KEY write / and = as %2F and %3D, in DEFAULT = as %3D; in --cd , and : as
+  In KEY write / and = as %2F and %3D, in DEFAULT = as %3D; in --cdict , and : as
   %2C and %3A.
 
   -l TERM..   list the operators (compute and filter) in a category, or whose
@@ -522,24 +525,28 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
                 _ => return Err(bad()),
             }
         }
-        _ if long.starts_with(b"A=") => {
-            if long.len() == 2 {
-                return Err("--A=NAME: column name missing".to_string());
+        _ if long.starts_with(b"after=") => {
+            if long.len() == 6 {
+                return Err("--after=NAME: column name missing".to_string());
             }
             config.all = true;
             config.insert_offset = None;
-            config.insert_after = Some(pct_decode(&long[2..]));
+            config.insert_after = Some(pct_decode(&long[6..]));
         }
-        _ if long.starts_with(b"other=") || long.starts_with(b"assert-other=") => {
-            let (name, slot) = match long.strip_prefix(b"other=") {
+        _ if long.starts_with(b"rejected=") || long.starts_with(b"assert-failed=") => {
+            let (name, slot) = match long.strip_prefix(b"rejected=") {
                 Some(name) => (name, &mut config.other),
-                None => (&long[13..], &mut config.assert_other),
+                None => (&long[14..], &mut config.assert_other),
             };
             if name.is_empty() {
                 return Err(format!("--{}FILE: file name missing", String::from_utf8_lossy(&long[..long.len() - name.len()])));
             }
             *slot = Some(name.to_vec());
         }
+        // Renamed in step35 (plan/step35-notes.txt).
+        _ if long.starts_with(b"A=") => return Err("--A=NAME: use --after=NAME".to_string()),
+        _ if long.starts_with(b"other=") => return Err("--other: use --rejected=FILE".to_string()),
+        _ if long.starts_with(b"assert-other=") => return Err("--assert-other: use --assert-failed=FILE".to_string()),
         _ if long.starts_with(b"seed=") => {
             match parse_number::<u64>(&long[5..]) {
                 Some(n) => config.seed = Some(n),
@@ -850,12 +857,12 @@ fn check_combinations(config: &Config) -> Result<(), String> {
         return Err("-A<N> cannot be combined with -x".to_string());
     }
     if config.insert_after.is_some() && config.excise {
-        return Err("--A=NAME cannot be combined with -x".to_string());
+        return Err("--after=NAME cannot be combined with -x".to_string());
     }
     if config.list.is_some() && (config.c || config.demux.is_some() || config.other.is_some()
                                  || config.assert_other.is_some()) {
         return Err("--idx-list, --name-list and --idx-map cannot be combined with -c, --demux, \
-                    --other or --assert-other".to_string());
+                    --rejected or --assert-failed".to_string());
     }
     if config.demux.is_some() && config.c {
         return Err("--demux cannot be combined with -c".to_string());
@@ -865,7 +872,7 @@ fn check_combinations(config: &Config) -> Result<(), String> {
     }
     if let (Some(a), Some(b)) = (&config.other, &config.assert_other) {
         if a == b {
-            return Err(format!("--other and --assert-other name the same file [{}]", String::from_utf8_lossy(a)));
+            return Err(format!("--rejected and --assert-failed name the same file [{}]", String::from_utf8_lossy(a)));
         }
     }
     Ok(())

@@ -91,8 +91,8 @@ Filters:
 - A string filter (`=`, `~eq~`, `~`, ...) compares the text `NA`.
 - To keep or drop the rows with an NA explicitly: `@n=NA`, `@n/=NA`, or `/ISNUM`.
 
-Output, `--other`, `--demux`: NA is written as `NA`. `--pstore` keeps the text `NA` for
-the next row.
+Output, `--rejected`, `--demux`: NA is written as `NA`. `--pstore` keeps the text `NA`
+for the next row.
 
 
 ## 3. The most likely cascades

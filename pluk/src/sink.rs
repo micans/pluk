@@ -1,4 +1,4 @@
-// Output files other than stdout (plan/step9.txt): --other, --assert-other and
+// Output files other than stdout (plan/step9.txt): --rejected, --assert-failed and
 // demux files. A file whose name ends in .gz or .gzip is gzip-compressed.
 //
 // Files are created directly, never through a shell: pick opens "|gzip >$name",
@@ -64,7 +64,7 @@ impl Write for FileSink {
     }
 }
 
-// A side output (--other, --assert-other): a file that receives some of the data
+// A side output (--rejected, --assert-failed): a file that receives some of the data
 // rows, in the same columns as stdout, after the preamble and the header.
 pub struct SideFile {
     option: &'static str,           // for messages

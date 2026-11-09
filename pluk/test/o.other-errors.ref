@@ -1,4 +1,10 @@
-pluk: --other: cannot create out/nodir/x.txt: No such file or directory (os error 2)
+pluk: --rejected: cannot create out/nodir/x.txt: No such file or directory (os error 2)
 exit 1
-pluk: --other=FILE: file name missing
+pluk: --rejected=FILE: file name missing
+exit 1
+pluk: --other: use --rejected=FILE
+exit 1
+pluk: --assert-other: use --assert-failed=FILE
+exit 1
+pluk: --A=NAME: use --after=NAME
 exit 1
