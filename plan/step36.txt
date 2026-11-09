@@ -1,0 +1,28 @@
+Step 36: order of the options in --help; help wrapped at 120 columns; -F and
+--demux-buffer dropped
+
+1. -F and --demux-buffer dropped (pick compatibility options without effect). Each
+   gives an error with a reason, e.g. "-F: not needed; column names are never regexes
+   in pluk (use +REGEX)". Help, manual (option reference, pick differences),
+   guidelines. Commit.
+
+2. Options section of --help in this order, groups separated by blank lines:
+     -k; -h; -A, -A<N>, --after=NAME; -x; -c   (as the manual: input, header,
+                                               columns, counting)
+     -O<N>; -o; -s
+     -K; -H; -u; -R; -p
+     -/<pat>; -//<pat>
+     -q; -C<N>; -w
+     --rejected; --assert-failed; --demux; --demux-dir
+     --pstore; --group; --quant-NAME; --progress; --idx-list, --name-list, --idx-map
+     the SAM options as now, then --threads
+   The Computes, Filters and Dictionaries sections keep their place and content
+   (-i, --num-perl, --seed stay under Computes). Commit.
+
+3. The whole help text wrapped at 120 columns; the description column stays at 14
+   (the Computes, Filters and Dictionaries sections keep their own columns). Entries
+   whose option text is wider than the column put the description on the same line
+   where it fits. Commit.
+
+4. The option reference of the manual (section 15) follows the order of item 2,
+   with its subsections adjusted to the groups. Commit.

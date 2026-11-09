@@ -1150,8 +1150,6 @@ Eamon   3.2
 Hilde   7.9
 ```
 
-`--demux-buffer` and `-F` are accepted for compatibility with pick and have no effect.
-
 ### Column indexes and names
 
 `--idx-list` writes the input indexes (from 1) of the output columns, on one line, and
@@ -1896,7 +1894,8 @@ pluk does.
 
 - Regular expressions: pick takes a name as a regex when it contains one of
   `[ { ( \ * ? ^ $ ,`, unanchored (and `-F` turns this off); pluk only when it starts with
-  `+`, and it must match the whole name. A name such as `log2(FC)` is then just a name.
+  `+`, and it must match the whole name. A name such as `log2(FC)` is then just a name,
+  and pick's `-F` is refused as not needed.
 - Repeated input column names: pluk refuses them unless `-u` makes them unique.
 - `-R` cannot be combined with `-k`.
 - `-k` ranges: a range that selects no column, or a multiplier 0 (`1-3*0`), is an
@@ -2033,7 +2032,8 @@ pluk does.
   lines of `-//PAT` before the header go to every output file; with `-c` the files keep
   their header. `--demux` file names cannot be empty, absolute or contain `.` or `..`
   parts; too many open files is an error; the tally has a title line and no LastFlush
-  column; `-c` with `--demux` is refused; `--demux-buffer` has no effect.
+  column; `-c` with `--demux` is refused; pick's `--demux-buffer` is refused (pluk
+  buffers every file).
 - `-C<N>` counts the rows that pass the filters (written to standard output or to
   `--demux` files), not those written to `--rejected` or `--assert-failed`.
 - `--progress` counts input rows, rejected or not, also with `-c` (pick counts output
@@ -2191,7 +2191,6 @@ checks that this list and `pluk --help` name the same options.
 - `-//<pat>`: output input lines that match unchanged (section 9).
 - `-u`: make duplicate input column names unique (section 4).
 - `-p`: output the selected columns in input order (section 4).
-- `-F`: accepted for compatibility with pick; no effect (section 9).
 - `-O<N>`: ragged input with N columns, the rest merged into column N; requires `-k`
   (section 4).
 - `-R`: the header has no name for the first (row name) column, which is named `_`
@@ -2207,7 +2206,6 @@ checks that this list and `pluk --help` name the same options.
 - `--demux=NAME`: write each output row to the file named by its value in column NAME
   (section 9).
 - `--demux-dir=PATH`: the directory for the `--demux` files (section 9).
-- `--demux-buffer=N`: accepted for compatibility with pick; no effect (section 9).
 
 ### SAM and BAM
 

@@ -26,5 +26,5 @@ pluk: --demux=NAME: NAME must be a single column name
 exit 1
 pluk: --demux=NAME: NAME must be a single column name
 exit 1
-pluk: --demux-buffer=<N> N must be a number
+pluk: --demux-buffer: not needed; pluk buffers every --demux file
 exit 1

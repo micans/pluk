@@ -164,7 +164,6 @@ Options:
   -p          output the selected columns in input order (computed columns after
               them, in the order of the computes); a column given twice is output
               once, as without -p
-  -F          accepted for compatibility with pick; no effect
   -O<N>       ragged input: <N> columns, merge columns at and after <N> (requires -k)
   -R          header has no name for the first (row name) column; it is named _
   -o          keep rows that pass any @ filter (default: all)
@@ -177,7 +176,6 @@ Options:
               NAME (a relative path; .gz or .gzip: gzip-compressed); a tally of
               files goes to stderr. Rows rejected by @ filters create their file.
   --demux-dir=PATH  directory for the --demux files (must exist)
-  --demux-buffer=N  accepted for compatibility with pick; no effect
   --sam       SAM input: implies -k and -O12, skips lines starting with @.
               BAM input is recognised and read as SAM
   --sam-header, --sam-h
@@ -579,12 +577,9 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
             }
             config.demux_dir = Some(long[10..].to_vec());
         }
-        // pick buffers N rows per demux file; pluk's files are buffered anyway.
-        _ if long.starts_with(b"demux-buffer=") => {
-            if parse_number::<u64>(&long[13..]).is_none() {
-                return Err("--demux-buffer=<N> N must be a number".to_string());
-            }
-        }
+        // Dropped in step36 (pick buffers N rows per demux file; pluk's files are buffered).
+        _ if long.starts_with(b"demux-buffer") =>
+            return Err("--demux-buffer: not needed; pluk buffers every --demux file".to_string()),
         _ if long.starts_with(b"threads=") => {
             match parse_number::<u32>(&long[8..]) {
                 Some(n) if n > 0 => config.threads = Some(n),
@@ -756,7 +751,8 @@ fn parse_bundle(chars: &[u8], config: &mut Config) -> Result<(), String> {
             b'u' => config.make_unique = true,
             b'p' => config.input_order = true,
             b'U' => return Err("-U: use -p to output the selected columns in input order".to_string()),
-            b'F' => (),     // pick: names are not regexes; pluk: accepted, no effect (COLSPEC.design.txt)
+            // pick: names are not regexes. Dropped in step36 (was accepted, no effect).
+            b'F' => return Err("-F: not needed; column names are never regexes in pluk (use +REGEX)".to_string()),
             b'A' => {
                 // Optional attached number, possibly negative: -A, -A4, -A-1.
                 config.all = true;
@@ -1076,6 +1072,13 @@ mod tests {
 
     fn parsed(words: &[&str]) -> Result<Parsed, String> {
         parse(&words.iter().map(|w| w.as_bytes().to_vec()).collect::<Vec<_>>())
+    }
+
+    // step36 item 1: -F and --demux-buffer dropped.
+    #[test]
+    fn dropped_f_demux_buffer() {
+        assert_eq!(parsed(&["-kF"]).err().unwrap(), "-F: not needed; column names are never regexes in pluk (use +REGEX)");
+        assert_eq!(parsed(&["--demux-buffer=10"]).err().unwrap(), "--demux-buffer: not needed; pluk buffers every --demux file");
     }
 
     // step35 item 2: -p (was -U); -H outputs a header line (help: --help only).

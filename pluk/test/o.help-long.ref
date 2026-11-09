@@ -33,7 +33,6 @@ Options:
   -p          output the selected columns in input order (computed columns after
               them, in the order of the computes); a column given twice is output
               once, as without -p
-  -F          accepted for compatibility with pick; no effect
   -O<N>       ragged input: <N> columns, merge columns at and after <N> (requires -k)
   -R          header has no name for the first (row name) column; it is named _
   -o          keep rows that pass any @ filter (default: all)
@@ -46,7 +45,6 @@ Options:
               NAME (a relative path; .gz or .gzip: gzip-compressed); a tally of
               files goes to stderr. Rows rejected by @ filters create their file.
   --demux-dir=PATH  directory for the --demux files (must exist)
-  --demux-buffer=N  accepted for compatibility with pick; no effect
   --sam       SAM input: implies -k and -O12, skips lines starting with @.
               BAM input is recognised and read as SAM
   --sam-header, --sam-h

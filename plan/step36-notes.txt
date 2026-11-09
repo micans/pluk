@@ -1,0 +1,14 @@
+Step 36 notes: help order, help width, dropped options.
+
+Item 1.
+  -F and --demux-buffer were accepted for compatibility with pick and had no effect
+    (pick's -F: names are not regexes; pluk names are regexes only with a leading +.
+    pick's --demux-buffer=N: rows buffered per demux file; pluk buffers every file).
+  Dropped, as breaking changes are allowed now. Each gives an error with a reason
+    rather than "unknown option", so that a pick user learns why:
+      -F: not needed; column names are never regexes in pluk (use +REGEX)
+      --demux-buffer: not needed; pluk buffers every --demux file
+    The --demux-buffer error applies with or without =N.
+  Tests: o.colspec-x-A-k (-F), o.demux-other (--demux-buffer=10 was given to a demux
+    run; now its error, and the run without it), o.demux-errors (a bad N now gets the
+    same error); unit test dropped_f_demux_buffer.

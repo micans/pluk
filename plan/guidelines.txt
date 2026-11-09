@@ -37,6 +37,7 @@
   step31 also in section 14 of pluk/doc/PLUK-MANUAL.md, regrouped by topic: a new difference is recorded in
   both places):
     - regex column names are introduced by a leading '+' and match the whole name (COLSPEC.design.txt, 1).
+      pick's -F (names are not regexes) is refused as not needed (step36; it had no effect).
     - -u (make duplicate input column names unique) and the duplicate check on input names (step1 item 6).
     - -R cannot be combined with -k (step1-context.txt).
     - In -/PAT and -//PAT a literal '/' must be written as %2F, and an empty pattern is refused
@@ -84,7 +85,8 @@
       output file; with -c the files keep their header, and without column arguments get
       whole rows; demux file names are restricted (no empty, absolute, '.' or '..' parts),
       --demux-dir sets their directory, too many open files is an error, the tally has no
-      LastFlush column, --demux-buffer has no effect, -c with --demux is refused (step9.txt).
+      LastFlush column, -c with --demux is refused (step9.txt); --demux-buffer is refused
+      (step36; it had no effect).
     - Computes (COMPUTE.design.txt): a value that is not a number gives NA in numeric
       operators (pick: 0), written as NA; floats are written round-trip (0.1+0.2 is
       0.30000000000000004; --num-perl writes them as Perl, approximately, step10-notes.txt

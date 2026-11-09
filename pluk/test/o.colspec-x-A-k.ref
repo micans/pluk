@@ -4,5 +4,5 @@ name	fib	fib2	sq	fx	ud	ms	num1	num2	num4	foo11	abc	dna
 Ann	1	0	1	dog	1	0.142857	1	2	1	a_n_n	a	ACGTTGCA
 fib2	name
 0	Ann
-fib
-1
+pluk: -F: not needed; column names are never regexes in pluk (use +REGEX)
+exit 1
