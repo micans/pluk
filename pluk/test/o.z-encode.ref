@@ -6,11 +6,11 @@ a b
 x,,
 -k
 p,q/r~s=t@u+v%
-pluk -z ARG.. writes the %-encoding of each ARG, -zz ARG.. the %-decoding. Encoded
+pluk -% ARG.. writes the %-encoding of each ARG, -%% ARG.. the %-decoding. Encoded
 are the characters that mean something in a pluk argument, and white space:
   %   %25     ^   %5E     /   %2F     =   %3D     <SPACE>    %20
   :   %3A     ,   %2C     ~   %7E     @   %40     <TAB>      %09
   +   %2B                                         <NEWLINE>  %0A
 Other control bytes are encoded as well. For shell meta-characters it is
 easiest to quote the argument.
-pluk -z ARG.. writes the %-encoding of each ARG, -zz ARG.. the %-decoding. Encoded
+pluk -% ARG.. writes the %-encoding of each ARG, -%% ARG.. the %-decoding. Encoded

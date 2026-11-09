@@ -12,7 +12,7 @@ option of pluk --help must have an entry, and every entry must name options of p
 --help.
 
 An option is any word of the help text that starts with '-' or '--' followed by a letter
-(or '-/' and '-//'), not preceded by a letter, digit, '-' or '%'. It is reduced to its
+(or '-/' and '-//', or '-%' and '-%%' as words of their own), not preceded by a letter, digit, '-' or '%'. It is reduced to its
 stem: what follows '=', '<', '/', '^' or ',' is dropped, as are digits (-A2 -O12) and a
 '-NAME' or '-Q' placeholder part (--kd-NAME, --quant-NAME); a trailing '-' is dropped
 (--kdict-). A single-dash word of different letters is a combination of short options
@@ -23,11 +23,11 @@ import re
 import subprocess
 import sys
 
-WORD = re.compile(r'(?<![\w%-])(-//?(?=<)|--?[A-Za-z][\w/^<>=,.-]*)')
+WORD = re.compile(r'(?<![\w%-])(-//?(?=<)|-%%?(?![\w%-])|--?[A-Za-z][\w/^<>=,.-]*)')
 
 
 def stem(word):
-    if word.startswith('-/'):
+    if word.startswith('-/') or word.startswith('-%'):
         return word
     s = re.split(r'[=<^,/]', word)[0]
     parts = s.split('-')

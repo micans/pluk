@@ -1,0 +1,18 @@
+Branch zz (no step file): -z and -zz become -% and -%%; -z is reserved.
+
+Decision 1. -% encodes, -%% decodes (pick: -z, -zz). Mnemonic: the options name the
+  %-encoding they write and read. The options are interactive (encodings are typed by
+  hand), so breaking pick compatibility costs little, and pluk has no users yet.
+  Considered: long names (--enc/--dec) for scripts; not added until needed.
+
+Decision 2. Parsing as before (step16 decision 0): -% and -%% are words of their own and
+  take all following words; -%%% and more are an error; -% inside a bundle (-k%) is an
+  error. Shells pass -% unchanged (bash/zsh treat % specially only for job control at
+  the start of a command word).
+
+Decision 3. -z stays reserved: -z, -zz, ... and z in a bundle give an error that names
+  -% and -%%. This helps pick users, and keeps -z free; to most users -z means
+  compression (tar), so a later short option for compressed output would take it.
+
+Decision 4. optcheck.py recognises -% and -%% as options (as words of their own; the
+  '%-encoding' of the help text stays excluded by the look-behind).

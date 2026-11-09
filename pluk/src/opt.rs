@@ -322,8 +322,9 @@ Dictionaries (NAME: letters, digits, _; used by ~isin~ ~hasval~ map dord):
 
   -l TERM..   list the operators (compute and filter) in a category, or whose
               name contains TERM; no TERM: all
-  -z ARG..    write the %-encoding of each ARG (on one line); no ARG: a table
-  -zz ARG..   write the %-decoding of each ARG (one per line)
+  -% ARG..    write each ARG (on one line) with the characters that pluk treats
+              specially %-encoded; no ARG: a table of those characters
+  -%% ARG..   write the %-decoding of each ARG (one per line)
   -H, --help  print this help
   --list-ops-tsv  all operators (compute and filter), one per line, tab-separated:
               name, category, operands, result, description (for scripts)
@@ -333,8 +334,8 @@ Short options combine, e.g. -kO12/^#. Options take effect from left to right.
 In <pat>, write / as %2F.
 ";
 
-// -z and -zz (plan/step16.txt decisions 1, 2): the values separated by sep and a
-// newline, or without values the table of encodings; exit 0.
+// -% and -%% (plan/step16.txt decisions 1, 2; pick's -z and -zz, plan/zz-notes.txt):
+// the values separated by sep and a newline, or without values the table of encodings; exit 0.
 fn write_list(values: &[Vec<u8>], sep: &[u8]) -> ! {
     use std::io::Write;
     let mut out = std::io::stdout().lock();
@@ -353,7 +354,7 @@ fn write_list(values: &[Vec<u8>], sep: &[u8]) -> ! {
 }
 
 const ENCODINGS: &str = "\
-pluk -z ARG.. writes the %-encoding of each ARG, -zz ARG.. the %-decoding. Encoded
+pluk -% ARG.. writes the %-encoding of each ARG, -%% ARG.. the %-decoding. Encoded
 are the characters that mean something in a pluk argument, and white space:
   %   %25     ^   %5E     /   %2F     =   %3D     <SPACE>    %20
   :   %3A     ,   %2C     ~   %7E     @   %40     <TAB>      %09
@@ -375,15 +376,19 @@ pub fn parse(args: &[Vec<u8>]) -> Result<Parsed, String> {
         if word == b"--" {
             break;
         }
-        // -z and -zz are words of their own and take all following words (step16
-        // decision 0); -zzz and more are not accepted (pick: odd encodes, even decodes).
-        if word.len() >= 2 && word[1..].iter().all(|&b| b == b'z') {
+        // -% and -%% are words of their own and take all following words (step16
+        // decision 0); -%%% and more are not accepted (pick's -z: odd encodes, even
+        // decodes). -z, -zz and so on are reserved (plan/zz-notes.txt).
+        if word.len() >= 2 && word[1..].iter().all(|&b| b == b'%') {
             let rest = args[i..].to_vec();
             return match word.len() {
                 2 => Ok(Parsed::Encode(rest)),
                 3 => Ok(Parsed::Decode(rest)),
-                _ => Err(format!("{}: use -z to encode, -zz to decode", String::from_utf8_lossy(word))),
+                _ => Err(format!("{}: use -% to encode, -%% to decode", String::from_utf8_lossy(word))),
             };
+        }
+        if word.len() >= 2 && word[1..].iter().all(|&b| b == b'z') {
+            return Err(format!("{}: reserved; use -% to encode, -%% to decode", String::from_utf8_lossy(word)));
         }
         // -l lists operators; all following words are terms (step16 decision 3).
         if word == b"-l" {
@@ -767,7 +772,8 @@ fn parse_bundle(chars: &[u8], config: &mut Config) -> Result<(), String> {
             }
             // Patterns extend to the end of the word.
             b'/' => return parse_patterns(&chars[j - 1..], config),
-            b'z' => return Err("-z and -zz must be words of their own".to_string()),
+            b'%' => return Err("-% and -%% must be words of their own".to_string()),
+            b'z' => return Err("-z: reserved; use -% to encode, -%% to decode".to_string()),
             b'l' => return Err("-l must be a word of its own".to_string()),
             _ => {
                 return Err(format!("Option string not fully parsed: -{} remains",
@@ -920,7 +926,7 @@ fn parse_xy(s: &[u8], option: &str) -> Result<(u64, u64), String> {
     }
 }
 
-// -z: %-encoding of the bytes that mean something in a pluk argument (% : ^ , / ~
+// -%: %-encoding of the bytes that mean something in a pluk argument (% : ^ , / ~
 // = @ +), white space and other control bytes (plan/step16.txt decision 1); upper
 // case hex, as pick. The urlec operator encodes everything but [A-Za-z0-9_].
 pub fn pct_encode(s: &[u8]) -> Vec<u8> {
@@ -1052,11 +1058,14 @@ mod tests {
     fn encode_options() {
         let w = |v: &[&str]| v.iter().map(|s| s.as_bytes().to_vec()).collect::<Vec<_>>();
         let run = parsed;
-        assert!(matches!(run(&["-z"]), Ok(Parsed::Encode(v)) if v.is_empty()));
-        assert!(matches!(run(&["-z", "-k", "a b"]), Ok(Parsed::Encode(v)) if v == w(&["-k", "a b"])));
-        assert!(matches!(run(&["-k", "-zz", "a%3A"]), Ok(Parsed::Decode(v)) if v == w(&["a%3A"])));
-        assert_eq!(run(&["-zzz", "a"]).err().unwrap(), "-zzz: use -z to encode, -zz to decode");
-        assert_eq!(run(&["-kz", "a"]).err().unwrap(), "-z and -zz must be words of their own");
+        assert!(matches!(run(&["-%"]), Ok(Parsed::Encode(v)) if v.is_empty()));
+        assert!(matches!(run(&["-%", "-k", "a b"]), Ok(Parsed::Encode(v)) if v == w(&["-k", "a b"])));
+        assert!(matches!(run(&["-k", "-%%", "a%3A"]), Ok(Parsed::Decode(v)) if v == w(&["a%3A"])));
+        assert_eq!(run(&["-%%%", "a"]).err().unwrap(), "-%%%: use -% to encode, -%% to decode");
+        assert_eq!(run(&["-k%", "a"]).err().unwrap(), "-% and -%% must be words of their own");
+        assert_eq!(run(&["-z", "a"]).err().unwrap(), "-z: reserved; use -% to encode, -%% to decode");
+        assert_eq!(run(&["-zz", "a"]).err().unwrap(), "-zz: reserved; use -% to encode, -%% to decode");
+        assert_eq!(run(&["-kz", "a"]).err().unwrap(), "-z: reserved; use -% to encode, -%% to decode");
         assert!(matches!(run(&["-k", "-l", "-h", "a,b"]), Ok(Parsed::List(v)) if v == w(&["-h", "a,b"])));
         assert_eq!(run(&["-kl"]).err().unwrap(), "-l must be a word of its own");
         assert_eq!(run(&["-ll"]).err().unwrap(), "-ll: not supported; -l lists operands and results");

@@ -1,6 +1,12 @@
-pluk: -zzz: use -z to encode, -zz to decode
+pluk: -%%%: use -% to encode, -%% to decode
 exit 1
-pluk: -z and -zz must be words of their own
+pluk: -% and -%% must be words of their own
 exit 1
-pluk: (Output) handle [-z] in output does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+pluk: (Output) handle [-%] in output does not reference a known entity among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna
+exit 1
+pluk: -z: reserved; use -% to encode, -%% to decode
+exit 1
+pluk: -zz: reserved; use -% to encode, -%% to decode
+exit 1
+pluk: -z: reserved; use -% to encode, -%% to decode
 exit 1

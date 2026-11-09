@@ -379,7 +379,7 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	$(p) -H                          < /dev/null  > o.help.test
 	$(p) --help                      < /dev/null  > o.help-long.test
 	$(p) -kH                         < data.txt  2> o.help-bundle.test > /dev/null; [ $$? -eq 1 ]
-	{ $(p) -z 'a:b^c' 'x%y' 'p,q/r~s=t@u+v' 'a.b c' 1.5 -k ''; $(p) -z "$$(printf 'tab\there\nnl\x7f\xe9')"; $(p) -zz 'a%3Ab' 'a%20b' '%zz%4' 'x%2c%2C' -k; $(p) -zz "$$($(p) -z 'p,q/r~s=t@u+v%')"; $(p) -z; $(p) -zz | head -n 1; } > o.z-encode.test
+	{ $(p) -% 'a:b^c' 'x%y' 'p,q/r~s=t@u+v' 'a.b c' 1.5 -k ''; $(p) -% "$$(printf 'tab\there\nnl\x7f\xe9')"; $(p) -%% 'a%3Ab' 'a%20b' '%zz%4' 'x%2c%2C' -k; $(p) -%% "$$($(p) -% 'p,q/r~s=t@u+v%')"; $(p) -%; $(p) -%% | head -n 1; } > o.z-encode.test
 	{ for a in -E12 -E4 -E3 -cE4 -cE5 -E0; do $(p) $$a name @fib/gt/30 < data.txt; echo "exit $$?"; done; $(p) -E0 name < /dev/null; echo "exit $$?"; $(p) -E1 --demux=fx --demux-dir=out name '@fib/gt/30' < data.txt; echo "exit $$?"; $(p) -E9 --other=out/e.other name '@fib/gt/3' < data.txt > /dev/null; echo "exit $$?"; for a in -E -Ex -E-1; do $(p) $$a name < data.txt; echo "exit $$?"; done; } > o.expect-rows.test 2>&1
 	$(p) -e name 'x:: fib ^1 ,add' '@ fib /gt/ 3' '@@ sq /lt/ 100' 'y:=	name ^%20 , len' 'z::y' < data.txt > o.squash.test
 	{ $(p) name 'x:: fib ^1 ,add' < data.txt; echo "exit $$?"; $(p) -e 'na me' < data.txt; echo "exit $$?"; } > o.squash-edge.test 2>&1
@@ -391,7 +391,7 @@ runpluk: data.txt big.txt big.keep.txt sam.txt sam-clean.txt sam.bam sam-clean.b
 	{ $(p) -l; $(p) -l bit,time md5; $(p) -k -l filter; $(p) -l eq isin; $(p) -l -h; echo "exit $$?"; $(p) -l nosuch,zz; echo "exit $$?"; $(p) -l | head -n 1; } > o.list-ops.test 2>&1
 	{ $(p) --list-ops-tsv < /dev/null; $(p) --list-ops-tsv < /dev/null | awk -F'\t' 'NF != 5' | wc -l; $(p) --list-ops-tsv < /dev/null | wc -l; $(p) -l < /dev/null | grep -c '\[.*\]$$'; } > o.list-ops-tsv.test 2>&1
 	{ $(p) -kl; echo "exit $$?"; $(p) -ll; echo "exit $$?"; $(p) name -l < data.txt; echo "exit $$?"; } > o.list-errors.test 2>&1
-	{ $(p) -zzz a; echo "exit $$?"; $(p) -kz a; echo "exit $$?"; $(p) name -z < data.txt; echo "exit $$?"; } > o.z-errors.test 2>&1
+	{ $(p) -%%% a; echo "exit $$?"; $(p) -k% a; echo "exit $$?"; $(p) name -% < data.txt; echo "exit $$?"; $(p) -z a; echo "exit $$?"; $(p) -zz a; echo "exit $$?"; $(p) -kz a; echo "exit $$?"; } > o.z-errors.test 2>&1
 	seq 1 1000000 > seq.tmp; $(p) --test-lineno < seq.tmp | head -n 2 > o.brokenpipe.test; [ $${PIPESTATUS[0]} -eq 0 ]; rm seq.tmp
 
 # Tests for temporary --test-* options. When such an option is removed, remove

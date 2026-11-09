@@ -151,9 +151,11 @@
       leading _ or one after the prefix); anything else, including a plus, whitespace, the
       empty string or a value beyond Int, is NA (Perl: stops at the first invalid
       character, 0 for nothing read).
-    - -z encodes only % : ^ , / ~ = @ + and white space or control bytes (pick: all but
-      [A-Za-z0-9_]); -zz writes one value per line (pick: one line); the table without
-      arguments goes to stdout (pick: stderr); -zzz is an error (pick: encodes).
+    - -% and -%% encode and decode (pick: -z and -zz); -z, -zz etc. are reserved and
+      give an error naming -% and -%% (plan/zz-notes.txt).
+    - -% encodes only % : ^ , / ~ = @ + and white space or control bytes (pick: all but
+      [A-Za-z0-9_]); -%% writes one value per line (pick: one line); the table without
+      arguments goes to stdout (pick: stderr); -%%% is an error (pick: -zzz encodes).
     - -l lists by category in --help order (pick: alphabetically); a TERM is a category
       name or a fixed substring of operator names (pick: a regex on section tags and
       names); the filter operators are listed too (category filter); no match is exit 1;

@@ -191,8 +191,9 @@ Dictionaries (NAME: letters, digits, _; used by ~isin~ ~hasval~ map dord):
 
   -l TERM..   list the operators (compute and filter) in a category, or whose
               name contains TERM; no TERM: all
-  -z ARG..    write the %-encoding of each ARG (on one line); no ARG: a table
-  -zz ARG..   write the %-decoding of each ARG (one per line)
+  -% ARG..    write each ARG (on one line) with the characters that pluk treats
+              specially %-encoded; no ARG: a table of those characters
+  -%% ARG..   write the %-decoding of each ARG (one per line)
   -H, --help  print this help
   --list-ops-tsv  all operators (compute and filter), one per line, tab-separated:
               name, category, operands, result, description (for scripts)

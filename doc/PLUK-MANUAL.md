@@ -153,10 +153,10 @@ section 4.
 The arguments use a few characters for their own syntax: `:` `^` `,` `/` `~` `=` `@`
 `+` `%` and white space. Where such a character is part of a name or a value, write it
 %-encoded: `%3A` for `:`, `%2C` for `,`, `%2F` for `/`, `%20` for a space, and so on.
-`-z` prints the encoding of its arguments and `-zz` decodes:
+`-%` prints the encoding of its arguments and `-%%` decodes:
 
 ```console
-$ pluk -z a:b,c^d 'x y'
+$ pluk -% a:b,c^d 'x y'
 a%3Ab%2Cc%5Ed x%20y
 $ pluk picker w::^kg%3A:kg,cat < harvest.txt
 picker  w
@@ -1187,8 +1187,8 @@ $ pluk --progress=2/3 -c < harvest.txt 2>&1 > /dev/null
 - `-l` lists the operators (all of them, a category, or those whose name contains TERM:
   `-l TERM..`); `--list-ops-tsv` lists them tab-separated, for scripts (section 16 is
   checked against it);
-- `-z ARG..` and `-zz ARG..` write the %-encoding and decoding of their arguments, and
-  `-z` alone a table of the encoded characters (section 3).
+- `-% ARG..` and `-%% ARG..` write the %-encoding and decoding of their arguments, and
+  `-%` alone a table of the encoded characters (section 3).
 
 ```console
 $ pluk -l dictionary
@@ -1199,7 +1199,7 @@ dord          x D         ord-of-x            Order of x in dictionary D (first 
 ...
 $ pluk --list-ops-tsv | grep -w map
 map  dictionary  x D  map-of-x  Value of x in dictionary D (not found: as D's default)
-$ pluk -zz a%3Ab kg%20net
+$ pluk -%% a%3Ab kg%20net
 a:b
 kg net
 ```
@@ -2041,10 +2041,11 @@ pluk does.
   starts with `pluk:`.
 - pluk without column arguments writes its usage note and exits with status 1 (pick:
   0).
-- `-z` encodes only the characters that mean something in a pluk argument (`% : ^ , /
+- `-%` and `-%%` encode and decode (pick: `-z` and `-zz`; in pluk `-z` is reserved).
+  `-%` encodes only the characters that mean something in a pluk argument (`% : ^ , /
   ~ = @ +`) and white space and control bytes (pick: everything but letters, digits and
-  `_`); `-zz` writes one value per line (pick: one line); the table of `-z` goes to
-  standard output (pick: standard error); `-zzz` is an error.
+  `_`); `-%%` writes one value per line (pick: one line); the table of `-%` goes to
+  standard output (pick: standard error); `-%%%` is an error (pick: `-zzz` encodes).
 - `-l` lists by category in the order of `--help` (pick: alphabetically); a TERM is a
   category or a fixed part of operator names (pick: a regex); the filter operators are
   listed too; no match gives exit status 1.
@@ -2253,8 +2254,9 @@ checks that this list and `pluk --help` name the same options.
 ### Listings and help
 
 - `-l TERM..`: list the operators, all or by category or name (section 9).
-- `-z ARG..`: write the %-encoding of each ARG; no ARG: a table (section 3).
-- `-zz ARG..`: write the %-decoding of each ARG (section 3).
+- `-% ARG..`: write each ARG with the characters that pluk treats specially %-encoded;
+  no ARG: a table of those characters (section 3).
+- `-%% ARG..`: write the %-decoding of each ARG (section 3).
 - `-H`, `--help`: print the help (section 9).
 - `--list-ops-tsv`: all operators, tab-separated, for scripts (section 9).
 - `--version`: print the version (section 9).
