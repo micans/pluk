@@ -49,8 +49,9 @@ Options:
   --demux-buffer=N  accepted for compatibility with pick; no effect
   --sam       SAM input: implies -k and -O12, skips lines starting with @.
               BAM input is recognised and read as SAM
-  --sam-header  as --sam, but outputs lines starting with @ unchanged
-  --sam/FILE, --sam-header/FILE
+  --sam-header, --sam-h
+              as --sam, but outputs lines starting with @ unchanged
+  --sam/FILE, --sam-header/FILE, --sam-h/FILE
               as --sam and --sam-header; reference sequences are read from fasta
               FILE into the dictionary SAMFA (default __EXIT__)
   --sam-nonf, --sam-keep-flanks
@@ -76,9 +77,9 @@ Options:
   --sam-ND-adjust=NAME  dictionary NAME gives per reference intervals a-b,c-d;
               an N operation that overlaps none of them becomes D, and NM:i is
               increased by its length (first of the rewrites)
-  --sam-rbt-region=X,Y  the region of the rbt_ operators (region-bound tally)
-              for every row; sam_rbt x y in a compute sets it for the rest of the
-              row
+  --sam-rbt-region=X,Y, --sam-rbt=X,Y
+              the region of the rbt_ operators (region-bound tally) for every
+              row; sam_rbt x y in a compute sets it for the rest of the row
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
   --idx-list  write the input indexes of the output columns (computed columns

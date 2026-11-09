@@ -25,12 +25,13 @@ the names, and plan/guidelines.txt. Rationale in plan/step35-notes.txt.
    --fasta-dict; --kd --fd --cd --td stay accepted. Commit.
 
 4. SAM options:
-   --sam-h (and --sam-h/FILE) -> --sam-header (--sam-header/FILE)
+   --sam-h (and --sam-h/FILE) -> --sam-header (--sam-header/FILE); --sam-h stays as
+                                  a synonym
    --sam-aln-mrk       -> --sam-aln-mark
    --sam-aln-xy=X,Y    -> --sam-aln-extend=X,Y
    --sam-narrow-xy=X,Y -> --sam-aln-narrow=X,Y
    --sam-qlt-sim       -> --sam-qual-simple
-   --sam-rbt=X,Y       -> --sam-rbt-region=X,Y
+   --sam-rbt=X,Y       -> --sam-rbt-region=X,Y; --sam-rbt stays as a synonym
    --sam-nonf stays; --sam-keep-flanks is an alias.
    --sam-aln-prefix, --sam-aln-context, --sam-ND-adjust unchanged. Commit.
 

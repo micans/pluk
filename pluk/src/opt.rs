@@ -180,8 +180,9 @@ Options:
   --demux-buffer=N  accepted for compatibility with pick; no effect
   --sam       SAM input: implies -k and -O12, skips lines starting with @.
               BAM input is recognised and read as SAM
-  --sam-header  as --sam, but outputs lines starting with @ unchanged
-  --sam/FILE, --sam-header/FILE
+  --sam-header, --sam-h
+              as --sam, but outputs lines starting with @ unchanged
+  --sam/FILE, --sam-header/FILE, --sam-h/FILE
               as --sam and --sam-header; reference sequences are read from fasta
               FILE into the dictionary SAMFA (default __EXIT__)
   --sam-nonf, --sam-keep-flanks
@@ -207,9 +208,9 @@ Options:
   --sam-ND-adjust=NAME  dictionary NAME gives per reference intervals a-b,c-d;
               an N operation that overlaps none of them becomes D, and NM:i is
               increased by its length (first of the rewrites)
-  --sam-rbt-region=X,Y  the region of the rbt_ operators (region-bound tally)
-              for every row; sam_rbt x y in a compute sets it for the rest of the
-              row
+  --sam-rbt-region=X,Y, --sam-rbt=X,Y
+              the region of the rbt_ operators (region-bound tally) for every
+              row; sam_rbt x y in a compute sets it for the rest of the row
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
   --idx-list  write the input indexes of the output columns (computed columns
@@ -453,18 +454,16 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
         b"list-ops-tsv" => return Ok(Some(Parsed::ListTsv)),
         // --sam and --sam-header imply -k and -O12; a later -O overrides.
         b"sam"   => set_sam(config, false),
-        b"sam-header" => set_sam(config, true),
+        // --sam-h is a synonym of --sam-header (step35).
+        b"sam-header" | b"sam-h" => set_sam(config, true),
         b"sam-nonf" | b"sam-keep-flanks" => config.sam_nonf = true,
         b"sam-aln-mark" => config.sam_aln_mrk = true,
         b"sam-qual-simple" => config.sam_qlt_sim = true,
         // Renamed in step35 (plan/step35-notes.txt).
-        b"sam-h" => return Err("--sam-h: use --sam-header".to_string()),
-        _ if long.starts_with(b"sam-h/") => return Err("--sam-h/FILE: use --sam-header/FILE".to_string()),
         b"sam-aln-mrk" => return Err("--sam-aln-mrk: use --sam-aln-mark".to_string()),
         b"sam-qlt-sim" => return Err("--sam-qlt-sim: use --sam-qual-simple".to_string()),
         _ if long.starts_with(b"sam-aln-xy=") => return Err("--sam-aln-xy: use --sam-aln-extend=X,Y".to_string()),
         _ if long.starts_with(b"sam-narrow-xy=") => return Err("--sam-narrow-xy: use --sam-aln-narrow=X,Y".to_string()),
-        _ if long.starts_with(b"sam-rbt=") => return Err("--sam-rbt: use --sam-rbt-region=X,Y".to_string()),
         _ if long.starts_with(b"sam-aln-prefix=") => config.sam_aln_prefix = Some(long[15..].to_vec()),
         _ if long.starts_with(b"sam-aln-context=") => match digits(&long[16..]) {
             Some(n) => config.sam_aln_context = Some(n),
@@ -476,6 +475,8 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
             config.sam_narrow_xy = Some(parse_xy(&long[15..], "--sam-aln-narrow")?),
         _ if long.starts_with(b"sam-rbt-region=") =>
             config.sam_rbt = Some(parse_xy(&long[15..], "--sam-rbt-region")?),
+        // --sam-rbt is a synonym of --sam-rbt-region, as the sam_rbt operator (step35).
+        _ if long.starts_with(b"sam-rbt=") => config.sam_rbt = Some(parse_xy(&long[8..], "--sam-rbt")?),
         _ if long.starts_with(b"sam-ND-adjust=") => match &long[14..] {
             b"" => return Err("--sam-ND-adjust=NAME: expected a dictionary name".to_string()),
             name => config.sam_nd_adjust = Some(name.to_vec()),
@@ -597,11 +598,13 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
                 _ => return Err("--test-i=<N> N must be a positive number".to_string()),
             }
         }
-        _ if long.starts_with(b"sam/") || long.starts_with(b"sam-header/") => {
-            // --sam/FILE, --sam-header/FILE: as --sam, --sam-header, with FILE read as the
-            // fasta dictionary SAMFA, default __EXIT__ (as pick). A repeated --sam/FILE merges.
-            let pass_header = long.starts_with(b"sam-header/");
-            let file = &long[if pass_header { 11 } else { 4 }..];
+        _ if long.starts_with(b"sam/") || long.starts_with(b"sam-header/") || long.starts_with(b"sam-h/") => {
+            // --sam/FILE, --sam-header/FILE (or --sam-h/FILE): as --sam, --sam-header, with
+            // FILE read as the fasta dictionary SAMFA, default __EXIT__ (as pick). A repeated
+            // --sam/FILE merges.
+            let skip = if long.starts_with(b"sam-header/") { 11 } else if long.starts_with(b"sam-h/") { 6 } else { 4 };
+            let pass_header = skip > 4;
+            let file = &long[skip..];
             if file.is_empty() {
                 return Err(format!("--{}: expected --{}FILE", String::from_utf8_lossy(long),
                                    String::from_utf8_lossy(long)));

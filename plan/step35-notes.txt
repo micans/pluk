@@ -45,16 +45,21 @@ Item 4.
     user chose mark over markers), --sam-aln-extend (was --sam-aln-xy),
     --sam-aln-narrow (was --sam-narrow-xy, which lacked the aln- part). --sam-aln-prefix
     and --sam-aln-context are unchanged.
-  --sam-header (was --sam-h; also /FILE): no clash with -h (which drops the header),
-    still reads as samtools view -h.
-  --sam-qual-simple (was --sam-qlt-sim), --sam-rbt-region (was --sam-rbt; rbt names
-    the rbt_ operators).
+  --sam-header (also /FILE): no clash with -h (which drops the header), still reads as
+    samtools view -h. --sam-h stays as a synonym (also --sam-h/FILE): first made an
+    error, then reinstated on the user's request (short to type, and pick's name).
+    Help, messages and the manual name --sam-header first.
+  --sam-qual-simple (was --sam-qlt-sim), --sam-rbt-region (rbt names the rbt_
+    operators). --sam-rbt stays as a synonym: first made an error, then reinstated on
+    the user's request, as it meshes with the sam_rbt operator. A message names the
+    spelling given (--sam-rbt=X,Y: X is larger than Y).
   --sam-nonf is kept (user's choice), with --sam-keep-flanks as a synonym; the help
     lists both on one entry. --sam-ND-adjust is unchanged (CIGAR operations N and D).
-  Old names, including --sam-h/FILE, give an error naming the replacement. The Config
+  The other old names give an error naming the replacement. The Config
     fields (sam_h, sam_aln_mrk, sam_qlt_sim, sam_aln_xy, sam_narrow_xy, sam_rbt) keep
     their names, as in item 3.
-  Test o.sam-renamed: the old names, and --sam-keep-flanks against --sam-nonf. The
+  Test o.sam-renamed: the old names, --sam-keep-flanks against --sam-nonf, --sam-h
+    (and /FILE) against --sam-header, and --sam-rbt against --sam-rbt-region. The
     other changed refs differ only by the new names (checked by applying the rename
     to the old refs).
   Line width: the manual and guidelines already have many lines over 90 columns, so

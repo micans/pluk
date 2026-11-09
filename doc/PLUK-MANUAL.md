@@ -2050,10 +2050,10 @@ pluk does.
   `--help` only.
 - `--after=NAME`, `--rejected=FILE` and `--assert-failed=FILE` are pick's `--A=NAME`,
   `--other=FILE` and `--assert-other=FILE`.
-- `--sam-header`, `--sam-aln-mark`, `--sam-aln-extend`, `--sam-aln-narrow`,
-  `--sam-qual-simple` and `--sam-rbt-region` are pick's `--sam-h`, `--sam-aln-mrk`,
-  `--sam-aln-xy`, `--sam-narrow-xy`, `--sam-qlt-sim` and `--sam-rbt`; `--sam-keep-flanks`
-  is a synonym of `--sam-nonf`.
+- `--sam-aln-mark`, `--sam-aln-extend`, `--sam-aln-narrow` and `--sam-qual-simple` are
+  pick's `--sam-aln-mrk`, `--sam-aln-xy`, `--sam-narrow-xy` and `--sam-qlt-sim`;
+  `--sam-header` and `--sam-rbt-region` are synonyms of pick's `--sam-h` (also with
+  `/FILE`) and `--sam-rbt`, and `--sam-keep-flanks` of `--sam-nonf`.
 - `-%` and `-%%` encode and decode (pick: `-z` and `-zz`; in pluk `-z` is reserved).
   `-%` encodes only the characters that mean something in a pluk argument (`% : ^ , /
   ~ = @ +`) and white space and control bytes (pick: everything but letters, digits and
@@ -2213,9 +2213,10 @@ checks that this list and `pluk --help` name the same options.
 
 - `--sam`: SAM or BAM input; implies `-k` and `-O12`, skips the header lines
   (section 10).
-- `--sam-header`: as `--sam`, and output the header lines unchanged (section 10).
-- `--sam/FILE`, `--sam-header/FILE`: as `--sam` and `--sam-header`, with the reference sequences
-  from FASTA FILE (section 10).
+- `--sam-header`, `--sam-h`: as `--sam`, and output the header lines unchanged
+  (section 10).
+- `--sam/FILE`, `--sam-header/FILE`, `--sam-h/FILE`: as `--sam` and `--sam-header`,
+  with the reference sequences from FASTA FILE (section 10).
 - `--sam-nonf`, `--sam-keep-flanks`: keep exterior deletions and insertions (no normal
   form) (section 10).
 - `--sam-seqmiss=skip|exit`: skip (default) or stop at a record with SEQ `*` whose
@@ -2232,7 +2233,8 @@ checks that this list and `pluk --help` name the same options.
 - `--sam-aln-narrow=X,Y`: reduce alignments to reference positions X..Y (section 10).
 - `--sam-ND-adjust=NAME`: dictionary NAME gives intervals per reference; an N
   operation that overlaps none of them becomes D (section 10).
-- `--sam-rbt-region=X,Y`: the region of the `rbt_` operators for every row (section 10).
+- `--sam-rbt-region=X,Y`, `--sam-rbt=X,Y`: the region of the `rbt_` operators for every
+  row (section 10).
 - `--threads=N`: threads for BAM decompression (section 10).
 
 ### Column lists, quantiles, state, progress

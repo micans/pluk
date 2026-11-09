@@ -157,10 +157,11 @@
       prints the help, pluk: --help only. -U gives an error naming -p (step35).
     - --after=NAME, --rejected=FILE, --assert-failed=FILE (pick: --A=NAME, --other=FILE,
       --assert-other=FILE); the old names give an error naming the new (step35).
-    - --sam-header (and /FILE), --sam-aln-mark, --sam-aln-extend, --sam-aln-narrow,
-      --sam-qual-simple, --sam-rbt-region (pick: --sam-h, --sam-aln-mrk, --sam-aln-xy,
-      --sam-narrow-xy, --sam-qlt-sim, --sam-rbt); old names give an error naming the
-      new; --sam-keep-flanks is a synonym of --sam-nonf (step35).
+    - --sam-aln-mark, --sam-aln-extend, --sam-aln-narrow, --sam-qual-simple (pick:
+      --sam-aln-mrk, --sam-aln-xy, --sam-narrow-xy, --sam-qlt-sim); old names give an
+      error naming the new. --sam-header (and /FILE) and --sam-rbt-region are synonyms
+      of pick's --sam-h and --sam-rbt, which stay; --sam-keep-flanks is a synonym of
+      --sam-nonf (step35).
     - -% and -%% encode and decode (pick: -z and -zz); -z, -zz etc. are reserved and
       give an error naming -% and -%% (plan/zz-notes.txt).
     - -% encodes only % : ^ , / ~ = @ + and white space or control bytes (pick: all but
