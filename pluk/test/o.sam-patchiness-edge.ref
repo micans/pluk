@@ -23,5 +23,5 @@ ab 0	NA	NA
 ab 1	NA	NA
 ab 3	NA	NA
 NA	NA	NA	NA
-pluk: [a::^x^3,patchiness]: operator patchiness needs --sam or --sam-h
+pluk: [a::^x^3,patchiness]: operator patchiness needs --sam or --sam-header
 exit 1

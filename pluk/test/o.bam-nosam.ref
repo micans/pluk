@@ -1,1 +1,1 @@
-pluk: input is BAM; use --sam or --sam-h
+pluk: input is BAM; use --sam or --sam-header

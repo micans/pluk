@@ -1234,12 +1234,12 @@ unmapped read), [spliced.sam](spliced.sam) (sorted by coordinate; reads with an 
 the CIGAR string, one with exterior D and I) and [reads.bam](reads.bam) (reads.sam as
 BAM).
 
-### Reading SAM: --sam and --sam-h
+### Reading SAM: --sam and --sam-header
 
 `--sam` implies `-k` and `-O12`: there is no header line of names, and the columns are
 the eleven mandatory SAM fields followed by column 12, which holds all optional fields
 (TAG:TYPE:VALUE, TAB-separated) as one value, empty if there are none. Lines starting
-with `@` (the SAM header) are skipped. `--sam-h` outputs them unchanged instead, so that
+with `@` (the SAM header) are skipped. `--sam-header` outputs them unchanged instead, so that
 the output is SAM again when all columns are output:
 
 ```console
@@ -1248,19 +1248,19 @@ read1  NM:i:7  AS:i:30
 read1  NM:i:12
 read2  NM:i:1
 read3
-$ pluk --sam-h -A @1=read2 < align.sam
+$ pluk --sam-header -A @1=read2 < align.sam
 @SQ	SN:transgene	LN:53
 read2  16  transgene  30  60  2H4S12M3S  *  0  0  GGTTGCTAAAGTTCCACCC  IIIIIIIIIIIIIIIIIII  NM:i:1
 ```
 
-`-K` can be combined with `--sam` and `--sam-h`; it prints a line with the output column
-names (with `--sam-h` after the header lines), which is no longer SAM. Input that does not
+`-K` can be combined with `--sam` and `--sam-header`; it prints a line with the output column
+names (with `--sam-header` after the header lines), which is no longer SAM. Input that does not
 look like SAM is reported line by line and gives no output.
 
 ### Reference sequences: --sam/FILE
 
 Some operators need the reference sequence (the alignment display, edits, patchiness,
-the reference parts of a read; section 16 says which). `--sam/FILE` and `--sam-h/FILE`
+the reference parts of a read; section 16 says which). `--sam/FILE` and `--sam-header/FILE`
 read the references from fasta FILE into the dictionary `SAMFA`, keyed by name, with
 default `__EXIT__`. The lengths in the `@SQ` lines are compared with those in FILE; a
 message gives the number of references in the header and in FILE, the number in both,
@@ -1283,7 +1283,7 @@ threads). Without `--sam` BAM input is an error.
 $ pluk --sam -A < reads.bam
 read1  0  transgene  9  60  3S22M3I8M3D9M  *  0  0  CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG  *  NM:i:7
 $ pluk 1 < reads.bam
-pluk: input is BAM; use --sam or --sam-h
+pluk: input is BAM; use --sam or --sam-header
 ```
 
 ### The normal form
@@ -1291,7 +1291,8 @@ pluk: input is BAM; use --sam or --sam-h
 Some aligners write an alignment that starts or ends with a deletion or an insertion.
 pluk brings such a record into a normal form before anything else: a leading or trailing
 `nD` is removed (and POS adjusted), a leading or trailing `nI` becomes `nS`. Columns 4 and
-6 are output as rewritten. `--sam-nonf` keeps the record as it is.
+6 are output as rewritten. `--sam-nonf` (or `--sam-keep-flanks`) keeps the record as it
+is.
 
 ```console
 $ pluk --sam 1 4 6 @1=ext1 < spliced.sam
@@ -1331,7 +1332,7 @@ processing and how it travels through later computes is described in
 $ pluk --sam 1 x::,ref_posx s::,qry_seq @1=read3 < align.sam
 read3  NA  ACGTTGCAAGGT
 $ pluk --sam 1 a::,aln_ref < reads.sam
-pluk: [a::,aln_ref]: operator aln_ref needs the reference sequence (--sam/FILE or --sam-h/FILE)
+pluk: [a::,aln_ref]: operator aln_ref needs the reference sequence (--sam/FILE or --sam-header/FILE)
 ```
 
 ### The parts of an alignment
@@ -1410,7 +1411,7 @@ are (section 16, and the alignment display below).
 `sam_put` adds a field or replaces it. The tag is written `XX.T` or `XX-T` in a compute
 (TAG and type), as `:` separates the parts of a compute. `sam_put` takes effect after
 the computes and leaves nothing on the stack, so its compute is usually hidden (`:=`).
-With `--sam-h` and all columns, the output is SAM with the new field:
+With `--sam-header` and all columns, the output is SAM with the new field:
 
 ```console
 $ pluk --sam 1 nm::^NM.i^0,sam_get as::^AS.i^none,sam_get < align.sam
@@ -1418,7 +1419,7 @@ read1  7   30
 read1  12  none
 read2  1   none
 read3  0   none
-$ pluk --sam-h -A x:=,aln_nmatchx^XM.i,xch,sam_put < reads.sam
+$ pluk --sam-header -A x:=,aln_nmatchx^XM.i,xch,sam_put < reads.sam
 @SQ	SN:transgene	LN:53
 read1  0  transgene  9  60  3S22M3I8M3D9M  *  0  0  CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG  *  NM:i:7  XM:i:1
 ```
@@ -1456,9 +1457,9 @@ The options that change the drawing:
 - `--sam-aln-prefix=STR` puts STR before every line of `aln_all`, `aln_allq` and
   `aln_all_pack` (the lines joined by byte 0x01, for further processing), so that the
   alignments can be told apart from other output;
-- `--sam-aln-mrk` ends `aln_ref` and `aln_qry` in markers and the lengths of the 5'
+- `--sam-aln-mark` ends `aln_ref` and `aln_qry` in markers and the lengths of the 5'
   trail, the matched part and the 3' trail;
-- `--sam-qlt-sim` writes the quality line in simplified symbols, five quality values per
+- `--sam-qual-simple` writes the quality line in simplified symbols, five quality values per
   symbol (`.,aAbB..iI`).
 
 ```console
@@ -1468,7 +1469,7 @@ $ pluk -q --sam/transgene.fa --sam-aln-prefix='>> ' a::,aln_allq @1=read2 < alig
 >> |||||x||||||
 >> GCTAAAGTTCCA
 >> IIIIIIIIIIII
-$ pluk -q --sam/transgene.fa --sam-qlt-sim 1 q::,aln_qlt @1=read2 < align.sam
+$ pluk -q --sam/transgene.fa --sam-qual-simple 1 q::,aln_qlt @1=read2 < align.sam
 read2  dddddddddddd
 ```
 
@@ -1482,12 +1483,12 @@ applied in this order:
    `a-b,c-d` (write the comma as `%2C` in `--cd`); an `N` that overlaps none of them
    becomes `D`, and the `NM:i` value is increased by its length. An N that overlaps an
    interval is plausibly an intron; one that does not is taken to be a deletion.
-2. `--sam-narrow-xy=X,Y` reduces alignments to reference positions X..Y: what lies
+2. `--sam-aln-narrow=X,Y` reduces alignments to reference positions X..Y: what lies
    outside becomes soft clip. A record that does not overlap X..Y becomes unmapped (FLAG
    0x4, CIGAR `*`) and is counted.
 3. The normal form (part a; `--sam-nonf` turns it off).
 4. `--sam-aln-context=N` extends alignments by up to N bases of reference and
-   soft-clipped read at each end, and `--sam-aln-xy=X,Y` extends them to include
+   soft-clipped read at each end, and `--sam-aln-extend=X,Y` extends them to include
    reference positions X..Y (it never reduces); together, the larger extension applies
    on each side. The context is written into the CIGAR as `X`, `D` and `I`, and POS
    changes; in the drawing it shows as `.`.
@@ -1498,7 +1499,7 @@ intron1  4   9M20N12M    NM:i:0
 intron1  6   2S7M20N12M  NM:i:0
 ext1     10  14M2S       NM:i:4
 gap1     30  10M3D10M    NM:i:3
-$ pluk --sam -q --sam-narrow-xy=20,30 1 2 4 6 < align.sam
+$ pluk --sam -q --sam-aln-narrow=20,30 1 2 4 6 < align.sam
 read1  0    20  14S11M20S
 read1  256  20  20S11M14S
 read2  16   30  2H4S1M14S
@@ -1515,13 +1516,13 @@ CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTT---TGCAATTCG---
 The `rbt_` operators describe the alignment within a region of the reference: its
 positions on reference and read, the read's sequence, the numbers of matches,
 mismatches, insertions and deletions, and the alignment lines, all cut to the region
-(section 16). They need `--sam/FILE`. The region is set for every row with `--sam-rbt=X,Y`, or in a compute with
+(section 16). They need `--sam/FILE`. The region is set for every row with `--sam-rbt-region=X,Y`, or in a compute with
 `sam_rbt` (taking X and Y from the stack, so that they can come from columns), for the
 rest of the row. A region is clipped to the matched part; `rbt_dx` and `rbt_dy` say how
 much was cut off.
 
 ```console
-$ pluk -q --sam/transgene.fa --sam-rbt=25,35 1 q::,rbt_qry m::,rbt_nmatch e::,rbt_nedit a::,rbt_alnaln @2/none/260 < align.sam
+$ pluk -q --sam/transgene.fa --sam-rbt-region=25,35 1 q::,rbt_qry m::,rbt_nmatch e::,rbt_nedit a::,rbt_alnaln @2/none/260 < align.sam
 read1  AGCTAGTTTCTAAG  11  3  ||||||~~~|||||
 read2  GCTAAA          6   1  |||||x
 $ pluk -q --sam/transgene.fa 1 z:=^40^45,sam_rbt x::,rbt_refx y::,rbt_refy dx::,rbt_dx dy::,rbt_dy @2/none/260 < align.sam
@@ -1660,7 +1661,7 @@ record as the tags XE and XL; the output is SAM again. Where a value is NA (the
 unmapped read3) the tag is not put:
 
 ```console
-$ pluk -q --sam-h/transgene.fa -A e:=,aln_nedit_pia^XE.i,xch,sam_put l:=,aln_nmatch^XL.i,xch,sam_put < align.sam
+$ pluk -q --sam-header/transgene.fa -A e:=,aln_nedit_pia^XE.i,xch,sam_put l:=,aln_nmatch^XL.i,xch,sam_put < align.sam
 @SQ	SN:transgene	LN:53
 read1  0    transgene  9   60  3S22M3I8M3D9M  *  0  0  CCAGCTTAACGGTACAATGAGCTAGTTTCTAAGGTTTGCAATTCG  *                    NM:i:7   AS:i:30  XE:i:7  XL:i:39
 read1  256  transgene  20  0   20S25M         *  0  0  *                                              *                    NM:i:12  XE:i:22  XL:i:25
@@ -1675,7 +1676,7 @@ under a line with the read's name and position. The region's lines are indented 
 `--sam-aln-prefix`; a newline (`%0A`) joins them to the name:
 
 ```console
-$ pluk -q --sam/transgene.fa --sam-rbt=25,44 --sam-aln-prefix='  ' aln::1^%20:4^%0A,rbt_alnall,catall @2/none/260 < align.sam
+$ pluk -q --sam/transgene.fa --sam-rbt-region=25,44 --sam-aln-prefix='  ' aln::1^%20:4^%0A,rbt_alnall,catall @2/none/260 < align.sam
 read1 9
        30           40   
   AGCTAG---CTAAGGTTCCATGC
@@ -1744,7 +1745,7 @@ Two errors found while the options and arguments are read:
 
 ```console
 $ pluk --sam-nonf 1 < reads.sam
-pluk: --sam-nonf requires --sam or --sam-h
+pluk: --sam-nonf requires --sam or --sam-header
 $ pluk picker s::kg,nosuch < harvest.txt
 pluk: [s::kg,nosuch]: unknown operator [nosuch]
 ```
@@ -1788,8 +1789,8 @@ count is not zero:
 | `SEQ '*' filled from another row of the read` | rows whose sequence was filled | 10 |
 | `SEQ '*' not filled, row skipped: N rows: REASON` | rows skipped by `--sam-seqmiss=skip`, per reason (each also reported when it occurs) | 10 |
 | `--sam-ND-adjust: N turned into D` | rows and bases changed | 10 |
-| `alignment outside the --sam-narrow-xy region` | records made unmapped | 10 |
-| `alignment not extended at the right` | `--sam-aln-context` or `--sam-aln-xy` without a known reference length | 10 |
+| `alignment outside the --sam-aln-narrow region` | records made unmapped | 10 |
+| `alignment not extended at the right` | `--sam-aln-context` or `--sam-aln-extend` without a known reference length | 10 |
 | `sam_put replaced a tag of the input` | fields replaced (the first few also when they occur) | 10 |
 | `sam_put: tag not put` | values that were NA, contained a TAB or newline, or did not fit the type | 10 |
 | `fastQ: quality of another length than the sequence` | fastQ results that were NA for that reason | 11 |
@@ -2024,7 +2025,7 @@ pluk does.
 #### Input and output (sections 9 and 13)
 
 - In `-/PAT` and `-//PAT` a literal `/` is written `%2F`, and an empty pattern is
-  refused. `--sam` and `--sam-h` keep skipping or passing the `@` lines when either is
+  refused. `--sam` and `--sam-header` keep skipping or passing the `@` lines when either is
   given.
 - A repeated letter in a bundle of short options is accepted.
 - Output files (`--rejected`, `--assert-failed`, `--demux`) are never opened through a
@@ -2049,6 +2050,10 @@ pluk does.
   `--help` only.
 - `--after=NAME`, `--rejected=FILE` and `--assert-failed=FILE` are pick's `--A=NAME`,
   `--other=FILE` and `--assert-other=FILE`.
+- `--sam-header`, `--sam-aln-mark`, `--sam-aln-extend`, `--sam-aln-narrow`,
+  `--sam-qual-simple` and `--sam-rbt-region` are pick's `--sam-h`, `--sam-aln-mrk`,
+  `--sam-aln-xy`, `--sam-narrow-xy`, `--sam-qlt-sim` and `--sam-rbt`; `--sam-keep-flanks`
+  is a synonym of `--sam-nonf`.
 - `-%` and `-%%` encode and decode (pick: `-z` and `-zz`; in pluk `-z` is reserved).
   `-%` encodes only the characters that mean something in a pluk argument (`% : ^ , /
   ~ = @ +`) and white space and control bytes (pick: everything but letters, digits and
@@ -2060,11 +2065,11 @@ pluk does.
 
 #### SAM and BAM (section 10)
 
-- BAM input is read with `--sam` and `--sam-h` (pick has no BAM support). A BAM header
+- BAM input is read with `--sam` and `--sam-header` (pick has no BAM support). A BAM header
   without `@SQ` lines gets them from the binary reference list; `@SQ` lines that differ
   from it are an error.
-- `--sam-nonf`, `--sam-aln-mrk`, `--sam-qlt-sim` and `--sam-aln-prefix` require `--sam`
-  or `--sam-h`; SAM operators without them are an error before input is read.
+- `--sam-nonf`, `--sam-aln-mark`, `--sam-qual-simple` and `--sam-aln-prefix` require `--sam`
+  or `--sam-header`; SAM operators without them are an error before input is read.
 - The normal form is not applied where it would leave an empty CIGAR (pick turns a
   CIGAR `5D` into an empty one and moves POS).
 - Values that cannot be computed are NA, the row is kept, and the NA is counted by
@@ -2079,7 +2084,7 @@ pluk does.
   treats it as the context marker of `--sam-aln-context`); `P` draws nothing (pick stops
   the alignment there); a CIGAR that runs past the reference end gives NA (pick: a
   message and partial strings); only a QUAL of `*` is drawn as `!` (pick: any QUAL
-  shorter than 2), another QUAL that does not fit SEQ is NA; `--sam-qlt-sim` leaves a
+  shorter than 2), another QUAL that does not fit SEQ is NA; `--sam-qual-simple` leaves a
   QUAL of `*` as it is.
 - `aln_posinfo` compares `=` and `X` as `M`, ignores case (U as T), walks past `P` and
   skips added context (pick stops at the first of these); past the reference end, or
@@ -2091,12 +2096,12 @@ pluk does.
   included (pick dies or skips the newline), and for a window that is not a non-negative
   integer. `cgsum`, `cgmax` and `cgcount` give NA for a CIGAR that does not parse, also
   the empty string and lower-case operations (pick: a message and the partial result).
-- `--sam-aln-context` and `--sam-aln-xy`: without `--sam-aln-context` the context is 0
+- `--sam-aln-context` and `--sam-aln-extend`: without `--sam-aln-context` the context is 0
   (pick: 10000); with both, the larger extension applies per side; a soft clip behind
   a hard clip is used and H stays outermost (pick writes D before H); without a
   reference length the right side is not extended, counted; unmapped records and
   invalid CIGARs or POS are not rewritten. X and Y are positive integers, X at most Y.
-- `--sam-narrow-xy`: a record outside the region, or without an aligned operation left,
+- `--sam-aln-narrow`: a record outside the region, or without an aligned operation left,
   gets FLAG 0x4 added and CIGAR `*`, keeps RNAME, POS and its other FLAG bits, and is
   kept and counted (pick: FLAG 4, POS 1, CIGAR `*`, the record then often discarded).
 - `--sam-ND-adjust`: the dictionary's values are checked before input is read; an empty
@@ -2136,12 +2141,12 @@ pluk does.
 Some of pick's SAM behaviour is hard to specify or depends on circumstance; pluk settles
 it as follows (the changes above that stem from these are not repeated).
 
-- `--sam-aln-xy` extends pick's alignments to the reference ends in most cases, also
+- `--sam-aln-extend` extends pick's alignments to the reference ends in most cases, also
   when X..Y lies within the alignment; pluk extends only as far as needed to include
   X..Y and never reduces.
 - pick's `qry_qual` gives the empty string unless another operator that needs the
   sequence is used in the same run; pluk's always gives the quality.
-- pick's `--sam-narrow-xy` drops hard clips and can write `0S` at either end, which also
+- pick's `--sam-aln-narrow` drops hard clips and can write `0S` at either end, which also
   keeps the normal form from removing a deletion cut by X or Y; narrowing followed by
   context extension of a record made unmapped gives the CIGAR `*5D`. pluk keeps H
   outermost, writes no `0S`, and does not extend unmapped records.
@@ -2208,25 +2213,26 @@ checks that this list and `pluk --help` name the same options.
 
 - `--sam`: SAM or BAM input; implies `-k` and `-O12`, skips the header lines
   (section 10).
-- `--sam-h`: as `--sam`, and output the header lines unchanged (section 10).
-- `--sam/FILE`, `--sam-h/FILE`: as `--sam` and `--sam-h`, with the reference sequences
+- `--sam-header`: as `--sam`, and output the header lines unchanged (section 10).
+- `--sam/FILE`, `--sam-header/FILE`: as `--sam` and `--sam-header`, with the reference sequences
   from FASTA FILE (section 10).
-- `--sam-nonf`: keep exterior deletions and insertions (no normal form) (section 10).
+- `--sam-nonf`, `--sam-keep-flanks`: keep exterior deletions and insertions (no normal
+  form) (section 10).
 - `--sam-seqmiss=skip|exit`: skip (default) or stop at a record with SEQ `*` whose
   sequence is not found in an earlier record of the read (section 10).
 - `--sam-aln-prefix=STR`: put STR before every line of the alignment display
   (section 10).
-- `--sam-aln-mrk`: end `aln_ref` and `aln_qry` in markers with the lengths of the
+- `--sam-aln-mark`: end `aln_ref` and `aln_qry` in markers with the lengths of the
   trailing parts (section 10).
-- `--sam-qlt-sim`: simplify quality symbols, five values per symbol (section 10).
+- `--sam-qual-simple`: simplify quality symbols, five values per symbol (section 10).
 - `--sam-aln-context=N`: extend alignments by up to N bases of reference and read
   (section 10).
-- `--sam-aln-xy=X,Y`: extend alignments to include reference positions X..Y
+- `--sam-aln-extend=X,Y`: extend alignments to include reference positions X..Y
   (section 10).
-- `--sam-narrow-xy=X,Y`: reduce alignments to reference positions X..Y (section 10).
+- `--sam-aln-narrow=X,Y`: reduce alignments to reference positions X..Y (section 10).
 - `--sam-ND-adjust=NAME`: dictionary NAME gives intervals per reference; an N
   operation that overlaps none of them becomes D (section 10).
-- `--sam-rbt=X,Y`: the region of the `rbt_` operators for every row (section 10).
+- `--sam-rbt-region=X,Y`: the region of the `rbt_` operators for every row (section 10).
 - `--threads=N`: threads for BAM decompression (section 10).
 
 ### Column lists, quantiles, state, progress
@@ -3286,7 +3292,7 @@ As `edg`, with `$1` `$2` .. and `$0` in s. Example under `edbr`.
 <!-- op isforward -->
 `-` → `B` — 1 if the alignment is on the forward strand, 0 if reverse (FLAG 0x10)
 
-1 if the alignment is on the forward strand, 0 if it is on the reverse strand (FLAG bit 0x10); NA if FLAG is not a number. Like `sam_get`, it works for every record, unmapped ones included. All SAM operators need `--sam` or `--sam-h` (section 10).
+1 if the alignment is on the forward strand, 0 if it is on the reverse strand (FLAG bit 0x10); NA if FLAG is not a number. Like `sam_get`, it works for every record, unmapped ones included. All SAM operators need `--sam` or `--sam-header` (section 10).
 
 ```console
 $ pluk -q --sam 1 2 f::,isforward < align.sam
@@ -3471,7 +3477,7 @@ read3  4    *              ACGTTGCAAGGT                                   *
 <!-- op qry_qual -->
 `-` → `qual` — Query quality (QUAL, or filled with the sequence)
 
-The read's quality (QUAL, or filled with the sequence; `*` if absent; with `--sam-qlt-sim` simplified, section 10). Example under `qry_seq`.
+The read's quality (QUAL, or filled with the sequence; `*` if absent; with `--sam-qual-simple` simplified, section 10). Example under `qry_seq`.
 
 #### `aln_ref`
 <!-- op aln_ref -->
@@ -3506,13 +3512,13 @@ The ruler of the alignment. Examples under `aln_ref` and `aln_all`.
 <!-- op aln_qlt -->
 `-` → `aln` — Alignment: query quality line
 
-The quality line of the alignment (with `--sam-qlt-sim` simplified, section 10). Example under `aln_ref`.
+The quality line of the alignment (with `--sam-qual-simple` simplified, section 10). Example under `aln_ref`.
 
 #### `aln_all`
 <!-- op aln_all -->
 `-` → `aln` — Alignment: ruler, reference, match, query lines
 
-`aln_all` joins the ruler, the reference, the alignment and the read line with newlines, so that the output shows the alignment as a picture (the field then contains newlines); `aln_allq` adds the quality line; `aln_all_pack` joins with the byte 0x01 instead of newlines (one line per record, for further processing). Every line begins with the text of `--sam-aln-prefix=STR` (for example `'++ '`); `--sam-aln-mrk` adds markers and the part lengths to the reference and read lines (section 10).
+`aln_all` joins the ruler, the reference, the alignment and the read line with newlines, so that the output shows the alignment as a picture (the field then contains newlines); `aln_allq` adds the quality line; `aln_all_pack` joins with the byte 0x01 instead of newlines (one line per record, for further processing). Every line begins with the text of `--sam-aln-prefix=STR` (for example `'++ '`); `--sam-aln-mark` adds markers and the part lengths to the reference and read lines (section 10).
 
 ```console
 $ pluk -q --sam/transgene.fa '--sam-aln-prefix=++ ' a::,aln_allq @1=read2 < align.sam
@@ -3590,7 +3596,7 @@ As `patchiness`, the window counting aligned columns only. Example under `patchi
 <!-- op sam_rbt -->
 `x y` → `-` — Set the rbt region to reference positions x..y (for the rbt_ operators)
 
-The region-bound tally looks at the part of an alignment that lies within a region of the reference, positions x to y. The region is set for the rest of the row by `sam_rbt` (it takes x and y, pushes nothing, and is normally written as a hidden compute: `r:=^20^35,sam_rbt`; x and y may come from columns), or for every row by `--sam-rbt=X,Y`; the later `sam_rbt` in a row wins. An rbt_ operator without either is a compile-time error; operands that are not integers 1 <= x <= y give NA.
+The region-bound tally looks at the part of an alignment that lies within a region of the reference, positions x to y. The region is set for the rest of the row by `sam_rbt` (it takes x and y, pushes nothing, and is normally written as a hidden compute: `r:=^20^35,sam_rbt`; x and y may come from columns), or for every row by `--sam-rbt-region=X,Y`; the later `sam_rbt` in a row wins. An rbt_ operator without either is a compile-time error; operands that are not integers 1 <= x <= y give NA.
 
 ```console
 $ pluk -q --sam/transgene.fa 1 r:=^20^35,sam_rbt e::,rbt_nedit s:=^1^5,sam_rbt f::,rbt_nedit @1=read1 @@2=0 < align.sam
@@ -3604,7 +3610,7 @@ read1  4  NA
 The region is clipped to the matched part of the alignment. `rbt_refx` and `rbt_refy` are the clipped region on the reference, `rbt_dx` and `rbt_dy` the positions cut off at the start and at the end; `rbt_qryx`, `rbt_qryy` and `rbt_qrylen` the corresponding part of the read (1-based, in SEQ orientation, soft clips counted; a region that lies within a deletion has `rbt_qrylen` 0), and `rbt_qry` its sequence. A region that does not overlap the matched part gives NA for every rbt_ value (counted at the end).
 
 ```console
-$ pluk -q --sam/transgene.fa --sam-rbt=5,30 1 rx::,rbt_refx ry::,rbt_refy dx::,rbt_dx dy::,rbt_dy qx::,rbt_qryx qy::,rbt_qryy ql::,rbt_qrylen q::,rbt_qry @@2/none/260 < align.sam
+$ pluk -q --sam/transgene.fa --sam-rbt-region=5,30 1 rx::,rbt_refx ry::,rbt_refy dx::,rbt_dx dy::,rbt_dy qx::,rbt_qryx qy::,rbt_qryy ql::,rbt_qrylen q::,rbt_qry @@2/none/260 < align.sam
 read1  9   30  4   0  4  25  22  GCTTAACGGTACAATGAGCTAG
 read2  30  30  25  0  5  5   1   G
 ```
@@ -3658,7 +3664,7 @@ The read's sequence in the region. Example under `rbt_refx`.
 Counts over the columns of `aln_aln` within the region: `rbt_nmatch` the aligned bases (`|` and `x`), `rbt_nmatchx` the mismatches (`x`), `rbt_ndel` the deleted bases (`-`), `rbt_nins` the inserted ones (`~`), and `rbt_nedit` their total of edits (`x` `-` `~`; an N, `=`, counts in none). An insertion counts only when it lies between two positions of the region.
 
 ```console
-$ pluk -q --sam/transgene.fa --sam-rbt=20,35 1 n::,rbt_nmatch x::,rbt_nmatchx d::,rbt_ndel i::,rbt_nins e::,rbt_nedit @@2/none/260 < align.sam
+$ pluk -q --sam/transgene.fa --sam-rbt-region=20,35 1 n::,rbt_nmatch x::,rbt_nmatchx d::,rbt_ndel i::,rbt_nins e::,rbt_nedit @@2/none/260 < align.sam
 read1  16  1  0  3  4
 read2  6   1  0  0  1
 ```
@@ -3694,13 +3700,13 @@ The edits in the region. Examples under `rbt_nmatch` and `sam_rbt`.
 The columns of the alignment strings that lie within the region: `rbt_alnref`, `rbt_alnaln`, `rbt_alnqry`, `rbt_alnrlr` and `rbt_alnqlt` cut `aln_ref` and the others; `rbt_alnall` joins the region's ruler, reference, alignment, read and quality lines with newlines, each line beginning with `--sam-aln-prefix` (a ruler number that begins before the region shows only its last digits).
 
 ```console
-$ pluk -q --sam/transgene.fa --sam-rbt=20,35 a::,rbt_alnall @1=read1 @@2=0 < align.sam
+$ pluk -q --sam/transgene.fa --sam-rbt-region=20,35 a::,rbt_alnall @1=read1 @@2=0 < align.sam
 20        30       
 CCATGAGCTAG---CTAAG
 |x|||||||||~~~|||||
 CAATGAGCTAGTTTCTAAG
 !!!!!!!!!!!!!!!!!!!
-$ pluk -q --sam/transgene.fa --sam-rbt=20,35 1 r::,rbt_alnref a::,rbt_alnaln q::,rbt_alnqry @1=read1 @@2=0 < align.sam
+$ pluk -q --sam/transgene.fa --sam-rbt-region=20,35 1 r::,rbt_alnref a::,rbt_alnaln q::,rbt_alnqry @1=read1 @@2=0 < align.sam
 read1  CCATGAGCTAG---CTAAG  |x|||||||||~~~|||||  CAATGAGCTAGTTTCTAAG
 ```
 

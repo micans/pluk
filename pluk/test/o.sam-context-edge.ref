@@ -18,7 +18,7 @@ r5	4	9	3S10M	NA	NA	NA	NA	NA	NA	NA
 r6	0	20	*	NA	NA	NA	NA	NA	NA	NA
 r7	0	20	8D2X10M1D	````````..xxxxxxxxxx`	10	10	x=30,c=CA:x=31,c=GA:x=32,c=GA:x=33,c=GA:x=34,c=GA:x=35,c=GC:x=36,c=TC:x=37,c=TC:x=38,c=TC:x=39,c=TC	29	10	10
 pluk: SAM values not available (NA) for 2 rows: unmapped (FLAG 0x4, RNAME or CIGAR '*')
-== --sam-aln-xy=8,30
+== --sam-aln-extend=8,30
 pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
 r1	0	8	3X10M4X6D	...xxxxxxxxxx....``````	10	10	x=11,c=GC:x=12,c=GC:x=13,c=GC:x=14,c=GC:x=15,c=GC:x=16,c=TG:x=17,c=TG:x=18,c=TG:x=19,c=TG:x=20,c=TG	10	10	3
 r2	0	3	5S10M18D	||||||||||``````````````````	0	0		2	10	0
@@ -28,7 +28,7 @@ r5	4	9	3S10M	NA	NA	NA	NA	NA	NA	NA
 r6	0	20	*	NA	NA	NA	NA	NA	NA	NA
 r7	0	8	20D2X10M	````````````````````..xxxxxxxxxx	10	10	x=30,c=CA:x=31,c=GA:x=32,c=GA:x=33,c=GA:x=34,c=GA:x=35,c=GC:x=36,c=TC:x=37,c=TC:x=38,c=TC:x=39,c=TC	29	10	22
 pluk: SAM values not available (NA) for 2 rows: unmapped (FLAG 0x4, RNAME or CIGAR '*')
-== --sam-aln-xy=12,18
+== --sam-aln-extend=12,18
 pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
 r1	0	11	3S10M4S	xxxxxxxxxx	10	10	x=11,c=GC:x=12,c=GC:x=13,c=GC:x=14,c=GC:x=15,c=GC:x=16,c=TG:x=17,c=TG:x=18,c=TG:x=19,c=TG:x=20,c=TG	10	10	0
 r2	0	3	5S10M6D	||||||||||``````	0	0		2	10	0
@@ -38,7 +38,7 @@ r5	4	9	3S10M	NA	NA	NA	NA	NA	NA	NA
 r6	0	20	*	NA	NA	NA	NA	NA	NA	NA
 r7	0	12	16D2X10M	````````````````..xxxxxxxxxx	10	10	x=30,c=CA:x=31,c=GA:x=32,c=GA:x=33,c=GA:x=34,c=GA:x=35,c=GC:x=36,c=TC:x=37,c=TC:x=38,c=TC:x=39,c=TC	29	10	18
 pluk: SAM values not available (NA) for 2 rows: unmapped (FLAG 0x4, RNAME or CIGAR '*')
-== --sam-aln-xy=8,30 --sam-aln-context=1
+== --sam-aln-extend=8,30 --sam-aln-context=1
 pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
 r1	0	8	3X10M4X6D	...xxxxxxxxxx....``````	10	10	x=11,c=GC:x=12,c=GC:x=13,c=GC:x=14,c=GC:x=15,c=GC:x=16,c=TG:x=17,c=TG:x=18,c=TG:x=19,c=TG:x=20,c=TG	10	10	3
 r2	0	2	4S1X10M18D	.||||||||||``````````````````	0	0		2	10	1
@@ -91,17 +91,17 @@ pluk: --sam-aln-context=N: N must be a non-negative integer
 exit 1
 pluk: --sam-aln-context=N: N must be a non-negative integer
 exit 1
-pluk: --sam-aln-xy=X,Y: X and Y must be positive integers
+pluk: --sam-aln-extend=X,Y: X and Y must be positive integers
 exit 1
-pluk: --sam-aln-xy=X,Y: X and Y must be positive integers
+pluk: --sam-aln-extend=X,Y: X and Y must be positive integers
 exit 1
-pluk: --sam-aln-xy=X,Y: X is larger than Y
+pluk: --sam-aln-extend=X,Y: X is larger than Y
 exit 1
-pluk: --sam-aln-xy=X,Y: X and Y must be positive integers
+pluk: --sam-aln-extend=X,Y: X and Y must be positive integers
 exit 1
-pluk: --sam-aln-xy=X,Y: X and Y must be positive integers
+pluk: --sam-aln-extend=X,Y: X and Y must be positive integers
 exit 1
-pluk: --sam-aln-context requires --sam or --sam-h
+pluk: --sam-aln-context requires --sam or --sam-header
 exit 1
-pluk: --sam-aln-xy requires --sam or --sam-h
+pluk: --sam-aln-extend requires --sam or --sam-header
 exit 1

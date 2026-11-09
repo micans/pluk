@@ -49,11 +49,12 @@ Options:
   --demux-buffer=N  accepted for compatibility with pick; no effect
   --sam       SAM input: implies -k and -O12, skips lines starting with @.
               BAM input is recognised and read as SAM
-  --sam-h     as --sam, but outputs lines starting with @ unchanged
-  --sam/FILE, --sam-h/FILE
-              as --sam and --sam-h; reference sequences are read from fasta
+  --sam-header  as --sam, but outputs lines starting with @ unchanged
+  --sam/FILE, --sam-header/FILE
+              as --sam and --sam-header; reference sequences are read from fasta
               FILE into the dictionary SAMFA (default __EXIT__)
-  --sam-nonf  keep exterior deletions and insertions; by default a leading or
+  --sam-nonf, --sam-keep-flanks
+              keep exterior deletions and insertions; by default a leading or
               trailing nD is removed (POS adjusted) and a leading or trailing nI
               becomes nS, as pick (vsearch writes such alignments)
   --sam-seqmiss=skip|exit  a row with SEQ '*' whose sequence is not found in an
@@ -61,22 +62,23 @@ Options:
               (default) or ends pluk with an error
   --sam-aln-prefix=STR  put STR before every line of aln_all aln_allq
               aln_all_pack
-  --sam-aln-mrk  aln_ref and aln_qry end in markers and the lengths of the
+  --sam-aln-mark  aln_ref and aln_qry end in markers and the lengths of the
               5' trail, the matched part and the 3' trail
-  --sam-qlt-sim  simplify quality symbols, five values per symbol: .,aAbB..iI
-              (qry_qual aln_qlt)
+  --sam-qual-simple  simplify quality symbols, five values per symbol:
+              .,aAbB..iI (qry_qual aln_qlt)
   --sam-aln-context=N  extend alignments by up to N bases of reference and
               soft-clipped query at each end; changes POS and CIGAR (the
               context is written as X, D, I)
-  --sam-aln-xy=X,Y  extend alignments to include reference positions X..Y
+  --sam-aln-extend=X,Y  extend alignments to include reference positions X..Y
               (never reduces; with --sam-aln-context the larger per side)
-  --sam-narrow-xy=X,Y  reduce alignments to reference positions X..Y (before
+  --sam-aln-narrow=X,Y  reduce alignments to reference positions X..Y (before
               the extension); a record outside X..Y gets FLAG 0x4 and CIGAR *
   --sam-ND-adjust=NAME  dictionary NAME gives per reference intervals a-b,c-d;
               an N operation that overlaps none of them becomes D, and NM:i is
               increased by its length (first of the rewrites)
-  --sam-rbt=X,Y  the region of the rbt_ operators (region-bound tally) for every
-              row; sam_rbt x y in a compute sets it for the rest of the row
+  --sam-rbt-region=X,Y  the region of the rbt_ operators (region-bound tally)
+              for every row; sam_rbt x y in a compute sets it for the rest of the
+              row
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
   --idx-list  write the input indexes of the output columns (computed columns

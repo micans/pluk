@@ -39,5 +39,5 @@ pluk: --sam-ND-adjust=IV: key [c1]: [0-4] is not an interval a-b (1 <= a <= b)
 exit 1
 pluk: --sam-ND-adjust=NAME: expected a dictionary name
 exit 1
-pluk: --sam-ND-adjust requires --sam or --sam-h
+pluk: --sam-ND-adjust requires --sam or --sam-header
 exit 1

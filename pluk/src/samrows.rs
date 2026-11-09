@@ -14,8 +14,8 @@ use crate::samseq;
 pub struct Rewrites {
     pub normal_form: bool,              // SAM input without --sam-nonf
     pub nd_adjust:   Option<NdAdjust>,  // --sam-ND-adjust (plan/step19.txt decision 5)
-    pub narrow:      Option<Narrow>,    // --sam-narrow-xy (plan/step19.txt decision 4)
-    pub extension:   Option<Extend>,    // --sam-aln-context, --sam-aln-xy (plan/step19.txt decision 2)
+    pub narrow:      Option<Narrow>,    // --sam-aln-narrow (plan/step19.txt decision 4)
+    pub extension:   Option<Extend>,    // --sam-aln-context, --sam-aln-extend (plan/step19.txt decision 2)
 }
 
 impl Rewrites {
@@ -91,7 +91,7 @@ impl Rewrites {
                         if nd.n_rows == 1 { "" } else { "s" }, nd.n_switched);
         }
         if let Some(nar) = self.narrow.as_ref().filter(|n| n.n_outside > 0) {
-            note::note!("pluk: alignment outside the --sam-narrow-xy region, made unmapped (FLAG 0x4, CIGAR '*'): {} row{}",
+            note::note!("pluk: alignment outside the --sam-aln-narrow region, made unmapped (FLAG 0x4, CIGAR '*'): {} row{}",
                         nar.n_outside, if nar.n_outside == 1 { "" } else { "s" });
         }
         if let Some(ext) = self.extension.as_ref().filter(|e| e.n_no_reflen > 0) {

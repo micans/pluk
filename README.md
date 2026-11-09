@@ -208,7 +208,7 @@ Or zoom in on a region and tally what happens there (positions 20 to 35: one mis
 three inserted bases):
 
 ```console
-$ pluk -q --sam/doc/transgene.fa --sam-rbt=20,35 e::,rbt_nedit < doc/reads.sam
+$ pluk -q --sam/doc/transgene.fa --sam-rbt-region=20,35 e::,rbt_nedit < doc/reads.sam
 4
 ```
 

@@ -20,7 +20,7 @@ use crate::filter::{parse_filter, FilterSpec};
 #[derive(Debug, Default)]
 pub struct Config {
     pub no_header: bool,                // -h
-    pub k: bool,                        // -k (also set by -K, --sam, --sam-h)
+    pub k: bool,                        // -k (also set by -K, --sam, --sam-header)
     pub header: bool,                   // -H (and -K, which is -kH): output a header line, also with -k
     pub all: bool,                      // -A
     pub insert_offset: Option<i64>,     // -A<N>
@@ -37,18 +37,18 @@ pub struct Config {
     pub make_unique: bool,              // -u
     pub input_order: bool,              // -p: output columns in input order (plan/step24.txt decision 2)
     pub sam: bool,                      // --sam
-    pub sam_h: bool,                    // --sam-h
+    pub sam_h: bool,                    // --sam-header
     pub sam_seqmiss_exit: bool,         // --sam-seqmiss=exit (default skip; SAMSEQ.design.txt section 5)
     pub sam_seqmiss_set: bool,          // --sam-seqmiss given
     pub sam_nonf: bool,                 // --sam-nonf: no normal form (plan/SAMVIEW.design.txt section 3)
     pub sam_aln_prefix: Option<Vec<u8>>, // --sam-aln-prefix=STR (plan/step18.txt decision 4)
-    pub sam_aln_mrk: bool,              // --sam-aln-mrk (decision 5)
-    pub sam_qlt_sim: bool,              // --sam-qlt-sim (decision 6)
+    pub sam_aln_mrk: bool,              // --sam-aln-mark (decision 5)
+    pub sam_qlt_sim: bool,              // --sam-qual-simple (decision 6)
     pub sam_aln_context: Option<u64>,   // --sam-aln-context=N (plan/step19.txt decision 2)
-    pub sam_aln_xy: Option<(u64, u64)>, // --sam-aln-xy=X,Y
-    pub sam_narrow_xy: Option<(u64, u64)>, // --sam-narrow-xy=X,Y (plan/step19.txt decision 4)
+    pub sam_aln_xy: Option<(u64, u64)>, // --sam-aln-extend=X,Y
+    pub sam_narrow_xy: Option<(u64, u64)>, // --sam-aln-narrow=X,Y (plan/step19.txt decision 4)
     pub sam_nd_adjust: Option<Vec<u8>>, // --sam-ND-adjust=NAME, a dictionary name (decision 5)
-    pub sam_rbt: Option<(u64, u64)>,    // --sam-rbt=X,Y (plan/step20.txt decision 7)
+    pub sam_rbt: Option<(u64, u64)>,    // --sam-rbt-region=X,Y (plan/step20.txt decision 7)
     pub quants: Vec<(Vec<u8>, Vec<u8>)>, // --quant-NAME=FILE: name, file (plan/step24.txt decision 0)
     pub pstore: Option<Pstore>,         // --pstore[/LIST[/DEFAULT]] (plan/step23.txt decision 2)
     pub group: Option<(Vec<u8>, bool)>, // --group=COL (false), --group-first-ref=COL (true) (decision 3)
@@ -180,11 +180,12 @@ Options:
   --demux-buffer=N  accepted for compatibility with pick; no effect
   --sam       SAM input: implies -k and -O12, skips lines starting with @.
               BAM input is recognised and read as SAM
-  --sam-h     as --sam, but outputs lines starting with @ unchanged
-  --sam/FILE, --sam-h/FILE
-              as --sam and --sam-h; reference sequences are read from fasta
+  --sam-header  as --sam, but outputs lines starting with @ unchanged
+  --sam/FILE, --sam-header/FILE
+              as --sam and --sam-header; reference sequences are read from fasta
               FILE into the dictionary SAMFA (default __EXIT__)
-  --sam-nonf  keep exterior deletions and insertions; by default a leading or
+  --sam-nonf, --sam-keep-flanks
+              keep exterior deletions and insertions; by default a leading or
               trailing nD is removed (POS adjusted) and a leading or trailing nI
               becomes nS, as pick (vsearch writes such alignments)
   --sam-seqmiss=skip|exit  a row with SEQ '*' whose sequence is not found in an
@@ -192,22 +193,23 @@ Options:
               (default) or ends pluk with an error
   --sam-aln-prefix=STR  put STR before every line of aln_all aln_allq
               aln_all_pack
-  --sam-aln-mrk  aln_ref and aln_qry end in markers and the lengths of the
+  --sam-aln-mark  aln_ref and aln_qry end in markers and the lengths of the
               5' trail, the matched part and the 3' trail
-  --sam-qlt-sim  simplify quality symbols, five values per symbol: .,aAbB..iI
-              (qry_qual aln_qlt)
+  --sam-qual-simple  simplify quality symbols, five values per symbol:
+              .,aAbB..iI (qry_qual aln_qlt)
   --sam-aln-context=N  extend alignments by up to N bases of reference and
               soft-clipped query at each end; changes POS and CIGAR (the
               context is written as X, D, I)
-  --sam-aln-xy=X,Y  extend alignments to include reference positions X..Y
+  --sam-aln-extend=X,Y  extend alignments to include reference positions X..Y
               (never reduces; with --sam-aln-context the larger per side)
-  --sam-narrow-xy=X,Y  reduce alignments to reference positions X..Y (before
+  --sam-aln-narrow=X,Y  reduce alignments to reference positions X..Y (before
               the extension); a record outside X..Y gets FLAG 0x4 and CIGAR *
   --sam-ND-adjust=NAME  dictionary NAME gives per reference intervals a-b,c-d;
               an N operation that overlaps none of them becomes D, and NM:i is
               increased by its length (first of the rewrites)
-  --sam-rbt=X,Y  the region of the rbt_ operators (region-bound tally) for every
-              row; sam_rbt x y in a compute sets it for the rest of the row
+  --sam-rbt-region=X,Y  the region of the rbt_ operators (region-bound tally)
+              for every row; sam_rbt x y in a compute sets it for the rest of the
+              row
   --threads=N threads for BAM decompression (default 4, at most the number
               of processors; 1: no separate threads)
   --idx-list  write the input indexes of the output columns (computed columns
@@ -449,21 +451,31 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
         b"help"    => return Ok(Some(Parsed::Help)),
         b"version" => return Ok(Some(Parsed::Version)),
         b"list-ops-tsv" => return Ok(Some(Parsed::ListTsv)),
-        // --sam and --sam-h imply -k and -O12; a later -O overrides.
+        // --sam and --sam-header imply -k and -O12; a later -O overrides.
         b"sam"   => set_sam(config, false),
-        b"sam-h" => set_sam(config, true),
-        b"sam-nonf" => config.sam_nonf = true,
-        b"sam-aln-mrk" => config.sam_aln_mrk = true,
-        b"sam-qlt-sim" => config.sam_qlt_sim = true,
+        b"sam-header" => set_sam(config, true),
+        b"sam-nonf" | b"sam-keep-flanks" => config.sam_nonf = true,
+        b"sam-aln-mark" => config.sam_aln_mrk = true,
+        b"sam-qual-simple" => config.sam_qlt_sim = true,
+        // Renamed in step35 (plan/step35-notes.txt).
+        b"sam-h" => return Err("--sam-h: use --sam-header".to_string()),
+        _ if long.starts_with(b"sam-h/") => return Err("--sam-h/FILE: use --sam-header/FILE".to_string()),
+        b"sam-aln-mrk" => return Err("--sam-aln-mrk: use --sam-aln-mark".to_string()),
+        b"sam-qlt-sim" => return Err("--sam-qlt-sim: use --sam-qual-simple".to_string()),
+        _ if long.starts_with(b"sam-aln-xy=") => return Err("--sam-aln-xy: use --sam-aln-extend=X,Y".to_string()),
+        _ if long.starts_with(b"sam-narrow-xy=") => return Err("--sam-narrow-xy: use --sam-aln-narrow=X,Y".to_string()),
+        _ if long.starts_with(b"sam-rbt=") => return Err("--sam-rbt: use --sam-rbt-region=X,Y".to_string()),
         _ if long.starts_with(b"sam-aln-prefix=") => config.sam_aln_prefix = Some(long[15..].to_vec()),
         _ if long.starts_with(b"sam-aln-context=") => match digits(&long[16..]) {
             Some(n) => config.sam_aln_context = Some(n),
             None => return Err("--sam-aln-context=N: N must be a non-negative integer".to_string()),
         },
-        _ if long.starts_with(b"sam-aln-xy=") => config.sam_aln_xy = Some(parse_xy(&long[11..], "--sam-aln-xy")?),
-        _ if long.starts_with(b"sam-narrow-xy=") =>
-            config.sam_narrow_xy = Some(parse_xy(&long[14..], "--sam-narrow-xy")?),
-        _ if long.starts_with(b"sam-rbt=") => config.sam_rbt = Some(parse_xy(&long[8..], "--sam-rbt")?),
+        _ if long.starts_with(b"sam-aln-extend=") =>
+            config.sam_aln_xy = Some(parse_xy(&long[15..], "--sam-aln-extend")?),
+        _ if long.starts_with(b"sam-aln-narrow=") =>
+            config.sam_narrow_xy = Some(parse_xy(&long[15..], "--sam-aln-narrow")?),
+        _ if long.starts_with(b"sam-rbt-region=") =>
+            config.sam_rbt = Some(parse_xy(&long[15..], "--sam-rbt-region")?),
         _ if long.starts_with(b"sam-ND-adjust=") => match &long[14..] {
             b"" => return Err("--sam-ND-adjust=NAME: expected a dictionary name".to_string()),
             name => config.sam_nd_adjust = Some(name.to_vec()),
@@ -585,11 +597,11 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
                 _ => return Err("--test-i=<N> N must be a positive number".to_string()),
             }
         }
-        _ if long.starts_with(b"sam/") || long.starts_with(b"sam-h/") => {
-            // --sam/FILE, --sam-h/FILE: as --sam, --sam-h, with FILE read as the fasta
-            // dictionary SAMFA, default __EXIT__ (as pick). A repeated --sam/FILE merges.
-            let pass_header = long.starts_with(b"sam-h/");
-            let file = &long[if pass_header { 6 } else { 4 }..];
+        _ if long.starts_with(b"sam/") || long.starts_with(b"sam-header/") => {
+            // --sam/FILE, --sam-header/FILE: as --sam, --sam-header, with FILE read as the
+            // fasta dictionary SAMFA, default __EXIT__ (as pick). A repeated --sam/FILE merges.
+            let pass_header = long.starts_with(b"sam-header/");
+            let file = &long[if pass_header { 11 } else { 4 }..];
             if file.is_empty() {
                 return Err(format!("--{}: expected --{}FILE", String::from_utf8_lossy(long),
                                    String::from_utf8_lossy(long)));
@@ -609,7 +621,7 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
     Ok(None)
 }
 
-// --sam and --sam-h imply -k and -O12 at their position; a later -O overrides.
+// --sam and --sam-header imply -k and -O12 at their position; a later -O overrides.
 fn set_sam(config: &mut Config, pass_header: bool) {
     config.sam   = !pass_header;
     config.sam_h = pass_header;
@@ -837,19 +849,19 @@ fn check_combinations(config: &Config) -> Result<(), String> {
         return Err("-R cannot be combined with -k".to_string());
     }
     if config.sam_nonf && !(config.sam || config.sam_h) {
-        return Err("--sam-nonf requires --sam or --sam-h".to_string());
+        return Err("--sam-nonf requires --sam or --sam-header".to_string());
     }
     if config.sam_seqmiss_set && !(config.sam || config.sam_h) {
-        return Err("--sam-seqmiss requires --sam or --sam-h".to_string());
+        return Err("--sam-seqmiss requires --sam or --sam-header".to_string());
     }
-    for (given, name) in [(config.sam_aln_prefix.is_some(), "--sam-aln-prefix"), (config.sam_aln_mrk, "--sam-aln-mrk"),
-                          (config.sam_qlt_sim, "--sam-qlt-sim"), (config.sam_aln_context.is_some(), "--sam-aln-context"),
-                          (config.sam_aln_xy.is_some(), "--sam-aln-xy"),
-                          (config.sam_narrow_xy.is_some(), "--sam-narrow-xy"),
+    for (given, name) in [(config.sam_aln_prefix.is_some(), "--sam-aln-prefix"), (config.sam_aln_mrk, "--sam-aln-mark"),
+                          (config.sam_qlt_sim, "--sam-qual-simple"), (config.sam_aln_context.is_some(), "--sam-aln-context"),
+                          (config.sam_aln_xy.is_some(), "--sam-aln-extend"),
+                          (config.sam_narrow_xy.is_some(), "--sam-aln-narrow"),
                           (config.sam_nd_adjust.is_some(), "--sam-ND-adjust"),
-                          (config.sam_rbt.is_some(), "--sam-rbt")] {
+                          (config.sam_rbt.is_some(), "--sam-rbt-region")] {
         if given && !(config.sam || config.sam_h) {
-            return Err(format!("{} requires --sam or --sam-h", name));
+            return Err(format!("{} requires --sam or --sam-header", name));
         }
     }
     // -x takes precedence over -A, so an insert position would have no effect.
@@ -924,7 +936,7 @@ fn digits(s: &[u8]) -> Option<u64> {
     parse_number(s)
 }
 
-// X,Y for --sam-aln-xy and --sam-narrow-xy: positive integers, X <= Y (plan/step19.txt
+// X,Y for --sam-aln-extend and --sam-aln-narrow: positive integers, X <= Y (plan/step19.txt
 // decision 6).
 fn parse_xy(s: &[u8], option: &str) -> Result<(u64, u64), String> {
     let mut parts = s.splitn(2, |&b| b == b',');
@@ -1027,7 +1039,7 @@ mod tests {
     fn order_rule_last_wins() {
         assert_eq!(run(&["--sam", "-O3"]).unwrap().omega, Some(3));
         assert_eq!(run(&["-kO3", "--sam"]).unwrap().omega, Some(12));
-        let c = run(&["--sam", "--sam-h"]).unwrap();
+        let c = run(&["--sam", "--sam-header"]).unwrap();
         assert!(c.sam_h && !c.sam);
     }
 
@@ -1163,7 +1175,7 @@ mod tests {
 
     #[test]
     fn sam_reference() {
-        let c = run(&["-O3", "--sam-h/ref.fa", "--sam/r2.fa"]).unwrap();
+        let c = run(&["-O3", "--sam-header/ref.fa", "--sam/r2.fa"]).unwrap();
         assert!(c.sam && !c.sam_h && c.k);
         assert_eq!(c.omega, Some(12));
         assert_eq!(c.dicts.len(), 2);
@@ -1171,7 +1183,7 @@ mod tests {
                    (DictKind::Fasta, &b"SAMFA"[..], &Some(NotFound::Exit), &b"ref.fa"[..]));
         assert_eq!(run(&["--sam/ref.fa", "-O3"]).unwrap().omega, Some(3));
         assert!(run(&["--sam/"]).is_err());
-        assert!(run(&["--sam-h/"]).is_err());
+        assert!(run(&["--sam-header/"]).is_err());
         assert!(run(&["--fd-SAMFA=f"]).is_err());
         assert!(run(&["--fasta-dict-SAMFA=f"]).is_err());
     }

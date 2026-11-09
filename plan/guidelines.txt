@@ -48,7 +48,7 @@
       prominently in pick's manual, are not available; capture-group workarounds and their
       one limitation (overlapping context in global substitutions) are recorded in
       step14-notes.txt ('Regex: \K and look-around').
-    - --sam and --sam-h keep skipping or passing '@' lines when -/PAT or -//PAT is also given
+    - --sam and --sam-header keep skipping or passing '@' lines when -/PAT or -//PAT is also given
       (step3-notes.txt item 4).
     - Numeric filters: a value that is not a number (empty, 'fox', '0x10', ' 4') fails the
       comparison and is counted (pick: such values count as 0); a non-numeric constant is an
@@ -157,6 +157,10 @@
       prints the help, pluk: --help only. -U gives an error naming -p (step35).
     - --after=NAME, --rejected=FILE, --assert-failed=FILE (pick: --A=NAME, --other=FILE,
       --assert-other=FILE); the old names give an error naming the new (step35).
+    - --sam-header (and /FILE), --sam-aln-mark, --sam-aln-extend, --sam-aln-narrow,
+      --sam-qual-simple, --sam-rbt-region (pick: --sam-h, --sam-aln-mrk, --sam-aln-xy,
+      --sam-narrow-xy, --sam-qlt-sim, --sam-rbt); old names give an error naming the
+      new; --sam-keep-flanks is a synonym of --sam-nonf (step35).
     - -% and -%% encode and decode (pick: -z and -zz); -z, -zz etc. are reserved and
       give an error naming -% and -%% (plan/zz-notes.txt).
     - -% encodes only % : ^ , / ~ = @ + and white space or control bytes (pick: all but
@@ -175,8 +179,8 @@
       --rejected or --assert-failed; --after=NAME must name an input column (pick: any
       output column).
     - SAM normal form: a rule that would leave an empty CIGAR is not applied (pick turns a
-      CIGAR 5D into an empty CIGAR and moves POS); --sam-nonf requires --sam or --sam-h.
-    - SAM operators (step17) need --sam or --sam-h (compile-time error). Values that cannot be
+      CIGAR 5D into an empty CIGAR and moves POS); --sam-nonf requires --sam or --sam-header.
+    - SAM operators (step17) need --sam or --sam-header (compile-time error). Values that cannot be
       computed are NA and the row is kept, with counts at the end (pick discards the row
       silently or computes from missing data): unmapped records (FLAG 0x4, RNAME or CIGAR
       '*'), a CIGAR or POS that is not valid, an unknown reference length (pick: 0). An X
@@ -185,7 +189,7 @@
       NM:i value that is not a non-negative integer is NA (pick: 0). suv and input_cigar are
       not taken over.
     - SAM reference and parts (step18): the reference sequence comes only from --sam/FILE
-      or --sam-h/FILE (pick: also the first fasta dictionary given); an operator that needs
+      or --sam-header/FILE (pick: also the first fasta dictionary given); an operator that needs
       it without them is a compile-time error (pick: rows discarded silently); an RNAME not
       in SAMFA ends the run only when an operator needs the reference (pick: whenever a
       sequence is needed). ref_ and qry_ parts that cannot be computed are NA (pick: '*'),
@@ -194,15 +198,15 @@
       nothing (pick stops the alignment there); a CIGAR past the reference end gives NA
       (pick: a message and the partial strings); only QUAL '*' is replaced by '!' or '.'
       (pick: any QUAL shorter than 2), another QUAL that does not fit SEQ is NA;
-      --sam-qlt-sim leaves a qry_qual of '*' as it is (pick: ','); --sam-aln-mrk,
-      --sam-qlt-sim and --sam-aln-prefix require --sam or --sam-h.
+      --sam-qual-simple leaves a qry_qual of '*' as it is (pick: ','); --sam-aln-mark,
+      --sam-qual-simple and --sam-aln-prefix require --sam or --sam-header.
       aln_posinfo compares = and X as M (pick stops at them with a message), ignores case
       (all letters upper-cased, U as T; pick upper-cases only acgtu and reports n against N),
       walks past P (pick stops), gives NA past the reference end (pick checks M only) and
       for an n that is not a non-negative integer. patchiness and patchiness2 give NA for a
       character outside their table, a newline included (pick dies, or skips a newline),
       and for a window that is not a non-negative integer.
-    - SAM context extension (step19, SAMVIEW.design.txt section 3): --sam-aln-xy extends
+    - SAM context extension (step19, SAMVIEW.design.txt section 3): --sam-aln-extend extends
       only as far as needed to include X..Y (pick: to the reference ends in most cases,
       survey 8.1, 8.2); without --sam-aln-context the context is 0 (pick: 10000); with
       both, the larger budget per side; a soft clip behind a hard clip is used and H stays
@@ -211,7 +215,7 @@
       aln_nedit_pia and aln_nedit_piu count only x - ~ (and =) columns: dangling columns
       ` _ . are never edits (pick counts ` and .); aln_posinfo skips context (pick stops at
       the first X). X,Y are positive integers, X <= Y.
-    - SAM narrowing (step19, --sam-narrow-xy): H is kept outermost (pick drops it); no 0S is
+    - SAM narrowing (step19, --sam-aln-narrow): H is kept outermost (pick drops it); no 0S is
       written (pick writes 0S at either end, which also keeps the normal form from removing
       an exterior deletion cut by X or Y); a record outside X..Y, or keeping no aligned
       operation, gets FLAG |= 0x4 and CIGAR '*' with RNAME and POS kept, and is kept and
@@ -266,7 +270,7 @@
       value that is NA, holds a TAB or newline, or does not fit the tag's SAM type is not
       put, counted; an empty column 12 gets no leading TAB (pick: one); sam_put with an
       in-place compute on column 12 is refused.
-    - BAM input is accepted by --sam and --sam-h, recognised from its content; there are no --bam
+    - BAM input is accepted by --sam and --sam-header, recognised from its content; there are no --bam
       options (pick has no BAM support). A header text without @SQ lines gets @SQ lines from the
       binary reference list; @SQ lines that differ from that list are an error (step6.txt).
     - Dictionaries (step4.txt, step4-notes.txt): --td^key/default order (pick: /default^key);

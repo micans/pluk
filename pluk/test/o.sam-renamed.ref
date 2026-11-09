@@ -1,0 +1,15 @@
+pluk: --sam-h: use --sam-header
+exit 1
+pluk: --sam-h/FILE: use --sam-header/FILE
+exit 1
+pluk: --sam-aln-mrk: use --sam-aln-mark
+exit 1
+pluk: --sam-qlt-sim: use --sam-qual-simple
+exit 1
+pluk: --sam-aln-xy: use --sam-aln-extend=X,Y
+exit 1
+pluk: --sam-narrow-xy: use --sam-aln-narrow=X,Y
+exit 1
+pluk: --sam-rbt: use --sam-rbt-region=X,Y
+exit 1
+keep-flanks = nonf

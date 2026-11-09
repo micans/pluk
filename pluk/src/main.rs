@@ -291,7 +291,7 @@ fn run() -> std::io::Result<()> {
         return Ok(());
     }
 
-    // Pass-through lines (--sam-h) are output in all modes, as in pick; those
+    // Pass-through lines (--sam-header) are output in all modes, as in pick; those
     // before the first data line come first.
     for line in &input.passthrough_preamble {
         output::write_line(&mut out, line)?;

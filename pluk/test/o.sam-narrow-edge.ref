@@ -1,4 +1,4 @@
-== --sam-narrow-xy=6,10
+== --sam-aln-narrow=6,10
 pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
 n1	0	6	7S5M	|||||	5	5
 n2	16	6	5S3D2M3S	```||	8	2
@@ -8,8 +8,8 @@ n5	4	1	*	NA	NA	NA
 n6	4	1	10M	NA	NA	NA
 n7	x	30	*	NA	NA	NA
 pluk: SAM values not available (NA) for 4 rows: unmapped (FLAG 0x4, RNAME or CIGAR '*')
-pluk: alignment outside the --sam-narrow-xy region, made unmapped (FLAG 0x4, CIGAR '*'): 3 rows
-== --sam-narrow-xy=1,5
+pluk: alignment outside the --sam-aln-narrow region, made unmapped (FLAG 0x4, CIGAR '*'): 3 rows
+== --sam-aln-narrow=1,5
 pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
 n1	0	1	5M7S	|||||	0	5
 n2	16	1	5M5S	|||||	0	5
@@ -19,8 +19,8 @@ n5	4	1	*	NA	NA	NA
 n6	4	1	10M	NA	NA	NA
 n7	x	30	*	NA	NA	NA
 pluk: SAM values not available (NA) for 4 rows: unmapped (FLAG 0x4, RNAME or CIGAR '*')
-pluk: alignment outside the --sam-narrow-xy region, made unmapped (FLAG 0x4, CIGAR '*'): 3 rows
-== --sam-narrow-xy=7,20
+pluk: alignment outside the --sam-aln-narrow region, made unmapped (FLAG 0x4, CIGAR '*'): 3 rows
+== --sam-aln-narrow=7,20
 pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
 n1	0	7	8S4M	||||	6	4
 n2	16	7	5S2D5M	``|||||	8	5
@@ -30,8 +30,8 @@ n5	0	13	5M	|||||	12	5
 n6	4	1	10M	NA	NA	NA
 n7	x	30	*	NA	NA	NA
 pluk: SAM values not available (NA) for 3 rows: unmapped (FLAG 0x4, RNAME or CIGAR '*')
-pluk: alignment outside the --sam-narrow-xy region, made unmapped (FLAG 0x4, CIGAR '*'): 2 rows
-== --sam-narrow-xy=1,6
+pluk: alignment outside the --sam-aln-narrow region, made unmapped (FLAG 0x4, CIGAR '*'): 2 rows
+== --sam-aln-narrow=1,6
 pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
 n1	0	1	5M2I1M4S	|||||~~|	0	6
 n2	16	1	5M1D5S	|||||`	0	5
@@ -41,8 +41,8 @@ n5	4	1	*	NA	NA	NA
 n6	4	1	10M	NA	NA	NA
 n7	x	30	*	NA	NA	NA
 pluk: SAM values not available (NA) for 4 rows: unmapped (FLAG 0x4, RNAME or CIGAR '*')
-pluk: alignment outside the --sam-narrow-xy region, made unmapped (FLAG 0x4, CIGAR '*'): 3 rows
-== --sam-narrow-xy=13,14
+pluk: alignment outside the --sam-aln-narrow region, made unmapped (FLAG 0x4, CIGAR '*'): 3 rows
+== --sam-aln-narrow=13,14
 pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
 n1	4	1	*	NA	NA	NA
 n2	16	13	9S1M	|	12	1
@@ -52,8 +52,8 @@ n5	0	13	2M3S	||	12	2
 n6	4	1	10M	NA	NA	NA
 n7	x	30	*	NA	NA	NA
 pluk: SAM values not available (NA) for 4 rows: unmapped (FLAG 0x4, RNAME or CIGAR '*')
-pluk: alignment outside the --sam-narrow-xy region, made unmapped (FLAG 0x4, CIGAR '*'): 3 rows
-== --sam-narrow-xy=6,10 --sam-aln-context=3
+pluk: alignment outside the --sam-aln-narrow region, made unmapped (FLAG 0x4, CIGAR '*'): 3 rows
+== --sam-aln-narrow=6,10 --sam-aln-context=3
 pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
 n1	0	3	4S3X5M3D	...|||||```	5	5
 n2	16	3	2S3X3D2M3X	...---||...	8	2
@@ -63,8 +63,8 @@ n5	4	1	*	NA	NA	NA
 n6	4	1	10M	NA	NA	NA
 n7	x	30	*	NA	NA	NA
 pluk: SAM values not available (NA) for 4 rows: unmapped (FLAG 0x4, RNAME or CIGAR '*')
-pluk: alignment outside the --sam-narrow-xy region, made unmapped (FLAG 0x4, CIGAR '*'): 3 rows
-== --sam-narrow-xy=13,16 --sam-nonf
+pluk: alignment outside the --sam-aln-narrow region, made unmapped (FLAG 0x4, CIGAR '*'): 3 rows
+== --sam-aln-narrow=13,16 --sam-nonf
 pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
 n1	4	1	*	NA	NA	NA
 n2	16	13	9S1M	|	12	1
@@ -74,7 +74,7 @@ n5	0	13	4M1S	||||	12	4
 n6	4	1	10M	NA	NA	NA
 n7	x	30	*	NA	NA	NA
 pluk: SAM values not available (NA) for 4 rows: unmapped (FLAG 0x4, RNAME or CIGAR '*')
-pluk: alignment outside the --sam-narrow-xy region, made unmapped (FLAG 0x4, CIGAR '*'): 3 rows
+pluk: alignment outside the --sam-aln-narrow region, made unmapped (FLAG 0x4, CIGAR '*'): 3 rows
 pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
 r1	0	14	6S5M6S	xxxxx
 r2	4	3	*	NA
@@ -84,7 +84,7 @@ r5	4	9	3S10M	NA
 r6	0	20	*	NA
 r7	4	30	*	NA
 pluk: SAM values not available (NA) for 5 rows: unmapped (FLAG 0x4, RNAME or CIGAR '*')
-pluk: alignment outside the --sam-narrow-xy region, made unmapped (FLAG 0x4, CIGAR '*'): 3 rows
+pluk: alignment outside the --sam-aln-narrow region, made unmapped (FLAG 0x4, CIGAR '*'): 3 rows
 n1	0	c1	3	60	2S3M2I3M2S	*	0	0	AAAAATTCCCCC	*	
 n2	16	c1	3	60	2S3M3D5S	*	0	0	AAAAACCGGG	*	
 n3	0	c1	3	60	2S3M3N5S2H	*	0	0	AAAAACCGGG	*	
@@ -92,15 +92,15 @@ n4	276	c1	21	0	*	*	0	0	AAAAACCCCC	*
 n5	4	c1	1	60	*	*	0	0	GGGTT	*	
 n6	4	c1	1	0	10M	*	0	0	AAAAACCCCC	*	
 n7	x	c1	30	0	*	*	0	0	AAAAA	*	
-pluk: alignment outside the --sam-narrow-xy region, made unmapped (FLAG 0x4, CIGAR '*'): 3 rows
+pluk: alignment outside the --sam-aln-narrow region, made unmapped (FLAG 0x4, CIGAR '*'): 3 rows
 n5	4	1	*
 n6	4	1	10M
-pluk: alignment outside the --sam-narrow-xy region, made unmapped (FLAG 0x4, CIGAR '*'): 1 row
-pluk: --sam-narrow-xy=X,Y: X and Y must be positive integers
+pluk: alignment outside the --sam-aln-narrow region, made unmapped (FLAG 0x4, CIGAR '*'): 1 row
+pluk: --sam-aln-narrow=X,Y: X and Y must be positive integers
 exit 1
-pluk: --sam-narrow-xy=X,Y: X is larger than Y
+pluk: --sam-aln-narrow=X,Y: X is larger than Y
 exit 1
-pluk: --sam-narrow-xy=X,Y: X and Y must be positive integers
+pluk: --sam-aln-narrow=X,Y: X and Y must be positive integers
 exit 1
-pluk: --sam-narrow-xy requires --sam or --sam-h
+pluk: --sam-aln-narrow requires --sam or --sam-header
 exit 1

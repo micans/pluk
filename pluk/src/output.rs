@@ -54,7 +54,7 @@ impl RowWriter {
 }
 
 
-// A line output unchanged (pass-through lines, --sam-h).
+// A line output unchanged (pass-through lines, --sam-header).
 pub fn write_line(out: &mut impl Write, line: &[u8]) -> io::Result<()> {
     out.write_all(line)?;
     out.write_all(b"\n")

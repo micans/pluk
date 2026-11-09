@@ -87,9 +87,9 @@ pluk: SAM values not available (NA) for 1 row: CIGAR or POS not valid
 pluk: SAM values not available (NA) for 1 row: SEQ or QUAL length differs from the CIGAR
 pluk: SEQ '*' filled from another row of the read: 1 row
 exit 0
-pluk: [m::,ref_matched]: operator ref_matched needs the reference sequence (--sam/FILE or --sam-h/FILE)
+pluk: [m::,ref_matched]: operator ref_matched needs the reference sequence (--sam/FILE or --sam-header/FILE)
 exit 1
-pluk: [t3::,ref_trail3p]: operator ref_trail3p needs the reference sequence (--sam/FILE or --sam-h/FILE)
+pluk: [t3::,ref_trail3p]: operator ref_trail3p needs the reference sequence (--sam/FILE or --sam-header/FILE)
 exit 1
-pluk: [t5::,qry_trail5p]: operator qry_trail5p needs --sam or --sam-h
+pluk: [t5::,qry_trail5p]: operator qry_trail5p needs --sam or --sam-header
 exit 1

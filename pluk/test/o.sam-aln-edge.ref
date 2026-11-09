@@ -74,7 +74,7 @@ n9	1	5M	NA	NA
 pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
 pluk: SAM values not available (NA) for 1 row: SEQ or QUAL length differs from the CIGAR
 pluk: SAM values not available (NA) for 1 row: CIGAR past the reference end
-== --sam-aln-mrk --sam-qlt-sim
+== --sam-aln-mark --sam-qual-simple
 pluk: SAM reference lengths: header/fasta/shared/conflict 0/2/0/0
 n1	3	2S4M3N5M1S	       10   
 GTACGTACGTTC  <>  2, 12, 20
@@ -130,11 +130,11 @@ n6	*
 n7	.abcd
 n8	*
 n9	NA
-pluk: [x::,aln_aln]: operator aln_aln needs the reference sequence (--sam/FILE or --sam-h/FILE)
+pluk: [x::,aln_aln]: operator aln_aln needs the reference sequence (--sam/FILE or --sam-header/FILE)
 exit 1
-pluk: --sam-aln-mrk requires --sam or --sam-h
+pluk: --sam-aln-mark requires --sam or --sam-header
 exit 1
-pluk: --sam-qlt-sim requires --sam or --sam-h
+pluk: --sam-qual-simple requires --sam or --sam-header
 exit 1
-pluk: --sam-aln-prefix requires --sam or --sam-h
+pluk: --sam-aln-prefix requires --sam or --sam-header
 exit 1

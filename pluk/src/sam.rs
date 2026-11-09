@@ -105,7 +105,7 @@ fn is_context(i: usize, n: usize, context: (usize, usize)) -> bool {
 
 // ---- Context extension (plan/step19.txt decisions 2, 6) ----
 
-// --sam-aln-context=N and --sam-aln-xy=X,Y.
+// --sam-aln-context=N and --sam-aln-extend=X,Y.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ContextOptions {
     pub n:  u64,
@@ -270,7 +270,7 @@ pub fn bump_nm(field: &[u8], add: u64) -> Option<Vec<u8>> {
 
 // ---- Narrowing (plan/step19.txt decision 4) ----
 
-// The outcome of --sam-narrow-xy for a record.
+// The outcome of --sam-aln-narrow for a record.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Narrowed {
     Unchanged,
@@ -474,14 +474,14 @@ pub fn needs_query(op: &str) -> bool {
     NEEDS_QUERY.contains(&op) || ALIGNMENT.contains(&op) || is_rbt(op)
 }
 
-// The rbt_ operators read the region set by sam_rbt or --sam-rbt (plan/step20.txt).
+// The rbt_ operators read the region set by sam_rbt or --sam-rbt-region (plan/step20.txt).
 pub fn is_rbt(op: &str) -> bool {
     op.starts_with("rbt_")
 }
 
 // ---- Region-bound tally (plan/step20.txt) ----
 
-// The region of a row: from --sam-rbt, then from each sam_rbt executed.
+// The region of a row: from --sam-rbt-region, then from each sam_rbt executed.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Region {
     Unset,
@@ -559,11 +559,11 @@ pub fn region_tally(u: u64, v: u64, pos: u64, ops: &[Op], mx: u64, my: u64, aln_
 #[derive(Clone, Debug, Default)]
 pub struct AlnOptions {
     pub prefix:  Vec<u8>,   // --sam-aln-prefix=STR, before every line of aln_all aln_allq aln_all_pack
-    pub markers: bool,      // --sam-aln-mrk
-    pub qlt_sim: bool,      // --sam-qlt-sim
+    pub markers: bool,      // --sam-aln-mark
+    pub qlt_sim: bool,      // --sam-qual-simple
 }
 
-// --sam-qlt-sim: the quality symbols ! .. ~ in steps of five quality values (as pick).
+// --sam-qual-simple: the quality symbols ! .. ~ in steps of five quality values (as pick).
 const QLT_SIM: &[u8; 94] =
     b".....,,,,,aaaaaAAAAAbbbbbBBBBBcccccCCCCCdddddDDDDDeeeeeEEEEEfffffFFFFFgggggGGGGGhhhhhHHHHHiiii";
 
@@ -793,7 +793,7 @@ pub struct View<'d> {
     counts:  Option<Result<Counts, Na>>,
     reference: Option<Result<&'d [u8], Na>>,
     aln:     Option<Result<Aln, Na>>,
-    pub rbt_default: Option<(u64, u64)>,    // --sam-rbt=X,Y, set by main.rs
+    pub rbt_default: Option<(u64, u64)>,    // --sam-rbt-region=X,Y, set by main.rs
     region:  Region,
     rbt:     Option<Result<Rbt, Na>>,
     pub options: AlnOptions,                // set by main.rs
@@ -891,7 +891,7 @@ impl<'d> View<'d> {
         }
     }
 
-    // qry_qual: QUAL or the filled one, translated with --sam-qlt-sim ('*' stays).
+    // qry_qual: QUAL or the filled one, translated with --sam-qual-simple ('*' stays).
     pub fn qry_qual(&mut self, row: &Row) -> Result<Vec<u8>, Na> {
         let result = match self.query_qual(row) {
             Ok(q) if self.options.qlt_sim && q != b"*" => Ok(qlt_sim(q)),
@@ -982,7 +982,7 @@ impl<'d> View<'d> {
         let pos = number(row.field(POS)).ok_or(Na::Cigar)?;
         let seq = self.query_seq(row)?;
         let qual = self.query_qual(row)?;
-        // QUAL '*' (decision 3): '!' for every base, '.' with --sam-qlt-sim.
+        // QUAL '*' (decision 3): '!' for every base, '.' with --sam-qual-simple.
         let qual = if qual == b"*" {
             vec![if self.options.qlt_sim { b'.' } else { b'!' }; seq.len()]
         } else if qual.len() != seq.len() {
@@ -993,7 +993,7 @@ impl<'d> View<'d> {
             qual.to_vec()
         };
         let mut aln = draw(reference, seq, &qual, &ops, pos, self.context)?;
-        // --sam-aln-mrk (decision 5): after the ruler, which keeps the unmarked length.
+        // --sam-aln-mark (decision 5): after the ruler, which keeps the unmarked length.
         if self.options.markers {
             let (r5, rm, r3, q5, qm, q3) = marks;
             let r3 = r3.ok_or(Na::RefLength)?;

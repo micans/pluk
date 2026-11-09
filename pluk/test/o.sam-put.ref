@@ -58,7 +58,7 @@ readGBW1-1-rc	AS:i:79	XN:i:0	XM:i:30	XO:i:7	XG:i:19	NM:i:50	MD:Z:0^AGGGGGCTTACAG
 pluk: sam_put replaced a tag of the input: 3 rows
 pluk: sam_put cannot be combined with a compute that redefines column 12 in place (-i)
 exit 1
-pluk: [t:=^XX.i:4,sam_put]: operator sam_put needs --sam or --sam-h
+pluk: [t:=^XX.i:4,sam_put]: operator sam_put needs --sam or --sam-header
 exit 1
 pluk: [t:=^XX:4,sam_put]: sam_put: tag [XX] is not of the form XX:T, XX.T or XX-T (T one of A i f Z H B)
 exit 1

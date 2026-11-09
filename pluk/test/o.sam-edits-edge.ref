@@ -48,5 +48,5 @@ n9	NA
 m1	0
 pluk: RNAME [c9] not found in dictionary [SAMFA] (__EXIT__) at line 11
 exit 1
-pluk: [p::^0,aln_posinfo]: operator aln_posinfo needs the reference sequence (--sam/FILE or --sam-h/FILE)
+pluk: [p::^0,aln_posinfo]: operator aln_posinfo needs the reference sequence (--sam/FILE or --sam-header/FILE)
 exit 1

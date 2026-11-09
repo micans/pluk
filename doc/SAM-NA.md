@@ -27,10 +27,10 @@ pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGA
 |-------------------------------------------------|---------------------------------------------------------|------------------------|
 | unmapped (FLAG 0x4, RNAME or CIGAR '*')         | unmapped reads in aligner output                        | all position, count, CIGAR-part, sequence-part, alignment and rbt operators |
 | CIGAR or POS not valid                          | a damaged or hand-edited record                         | the same |
-| reference length not known                      | SAM without header and without `--sam/FILE`              | `ref_len`, `ref_trail3p_N`; the alignment strings with `--sam-aln-mrk` |
+| reference length not known                      | SAM without header and without `--sam/FILE`              | `ref_len`, `ref_trail3p_N`; the alignment strings with `--sam-aln-mark` |
 | SEQ or QUAL length differs from the CIGAR       | a SEQ or QUAL that does not fit the CIGAR (also after a fill) | `qry_seq`, `qry_qual`, the `qry_` parts, the alignment strings and everything computed from them |
 | CIGAR past the reference end                    | a reference fasta that does not match the alignment     | the `ref_` parts, the alignment strings and everything computed from them |
-| rbt region outside the matched part             | `sam_rbt` or `--sam-rbt` region not covered by the read | all `rbt_` operators |
+| rbt region outside the matched part             | `sam_rbt` or `--sam-rbt-region` region not covered by the read | all `rbt_` operators |
 | rbt region not valid                            | `sam_rbt` operands that are not integers 1 <= x <= y    | all `rbt_` operators |
 
 Operators that need no alignment work for every record, unmapped ones included:
@@ -112,8 +112,8 @@ GCTTAACGGTACAATGAGCTAGTTTCTAAGGTT---TGCAATTCG
 
 **No reference length.** Without SAM header lines (`samtools view` without `-h`) and
 without `--sam/FILE`, `ref_len` and `ref_trail3p_N` are NA for every row; with
-`--sam-aln-mrk` the alignment strings are NA as well, and `--sam-aln-context` does not
-extend the right side (counted). Use `--sam-h`/`samtools view -h`, or give the fasta.
+`--sam-aln-mark` the alignment strings are NA as well, and `--sam-aln-context` does not
+extend the right side (counted). Use `--sam-header`/`samtools view -h`, or give the fasta.
 
 **A reference that does not match.** If the fasta given with `--sam/FILE` is not the one
 the reads were aligned to, alignments may run past its end: the reference parts and the

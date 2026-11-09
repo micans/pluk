@@ -1216,7 +1216,7 @@ fn op_hexto(m: &mut Machine, row: &Row, _: &Attached) { from_radix(m, row, 16) }
 fn op_octto(m: &mut Machine, row: &Row, _: &Attached) { from_radix(m, row, 8) }
 
 // SAM operators (plan/step17.txt; plan/SAMVIEW.design.txt). They need --sam or
-// --sam-h (checked at compile time) and read the per-row view in the machine.
+// --sam-header (checked at compile time) and read the per-row view in the machine.
 
 // Push a value of the count stage, or NA (counted by the view).
 fn sam_count(m: &mut Machine, row: &Row, f: impl Fn(&sam::Counts) -> Result<Value, sam::Na>) {

@@ -22,7 +22,7 @@ pluk: [x::^NMM.i^-,sam_get]: sam_get: tag [NMM.i] is not of the form XX:T, XX.T 
 exit 1
 pluk: [x::2^-,sam_get]: the tag operand of sam_get must be a constant (^NM.i)
 exit 1
-pluk: [x::,isforward]: operator isforward needs --sam or --sam-h
+pluk: [x::,isforward]: operator isforward needs --sam or --sam-header
 exit 1
 Operator      Consumed    Produced            Description
 --------------------------------------------------------------------------------

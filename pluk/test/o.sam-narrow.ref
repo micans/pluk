@@ -19,7 +19,7 @@ readGBW2-1-rc	0	50	38D12M6I20M1I24M1D15M7D12M1I13M1I7M6D6M2D46M5D15M2I19M33D
 readGBW1-1	0	50	7D45M1I18M2D12M1D23M1I41M3D34M5D27M5D14M1I3M41D
 readGBW1-1-rc	16	50	10D27M1I29M3D40M1I25M4D28M3D22M2D19M5I20M49D
 pluk: SAM reference lengths: header/fasta/shared/conflict 2/2/2/0
-pluk: alignment outside the --sam-narrow-xy region, made unmapped (FLAG 0x4, CIGAR '*'): 138 rows
+pluk: alignment outside the --sam-aln-narrow region, made unmapped (FLAG 0x4, CIGAR '*'): 138 rows
 readGBW2-1-rc	4	1	*
 readGBW1-1	4	1	*
 readGBW1-1-rc	20	1	*

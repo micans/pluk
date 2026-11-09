@@ -39,3 +39,23 @@ Item 3.
   Dictionaries: help, manual section 7 and the option reference lead with --kdict-
     --fdict- --cdict- --tdict (and --fasta-dict); --kd- --fd- --cd- --td are short
     forms. The examples keep the short forms (the manual says so).
+
+Item 4.
+  SAM alignment options form one family, --sam-aln-*: --sam-aln-mark (was -mrk; the
+    user chose mark over markers), --sam-aln-extend (was --sam-aln-xy),
+    --sam-aln-narrow (was --sam-narrow-xy, which lacked the aln- part). --sam-aln-prefix
+    and --sam-aln-context are unchanged.
+  --sam-header (was --sam-h; also /FILE): no clash with -h (which drops the header),
+    still reads as samtools view -h.
+  --sam-qual-simple (was --sam-qlt-sim), --sam-rbt-region (was --sam-rbt; rbt names
+    the rbt_ operators).
+  --sam-nonf is kept (user's choice), with --sam-keep-flanks as a synonym; the help
+    lists both on one entry. --sam-ND-adjust is unchanged (CIGAR operations N and D).
+  Old names, including --sam-h/FILE, give an error naming the replacement. The Config
+    fields (sam_h, sam_aln_mrk, sam_qlt_sim, sam_aln_xy, sam_narrow_xy, sam_rbt) keep
+    their names, as in item 3.
+  Test o.sam-renamed: the old names, and --sam-keep-flanks against --sam-nonf. The
+    other changed refs differ only by the new names (checked by applying the rename
+    to the old refs).
+  Line width: the manual and guidelines already have many lines over 90 columns, so
+    lines lengthened by the longer names were not rewrapped.

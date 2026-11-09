@@ -260,8 +260,8 @@ pub struct Compute {
 pub struct Context {
     pub inplace:    bool,   // -i: a compute may redefine a name; an input column at most
                             // once, a computed name any number of times
-    pub sam:        bool,   // --sam or --sam-h: the SAM operators
-    pub rbt_region: bool,   // --sam-rbt: the rbt_ operators have a region from the start
+    pub sam:        bool,   // --sam or --sam-header: the SAM operators
+    pub rbt_region: bool,   // --sam-rbt-region: the rbt_ operators have a region from the start
     pub pstore:     bool,   // --pstore or --group: pload
     pub group:      bool,   // --group or --group-first-ref: groupi groupno
 }
@@ -377,18 +377,18 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, context: Context, dic
                             return Err(format!("[{}]: {} needs --group or --group-first-ref", shown, op.name));
                         }
                         if op.category == ops::Category::Sam && !sam {
-                            return Err(format!("[{}]: operator {} needs --sam or --sam-h", shown, op.name));
+                            return Err(format!("[{}]: operator {} needs --sam or --sam-header", shown, op.name));
                         }
                         // The reference sequence comes only from --sam/FILE (plan/step18.txt decision 0).
                         if crate::sam::needs_reference(op.name) && dicts.get(crate::dict::SAM_REFERENCE).is_none() {
                             return Err(format!("[{}]: operator {} needs the reference sequence (--sam/FILE or \
-                                                --sam-h/FILE)", shown, op.name));
+                                                --sam-header/FILE)", shown, op.name));
                         }
-                        // An rbt_ operator needs a region: an earlier sam_rbt, or --sam-rbt (step20).
+                        // An rbt_ operator needs a region: an earlier sam_rbt, or --sam-rbt-region (step20).
                         if op.name == "sam_rbt" {
                             rbt_region = true;
                         } else if crate::sam::is_rbt(op.name) && !rbt_region {
-                            return Err(format!("[{}]: operator {} needs an earlier sam_rbt or --sam-rbt=X,Y",
+                            return Err(format!("[{}]: operator {} needs an earlier sam_rbt or --sam-rbt-region=X,Y",
                                                shown, op.name));
                         }
                         let needed = match op.pops { Pops::N(n) | Pops::All(n) => n };

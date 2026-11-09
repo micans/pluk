@@ -34,17 +34,17 @@ w1
 w2
 w3
 pluk: SAM reference lengths: header/fasta/shared/conflict 0/1/0/0
-pluk: [a::,rbt_refx]: operator rbt_refx needs an earlier sam_rbt or --sam-rbt=X,Y
+pluk: [a::,rbt_refx]: operator rbt_refx needs an earlier sam_rbt or --sam-rbt-region=X,Y
 exit 1
-pluk: [a::,rbt_refx]: operator rbt_refx needs the reference sequence (--sam/FILE or --sam-h/FILE)
+pluk: [a::,rbt_refx]: operator rbt_refx needs the reference sequence (--sam/FILE or --sam-header/FILE)
 exit 1
-pluk: --sam-rbt=X,Y: X and Y must be positive integers
+pluk: --sam-rbt-region=X,Y: X and Y must be positive integers
 exit 1
-pluk: --sam-rbt=X,Y: X is larger than Y
+pluk: --sam-rbt-region=X,Y: X is larger than Y
 exit 1
-pluk: --sam-rbt=X,Y: X and Y must be positive integers
+pluk: --sam-rbt-region=X,Y: X and Y must be positive integers
 exit 1
-pluk: --sam-rbt requires --sam or --sam-h
+pluk: --sam-rbt-region requires --sam or --sam-header
 exit 1
 Operator      Consumed    Produced            Description
 --------------------------------------------------------------------------------

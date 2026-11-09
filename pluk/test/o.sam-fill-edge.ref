@@ -51,9 +51,9 @@ pluk: the SAM input is not grouped by read (@HD SO:coordinate GO:none); a SEQ '*
 pluk: line 5: SEQ '*' of read b cannot be filled: no earlier row of the read holds the sequence; row skipped
 pluk: line 12: SEQ '*' of read e cannot be filled: segment ambiguous (FLAG 0x1 with 0x40 and 0x80 both set or both unset); row skipped
 a	AACCGGTTAC
-pluk: --sam-seqmiss requires --sam or --sam-h
+pluk: --sam-seqmiss requires --sam or --sam-header
 exit 1
 pluk: --sam-seqmiss=skip|exit
 exit 1
-pluk: [s::,qry_seq]: operator qry_seq needs --sam or --sam-h
+pluk: [s::,qry_seq]: operator qry_seq needs --sam or --sam-header
 exit 1

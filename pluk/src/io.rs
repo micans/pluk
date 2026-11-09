@@ -28,12 +28,12 @@ const BAM_MAGIC: [u8; 4] = *b"BAM\x01";
 // block is at most 64 KiB, and the magic bytes are at its start.
 const PEEK_LIMIT: usize = 256 * 1024;
 
-// SAM input (--sam, --sam-h): what to do with header lines, i.e. lines starting with '@'.
+// SAM input (--sam, --sam-header): what to do with header lines, i.e. lines starting with '@'.
 #[derive(Clone, Copy, PartialEq)]
 pub enum SamMode {
     Off,            // not SAM input
     Skip,           // --sam: skip '@' lines
-    PassThrough,    // --sam-h: output '@' lines unchanged
+    PassThrough,    // --sam-header: output '@' lines unchanged
 }
 
 // The SO: (sort order) and GO: (grouping) tags of a SAM @HD line. Recorded for the
@@ -97,7 +97,7 @@ impl SamOrder {
 #[derive(Clone, Copy, PartialEq)]
 pub enum LineKind {
     Data,           // a data line, split into fields
-    PassThrough,    // a line to be output unchanged (-//PAT, --sam-h); not split
+    PassThrough,    // a line to be output unchanged (-//PAT, --sam-header); not split
 }
 
 // Settings that affect input processing, filled in from the command line by main.
@@ -110,7 +110,7 @@ pub struct InputSettings {
     pub omega: Option<usize>,           // -O <N>: ragged input, N columns
     pub add_row_column: bool,           // -R: header lacks the name of the first (row name) column
     pub make_unique: bool,              // -u: make duplicate column names unique
-    pub sam: SamMode,                   // --sam, --sam-h
+    pub sam: SamMode,                   // --sam, --sam-header
     pub threads: usize,                 // --threads: BAM decompression threads (1: none)
 }
 
@@ -145,7 +145,7 @@ impl LineReader {
         let (format, source) = peek_format(io::stdin())?;
         let reader: Box<dyn BufRead> = match format {
             Format::Bam if settings.sam == SamMode::Off => {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, "input is BAM; use --sam or --sam-h"));
+                return Err(io::Error::new(io::ErrorKind::InvalidData, "input is BAM; use --sam or --sam-header"));
             }
             // BAM is presented as SAM text (plan/step6.txt item 2).
             Format::Bam => {
