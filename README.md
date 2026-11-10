@@ -8,16 +8,18 @@ Stijn over a period of about three days. The `plan/` directory retains that hist
 were settled and sometimes fixed, syntax was made cleaner in a few places, features were added.*
 
 
-## What it is
+## Pluk in a nutshell 
 
-pluk is akin to a **column-name and column-type aware** `grep` married with `cut`.
-Using column names as variables it can update existing columns and compute new columns like `sed`,
-or construct formatted output from the rows.
+<div style="border: 1px solid #d0d7de; padding: 16px; border-radius: 6px;">
+`pluk` is akin to a **column-name and column-type aware** `grep` married with `cut`.
+Using **column names as variables** it can **update** existing columns, **compute** new columns
+or construct **formatted output** from the rows like `sed`.
 
 It distinguishes strings, integer and floats, infers types from operators and filters, and issues appropriate conversions
-and warnings as necessary. Errors propagate to NA and are summarised in diagnostic messages.
+and warnings as necessary. Errors propagate to `NA` and are summarised in diagnostic messages.
+</div>
 
-pluk streams a table, i.e. a file with a header line and tab-separated columns, and lets you manipulate rows using column
+`pluk` streams a table, i.e. a file with a header line and tab-separated columns, and lets you manipulate rows using column
 names. It processes the table line by line and **munches through large data fast using almost no memory**.  It supports
 
 -  filters and assertions over input data and output data
