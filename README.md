@@ -10,7 +10,9 @@ were settled and sometimes fixed, syntax was made cleaner in a few places, featu
 
 ## What it is
 
-pluk is akin to a column-name and column-type aware `grep` married with `cut`. It can update existing columns and compute new columns.
+pluk is akin to a **column-name and column-type aware** `grep` married with `cut`.
+Using column names as variables it can update existing columns and compute new columns like `sed`,
+or construct formatted output from the rows.
 
 It distinguishes strings, integer and floats, infers types from operators and filters, and issues appropriate conversions
 and warnings as necessary. Errors propagate to NA and are summarised in diagnostic messages.
