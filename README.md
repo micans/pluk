@@ -10,7 +10,7 @@ were settled and sometimes fixed, syntax was made cleaner in a few places, featu
 
 | **Pluk in a nutshell** |
 | :--- |
-| `pluk` is akin to a **column-name and column-type aware** `grep` married with `cut`.  Using **column names as variables** it can **update** existing columns, **compute** new columns or construct **formatted output** from the rows like `sed`. |
+| `pluk` is akin to a **column-name** and **column-type aware** `grep` married with `cut`.  Using column names as variables it can update existing columns, compute new columns or construct formatted output from the rows like `sed`. |
 
 It distinguishes strings, integer and floats, infers types from operators and filters, and issues appropriate conversions
 and warnings as necessary. Errors propagate to `NA` and are summarised in diagnostic messages.
