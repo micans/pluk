@@ -14,7 +14,6 @@ were settled and sometimes fixed, syntax was made cleaner in a few places, featu
 
 It distinguishes strings, integer and floats, infers types from operators and filters, and issues appropriate conversions
 and warnings as necessary. Errors propagate to `NA` and are summarised in diagnostic messages.
-</div>
 
 `pluk` streams a table, i.e. a file with a header line and tab-separated columns, and lets you manipulate rows using column
 names. It processes the table line by line and **munches through large data fast using almost no memory**.  It supports

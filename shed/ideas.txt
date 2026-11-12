@@ -1,6 +1,8 @@
 
 [defer] Releases and versioning.
 
+[discuss] Include pluk in existing docker file with minimap2, samtools etc.
+
 [defer] Timing.
 
 [defer] Syntax/support for joining columns from a table dictionary. Somehwat invasive.

@@ -1,0 +1,128 @@
+JOIN notes: seed for joining columns from a keyed table onto the input rows. From the first item
+in shed/ideas.txt, discussed 2026-11-12. Decided points are marked [decided]; the rest is open.
+To be turned into JOIN.design.txt and a step file.
+
+
+1. The idea
+
+   Columns from a table T (a file with a header line) are appended to each input row by looking
+   up the value of an input column in T's key column. This happens before anything else, and the
+   appended columns count as input columns: they can be selected (names, lists, +REGEX, ranges),
+   filtered with @, used in computes, rebound with -i and output with -A.
+
+   What this adds over --td plus map: all (or a selection of) T's columns in one option, named
+   from T's header; inner-join semantics (rows without a match are dropped); missing values are
+   NA; the joined columns can be selected and filtered like input columns.
+
+   Typical use, annotating a table:
+     pluk -A --join^gene=annot.txt < counts.txt
+
+
+2. Options [decided]
+
+   --join^KEY[/NAMING]=FILE         left join: every input row is kept, missing cells are NA
+   --join-inner^KEY[/NAMING]=FILE   inner join: input rows without a match are dropped
+   --join-missing=VALUE             fill value for missing cells, shared by all joins (section 5)
+
+   KEY names an input column. T's key is always its first column. --tdict^KEY keeps its meaning
+   (a column of the table): '^' introduces the option's argument, as in mul^2 and fruit^PRICE,
+   and what it means depends on the option. The --join help line states that KEY is an input
+   column and T's key is its first column.
+
+   The shared --join- prefix groups the options together in --help (OPTIONS-naming.notes.txt).
+
+
+3. Naming: the compute renaming form P/SPEC/S [decided]
+
+   The part after KEY/ follows the compute renaming grammar (manual, "New columns from many:
+   renaming"), applied to T's columns:
+
+     --join^gene=annot.txt              all non-key columns of T, names as in T
+     --join^gene/desc:+^go_=annot.txt   SPEC only: a selection
+     --join^gene/ann_/desc:len/=...     P/SPEC/: prefix
+     --join^gene/desc:len/_ann=...      SPEC/S: suffix
+     --join^gene/ann_/desc:len/_x=...   P/SPEC/S
+
+   - SPEC is a colspec (names, ':' lists, +REGEX, ranges) over T's columns; ranges count T's
+     columns. T's key column is never appended, even if SPEC names it (it repeats the input key).
+   - Prefix and suffix are per table: they are the way out when a T column name clashes with an
+     input name or with a column from another join.
+   - The compute form P//SPEC//S means "rename and keep the originals". In a join there are no
+     originals to keep, so the // form is not accepted: '//' indicates something on top of
+     renaming, and that does not apply here.
+   - No alias syntax (alias=col): renaming one column is done in the output with new::old.
+   - In the naming part a '/' in a name is written %2F, as in compute renaming; '=' as %3D.
+
+   Open: an empty SPEC with a prefix or suffix (P//S, which would read as "all columns"). Since
+   // is not taken over, this is either refused (write P/+./S) or accepted as "all". Leaning
+   towards refusing it, so that // never appears in a join.
+
+
+4. Semantics
+
+   - Order [decided]: joins happen first, before assertions, filters and computes, as if the
+     joined columns were part of the input. Lines skipped or passed through by -/PAT and -//PAT
+     are handled before the join and never looked up. Several joins are
+     applied in command-line order; a later join may key on a column brought in by an earlier one.
+   - Placement: the appended columns follow the input columns (and earlier joins), so input
+     column numbers and -k ranges keep their meaning.
+   - Inner join rejects [decided]: an inner join acts as a filter that runs first. Rejected rows
+     are counted with the filter counts and go to --rejected (and are seen by --demux routing as
+     filter rejects). Open: whether they get a separate count line ("not in table T").
+   - Duplicate keys in T: an error, as for --tdict. A one-to-many join would break the model of
+     one row in, at most one row out. Duplicate keys in the input are fine (many-to-one).
+   - Name clashes (after prefix/suffix) between joined columns and input columns or other joins:
+     an error, with a hint to use the P/SPEC/S form.
+   - T is read entirely into memory, as --tdict; no sorting requirement. Very large tables are
+     out of scope (the manual can point to join(1) on sorted input).
+   - FILE may be gzip-compressed, as dictionary files.
+
+   Open: input without a header (-k): KEY is then a column number; joined columns have names
+   from T's header but the input columns have none. Refuse, or allow (names usable in output
+   selection, -K for the header)?
+   Open: --sam / --sam-header: refuse initially (as -K), since appended columns break SAM
+   output. A later use could be per-read metadata keyed on QNAME, with output via computes.
+
+
+5. Missing values [decided]
+
+   - A missing cell in a left join is the NA value, the same NA that computes produce: it
+     propagates through arithmetic, fails /ISNUM, and prints as NA. Filters and counts behave
+     the same whether NA came from a failed join or a failed compute.
+   - --join-missing=VALUE replaces it with a fill value, shared by all joins (not per table). The
+     fill value is data: e.g. --join-missing=0 gives a numeric 0 that adds normally. With a
+     counts table and an annotation table in one run, both get the same fill; fix one up with a
+     compute if needed.
+   - --join-missing=__EXIT__: a key that is not found ends the run (a strict left join), as the
+     __EXIT__ default of the dictionaries.
+   - A general NA output spelling (--na=STR, affecting computes too) is a separate question, not
+     part of this; not planned.
+
+   Open: an input key that is empty or NA: never matches (even if T has an empty key)?
+
+
+6. Known limits
+
+   - The join key cannot be a computed column (e.g. a gene identifier with its version suffix
+     removed), since joins happen before computes. Workaround: two pluk runs in a pipe. Recorded
+     as a limit, not planned.
+   - No composite keys (same workaround, building the key in the first run).
+   - No right/outer join: the input is the main data, T annotates it. An anti-join is already
+     available as --kd-T=FILE @key~notin~T.
+
+
+7. Implementation (kept separate from the design)
+
+   - The table loader of --tdict (header, gzip, duplicate-key check) can probably be shared.
+   - The storage likely differs: a join wants one row per key (key -> row index into a row
+     store), whereas --tdict builds one map per column.
+   - Inner join as a pre-filter on presence of the key, so that counting and --rejected routing
+     reuse the existing filter machinery.
+
+
+8. Suggested staging
+
+   1  --join^KEY=FILE and --join-inner^KEY=FILE, all columns, NA for missing, clash = error.
+   2  NAMING: P/SPEC/S (selection, prefix, suffix).
+   3  --join-missing=VALUE including __EXIT__.
+   (2 may be folded into 1, since prefixes are the only remedy for clashes.)
