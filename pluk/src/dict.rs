@@ -271,38 +271,18 @@ impl Dicts {
     // errors. Unlike pick, a repeated column name is an error (pick: the last wins).
     fn read_table(&mut self, spec: &DictSpec) -> Result<(), String> {
         let option = String::from_utf8_lossy(&spec.option);
-        let path = Path::new(OsStr::from_bytes(&spec.source));
-        let error = |e: io::Error| format!("{}: cannot read {}: {}", option, path.display(), e);
-        let mut reader = open_buffered(File::open(path).map_err(error)?).map_err(error)?;
-
-        let mut line = Vec::new();
-        if !read_line(&mut reader, &mut line).map_err(error)? {
-            return Err(format!("{}: table {} is empty", option, path.display()));
-        }
-        let header: Vec<Vec<u8>> = line.split(|&b| b == b'\t').map(|f| f.to_vec()).collect();
-        let key_index = match &spec.key_column {
-            None      => 0,
-            Some(key) => header.iter().position(|name| name == key).ok_or_else(||
-                format!("{}: no column [{}] in {}", option, String::from_utf8_lossy(key), path.display()))?,
-        };
-        for (i, name) in header.iter().enumerate() {
-            if i != key_index && is_reserved(name) {
+        let mut table = TableFile::open(&option, &spec.source, spec.key_column.as_deref())?;
+        for (i, name) in table.header.iter().enumerate() {
+            if i != table.key_index && is_reserved(name) {
                 return Err(format!("{}: column name [{}] in {} is a reserved dictionary name", option,
-                                   String::from_utf8_lossy(name), path.display()));
-            }
-        }
-        let mut seen = HashSet::new();
-        for name in &header {
-            if !seen.insert(name) {
-                return Err(format!("{}: repeated column name [{}] in {}", option,
-                                   String::from_utf8_lossy(name), path.display()));
+                                   String::from_utf8_lossy(name), table.path.display()));
             }
         }
 
         // Dictionary index for each column; None for the key column.
-        let mut targets: Vec<Option<usize>> = Vec::with_capacity(header.len());
-        for (i, name) in header.iter().enumerate() {
-            if i == key_index {
+        let mut targets: Vec<Option<usize>> = Vec::with_capacity(table.header.len());
+        for (i, name) in table.header.iter().enumerate() {
+            if i == table.key_index {
                 targets.push(None);
             } else {
                 self.get_or_create(name, spec);
@@ -310,20 +290,9 @@ impl Dicts {
             }
         }
 
-        let mut keys = HashSet::new();
-        let mut lineno = 1;
-        while read_line(&mut reader, &mut line).map_err(error)? {
-            lineno += 1;
-            let fields: Vec<&[u8]> = line.split(|&b| b == b'\t').collect();
-            if fields.len() != header.len() {
-                return Err(format!("{}: {} fields on line {} of {}, header has {}", option,
-                                   fields.len(), lineno, path.display(), header.len()));
-            }
+        let key_index = table.key_index;
+        while let Some(fields) = table.next_row()? {
             let key = fields[key_index];
-            if !keys.insert(key.to_vec()) {
-                return Err(format!("{}: repeated key [{}] on line {} of {}", option,
-                                   String::from_utf8_lossy(key), lineno, path.display()));
-            }
             for (field, target) in fields.iter().zip(&targets) {
                 if let Some(d) = *target {
                     self.list[d].insert(key.to_vec(), field.to_vec());
@@ -442,6 +411,71 @@ fn store_sequence(dict: &mut Dict, id: Vec<u8>, seq: &mut Vec<u8>) {
 }
 
 // Read the next line into line, without its newline. Returns Ok(false) at end of input.
+// A keyed table file with a header line, read row by row: shared by --td and
+// --join (plan/JOIN.design.txt section 2). The header must have distinct names; a
+// row with another number of fields than the header, and a repeated key, are errors.
+// option names the option in messages.
+pub struct TableFile {
+    option:        String,
+    pub path:      std::path::PathBuf,
+    reader:        Box<dyn BufRead>,
+    line:          Vec<u8>,
+    pub header:    Vec<Vec<u8>>,
+    pub key_index: usize,
+    keys:          HashSet<Vec<u8>>,
+    lineno:        u64,
+}
+
+impl TableFile {
+    // Open the table and read its header. key_column names the key column; None: the first.
+    pub fn open(option: &str, source: &[u8], key_column: Option<&[u8]>) -> Result<TableFile, String> {
+        let path = Path::new(OsStr::from_bytes(source)).to_path_buf();
+        let error = |e: io::Error| format!("{}: cannot read {}: {}", option, path.display(), e);
+        let mut reader = open_buffered(File::open(&path).map_err(error)?).map_err(error)?;
+        let mut line = Vec::new();
+        if !read_line(&mut reader, &mut line).map_err(error)? {
+            return Err(format!("{}: table {} is empty", option, path.display()));
+        }
+        let header: Vec<Vec<u8>> = line.split(|&b| b == b'\t').map(|f| f.to_vec()).collect();
+        let key_index = match key_column {
+            None      => 0,
+            Some(key) => header.iter().position(|name| name == key).ok_or_else(||
+                format!("{}: no column [{}] in {}", option, String::from_utf8_lossy(key), path.display()))?,
+        };
+        let mut seen = HashSet::new();
+        for name in &header {
+            if !seen.insert(name) {
+                return Err(format!("{}: repeated column name [{}] in {}", option,
+                                   String::from_utf8_lossy(name), path.display()));
+            }
+        }
+        Ok(TableFile { option: option.to_string(), path, reader, line, header, key_index,
+                       keys: HashSet::new(), lineno: 1 })
+    }
+
+    // The fields of the next row, borrowed until the next call; None at the end.
+    pub fn next_row(&mut self) -> Result<Option<Vec<&[u8]>>, String> {
+        let (option, path) = (&self.option, &self.path);
+        if !read_line(&mut self.reader, &mut self.line)
+            .map_err(|e| format!("{}: cannot read {}: {}", option, path.display(), e))?
+        {
+            return Ok(None);
+        }
+        self.lineno += 1;
+        let fields: Vec<&[u8]> = self.line.split(|&b| b == b'\t').collect();
+        if fields.len() != self.header.len() {
+            return Err(format!("{}: {} fields on line {} of {}, header has {}", option,
+                               fields.len(), self.lineno, path.display(), self.header.len()));
+        }
+        let key = fields[self.key_index];
+        if !self.keys.insert(key.to_vec()) {
+            return Err(format!("{}: repeated key [{}] on line {} of {}", option,
+                               String::from_utf8_lossy(key), self.lineno, path.display()));
+        }
+        Ok(Some(fields))
+    }
+}
+
 fn read_line(reader: &mut Box<dyn BufRead>, line: &mut Vec<u8>) -> io::Result<bool> {
     line.clear();
     if reader.read_until(b'\n', line)? == 0 {

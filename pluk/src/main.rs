@@ -7,6 +7,7 @@ mod dict;
 mod exec;
 mod filter;
 mod io;
+mod join;
 mod list;
 mod names;
 mod note;
@@ -89,6 +90,15 @@ fn run() -> std::io::Result<()> {
         },
     };
 
+    // The tables of --join and --join-inner: read before input, as the dictionaries.
+    let mut joins = match join::Joins::load(&config.joins) {
+        Ok(joins) => joins,
+        Err(msg)  => {
+            eprintln!("pluk: {}", msg);
+            process::exit(1);
+        }
+    };
+
     // --rejected and --assert-failed are created before input is read, so that a bad
     // path is reported early.
     let mut other = config.other.as_deref().map(|n| sink::SideFile::create("--rejected", n)).transpose()?;
@@ -140,6 +150,13 @@ fn run() -> std::io::Result<()> {
     if config.sam || config.sam_h {
         dicts.add_sam_lengths(&input.sam_seqlen);
     }
+
+    // The joined columns are input columns: their names follow the input names
+    // (plan/JOIN.design.txt section 4). n_columns counts them, input.n_columns not.
+    if !input.is_empty && !joins.is_empty() {
+        joins.bind(&mut input.names).map_err(|msg| std::io::Error::new(ErrorKind::InvalidInput, msg))?;
+    }
+    let n_columns = input.n_columns + if input.is_empty { 0 } else { joins.width() };
 
     // Temporary step5 output: the SAM sort order and grouping from the @HD line.
     if config.test_samsort {
@@ -259,7 +276,7 @@ fn run() -> std::io::Result<()> {
         },
     };
     let put = compute::uses(&computes, "sam_put").then(samrows::Put::new);
-    let mut stages = stages::Stages { filters, computes, machine, rowno: 0, rewrites, pstore, fill, put };
+    let mut stages = stages::Stages { joins, filters, computes, machine, rowno: 0, rewrites, pstore, fill, put };
 
     // --idx-list, --name-list, --idx-map: the output columns, without reading the data.
     if let Some(kind) = config.list {
@@ -302,10 +319,10 @@ fn run() -> std::io::Result<()> {
     // arguments the rows are written whole (pick writes empty lines).
     if !input.is_empty {
         let all = config.c && column_args.is_empty() && !config.all && !config.excise;
-        let offsets: Vec<usize> = if all { (0..input.n_columns).collect() } else { selection.output_offset.clone() };
+        let offsets: Vec<usize> = if all { (0..n_columns).collect() } else { selection.output_offset.clone() };
         let header = if file_header { Some(&names) } else { None };
         for side in [&mut other, &mut assert_other].into_iter().flatten() {
-            let writer = output::RowWriter::new(&offsets, input.n_columns, input.settings.omega.is_some());
+            let writer = output::RowWriter::new(&offsets, n_columns, input.settings.omega.is_some());
             side.start(writer, &input.passthrough_preamble, header)?;
         }
     }
@@ -316,7 +333,7 @@ fn run() -> std::io::Result<()> {
         Some(name) if !input.is_empty => {
             let column = names.index_of(name).ok_or_else(|| std::io::Error::new(ErrorKind::InvalidInput,
                 format!("--demux: column [{}] not found among {}", String::from_utf8_lossy(name), names.joined())))?;
-            let writer = output::RowWriter::new(&selection.output_offset, input.n_columns, input.settings.omega.is_some());
+            let writer = output::RowWriter::new(&selection.output_offset, n_columns, input.settings.omega.is_some());
             let mut start = Vec::new();
             for line in &input.passthrough_preamble {
                 output::write_line(&mut start, line)?;
@@ -359,7 +376,7 @@ fn run() -> std::io::Result<()> {
             }
         }
     } else {
-        let writer = output::RowWriter::new(&selection.output_offset, input.n_columns,
+        let writer = output::RowWriter::new(&selection.output_offset, n_columns,
                                             input.settings.omega.is_some());
         if B_print_header && !input.is_empty && demux.is_none() {
             writer.write_header(&mut out, &names)?;

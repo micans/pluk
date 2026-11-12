@@ -1,0 +1,9 @@
+animal	legs	class
+dog	4	mammal
+cat	4	mammal
+bat	2	mammal
+owl	2	bird
+ant	6	insect
+fly	6	insect
+eagle	2	bird
+	0	none

@@ -1,0 +1,66 @@
+== --join=join-animal.txt
+pluk: --join=join-animal.txt: expected --join^KEY=FILE (KEY an input column)
+exit 1
+== --join^=join-animal.txt
+pluk: --join^=join-animal.txt: expected --join^KEY=FILE (KEY an input column)
+exit 1
+== --join^fx
+pluk: --join^fx: expected --join^KEY=FILE (KEY an input column)
+exit 1
+== --join^fx=
+pluk: --join^fx=: expected --join^KEY=FILE (KEY an input column)
+exit 1
+== --join^fx/p=join-animal.txt
+pluk: --join^fx/p=join-animal.txt: a naming part after KEY/ is not supported yet
+exit 1
+== --joinx=f
+pluk: Unrecognised long option --joinx=f
+exit 1
+== --join-x^fx=f
+pluk: Unrecognised long option --join-x^fx=f
+exit 1
+== --join-inner=join-animal.txt
+pluk: --join-inner=join-animal.txt: expected --join-inner^KEY=FILE (KEY an input column)
+exit 1
+== --join^fx=out/nofile
+pluk: --join^fx=out/nofile: cannot read out/nofile: No such file or directory (os error 2)
+exit 1
+== --join^fx=out/jn-dup.txt
+pluk: --join^fx=out/jn-dup.txt: repeated key [a] on line 3 of out/jn-dup.txt
+exit 1
+== --join^fx=out/jn-nf.txt
+pluk: --join^fx=out/jn-nf.txt: 3 fields on line 2 of out/jn-nf.txt, header has 2
+exit 1
+== --join^fx=out/jn-empty.txt
+pluk: --join^fx=out/jn-empty.txt: table out/jn-empty.txt is empty
+exit 1
+== --join^fx=out/jn-noname.txt
+pluk: --join^fx=out/jn-noname.txt: empty column name in out/jn-noname.txt
+exit 1
+== --join^fx=out/jn-dupname.txt
+pluk: --join^fx=out/jn-dupname.txt: repeated column name [v] in out/jn-dupname.txt
+exit 1
+== --join^nosuch=join-animal.txt
+pluk: --join^nosuch=join-animal.txt: no column [nosuch] among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna (KEY is an input column or a column of an earlier join)
+exit 1
+== --join^fx=join-animal.txt --join^fx=join-animal.txt
+pluk: --join^fx=join-animal.txt: column [legs] of join-animal.txt exists already (in the input or an earlier join)
+exit 1
+== --join^class=join-class.txt --join^fx=join-animal.txt
+pluk: --join^class=join-class.txt: no column [class] among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna (KEY is an input column or a column of an earlier join)
+exit 1
+== --join^c=join-class.txt c::fx
+pluk: --join^c=join-class.txt: no column [c] among name,fib,fib2,sq,fx,ud,ms,num1,num2,num4,foo11,abc,dna (KEY is an input column or a column of an earlier join)
+exit 1
+== -k --join^1=join-animal.txt
+pluk: --join and --join-inner need input with a header line (not -k or -K)
+exit 1
+== -K --join^1=join-animal.txt
+pluk: --join and --join-inner need input with a header line (not -k or -K)
+exit 1
+== --sam --join^1=join-animal.txt
+pluk: --join and --join-inner cannot be combined with --sam or --sam-header
+exit 1
+== --join^fx=join-animal.txt legs::fx
+pluk: [legs::fx]: name [legs] already exists (use -i for in-place change)
+exit 1

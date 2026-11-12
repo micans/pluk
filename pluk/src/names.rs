@@ -104,6 +104,14 @@ impl ColumnNames {
         i
     }
 
+    // Add an input column (a column of a join, plan/JOIN.design.txt section 4); only
+    // before any compute name is pushed. The name must be new.
+    pub fn push_input(&mut self, name: &[u8]) -> usize {
+        assert!(self.n_input == self.names.len() && !self.index.contains_key(name));
+        self.n_input += 1;
+        self.push(name)
+    }
+
     // Index of the column with the given name, if it exists.
     pub fn index_of(&self, name: &[u8]) -> Option<usize> {
         self.index.get(name).copied()

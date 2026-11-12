@@ -1,5 +1,5 @@
 // The row pipeline (plan/COMPUTE.design.txt section 1, SAMVIEW.design.txt section 2):
-// for each data row the fill, the @@ stage, the SAM rewrites, the computes, the kept
+// for each data row the joins, the fill, the @@ stage, the SAM rewrites, the computes, the kept
 // state of --pstore and --group, the @ stage; and where a row goes when it is not kept
 // (--rejected, --assert-failed, --demux).
 
@@ -9,6 +9,7 @@ use crate::compute;
 use crate::demux;
 use crate::exec;
 use crate::filter;
+use crate::join;
 use crate::note;
 use crate::row;
 use crate::samrows;
@@ -18,6 +19,7 @@ use crate::state;
 // What happens to a data row before output: the @@ stage, the computes, the @
 // stage (plan/COMPUTE.design.txt section 1).
 pub struct Stages<'d> {
+    pub joins:    join::Joins,              // --join, --join-inner (plan/JOIN.design.txt): first of all
     pub filters:  filter::Filters<'d>,
     pub computes: Vec<compute::Compute>,
     pub machine:  exec::Machine<'d>,
@@ -34,6 +36,12 @@ impl Stages<'_> {
     fn judge(&mut self, row: &mut row::Row, lineno: u64) -> Result<filter::Verdict, Failure> {
         row.clear_computed();
         self.rowno += 1;
+        // The joins come first: their columns are input columns from here on. A row
+        // that an inner join does not find is rejected as by an @@ filter
+        // (plan/JOIN.design.txt section 6).
+        if !self.joins.apply(row) {
+            return Ok(filter::Verdict::RejectPre);
+        }
         // The fill comes before every filter (SAMVIEW.design.txt section 2).
         if let Some(fill) = &mut self.fill {
             match fill.process(row, lineno).map_err(Failure::Fatal)? {
@@ -66,6 +74,7 @@ impl Stages<'_> {
 
     // The end-of-run counts of the stages (silenced by -q).
     pub fn report(&self) {
+        self.joins.report();
         self.filters.report_na();
         self.machine.sam.report();
         let n = self.machine.n_quality_mismatch;

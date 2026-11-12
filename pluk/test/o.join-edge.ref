@@ -1,0 +1,11 @@
+id	v	legs	class
+b	1	NA	NA
+	2	0	none
+zz	3	NA	NA
+id	v	legs	class
+	2	0	none
+pluk: --join-inner: 2 rows with a key not in join-animal.txt
+pluk: --join^x%3D=join-animal.txt: no column [x=] among x (KEY is an input column or a column of an earlier join)
+exit 1
+a/b	blood	code
+none	NA	NA

@@ -1,0 +1,20 @@
+name	fx	class	blood	code
+Ann	dog	mammal	warm	x
+Bob	cat	mammal	warm	x
+Charlie	bat	mammal	warm	x
+Dan	cow	NA	NA	NA
+Esme	owl	bird	warm	y
+Fred	pig	NA	NA	NA
+Gillian	bug	NA	NA	NA
+Harriet	rat	NA	NA	NA
+Inky	ant	insect	NA	NA
+John	fly	insect	NA	NA
+Kelly	eagle	bird	warm	y
+Lucy	swift	NA	NA	NA
+name	class	code
+Ann	mammal	x
+Bob	mammal	x
+Charlie	mammal	x
+Esme	bird	y
+Kelly	bird	y
+pluk: --join-inner: 7 rows with a key not in join-class.txt

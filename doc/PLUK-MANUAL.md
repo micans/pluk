@@ -2278,6 +2278,13 @@ checks that this list and `pluk --help` name the same options.
 - `--kd-`, `--fd-`, `--cd-`, `--td`, `--table-dict`: short forms of `--kdict-`,
   `--fdict-`, `--cdict-` and `--tdict` (section 7).
 
+### Joins
+
+- `--join^KEY=FILE`: append the columns of table FILE to each row, looking up input
+  column KEY in the table's first column; a key not found gives NA (section 7).
+- `--join-inner^KEY=FILE`: as `--join`, but a row whose key is not found is rejected
+  (section 7).
+
 ### Listings and help
 
 - `-l TERM..`: list the operators, all or by category or name (section 9).

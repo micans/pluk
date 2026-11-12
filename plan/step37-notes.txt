@@ -1,0 +1,71 @@
+Step 37 notes: joins (plan/JOIN.design.txt).
+
+Item 2: --join^KEY=FILE and --join-inner^KEY=FILE
+
+  Files: join.rs (new: JoinSpec, Joins with load, bind, apply, report), dict.rs (TableFile,
+  the table reader shared with --td), row.rs (push_field), names.rs (push_input), opt.rs
+  (parse_join_spec, check_combinations, help group 'Joins'), stages.rs (joins first in
+  judge, report), main.rs (load before input, bind after the header, n_columns).
+
+  Where the join happens. The joined values are appended to the row's line, after a TAB
+  each, and their offsets to the row's fields (Row::push_field). The row then looks as if
+  the input line had had those columns: field(i) serves them as input fields, the
+  whole-line shortcut of RowWriter (output, --rejected, --demux) writes them with the line,
+  and nothing downstream needs to know about joins. The cost is one copy of the joined
+  bytes per row, which output needs anyway.
+
+  The names. bind() pushes the joined names onto the input ColumnNames as input columns
+  (ColumnNames::push_input, which raises n_input), before the computes are compiled. So
+  @@ filters, ranges, -x, -A, --after and -i treat them as input columns, and a compute
+  cannot be a KEY: KEY is resolved before any compute name exists, giving 'no column [c]
+  among ...' with the reminder that KEY is an input column or a column of an earlier join.
+  input.n_columns stays the number of columns of the input line (LineReader checks every
+  line against it); main.rs uses n_columns = input.n_columns + the joined columns for the
+  writers.
+
+  The joins run as the first stage of Stages::judge, after rowno is counted: a row
+  rejected by an inner join counts for rowno, as a row rejected by an @@ filter. It
+  returns Verdict::RejectPre, so it takes the @@ reject path in route(): --rejected,
+  not counted by --demux (no file is opened for it), not the previous row for pload, no
+  assertions. Its joined columns of the failing join and later ones are empty fields, so
+  that the row has every column for --rejected; earlier joins keep their values
+  (design section 6).
+
+  NA. A missing cell is written as the bytes NA, which is exactly what a later reader of a
+  computed NA sees: the computed buffer stores NA as the text NA (exec.rs), and every
+  numeric operator and filter reads it as not a number. So joined and computed NA behave
+  alike, as the design asks (@legs/gt/2 counts 'values not a number').
+
+  An NA key. A key that an earlier left join did not find never matches, also when the
+  table has a literal key NA (test: join-class.txt). This is tracked per row (Joins.missed,
+  one flag per table) rather than by comparing with the text NA, so that a real value NA
+  in the input or in a table still matches a key NA. bind() records for each table the
+  earlier left join whose column KEY is (key_join).
+
+  Storage. Per table a HashMap key -> row number, and the joined values of all rows in one
+  byte buffer with (start, end) offsets per cell: one allocation for the values instead of
+  one per cell. The key column (always the first) is not stored with the values.
+
+  The table reader. TableFile in dict.rs holds what --td and --join share: open (gzip
+  through open_buffered), the header, distinct names, the key column, and per row the
+  field count and repeated key checks, with the messages --td had. --td keeps its own
+  reserved-name check; --join adds 'empty column name' (an empty name could not be
+  selected). The repeated-name check now comes before the reserved-name check for --td;
+  no test has both.
+
+  Refused: -k and -K (and -O, which needs -k), --sam and --sam-header (which imply -k, so
+  they are tested first for the better message). A naming part (--join^KEY/...) is refused
+  until item 3.
+
+  The report line '--join-inner: N rows with a key not in FILE' is written by
+  Stages::report, so -q silences it; it is also written with -c.
+
+  Manual: section 15 (option reference) has the two options now, since optcheck --strict
+  requires every option of --help there; they point to section 7, which item 5 writes.
+
+  Tests: join-left, join-inner (-A, -q, -c), join-chain (a join on a joined column; an NA
+  key from a missed left join against a table with key NA), join-use (+REGEX selection,
+  compute and @ filter, @@ filter with rowno, -i with @assert@, --after, -x with @@,
+  --idx-map), join-files (--rejected, --demux, --pstore with an inner join), join-edge
+  (empty key, %3D and %2F in KEY), join-errors (each error). Tables join-animal.txt and
+  join-class.txt in test/. Unit test opt.rs join_options.

@@ -1,0 +1,26 @@
+pluk: --demux: rows written and filtered per file
+File	Written	Filtered
+out/jn1/bird	0	2
+out/jn1/insect	2	0
+out/jn1/mammal	2	1
+pluk: --join-inner: 5 rows with a key not in join-animal.txt
+-- ./bird
+name	class	p	x
+-- ./insect
+name	class	p	x
+Inky	insect	Esme	12
+John	insect	Inky	12
+-- ./mammal
+name	class	p	x
+Ann	mammal	NA	8
+Bob	mammal	Ann	8
+-- out/jn1-rejected.txt
+name	class	p	x
+Charlie	mammal	Bob	4
+Dan			
+Esme	bird	Charlie	4
+Fred			
+Gillian			
+Harriet			
+Kelly	bird	John	4
+Lucy			

@@ -156,6 +156,12 @@ Dictionaries (NAME: letters, digits, _; used by ~isin~ ~hasval~ map dord):
   NAME adds to the dictionary. FILE may be gzip-compressed. In KEY write / and = as %2F and %3D, in DEFAULT = as %3D; in
   --cdict , and : as %2C and %3A.
 
+Joins (before filters and computes; the joined columns count as input columns):
+  --join^KEY=FILE           append the columns of table FILE (a header line; its key is the first column, which is not
+                            appended) to each row, looking up the value of input column KEY; a key not found gives NA.
+                            KEY may be a column of an earlier join. In KEY write / and = as %2F and %3D.
+  --join-inner^KEY=FILE     as --join, but a row whose key is not found is rejected (as by an @@ filter; --rejected)
+
   -l TERM..   list the operators (compute and filter) in a category, or whose name contains TERM; no TERM: all
   -% ARG..    write each ARG (on one line) with the characters that pluk treats specially %-encoded; no ARG: a table of
               those characters

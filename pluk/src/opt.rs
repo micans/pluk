@@ -16,6 +16,7 @@ use crate::colspec::{self, ColSpec};
 use crate::compute::{self, ComputeSpec, UnnamedNames};
 use crate::dict::{self, DictKind, DictSpec, NotFound};
 use crate::filter::{parse_filter, FilterSpec};
+use crate::join::JoinSpec;
 
 #[derive(Debug, Default)]
 pub struct Config {
@@ -56,6 +57,7 @@ pub struct Config {
     pub pat_purge: Option<Vec<u8>>,     // -/PAT, %-decoded
     pub pat_pass: Option<Vec<u8>>,      // -//PAT, %-decoded
     pub dicts: Vec<DictSpec>,           // dictionary options, in command line order
+    pub joins: Vec<JoinSpec>,           // --join, --join-inner, in command line order (plan/JOIN.design.txt)
     pub test_i: Option<u32>,            // --test-i=N (temporary)
     pub test_lineno: bool,              // --test-lineno (temporary)
     pub test_counts: bool,              // --test-counts (temporary)
@@ -288,6 +290,12 @@ Dictionaries (NAME: letters, digits, _; used by ~isin~ ~hasval~ map dord):
   NAME adds to the dictionary. FILE may be gzip-compressed. In KEY write / and = as %2F and %3D, in DEFAULT = as %3D; in
   --cdict , and : as %2C and %3A.
 
+Joins (before filters and computes; the joined columns count as input columns):
+  --join^KEY=FILE           append the columns of table FILE (a header line; its key is the first column, which is not
+                            appended) to each row, looking up the value of input column KEY; a key not found gives NA.
+                            KEY may be a column of an earlier join. In KEY write / and = as %2F and %3D.
+  --join-inner^KEY=FILE     as --join, but a row whose key is not found is rejected (as by an @@ filter; --rejected)
+
   -l TERM..   list the operators (compute and filter) in a category, or whose name contains TERM; no TERM: all
   -% ARG..    write each ARG (on one line) with the characters that pluk treats specially %-encoded; no ARG: a table of
               those characters
@@ -405,6 +413,10 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
     }
     if let Some((kind, rest)) = dict_option(long) {
         config.dicts.push(parse_dict_spec(kind, rest, long)?);
+        return Ok(None);
+    }
+    if long.starts_with(b"join") {
+        config.joins.push(parse_join_spec(long)?);
         return Ok(None);
     }
     match long {
@@ -689,6 +701,40 @@ fn parse_table_spec(rest: &[u8], long: &[u8]) -> Result<DictSpec, String> {
     Ok(DictSpec { option, kind: DictKind::Table, name: Vec::new(), key_column, not_found, source })
 }
 
+// --join^KEY=FILE and --join-inner^KEY=FILE (plan/JOIN.design.txt section 1). KEY is
+// required and extends to the first '/' or '='; it is %-decoded. The naming part
+// after KEY/ comes with step37 item 3.
+fn parse_join_spec(long: &[u8]) -> Result<JoinSpec, String> {
+    let option = [b"--", long].concat();
+    let what = String::from_utf8_lossy(&option).into_owned();
+    let (inner, rest) = if let Some(rest) = long.strip_prefix(b"join-inner") {
+        (true, rest)
+    } else if let Some(rest) = long.strip_prefix(b"join") {
+        (false, rest)
+    } else {
+        unreachable!()
+    };
+    let name = if inner { "join-inner" } else { "join" };
+    let usage = || format!("{}: expected --{}^KEY=FILE (KEY an input column)", what, name);
+    let Some(t) = rest.strip_prefix(b"^") else {
+        return Err(if rest.starts_with(b"=") { usage() }
+                   else { format!("Unrecognised long option {}", what) });
+    };
+    let end = t.iter().position(|&b| b == b'/' || b == b'=').ok_or_else(usage)?;
+    if end == 0 {
+        return Err(usage());
+    }
+    let key = pct_decode(&t[..end]);
+    if t[end] == b'/' {
+        return Err(format!("{}: a naming part after KEY/ is not supported yet", what));
+    }
+    let source = &t[end + 1..];
+    if source.is_empty() {
+        return Err(usage());
+    }
+    Ok(JoinSpec { option, inner, key, source: source.to_vec() })
+}
+
 // A bundle of '-' options, without the leading '-', scanned left to right.
 fn parse_bundle(chars: &[u8], config: &mut Config) -> Result<(), String> {
     let mut j = 0;
@@ -841,6 +887,16 @@ fn check_combinations(config: &Config) -> Result<(), String> {
     }
     if config.demux_dir.is_some() && config.demux.is_none() {
         return Err("--demux-dir requires --demux".to_string());
+    }
+    // Joins append columns to the input; SAM output would break, and input without a
+    // header is left out for now (plan/JOIN.design.txt section 7).
+    if !config.joins.is_empty() {
+        if config.sam || config.sam_h {
+            return Err("--join and --join-inner cannot be combined with --sam or --sam-header".to_string());
+        }
+        if config.k {
+            return Err("--join and --join-inner need input with a header line (not -k or -K)".to_string());
+        }
     }
     if let (Some(a), Some(b)) = (&config.other, &config.assert_other) {
         if a == b {
@@ -1129,6 +1185,23 @@ mod tests {
             assert!(run(&[bad]).is_err(), "{}", bad);
         }
         assert!(run(&["--tdx=f"]).unwrap_err().starts_with("Unrecognised long option"));
+    }
+
+    #[test]
+    fn join_options() {
+        let c = run(&["--join^k%2Fx%3D=f=g", "--join-inner^k=h"]).unwrap();
+        let s = &c.joins;
+        assert_eq!((s[0].inner, &s[0].key[..], &s[0].source[..]), (false, &b"k/x="[..], &b"f=g"[..]));
+        assert_eq!((s[1].inner, &s[1].key[..], &s[1].source[..]), (true, &b"k"[..], &b"h"[..]));
+        assert_eq!(&s[0].option[..], b"--join^k%2Fx%3D=f=g");
+        for bad in ["--join=f", "--join^=f", "--join^k", "--join^k=", "--join^k/p=f", "--join-inner=f", "-k --join^k=f",
+                    "--sam --join^k=f"] {
+            let words: Vec<&str> = bad.split(' ').collect();
+            assert!(run(&words).is_err(), "{}", bad);
+        }
+        for bad in ["--joinx=f", "--join-x^k=f"] {
+            assert!(run(&[bad]).unwrap_err().starts_with("Unrecognised long option"), "{}", bad);
+        }
     }
 
     #[test]

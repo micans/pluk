@@ -1,0 +1,157 @@
+// Joins: columns from a keyed table appended to each input row (plan/JOIN.design.txt).
+//
+// opt.rs records a JoinSpec per --join and --join-inner option. The tables are read
+// before the input (Joins::load); once the header is known, bind() resolves each
+// KEY and adds the joined names as input columns. For each data row apply() appends
+// the joined fields to the line, so that everything after it (filters, computes,
+// output, the files of --rejected and --demux) sees them as input columns.
+
+use std::collections::HashMap;
+
+use crate::dict::TableFile;
+use crate::names::ColumnNames;
+use crate::row::Row;
+
+// A --join or --join-inner option as given on the command line.
+#[derive(Debug, Clone, PartialEq)]
+pub struct JoinSpec {
+    pub option: Vec<u8>,    // the whole option, for messages
+    pub inner:  bool,       // --join-inner: a row whose key is not found is rejected
+    pub key:    Vec<u8>,    // KEY: an input column, or a column of an earlier join (%-decoded)
+    pub source: Vec<u8>,    // FILE
+}
+
+// The value of a missing cell in a left join: the NA that computes write
+// (plan/JOIN.design.txt section 5).
+const NA: &[u8] = b"NA";
+
+struct Table {
+    option:    String,
+    file:      String,                  // FILE, for the report
+    inner:     bool,
+    key:       Vec<u8>,
+    key_input: usize,                   // index of KEY among the row's columns, set by bind()
+    key_join:  Option<usize>,           // the earlier left join that KEY is a column of, set by bind()
+    names:     Vec<Vec<u8>>,            // the joined columns: the table's columns except its key
+    rows:      HashMap<Vec<u8>, usize>, // key -> row number
+    text:      Vec<u8>,                 // the joined values of all rows, one after the other
+    cells:     Vec<(usize, usize)>,     // offsets into text; row r has cells r*w .. (r+1)*w
+    n_missing: u64,                     // rows rejected by an inner join
+}
+
+impl Table {
+    fn width(&self) -> usize {
+        self.names.len()
+    }
+}
+
+pub struct Joins {
+    tables: Vec<Table>,
+    missed: Vec<bool>,      // per table: the key was not found in the current row
+}
+
+impl Joins {
+    // Read every table, in command line order. The key is the first column; the
+    // others are the joined columns.
+    pub fn load(specs: &[JoinSpec]) -> Result<Joins, String> {
+        let mut tables = Vec::with_capacity(specs.len());
+        for spec in specs {
+            let option = String::from_utf8_lossy(&spec.option).into_owned();
+            let mut file = TableFile::open(&option, &spec.source, None)?;
+            let names: Vec<Vec<u8>> = file.header[1..].to_vec();
+            if names.iter().any(|n| n.is_empty()) {
+                return Err(format!("{}: empty column name in {}", option, file.path.display()));
+            }
+            let mut table = Table {
+                option, file: file.path.display().to_string(), inner: spec.inner, key: spec.key.clone(),
+                key_input: 0, key_join: None, names, rows: HashMap::new(), text: Vec::new(), cells: Vec::new(), n_missing: 0,
+            };
+            while let Some(fields) = file.next_row()? {
+                table.rows.insert(fields[0].to_vec(), table.rows.len());
+                for value in &fields[1..] {
+                    let start = table.text.len();
+                    table.text.extend_from_slice(value);
+                    table.cells.push((start, table.text.len()));
+                }
+            }
+            tables.push(table);
+        }
+        let missed = vec![false; tables.len()];
+        Ok(Joins { tables, missed })
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.tables.is_empty()
+    }
+
+    // The number of joined columns over all tables.
+    pub fn width(&self) -> usize {
+        self.tables.iter().map(Table::width).sum()
+    }
+
+    // Resolve each KEY and add the joined names to the input names, table by table,
+    // so that a KEY can name a column of an earlier join. Called before the computes
+    // are compiled: KEY cannot be a computed column.
+    pub fn bind(&mut self, names: &mut ColumnNames) -> Result<(), String> {
+        // The first column of each table among the row's columns.
+        let mut first = Vec::with_capacity(self.tables.len());
+        for k in 0..self.tables.len() {
+            let t = &self.tables[k];
+            let key_input = names.index_of(&t.key).ok_or_else(|| format!(
+                "{}: no column [{}] among {} (KEY is an input column or a column of an earlier join)",
+                t.option, String::from_utf8_lossy(&t.key), names.joined()))?;
+            let key_join = (0..k).rev().find(|&j| key_input >= first[j]).filter(|&j| !self.tables[j].inner);
+            first.push(names.len());
+            let t = &mut self.tables[k];
+            (t.key_input, t.key_join) = (key_input, key_join);
+            for name in &t.names {
+                if names.index_of(name).is_some() {
+                    return Err(format!("{}: column [{}] of {} exists already (in the input or an earlier join)",
+                                       t.option, String::from_utf8_lossy(name), t.file));
+                }
+                names.push_input(name);
+            }
+        }
+        Ok(())
+    }
+
+    // Append the joined fields to row. Returns false if an inner join does not find
+    // the key: the row is rejected, and gets empty fields for that join and the later
+    // ones (earlier joins keep their values), so that it has every column for
+    // --rejected (plan/JOIN.design.txt section 6).
+    pub fn apply(&mut self, row: &mut Row) -> bool {
+        for k in 0..self.tables.len() {
+            let t = &mut self.tables[k];
+            let w = t.width();
+            // A key that an earlier left join did not find (NA) never matches.
+            let na_key = t.key_join.is_some_and(|j| self.missed[j]);
+            let found = if na_key { None } else { t.rows.get(row.field(t.key_input)).copied() };
+            self.missed[k] = found.is_none();
+            match found {
+                Some(r) => for &(start, end) in &t.cells[r * w..(r + 1) * w] {
+                    row.push_field(&t.text[start..end]);
+                },
+                None if t.inner => {
+                    t.n_missing += 1;
+                    let rest: usize = self.tables[k..].iter().map(Table::width).sum();
+                    for _ in 0..rest {
+                        row.push_field(b"");
+                    }
+                    return false;
+                }
+                None => for _ in 0..w {
+                    row.push_field(NA);
+                },
+            }
+        }
+        true
+    }
+
+    // The end-of-run counts (silenced by -q).
+    pub fn report(&self) {
+        for t in self.tables.iter().filter(|t| t.inner && t.n_missing > 0) {
+            crate::note::note!("pluk: --join-inner: {} row{} with a key not in {}", t.n_missing,
+                               if t.n_missing == 1 { "" } else { "s" }, t.file);
+        }
+    }
+}

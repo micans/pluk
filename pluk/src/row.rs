@@ -104,6 +104,16 @@ impl Row {
         }
     }
 
+    // Append an input field at the end of the line, after a TAB (the columns of a
+    // join, plan/JOIN.design.txt section 4). Not for ragged input (-O), whose padding
+    // fields have no TAB in the line; joins require a header, which -O excludes.
+    pub fn push_field(&mut self, value: &[u8]) {
+        self.line.push(b'\t');
+        let start = self.line.len();
+        self.line.extend_from_slice(value);
+        self.fields.push((start, self.line.len()));
+    }
+
     // Remove the computed fields of the previous row (capacity is kept).
     pub fn clear_computed(&mut self) {
         self.computed.clear();

@@ -1,0 +1,4 @@
+class	blood	code
+mammal	warm	x
+bird	warm	y
+NA	what	z
