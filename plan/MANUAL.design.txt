@@ -30,7 +30,7 @@ Status: DECIDED (discussions after step26; seed plan/MANUAL.notes.txt).
     4  Selecting columns.
     5  Filters and assertions.
     6  Computes: syntax, the stack language, -i and __, maps, renaming, capture groups.
-    7  Dictionaries and quantiles.
+    7  Dictionaries, joins and quantiles.
     8  State across rows: registers, rowno lineno, --pstore, --group.
     9  Input and output: gzip, -/PAT -//PAT, -h -c -E, --other --assert-other, --demux,
        --idx-list etc., --progress, --threads.

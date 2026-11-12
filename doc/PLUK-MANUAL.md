@@ -768,7 +768,7 @@ Fenna   36    heavy load
 
 
 
-## 7. Dictionaries and quantiles
+## 7. Dictionaries, joins and quantiles
 
 A dictionary maps keys to values. It is loaded from a file or from the command line
 before the input is read, and used by the operators `map` and `dord` (section 16) and by
@@ -777,7 +777,8 @@ consists of letters, digits and `_`.
 
 The examples use three small files: [prices.txt](prices.txt) (fruit and price, no
 header), [fruits.txt](fruits.txt) (a table with a header) and [trees.fa](trees.fa) (a
-sequence for some of the trees). Plums have no price: `map` gives the key itself, and
+sequence for some of the trees). A join (below) appends the columns of a table to each
+row instead. Plums have no price: `map` gives the key itself, and
 multiplying by it gives NA.
 
 ```console
@@ -879,6 +880,99 @@ Bert    pear    2.50  2
 Dora    plum    4.75  4
 Eamon   cherry  9.00  3
 pluk: --cd-PRICE=plum:4.75,apple:1.99: merging into existing dictionary PRICE
+```
+
+### Joins
+
+`--join^KEY=FILE` appends the columns of a table to each row. FILE has a header line;
+its first column is the key, and the value of input column KEY is looked up there. The
+other columns of the table are appended after the input columns, under their own names,
+and from then on they are input columns: they can be output, filtered with `@` and `@@`,
+used in computes, changed with `-i`, and they are part of `-A`. A key that is not in the
+table gives NA in each joined column, the same NA a compute gives.
+[trees.txt](trees.txt) has the year each tree was planted and its row, but not tree U02:
+
+```console
+$ pluk --join^tree=trees.txt picker tree planted row age::^2026:planted,sub < harvest.txt
+picker  tree  planted  row  age
+Annie   A12   2009     1    17
+Bert    P03   2011     2    15
+Chen    A07   2015     1    11
+Dora    U11   2010     4    16
+Eamon   C02   2012     3    14
+Fenna   A12   2009     1    17
+Gus     P08   2018     2    8
+Hilde   U02   NA       NA   NA
+$ pluk --join^fruit=fruits.txt picker fruit season @@stone=yes < harvest.txt
+picker  fruit   season
+Dora    plum    summer
+Eamon   cherry  summer
+Hilde   plum    summer
+```
+
+`--join-inner^KEY=FILE` keeps only the rows whose key is in the table. A row that is not
+found is rejected as by an `@@` filter: it is not computed, it goes to `--rejected`, and
+the number of such rows is reported at the end.
+
+```console
+$ pluk --join-inner^tree=trees.txt picker tree planted < harvest.txt
+picker  tree  planted
+Annie   A12   2009
+Bert    P03   2011
+...
+Gus     P08   2018
+pluk: --join-inner: 1 row with a key not in trees.txt
+```
+
+The table is read entirely before the input, so it needs no particular order; a key that
+occurs twice in it is an error, as is a line with another number of fields than the
+header. A row of the input finds at most one row of the table, so every input row gives
+at most one output row. Keys are compared as they are written (`01` is not `1`).
+
+Several joins are made in command-line order, and a join can use a column that an
+earlier join added as its KEY. Joins come before everything else, so KEY cannot be a
+computed column; to join on a value that has to be computed first, run pluk twice, in a
+pipe. A KEY is always an input column (unlike `--td^KEY`, where KEY names a column of
+the table).
+
+#### Choosing and naming the columns
+
+After KEY, `/SPEC` chooses the table's columns, with names, `:` lists and `+REGEX` as in
+section 4 (the key column is never appended). With a prefix P or a suffix S, written as
+for renaming computes (section 6), the new columns are named P + name + S: `P/SPEC/S`,
+`P/SPEC/` and `SPEC/S`. Capture group 1 of a `+REGEX` then takes the place of the name.
+A table's column whose name exists already, in the input or from an earlier join, is an
+error; a prefix is the way out. For all columns with a prefix, write `P/+.*/S`.
+
+```console
+$ pluk --join^fruit/colour=fruits.txt --join^tree/t_/+.*/=trees.txt picker colour t_planted t_row < harvest.txt
+picker  colour  t_planted  t_row
+Annie   red     2009       1
+Bert    green   2011       2
+...
+Hilde   purple  NA         NA
+```
+
+#### Keys that are not found
+
+`--join-missing=VALUE` gives VALUE instead of NA in the joined columns of a key that is
+not found, for every `--join` (it has no effect on `--join-inner`). VALUE is data:
+`--join-missing=0` gives a 0 that computes and filters use as any number, and a later
+join looks it up as any key. `--join-missing=__EXIT__` makes a key that is not found an
+error, as `__EXIT__` does for `map`.
+
+```console
+$ pluk --join-missing=0 --join^tree=trees.txt picker tree row '@picker~[FGH]' < harvest.txt
+picker  tree  row
+Fenna   A12   1
+Gus     P08   2
+Hilde   U02   0
+$ pluk --join-missing=__EXIT__ --join^tree=trees.txt picker planted < harvest.txt
+picker  planted
+Annie   2009
+...
+Gus     2018
+pluk: --join^tree=trees.txt: key [U02] not found in trees.txt (--join-missing=__EXIT__) at line 9
 ```
 
 ### Quantiles
@@ -1779,6 +1873,7 @@ count is not zero:
 | `FILTER: N values not a number` | values a numeric or bit filter could not test; the rows are not kept | 5 |
 | `N rows failed an assertion (written to FILE)` | rows diverted by `--assert-failed` | 5 |
 | `merging into existing dictionary NAME` | a dictionary given more than once (written when it is loaded) | 7 |
+| `--join-inner: N rows with a key not in FILE` | rows rejected by an inner join, per table | 7 |
 | `--group: N groups` | groups of `--group` and `--group-first-ref` | 8 |
 | `--demux: rows written and filtered per file` | the `--demux` tally: a table follows, one line per file with the rows written and the rows rejected by `@` filters | 9 |
 | `the list contains computed columns` | `--idx-list`, `--idx-map` with computes | 9 |
@@ -1862,6 +1957,8 @@ Options and arguments without a pick counterpart:
 - `--sam-seqmiss`, what to do with a SEQ `*` that cannot be filled (section 10).
 - BAM input, and `--threads` for its decompression (section 10).
 - `--list-ops-tsv`, the operator table for scripts (section 9).
+- `--join`, `--join-inner` and `--join-missing`: columns from a keyed table appended to
+  each row (section 7).
 
 Filters:
 
@@ -1993,7 +2090,7 @@ pluk does.
   (`0b`, `0x`, `0o`), digits with single `_` between them; anything else is NA (Perl
   stops at the first invalid character).
 
-#### Dictionaries and quantiles (section 7)
+#### Dictionaries, joins and quantiles (section 7)
 
 - `--td^KEY/DEFAULT=FILE`: the key comes before the default (pick: `/DEFAULT^KEY`); a
   `^` in DEFAULT is refused, which catches pick's order; a repeated column name in the

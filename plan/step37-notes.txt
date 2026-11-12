@@ -138,3 +138,19 @@ Item 4: --join-missing=VALUE
   Tests: join-missing (fill 0 used by a compute and a filter; %-decoded VALUE with an inner
   join unaffected; empty VALUE; a fill value looked up by a later join; NA as fill value;
   __EXIT__ with output and with -c; the refusals). Unit test join_options extended.
+
+Item 5: manual
+
+  Section 7 renamed 'Dictionaries, joins and quantiles' (also its heading in 14.3 and the
+  outline in MANUAL.design.txt); a sentence on joins in its introduction, and a subsection
+  'Joins' before 'Quantiles', with 'Choosing and naming the columns' and 'Keys that are not
+  found'. Examples on harvest.txt with fruits.txt and a new doc/trees.txt (tree, planted,
+  row; tree U02 left out, so that the left join shows NA, the inner join drops a row and
+  __EXIT__ stops). Section 13: the report line of --join-inner. Section 14.2: the three
+  options. Section 15 had them since items 2-4. guidelines.txt: an entry under the
+  additions without a pick counterpart. README: a short join example after 'Look things
+  up'.
+
+  doccheck counts a lone '...' as matching any output, so make docupdate does not fill in
+  the output of a new example written as '...'; the outputs were written by hand from
+  real runs (and a deliberately wrong value was checked to fail).

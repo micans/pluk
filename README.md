@@ -122,6 +122,17 @@ Bert    pear   9.0   22.50
 ...
 ```
 
+**Join a table**: its columns are appended to each row, looked up by key; a tree that is not in the table gets NA.
+
+```console
+$ pluk --join^tree=doc/trees.txt picker tree planted row < doc/harvest.txt
+picker  tree  planted  row
+Annie   A12   2009     1
+Bert    P03   2011     2
+...
+Hilde   U02   NA       NA
+```
+
 **Edit in place**, `sed`-style but per column (`-i`; `__` is the column being changed).
 
 ```console
