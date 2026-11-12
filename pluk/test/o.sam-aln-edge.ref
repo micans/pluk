@@ -112,10 +112,8 @@ n9	1	5M	NA	NA
 pluk: SAM values not available (NA) for 1 row: unmapped (FLAG 0x4, RNAME or CIGAR '*')
 pluk: SAM values not available (NA) for 1 row: SEQ or QUAL length differs from the CIGAR
 pluk: SAM values not available (NA) for 1 row: CIGAR past the reference end
-0000000   n   1  \t   +   +                                   1   0    
-0000020         001   +   +       G   T   A   C   G   T   A   C   G   T
-0000040   T   C 001   +   +       |   |   |   |   =   =   =   x   x   x
-0000060   x   x 001   +   +       G   T   A   C   -   -   -   T   C   A
+n1^I++        10   ^A++ GTACGTACGTTC^A++ ||||===xxxxx^A++ GTAC---TCAGG$
+n2^I++      1^A++ ACGTAC^A++ |||x||^A++ ACGAAC$
 n1	>        10   
 > GTACGTACGTTC
 > ||||===xxxxx
