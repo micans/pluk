@@ -48,3 +48,10 @@
   naturally; it would extend pluk's niche more than step37 does. To settle: how joined
   names exist without being output columns (a separate namespace, or columns that -A and
   --sam-header output leave out), and whether -k numbering is affected.
+- The order-free counterpart of groupno (step38 discussion): the number of a distinct value,
+  assigned at its first appearance (apple 1, pear 2, plum 3, cherry 4; a later apple 1
+  again), what pandas calls factorize. Of the four questions, positions and numbers within
+  consecutive runs (groupi, groupno) and across all rows, only this one has no operator;
+  dord does it for dictionary keys only. Cheap: the occno table would keep a second number
+  per value, the table size at insertion. Name to be decided in the -no family (e.g.
+  valno). Add when a need appears.
