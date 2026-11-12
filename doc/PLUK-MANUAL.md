@@ -1001,8 +1001,8 @@ Hilde   0.70      0.4  1
 ## 8. State across rows
 
 A compute normally sees only its own row. This section describes what it can know beyond
-that: values saved earlier in the same row, the row's number, and the previous row or the
-first row of a group.
+that: values saved earlier in the same row, the row's number, how often a value has
+occurred so far, and the previous row or the first row of a group.
 
 ```console
 $ pluk --pstore picker kg prev::^kg,pload diff::kg:prev,sub^1,dd < harvest.txt
@@ -1048,6 +1048,49 @@ picker  r  z  l
 Bert    2  1  3
 Gus     7  6  8
 ```
+
+### Occurrences: occno
+
+`occno` numbers the occurrences of a value: the first row with a given value gets 1, the
+next row with the same value 2, and so on over the whole input. The values are compared
+as text (`1` and `1.0` differ). Kept as a hidden column, it removes duplicates: `@n/eq/1`
+keeps the first row per value, `@n/gt/1` the repeats. For several columns, count a
+combination made with `join` (section 12).
+
+```console
+$ pluk picker fruit n::fruit,occno < harvest.txt
+picker  fruit   n
+Annie   apple   1
+Bert    pear    1
+Chen    apple   2
+...
+$ pluk picker fruit n:=fruit,occno @n/eq/1 < harvest.txt
+picker  fruit
+Annie   apple
+Bert    pear
+Dora    plum
+Eamon   cherry
+```
+
+`occno` counts the rows that are computed. A row rejected by an `@@` filter is not
+computed and so not counted; a row rejected by an `@` filter is counted, because `@`
+filters come after the computes. The first row per fruit among the rows over 10 kg needs
+`@@` for the weight. With `@`, Bert's pear of 9 kg is counted first, and Gus's is no
+longer the first pear:
+
+```console
+$ pluk picker fruit kg n:=fruit,occno @@kg/gt/10 @n/eq/1 < harvest.txt
+picker  fruit  kg
+Annie   apple  14.5
+Gus     pear   12.7
+$ pluk picker fruit kg n:=fruit,occno @kg/gt/10 @n/eq/1 < harvest.txt
+picker  fruit  kg
+Annie   apple  14.5
+```
+
+Each `occno` keeps its own count: two computes that use it do not influence each other.
+An NA operand gives NA and is not counted. The counts are kept for the whole run, one per
+distinct value, as a dictionary would hold them.
 
 ### The previous row: --pstore and pload
 
@@ -1715,8 +1758,10 @@ index of them, followed by a few that combine several sections.
 - Converting a family of columns at once, keeping or replacing the originals (renaming,
   `-i`): section 6.
 - A label from a test (`test` and `ifelse`): section 6.
-- Joining a table with a lookup file (`--fd`, `--td`, `map`): section 7.
+- Joining a table with a lookup file (`--fd`, `--td`, `map`), or appending its columns
+  (`--join`): section 7.
 - The difference with the previous row, a running counter (`--pstore`): section 8.
+- The first row per value, numbering repeated values (`occno`): section 8 and below.
 - Intron coordinates from exon coordinates, the span of a gene (`--group`,
   `--group-first-ref`): section 8.
 - Skipping comment lines, splitting a file by a column (`-/PAT`, `--demux`), insisting
@@ -1745,6 +1790,30 @@ Bert    pear   9.0   22.50
 Chen    apple  22.1  46.41
 ...
 ```
+
+### Removing duplicates
+
+The first row per fruit and tree, with the repeats collected in a file of their own. The
+two values are combined with a separator that occurs in neither (`apple/A12`), so that
+different pairs cannot give the same combination:
+
+```console
+$ pluk --rejected=repeats.txt -A k:=fruit:tree^/,join n:=k,occno @n/eq/1 < harvest.txt
+picker  fruit   tree  kg    bruised  ripeness
+Annie   apple   A12   14.5  2        0.92
+Bert    pear    P03   9.0   0        0.75
+Chen    apple   A07   22.1  5        0.88
+Dora    plum    U11   6.4   11       0.99
+Eamon   cherry  C02   3.2   0        0.61
+Gus     pear    P08   12.7  3        0.80
+Hilde   plum    U02   7.9   0        0.70
+$ cat repeats.txt
+picker  fruit  tree  kg    bruised  ripeness
+Fenna   apple  A12   18.0  1        0.95
+```
+
+Conditions on which rows take part go in `@@` filters, so that rows that do not take part
+are not counted (section 8).
 
 ### Annotating alignments with new tags
 
@@ -1972,6 +2041,7 @@ Computes:
 - `P//SPEC//S`, renaming that keeps each original column (pick writes `P/SPEC//S`,
   section 6).
 - `strpair`, pick's experimental `_strpair` under a plain name (section 11).
+- `occno`, the occurrence number of a value, e.g. for removing duplicates (section 8).
 
 Messages:
 

@@ -78,6 +78,8 @@
       ~notin~ and ~notval~ as synonyms of ~isnotin~ and ~hasnotval~ (step22.txt).
       --join, --join-inner, --join-missing: columns from a keyed table appended to each row
       (JOIN.design.txt, step37.txt).
+      occno: the occurrence number of a value, counted per operator instance over the
+      computed rows (step38.txt).
     - Assertions: @@assert@ (before computes) is new; a failed assertion ends pluk with exit
       status 1 (pick: 255, Perl die) and the message 'assertion A failed: column C value [V]
       at line N'. --assert-failed diverts failing rows instead (step9.txt item 2).

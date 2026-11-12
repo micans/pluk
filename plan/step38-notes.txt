@@ -41,3 +41,19 @@ Item 2: the operator
   --rejected collecting the duplicates, -l occno); occno-compile (--test-compute, in the
   runtestopt group: table numbers per instance and per column of a map). Unit test
   exec.rs occurrence. list-ops, list-ops-tsv (219 operators) and help-long changed.
+
+Item 3: manual
+
+  Section 8: 'how often a value has occurred' in the introduction, and a subsection
+  'Occurrences: occno' after 'Row and line numbers': numbering, deduplication with a hidden
+  compute, and the @@ versus @ point shown on harvest.txt (the first row per fruit among
+  rows over 10 kg: Annie and Gus with @@kg/gt/10, only Annie with @kg/gt/10, since Bert's
+  lighter pear is counted first). Section 12: recipe 'Removing duplicates' on two columns
+  with --rejected collecting the repeats, and two lines in the index (occno; --join, added
+  to the line on lookup tables, which predates step37). Section 14.2 and guidelines.txt:
+  the addition.
+
+  Two columns are combined with join and a separator (fruit:tree^/,join), not cat: with cat
+  the pairs ab+c and a+bc give the same key. The manual says to choose a separator that
+  occurs in neither value.
+
