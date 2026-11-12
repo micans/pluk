@@ -1,0 +1,141 @@
+JOIN design: columns from a keyed table appended to the input rows (--join, --join-inner,
+--join-missing).
+
+Status: DECIDED (discussion 2026-11-12), seeded by JOIN.notes.txt. Implemented in step37.
+pick has no join; this is a pluk addition (manual 14.2).
+
+
+1. Options
+
+   --join^KEY[/NAMING]=FILE         left join: every input row is kept; a row whose key is not
+                                    in FILE gets NA in the joined columns
+   --join-inner^KEY[/NAMING]=FILE   inner join: a row whose key is not in FILE is rejected
+   --join-missing=VALUE             fill value for missing cells, shared by all left joins
+
+   KEY names an input column (or a column of an earlier join, section 4); it is required. The
+   key of the table is always its first column. --tdict^KEY keeps its meaning (a column of the
+   table): '^' introduces the option's argument, and what it means depends on the option. The
+   help line of --join states both rules.
+
+   In KEY a '/' and '=' are written %2F and %3D, as in --tdict^KEY.
+
+   The --join- prefix groups the options in --help; they get their own group after the
+   dictionaries.
+
+
+2. The table
+
+   FILE has a header line; it may be gzip-compressed. It is read entirely into memory before
+   the input; there is no sorting requirement. As for --tdict:
+   - a repeated key is an error (a one-to-many join would break one row in, at most one row
+     out);
+   - a line whose number of fields differs from the header is an error.
+   Duplicate keys in the input are fine (many-to-one).
+
+   Keys are compared as strings, byte for byte ("01" and "1" differ). An empty input key is
+   looked up like any other string, so it matches only an empty key in the table. An NA key
+   (possible only from an earlier left join) never matches.
+
+
+3. Naming: P/SPEC/S
+
+   The part after KEY/ follows the compute renaming grammar (manual section 6, "New columns
+   from many: renaming"), applied to the columns of the table:
+
+     --join^gene=annot.txt              all columns of the table except its key, names as in
+                                        the table
+     --join^gene/desc:+^go_=annot.txt   SPEC: a selection
+     --join^gene/ann_/desc:len/=...     P/SPEC/: prefix
+     --join^gene/desc:len/_ann=...      SPEC/S: suffix
+     --join^gene/ann_/+./_x=...         P/SPEC/S: prefix and suffix, all columns
+
+   - SPEC is a colspec (names, ':' lists, +REGEX, ranges) over the columns of the table; ranges
+     count the table's columns (the key is column 1). The key column is never appended, even
+     when SPEC names it.
+   - SPEC selecting nothing is an error, as in output selection.
+   - Prefix and suffix are per table.
+   - An empty SPEC is refused: P//S is not "all columns", it is an error with a hint to write
+     P/+./S. The compute form P//SPEC//S (rename and keep the originals) is not accepted
+     either: '//' means something on top of renaming, and a join has no originals to keep. So
+     '//' never appears in a join.
+   - No alias syntax (alias=col); one column is renamed in the output with new::old.
+   - In the naming part a '/' is written %2F and '=' %3D.
+
+   The appended columns are in the order the colspec gives, as in output selection
+   (COLSPEC.design.txt section 3): list order across elements, table order within a +REGEX
+   or range. A column selected twice is appended once.
+
+
+4. Place in the processing
+
+   - Joins happen before assertions, filters and computes, as if the joined columns were
+     part of the input line. Lines skipped by -/PAT or passed through by -//PAT are handled
+     before the join and never looked up.
+   - The joined columns follow the input columns; several joins are applied in command-line
+     order, each appending after the previous ones. Input column numbers and ranges keep
+     their meaning.
+   - A join may key on a column brought in by an earlier join. KEY naming a computed column,
+     or a column of a later join, is an error ("joins happen before computes" /
+     "... before the join that adds it").
+   - The joined columns are input columns in every respect: output selection (names, lists,
+     +REGEX, ranges, -A, -x), @ and @@ filters, assertions, computes, -i (rebinding at most
+     once, as any input column), -A<N> and --after, --demux, --pstore and pload.
+   - Name clashes after prefix and suffix, between a joined column and an input column or a
+     column of another join, are an error with a hint to use P/SPEC/S.
+
+
+5. Missing values
+
+   - Left join: a row whose key is not in the table gets the NA value in each joined column,
+     the same NA that computes produce: it propagates through arithmetic, fails /ISNUM and
+     prints as NA.
+   - --join-missing=VALUE replaces that NA with VALUE, for every left join (not per table).
+     VALUE is data: --join-missing=0 gives a 0 that adds like any number.
+   - --join-missing=__EXIT__: a key not found in a left join ends the run with an error
+     naming the key, the table and the input line, as map with __EXIT__.
+   - --join-missing has no effect on --join-inner; given without any --join it is an error.
+   - In VALUE an '=' needs no escape (the option has no further parts).
+   - A general NA output spelling (--na=STR) is a separate question, not part of this.
+
+
+6. Inner join: a filter that runs first
+
+   A row whose key is not in an --join-inner table is rejected, in every respect as a row
+   rejected by an @@ filter:
+   - computes are not run for it; it does not become the previous row for --pstore/pload;
+   - it is written to --rejected (with empty computed columns, as @@ rejects; its joined
+     columns from this and later joins are empty too, earlier joins keep their values);
+   - --demux treats it as an @@ reject.
+   Later joins are not looked up for a rejected row. Assertions are not tested on it (it is
+   rejected before the assertions, which see the joined row).
+
+   Report at the end (section 13 of the manual), one line per inner join with a non-zero
+   count, also with -c:
+     --join-inner: N rows with a key not in FILE
+   -q suppresses it as the other reports.
+
+
+7. Refused combinations
+
+   - --sam, --sam-header (and BAM input): refused; appended columns would break SAM output.
+   - -k (input without a header): refused for now.
+   - -K: refused as a consequence of -k.
+
+
+8. Known limits (not planned)
+
+   - The key cannot be a computed column (e.g. a gene identifier with its version suffix
+     removed); composite keys likewise. Workaround: a first pluk run builds the key, a second
+     joins (pipe).
+   - No right or outer join: the input is the main data, the table annotates it. An anti-join
+     is --kd-T=FILE @key~notin~T.
+   - The table is held in memory; for very large tables, join(1) on sorted input.
+
+
+9. Implementation notes (not design)
+
+   - The loader of --tdict (header, gzip, repeated key, field count) is shared.
+   - Storage: one row store per table, key -> row index; the joined fields of a row are
+     copied (or referenced) into the row after the input fields.
+   - Inner join implemented as a presence check before the @@ stage, reusing the @@ reject
+     path for counting, --rejected and --demux.

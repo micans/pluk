@@ -1,16 +1,9 @@
 
+[discuss] Include pluk in existing docker file with minimap2, samtools etc. Keep pick.
+
 [defer] Releases and versioning.
 
-[discuss] Include pluk in existing docker file with minimap2, samtools etc.
-
-[defer] Timing.
-
-[defer] Syntax/support for joining columns from a table dictionary. Somehwat invasive.
-Introduce columns x y z from table T by joining input.key1 with T.key with input.key2.
---jdict-T^[alias1=]col1[/def1],[alias2=]col2[/def2],[alias3=]col3[/def3]=foo.txt --input-join-column=key
-would, before any filtering, tag col1 col2 col3 onto each row based on lookup of the key in column key.
---jdict-T=foo.txt --join-column=key would just tag on everything
---jdict-T^alias1=col1/dev1,+regex would do a mix of alias and regex selection.
+[defer] Timing general. Timing of hashes.
 
 [defer] Compression alone isn't worth adding --out for. A pipe already does it, with more flexibility and often faster.
 The case gets stronger only if --out also brings something a pipe can't: no partial file when pluk fails, plus the same

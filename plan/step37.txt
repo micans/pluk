@@ -1,0 +1,34 @@
+Step 37: joining columns from a keyed table: --join, --join-inner, --join-missing
+
+Design: plan/JOIN.design.txt (seeded by JOIN.notes.txt). A pluk addition; pick has no join.
+
+1. plan/JOIN.design.txt and this step file; pointer from JOIN.notes.txt to the design.
+   Commit.
+
+2. --join^KEY=FILE and --join-inner^KEY=FILE: all columns of the table except its key,
+   appended after the input columns in command-line order; a later join may key on a
+   column of an earlier one. The table loader shared with --tdict (header, gzip, repeated
+   key and field count errors). Missing key in a left join: NA. Inner join: rejected as an
+   @@ reject (no computes, --rejected, --demux, not the previous row for pload), with the
+   report line "--join-inner: N rows with a key not in FILE". Errors: KEY not an input or
+   earlier joined column, name clash, --sam/--sam-header/BAM, -k/-K. Joined columns usable
+   in output selection, filters, assertions, computes, -i, -A<N>, --after, --demux.
+   Help (own --join group), optcheck. Tests: left and inner join, chained joins, filters
+   and computes on joined columns, --rejected and --demux with inner rejects, empty key,
+   each error. Commit.
+
+3. Naming: --join^KEY/P/SPEC/S=FILE with SPEC (a colspec over the table's columns, key
+   excluded), P/SPEC/, SPEC/S and P/SPEC/S. Empty SPEC (P//S) and the // forms refused with
+   a hint (write P/+./S); SPEC selecting nothing refused; %2F and %3D. The clash error
+   hints at the prefix form. Tests: selection by list, +REGEX and range, prefix, suffix,
+   both, two joins of the same table with different prefixes, each refusal. Commit.
+
+4. --join-missing=VALUE: fill value for missing cells of every left join (data, not a
+   spelling); __EXIT__ ends the run naming the key, table and line; no effect on
+   --join-inner; refused without --join. Tests. Commit.
+
+5. Manual: a section on joins (in section 7, Dictionaries, after --tdict, or a new
+   subsection there "Joining a table"), examples on doc/ data (a new small table keyed by
+   fruit or picker if fruits.txt does not serve), the report line in section 13, the
+   addition in 14.2, the options in section 15, README if a short example fits.
+   Commit.

@@ -1,6 +1,6 @@
 JOIN notes: seed for joining columns from a keyed table onto the input rows. From the first item
 in shed/ideas.txt, discussed 2026-11-12. Decided points are marked [decided]; the rest is open.
-To be turned into JOIN.design.txt and a step file.
+Superseded by JOIN.design.txt (step37), where the open points below were decided.
 
 
 1. The idea
