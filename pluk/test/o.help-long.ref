@@ -161,6 +161,10 @@ Joins (before filters and computes; the joined columns count as input columns):
                             appended) to each row, looking up the value of input column KEY; a key not found gives NA.
                             KEY may be a column of an earlier join. In KEY write / and = as %2F and %3D.
   --join-inner^KEY=FILE     as --join, but a row whose key is not found is rejected (as by an @@ filter; --rejected)
+  --join^KEY/SPEC=FILE      append only the columns of SPEC (names, lists, +REGEX, over the table's columns; never the
+                            key). --join^KEY/P/SPEC/S=FILE (also SPEC/S, P/SPEC/): name them P + name + S; capture group
+                            1 of a +REGEX replaces the name. For all columns write P/+.*/S ('//' is refused). In P, SPEC
+                            and S write / and = as %2F and %3D. The same for --join-inner.
 
   -l TERM..   list the operators (compute and filter) in a category, or whose name contains TERM; no TERM: all
   -% ARG..    write each ARG (on one line) with the characters that pluk treats specially %-encoded; no ARG: a table of

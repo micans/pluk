@@ -54,7 +54,7 @@ Superseded by JOIN.design.txt (step37), where the open points below were decided
    - In the naming part a '/' in a name is written %2F, as in compute renaming; '=' as %3D.
 
    Open: an empty SPEC with a prefix or suffix (P//S, which would read as "all columns"). Since
-   // is not taken over, this is either refused (write P/+./S) or accepted as "all". Leaning
+   // is not taken over, this is either refused (write P/+.*/S) or accepted as "all". Leaning
    towards refusing it, so that // never appears in a join.
 
 

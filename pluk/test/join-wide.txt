@@ -1,0 +1,5 @@
+animal	legs	class	go_wing	go_fur	go_six
+dog	4	mammal	no	yes	no
+cat	4	mammal	no	yes	no
+owl	2	bird	yes	no	no
+ant	6	insect	no	no	yes

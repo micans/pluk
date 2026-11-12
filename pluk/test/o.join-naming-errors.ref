@@ -1,0 +1,42 @@
+== --join^fx/=join-wide.txt
+pluk: --join^fx/=join-wide.txt: empty naming part after KEY/ (SPEC, SPEC/S, P/SPEC/ or P/SPEC/S)
+exit 1
+== --join^fx//legs/=join-wide.txt
+pluk: --join^fx//legs/=join-wide.txt: '//' in a join: P//SPEC//S does not apply (there are no originals to keep), and for all columns write P/+.*/S (a literal / is written %2F)
+exit 1
+== --join^fx/p//s=join-wide.txt
+pluk: --join^fx/p//s=join-wide.txt: '//' in a join: P//SPEC//S does not apply (there are no originals to keep), and for all columns write P/+.*/S (a literal / is written %2F)
+exit 1
+== --join^fx/p//legs//s=join-wide.txt
+pluk: --join^fx/p//legs//s=join-wide.txt: '//' in a join: P//SPEC//S does not apply (there are no originals to keep), and for all columns write P/+.*/S (a literal / is written %2F)
+exit 1
+== --join^fx/a/b/c/d=join-wide.txt
+pluk: --join^fx/a/b/c/d=join-wide.txt: too many '/' in the naming part: SPEC, SPEC/S, P/SPEC/ or P/SPEC/S (a literal / is written %2F)
+exit 1
+== --join^fx/p/+(/s=join-wide.txt
+pluk: --join^fx/p/+(/s=join-wide.txt: [+(]: regex parse error:
+    (
+    ^
+error: unclosed group
+exit 1
+== --join^fx/nosuch=join-wide.txt
+pluk: (Join) handle [nosuch] in --join^fx/nosuch=join-wide.txt does not reference a known entity among animal,legs,class,go_wing,go_fur,go_six
+exit 1
+== --join^fx/+zz.*=join-wide.txt
+pluk: (Join) regex [+zz.*] in --join^fx/+zz.*=join-wide.txt matches no column among animal,legs,class,go_wing,go_fur,go_six
+exit 1
+== --join^fx/animal=join-wide.txt
+pluk: --join^fx/animal=join-wide.txt: [animal] selects no column other than the key (the first column)
+exit 1
+== --join^fx/+go_(f)ur/ib=join-wide.txt
+pluk: --join^fx/+go_(f)ur/ib=join-wide.txt: column [fib] of join-wide.txt exists already (in the input or an earlier join); rename with --join^KEY/P/SPEC/S=FILE
+exit 1
+== --join^fx/x_/+go_(z)?.*/=join-wide.txt
+pluk: (Join) regex [+go_(z)?.*] in --join^fx/x_/+go_(z)?.*/=join-wide.txt: group 1 is empty or does not take part in the match for column [go_wing]
+exit 1
+== --join^fx/+(go)_.*/_x=join-wide.txt
+pluk: --join^fx/+(go)_.*/_x=join-wide.txt: two columns would be named [go_x]
+exit 1
+== --join^fx/legs:=join-wide.txt
+pluk: (Join) handle [] in --join^fx/legs:=join-wide.txt does not reference a known entity among animal,legs,class,go_wing,go_fur,go_six
+exit 1

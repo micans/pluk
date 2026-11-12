@@ -47,23 +47,30 @@ pick has no join; this is a pluk addition (manual 14.2).
      --join^gene/desc:+^go_=annot.txt   SPEC: a selection
      --join^gene/ann_/desc:len/=...     P/SPEC/: prefix
      --join^gene/desc:len/_ann=...      SPEC/S: suffix
-     --join^gene/ann_/+./_x=...         P/SPEC/S: prefix and suffix, all columns
+     --join^gene/ann_/+.*/_x=...        P/SPEC/S: prefix and suffix, all columns
 
-   - SPEC is a colspec (names, ':' lists, +REGEX, ranges) over the columns of the table; ranges
-     count the table's columns (the key is column 1). The key column is never appended, even
-     when SPEC names it.
-   - SPEC selecting nothing is an error, as in output selection.
+   - SPEC is a colspec (names, ':' lists, +REGEX) over the columns of the table. The key
+     column is never appended, even when SPEC names it.
+   - No ranges (step37 item 3, correcting the first version of this design): colspec
+     recognises ranges only with -k, i.e. for input without a header, and a table always
+     has one; there 2-4 is a plain name, as for input with a header. Making it a range in a
+     join only would be the one place where a name and a range are confused.
+   - Capture group 1 of a +REGEX names the column in the renaming shapes (SPEC/S, P/SPEC/,
+     P/SPEC/S), not with SPEC alone, as in renaming computes (plan/step26.txt decision 3,
+     step34.txt decision 2). Two generated names that are equal are an error.
+   - SPEC selecting nothing is an error, as in output selection; so is a SPEC that selects
+     only the key.
    - Prefix and suffix are per table.
    - An empty SPEC is refused: P//S is not "all columns", it is an error with a hint to write
-     P/+./S. The compute form P//SPEC//S (rename and keep the originals) is not accepted
+     P/+.*/S. The compute form P//SPEC//S (rename and keep the originals) is not accepted
      either: '//' means something on top of renaming, and a join has no originals to keep. So
      '//' never appears in a join.
    - No alias syntax (alias=col); one column is renamed in the output with new::old.
    - In the naming part a '/' is written %2F and '=' %3D.
 
    The appended columns are in the order the colspec gives, as in output selection
-   (COLSPEC.design.txt section 3): list order across elements, table order within a +REGEX
-   or range. A column selected twice is appended once.
+   (COLSPEC.design.txt section 3): list order across elements, table order within a +REGEX.
+   A column selected twice is appended once.
 
 
 4. Place in the processing

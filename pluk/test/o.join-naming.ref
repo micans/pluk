@@ -1,0 +1,118 @@
+== --join^fx/class:legs=join-wide.txt
+name	fx	class	legs
+Ann	dog	mammal	4
+Bob	cat	mammal	4
+Charlie	bat	NA	NA
+Dan	cow	NA	NA
+Esme	owl	bird	2
+Fred	pig	NA	NA
+Gillian	bug	NA	NA
+Harriet	rat	NA	NA
+Inky	ant	insect	6
+== --join^fx/+go_.*=join-wide.txt
+name	fx	go_wing	go_fur	go_six
+Ann	dog	no	yes	no
+Bob	cat	no	yes	no
+Charlie	bat	NA	NA	NA
+Dan	cow	NA	NA	NA
+Esme	owl	yes	no	no
+Fred	pig	NA	NA	NA
+Gillian	bug	NA	NA	NA
+Harriet	rat	NA	NA	NA
+Inky	ant	no	no	yes
+== --join^fx/w_/+go_.*/=join-wide.txt
+name	fx	w_go_wing	w_go_fur	w_go_six
+Ann	dog	no	yes	no
+Bob	cat	no	yes	no
+Charlie	bat	NA	NA	NA
+Dan	cow	NA	NA	NA
+Esme	owl	yes	no	no
+Fred	pig	NA	NA	NA
+Gillian	bug	NA	NA	NA
+Harriet	rat	NA	NA	NA
+Inky	ant	no	no	yes
+== --join^fx/legs:class/_w=join-wide.txt
+name	fx	legs_w	class_w
+Ann	dog	4	mammal
+Bob	cat	4	mammal
+Charlie	bat	NA	NA
+Dan	cow	NA	NA
+Esme	owl	2	bird
+Fred	pig	NA	NA
+Gillian	bug	NA	NA
+Harriet	rat	NA	NA
+Inky	ant	6	insect
+== --join^fx/x_/+go_(.*)/_y=join-wide.txt
+name	fx	x_wing_y	x_fur_y	x_six_y
+Ann	dog	no	yes	no
+Bob	cat	no	yes	no
+Charlie	bat	NA	NA	NA
+Dan	cow	NA	NA	NA
+Esme	owl	yes	no	no
+Fred	pig	NA	NA	NA
+Gillian	bug	NA	NA	NA
+Harriet	rat	NA	NA	NA
+Inky	ant	no	no	yes
+== --join^fx/+go_(.*)=join-wide.txt
+name	fx	go_wing	go_fur	go_six
+Ann	dog	no	yes	no
+Bob	cat	no	yes	no
+Charlie	bat	NA	NA	NA
+Dan	cow	NA	NA	NA
+Esme	owl	yes	no	no
+Fred	pig	NA	NA	NA
+Gillian	bug	NA	NA	NA
+Harriet	rat	NA	NA	NA
+Inky	ant	no	no	yes
+== --join^fx/animal:legs:legs=join-wide.txt
+name	fx	legs
+Ann	dog	4
+Bob	cat	4
+Charlie	bat	NA
+Dan	cow	NA
+Esme	owl	2
+Fred	pig	NA
+Gillian	bug	NA
+Harriet	rat	NA
+Inky	ant	6
+== --join^fx/a_/+.*/=join-wide.txt --join^fx/b_/legs/=join-wide.txt
+name	fx	a_legs	a_class	a_go_wing	a_go_fur	a_go_six	b_legs
+Ann	dog	4	mammal	no	yes	no	4
+Bob	cat	4	mammal	no	yes	no	4
+Charlie	bat	NA	NA	NA	NA	NA	NA
+Dan	cow	NA	NA	NA	NA	NA	NA
+Esme	owl	2	bird	yes	no	no	2
+Fred	pig	NA	NA	NA	NA	NA	NA
+Gillian	bug	NA	NA	NA	NA	NA	NA
+Harriet	rat	NA	NA	NA	NA	NA	NA
+Inky	ant	6	insect	no	no	yes	6
+== --join-inner^fx/k%2F/legs/%3D=join-wide.txt
+name	fx	k/legs=
+Ann	dog	4
+Bob	cat	4
+Esme	owl	2
+Inky	ant	6
+pluk: --join-inner: 8 rows with a key not in join-wide.txt
+== --join^fx/a_/class/=join-wide.txt --join^a_class/c_/blood/=join-class.txt
+name	fx	a_class	c_blood
+Ann	dog	mammal	warm
+Bob	cat	mammal	warm
+Charlie	bat	NA	NA
+Dan	cow	NA	NA
+Esme	owl	bird	warm
+Fred	pig	NA	NA
+Gillian	bug	NA	NA
+Harriet	rat	NA	NA
+Inky	ant	insect	NA
+== --join^fx/class/+x=join-wide.txt
+pluk: the suffix [+x] of class/+x looks like a column specification; did you want class/+x/?
+name	fx	class+x
+Ann	dog	mammal
+Bob	cat	mammal
+Charlie	bat	NA
+Dan	cow	NA
+Esme	owl	bird
+Fred	pig	NA
+Gillian	bug	NA
+Harriet	rat	NA
+Inky	ant	insect

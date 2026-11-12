@@ -2284,6 +2284,8 @@ checks that this list and `pluk --help` name the same options.
   column KEY in the table's first column; a key not found gives NA (section 7).
 - `--join-inner^KEY=FILE`: as `--join`, but a row whose key is not found is rejected
   (section 7).
+- `--join^KEY/SPEC=FILE`, `--join^KEY/P/SPEC/S=FILE`: append only the table columns of
+  SPEC, named P + name + S with a prefix or suffix; also for `--join-inner` (section 7).
 
 ### Listings and help
 

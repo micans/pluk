@@ -8,17 +8,70 @@
 
 use std::collections::HashMap;
 
+use crate::colspec::ColSpec;
 use crate::dict::TableFile;
 use crate::names::ColumnNames;
 use crate::row::Row;
 
 // A --join or --join-inner option as given on the command line.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct JoinSpec {
-    pub option: Vec<u8>,    // the whole option, for messages
-    pub inner:  bool,       // --join-inner: a row whose key is not found is rejected
-    pub key:    Vec<u8>,    // KEY: an input column, or a column of an earlier join (%-decoded)
-    pub source: Vec<u8>,    // FILE
+    pub option: Vec<u8>,            // the whole option, for messages
+    pub inner:  bool,               // --join-inner: a row whose key is not found is rejected
+    pub key:    Vec<u8>,            // KEY: an input column, or a column of an earlier join (%-decoded)
+    pub naming: Option<Naming>,     // KEY/SPEC, KEY/SPEC/S, KEY/P/SPEC/S (step37 item 3)
+    pub source: Vec<u8>,            // FILE
+}
+
+// The naming part of a join (plan/JOIN.design.txt section 3): SPEC selects among the
+// table's columns; with a prefix or suffix (rename) each selected column is named
+// P + name + S, where capture group 1 of a '+' regex replaces the name if the regex
+// has one, as in a renaming compute (plan/step26.txt decision 3).
+#[derive(Debug, Clone)]
+pub struct Naming {
+    pub spec:   ColSpec,
+    pub prefix: Vec<u8>,            // %-decoded
+    pub suffix: Vec<u8>,            // %-decoded
+    pub rename: bool,               // P/SPEC/S or SPEC/S given, not SPEC alone
+}
+
+// The joined columns of a table with header: their indexes in the table, in the order
+// of SPEC, each once, never the key (column 0); and their names. Without a naming part
+// all columns but the key, under their own names.
+fn select(spec: &JoinSpec, option: &str, header: &[Vec<u8>]) -> Result<(Vec<usize>, Vec<Vec<u8>>), String> {
+    let Some(naming) = &spec.naming else {
+        return Ok(((1..header.len()).collect(), header[1..].to_vec()));
+    };
+    let table_names = ColumnNames::from_names(header.to_vec());
+    // Capture groups name columns only when renaming, as in computes.
+    let selected = if naming.rename {
+        naming.spec.expand_bases(&table_names, "Join", option)?
+    } else {
+        naming.spec.expand(&table_names, "Join", option)?.into_iter().map(|c| (c, None)).collect()
+    };
+    let mut columns = Vec::new();
+    let mut names = Vec::new();
+    for (c, base) in selected {
+        if c == 0 || columns.contains(&c) {
+            continue;
+        }
+        let name = if naming.rename {
+            let base = base.unwrap_or_else(|| header[c].clone());
+            [&naming.prefix[..], &base, &naming.suffix].concat()
+        } else {
+            header[c].clone()
+        };
+        if names.contains(&name) {
+            return Err(format!("{}: two columns would be named [{}]", option, String::from_utf8_lossy(&name)));
+        }
+        columns.push(c);
+        names.push(name);
+    }
+    if columns.is_empty() {
+        return Err(format!("{}: [{}] selects no column other than the key (the first column)",
+                           option, String::from_utf8_lossy(&naming.spec.text)));
+    }
+    Ok((columns, names))
 }
 
 // The value of a missing cell in a left join: the NA that computes write
@@ -52,13 +105,13 @@ pub struct Joins {
 
 impl Joins {
     // Read every table, in command line order. The key is the first column; the
-    // others are the joined columns.
+    // joined columns are the others, or those selected by the naming part.
     pub fn load(specs: &[JoinSpec]) -> Result<Joins, String> {
         let mut tables = Vec::with_capacity(specs.len());
         for spec in specs {
             let option = String::from_utf8_lossy(&spec.option).into_owned();
             let mut file = TableFile::open(&option, &spec.source, None)?;
-            let names: Vec<Vec<u8>> = file.header[1..].to_vec();
+            let (columns, names) = select(spec, &option, &file.header)?;
             if names.iter().any(|n| n.is_empty()) {
                 return Err(format!("{}: empty column name in {}", option, file.path.display()));
             }
@@ -68,9 +121,9 @@ impl Joins {
             };
             while let Some(fields) = file.next_row()? {
                 table.rows.insert(fields[0].to_vec(), table.rows.len());
-                for value in &fields[1..] {
+                for &c in &columns {
                     let start = table.text.len();
-                    table.text.extend_from_slice(value);
+                    table.text.extend_from_slice(fields[c]);
                     table.cells.push((start, table.text.len()));
                 }
             }
@@ -106,8 +159,8 @@ impl Joins {
             (t.key_input, t.key_join) = (key_input, key_join);
             for name in &t.names {
                 if names.index_of(name).is_some() {
-                    return Err(format!("{}: column [{}] of {} exists already (in the input or an earlier join)",
-                                       t.option, String::from_utf8_lossy(name), t.file));
+                    return Err(format!("{}: column [{}] of {} exists already (in the input or an earlier join); \
+                                        rename with --join^KEY/P/SPEC/S=FILE", t.option, String::from_utf8_lossy(name), t.file));
                 }
                 names.push_input(name);
             }

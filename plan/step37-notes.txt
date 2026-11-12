@@ -69,3 +69,44 @@ Item 2: --join^KEY=FILE and --join-inner^KEY=FILE
   --idx-map), join-files (--rejected, --demux, --pstore with an inner join), join-edge
   (empty key, %3D and %2F in KEY), join-errors (each error). Tables join-animal.txt and
   join-class.txt in test/. Unit test opt.rs join_options.
+
+Item 3: naming, --join^KEY/SPEC=FILE and P/SPEC/S
+
+  Files: opt.rs (parse_join_naming), join.rs (Naming in JoinSpec; select() in load),
+  names.rs (ColumnNames::from_names for the table header), help, manual section 15.
+
+  Parsing. After KEY/ the naming part extends to the first '='. It is split on '/': one
+  part is SPEC, two SPEC/S, three P/SPEC/S (P or S may be empty, but not P: '/SPEC/S' would
+  put '//' after KEY, and it equals SPEC/S). Any '//' is refused with one message that
+  covers both meanings it could have: P//SPEC//S (keep originals; a join has none) and P//S
+  (empty SPEC; write P/+.*/S). SPEC is parsed by colspec::parse with headless false, during
+  option parsing, so that a bad regex is an option error. The note of renaming computes on a
+  suffix that looks like a column specification ('did you want SPEC/S/?') is given as well.
+
+  Correction to the design: the hint for all columns is P/+.*/S, not P/+./S, since a '+'
+  regex must match the whole name ('+.' selects only one-letter names). Fixed in the design,
+  the step file and the notes seed.
+
+  Correction to the design: no ranges. colspec recognises ranges only with -k (input
+  without a header); a join table always has a header, and for a header 2-4 is a plain name.
+  Recorded in JOIN.design.txt section 3.
+
+  Selection. select() runs when the table is loaded, before the input, so that a SPEC that
+  names an unknown column is reported early. It expands SPEC over a ColumnNames made from the
+  table header (from_names; the names are distinct, TableFile checks), with the messages of
+  output selection under the label (Join). The key column is dropped wherever SPEC selects
+  it, a column selected twice is kept once (first place), and a SPEC that selects only the
+  key is an error. Only the selected cells are stored.
+
+  Capture groups. With a prefix or suffix (rename) expand_bases gives group 1 of a '+' regex,
+  which replaces the name, as in renaming computes; with SPEC alone expand is used and groups
+  play no part. Two equal generated names in one table: 'two columns would be named [N]'. A
+  name that exists in the input or an earlier join: the error of item 2, now with the hint
+  'rename with --join^KEY/P/SPEC/S=FILE'.
+
+  Tests: join-naming (order of a list, +REGEX, prefix, suffix, capture group with and
+  without renaming, key and duplicate in SPEC, the same table twice with prefixes, %2F and
+  %3D in P and S with --join-inner, a chained join on a renamed column, the suffix note),
+  join-naming-errors (each refusal). Table join-wide.txt in test/. Unit test join_options
+  extended. join-errors changed: the usage names [/NAMING], --join^fx/p is now an unknown
+  column, the clash error has the hint.

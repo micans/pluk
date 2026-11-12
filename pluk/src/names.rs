@@ -53,6 +53,11 @@ impl ColumnNames {
         Ok(ColumnNames::from_list(names))
     }
 
+    // Names from a list, which must be unique (the header of a join table).
+    pub fn from_names(names: Vec<Vec<u8>>) -> ColumnNames {
+        ColumnNames::from_list(names)
+    }
+
     // Build the dictionary from a list of names, which must be unique.
     fn from_list(names: Vec<Vec<u8>>) -> ColumnNames {
         let mut index = HashMap::with_capacity(names.len());

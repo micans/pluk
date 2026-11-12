@@ -16,7 +16,7 @@ use crate::colspec::{self, ColSpec};
 use crate::compute::{self, ComputeSpec, UnnamedNames};
 use crate::dict::{self, DictKind, DictSpec, NotFound};
 use crate::filter::{parse_filter, FilterSpec};
-use crate::join::JoinSpec;
+use crate::join::{JoinSpec, Naming};
 
 #[derive(Debug, Default)]
 pub struct Config {
@@ -295,6 +295,10 @@ Joins (before filters and computes; the joined columns count as input columns):
                             appended) to each row, looking up the value of input column KEY; a key not found gives NA.
                             KEY may be a column of an earlier join. In KEY write / and = as %2F and %3D.
   --join-inner^KEY=FILE     as --join, but a row whose key is not found is rejected (as by an @@ filter; --rejected)
+  --join^KEY/SPEC=FILE      append only the columns of SPEC (names, lists, +REGEX, over the table's columns; never the
+                            key). --join^KEY/P/SPEC/S=FILE (also SPEC/S, P/SPEC/): name them P + name + S; capture group
+                            1 of a +REGEX replaces the name. For all columns write P/+.*/S ('//' is refused). In P, SPEC
+                            and S write / and = as %2F and %3D. The same for --join-inner.
 
   -l TERM..   list the operators (compute and filter) in a category, or whose name contains TERM; no TERM: all
   -% ARG..    write each ARG (on one line) with the characters that pluk treats specially %-encoded; no ARG: a table of
@@ -701,9 +705,9 @@ fn parse_table_spec(rest: &[u8], long: &[u8]) -> Result<DictSpec, String> {
     Ok(DictSpec { option, kind: DictKind::Table, name: Vec::new(), key_column, not_found, source })
 }
 
-// --join^KEY=FILE and --join-inner^KEY=FILE (plan/JOIN.design.txt section 1). KEY is
-// required and extends to the first '/' or '='; it is %-decoded. The naming part
-// after KEY/ comes with step37 item 3.
+// --join^KEY[/NAMING]=FILE and --join-inner^KEY[/NAMING]=FILE (plan/JOIN.design.txt
+// section 1). KEY is required and extends to the first '/' or '='; it is %-decoded.
+// NAMING extends to the first '=' (parse_join_naming).
 fn parse_join_spec(long: &[u8]) -> Result<JoinSpec, String> {
     let option = [b"--", long].concat();
     let what = String::from_utf8_lossy(&option).into_owned();
@@ -715,7 +719,7 @@ fn parse_join_spec(long: &[u8]) -> Result<JoinSpec, String> {
         unreachable!()
     };
     let name = if inner { "join-inner" } else { "join" };
-    let usage = || format!("{}: expected --{}^KEY=FILE (KEY an input column)", what, name);
+    let usage = || format!("{}: expected --{}^KEY[/NAMING]=FILE (KEY an input column)", what, name);
     let Some(t) = rest.strip_prefix(b"^") else {
         return Err(if rest.starts_with(b"=") { usage() }
                    else { format!("Unrecognised long option {}", what) });
@@ -725,14 +729,47 @@ fn parse_join_spec(long: &[u8]) -> Result<JoinSpec, String> {
         return Err(usage());
     }
     let key = pct_decode(&t[..end]);
-    if t[end] == b'/' {
-        return Err(format!("{}: a naming part after KEY/ is not supported yet", what));
+    let mut t = &t[end..];
+    let mut naming = None;
+    if let Some(n) = t.strip_prefix(b"/") {
+        let eq = n.iter().position(|&b| b == b'=').ok_or_else(usage)?;
+        naming = Some(parse_join_naming(&n[..eq]).map_err(|msg| format!("{}: {}", what, msg))?);
+        t = &n[eq..];
     }
-    let source = &t[end + 1..];
+    let source = &t[1..];
     if source.is_empty() {
         return Err(usage());
     }
-    Ok(JoinSpec { option, inner, key, source: source.to_vec() })
+    Ok(JoinSpec { option, inner, key, naming, source: source.to_vec() })
+}
+
+// The naming part after KEY/ (plan/JOIN.design.txt section 3): SPEC, SPEC/S, P/SPEC/
+// or P/SPEC/S, as the renaming of computes; SPEC a column specification over the
+// table's columns. '//' is not accepted: P//SPEC//S keeps originals, which a join does
+// not have, and an empty SPEC (P//S) is written P/+.*/S. A literal '/' is %2F.
+fn parse_join_naming(raw: &[u8]) -> Result<Naming, String> {
+    if raw.is_empty() {
+        return Err("empty naming part after KEY/ (SPEC, SPEC/S, P/SPEC/ or P/SPEC/S)".to_string());
+    }
+    if raw.starts_with(b"/") || raw.windows(2).any(|w| w == b"//") {
+        return Err("'//' in a join: P//SPEC//S does not apply (there are no originals to keep), and for \
+                    all columns write P/+.*/S (a literal / is written %2F)".to_string());
+    }
+    let parts: Vec<&[u8]> = raw.split(|&b| b == b'/').collect();
+    let (prefix, spec, suffix) = match parts.as_slice() {
+        [spec] => (&b""[..], *spec, &b""[..]),
+        [spec, suffix] => (&b""[..], *spec, *suffix),
+        [prefix, spec, suffix] => (*prefix, *spec, *suffix),
+        _ => return Err("too many '/' in the naming part: SPEC, SPEC/S, P/SPEC/ or P/SPEC/S \
+                         (a literal / is written %2F)".to_string()),
+    };
+    // As for renaming computes (plan/step26.txt decision 6).
+    if parts.len() == 2 && (suffix.contains(&b':') || suffix.starts_with(b"+")) {
+        crate::note::note!("pluk: the suffix [{}] of {} looks like a column specification; did you want {}/?",
+                           String::from_utf8_lossy(suffix), String::from_utf8_lossy(raw), String::from_utf8_lossy(raw));
+    }
+    Ok(Naming { spec: colspec::parse(spec, false)?, prefix: pct_decode(prefix), suffix: pct_decode(suffix),
+                rename: parts.len() > 1 })
 }
 
 // A bundle of '-' options, without the leading '-', scanned left to right.
@@ -1194,8 +1231,23 @@ mod tests {
         assert_eq!((s[0].inner, &s[0].key[..], &s[0].source[..]), (false, &b"k/x="[..], &b"f=g"[..]));
         assert_eq!((s[1].inner, &s[1].key[..], &s[1].source[..]), (true, &b"k"[..], &b"h"[..]));
         assert_eq!(&s[0].option[..], b"--join^k%2Fx%3D=f=g");
-        for bad in ["--join=f", "--join^=f", "--join^k", "--join^k=", "--join^k/p=f", "--join-inner=f", "-k --join^k=f",
-                    "--sam --join^k=f"] {
+        assert!(s[0].naming.is_none());
+        // The naming part: SPEC, SPEC/S, P/SPEC/, P/SPEC/S.
+        let naming = |arg: &str| {
+            let c = run(&[arg]).unwrap();
+            let n = c.joins[0].naming.clone().unwrap();
+            (String::from_utf8(n.spec.text).unwrap(), String::from_utf8(n.prefix).unwrap(),
+             String::from_utf8(n.suffix).unwrap(), n.rename)
+        };
+        let t = |spec: &str, p: &str, s: &str, r| (spec.to_string(), p.to_string(), s.to_string(), r);
+        assert_eq!(naming("--join^k/a:+b.*=f"), t("a:+b.*", "", "", false));
+        assert_eq!(naming("--join^k/a/_x=f"), t("a", "", "_x", true));
+        assert_eq!(naming("--join^k/p_/a/=f"), t("a", "p_", "", true));
+        assert_eq!(naming("--join^k/p%2F/+.*/%3Ds=f"), t("+.*", "p/", "=s", true));
+        assert_eq!(naming("--join^k/a/=f"), t("a", "", "", true));
+        for bad in ["--join=f", "--join^=f", "--join^k", "--join^k=", "--join^k/=f", "--join^k//a/=f", "--join^k/p//s=f",
+                    "--join^k/p//a//s=f", "--join^k/a/b/c/d=f", "--join^k/p/+(/s=f", "--join^k/a", "--join-inner=f",
+                    "-k --join^k=f", "--sam --join^k=f"] {
             let words: Vec<&str> = bad.split(' ').collect();
             assert!(run(&words).is_err(), "{}", bad);
         }

@@ -19,8 +19,8 @@ Design: plan/JOIN.design.txt (seeded by JOIN.notes.txt). A pluk addition; pick h
 
 3. Naming: --join^KEY/P/SPEC/S=FILE with SPEC (a colspec over the table's columns, key
    excluded), P/SPEC/, SPEC/S and P/SPEC/S. Empty SPEC (P//S) and the // forms refused with
-   a hint (write P/+./S); SPEC selecting nothing refused; %2F and %3D. The clash error
-   hints at the prefix form. Tests: selection by list, +REGEX and range, prefix, suffix,
+   a hint (write P/+.*/S); SPEC selecting nothing refused; %2F and %3D. The clash error
+   hints at the prefix form. Tests: selection by list and +REGEX (no ranges: JOIN.design.txt section 3), prefix, suffix,
    both, two joins of the same table with different prefixes, each refusal. Commit.
 
 4. --join-missing=VALUE: fill value for missing cells of every left join (data, not a
