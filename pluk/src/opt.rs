@@ -58,6 +58,7 @@ pub struct Config {
     pub pat_pass: Option<Vec<u8>>,      // -//PAT, %-decoded
     pub dicts: Vec<DictSpec>,           // dictionary options, in command line order
     pub joins: Vec<JoinSpec>,           // --join, --join-inner, in command line order (plan/JOIN.design.txt)
+    pub join_missing: Option<Vec<u8>>,  // --join-missing=VALUE (%-decoded): fill value of every left join
     pub test_i: Option<u32>,            // --test-i=N (temporary)
     pub test_lineno: bool,              // --test-lineno (temporary)
     pub test_counts: bool,              // --test-counts (temporary)
@@ -299,6 +300,8 @@ Joins (before filters and computes; the joined columns count as input columns):
                             key). --join^KEY/P/SPEC/S=FILE (also SPEC/S, P/SPEC/): name them P + name + S; capture group
                             1 of a +REGEX replaces the name. For all columns write P/+.*/S ('//' is refused). In P, SPEC
                             and S write / and = as %2F and %3D. The same for --join-inner.
+  --join-missing=VALUE      the value of the joined columns of a key not found, for every --join (default NA); VALUE
+                            is data (--join-missing=0 adds as 0); __EXIT__: a key not found is an error
 
   -l TERM..   list the operators (compute and filter) in a category, or whose name contains TERM; no TERM: all
   -% ARG..    write each ARG (on one line) with the characters that pluk treats specially %-encoded; no ARG: a table of
@@ -417,6 +420,10 @@ fn parse_long(long: &[u8], config: &mut Config) -> Result<Option<Parsed>, String
     }
     if let Some((kind, rest)) = dict_option(long) {
         config.dicts.push(parse_dict_spec(kind, rest, long)?);
+        return Ok(None);
+    }
+    if let Some(value) = long.strip_prefix(b"join-missing=") {
+        config.join_missing = Some(pct_decode(value));
         return Ok(None);
     }
     if long.starts_with(b"join") {
@@ -927,6 +934,9 @@ fn check_combinations(config: &Config) -> Result<(), String> {
     }
     // Joins append columns to the input; SAM output would break, and input without a
     // header is left out for now (plan/JOIN.design.txt section 7).
+    if config.join_missing.is_some() && config.joins.iter().all(|j| j.inner) {
+        return Err("--join-missing requires --join (it has no effect on --join-inner)".to_string());
+    }
     if !config.joins.is_empty() {
         if config.sam || config.sam_h {
             return Err("--join and --join-inner cannot be combined with --sam or --sam-header".to_string());
@@ -1251,7 +1261,15 @@ mod tests {
             let words: Vec<&str> = bad.split(' ').collect();
             assert!(run(&words).is_err(), "{}", bad);
         }
-        for bad in ["--joinx=f", "--join-x^k=f"] {
+        // --join-missing: %-decoded, last one wins; needs a --join.
+        let c = run(&["--join-missing=a", "--join-inner^k=f", "--join^k=g", "--join-missing=0%3D="]).unwrap();
+        assert_eq!(c.join_missing, Some(b"0==".to_vec()));
+        assert_eq!(run(&["--join-missing=", "--join^k=g"]).unwrap().join_missing, Some(Vec::new()));
+        for bad in ["--join-missing=0", "--join-missing=0 --join-inner^k=f"] {
+            let words: Vec<&str> = bad.split(' ').collect();
+            assert!(run(&words).unwrap_err().starts_with("--join-missing requires --join"), "{}", bad);
+        }
+        for bad in ["--joinx=f", "--join-x^k=f", "--join-missing"] {
             assert!(run(&[bad]).unwrap_err().starts_with("Unrecognised long option"), "{}", bad);
         }
     }

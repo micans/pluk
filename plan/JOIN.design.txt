@@ -103,6 +103,9 @@ pick has no join; this is a pluk addition (manual 14.2).
    - --join-missing has no effect on --join-inner; given without any --join it is an error.
    - In VALUE an '=' needs no escape (the option has no further parts).
    - A general NA output spelling (--na=STR) is a separate question, not part of this.
+   - A fill value is data also for a later join keyed on the filled column: it is looked
+     up as any value (step37 item 4). Only NA from a missed left join without
+     --join-missing never matches (section 2).
 
 
 6. Inner join: a filter that runs first

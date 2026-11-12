@@ -1,0 +1,79 @@
+== --join-missing=0 --join^fx=join-animal.txt name legs class x::legs^2,mul @legs/lt/3
+name	legs	class	x
+Charlie	2	mammal	4
+Dan	0	0	0
+Esme	2	bird	4
+Fred	0	0	0
+Gillian	0	0	0
+Harriet	0	0	0
+Kelly	2	bird	4
+Lucy	0	0	0
+== --join-missing=%3D%20= --join-inner^fx/i_/legs/=join-animal.txt --join^fx/w_/go_fur/=join-wide.txt name i_legs w_go_fur
+name	i_legs	w_go_fur
+Ann	4	yes
+Bob	4	yes
+Charlie	2	= =
+Esme	2	no
+Inky	6	no
+John	6	= =
+Kelly	2	= =
+pluk: --join-inner: 5 rows with a key not in join-animal.txt
+== --join-missing= --join^fx=join-animal.txt name legs @@legs/ISNUM
+name	legs
+Ann	4
+Bob	4
+Charlie	2
+Esme	2
+Inky	6
+John	6
+Kelly	2
+== --join-missing=mammal --join^fx=join-animal.txt --join^class=join-class.txt name class blood
+name	class	blood
+Ann	mammal	warm
+Bob	mammal	warm
+Charlie	mammal	warm
+Dan	mammal	warm
+Esme	bird	warm
+Fred	mammal	warm
+Gillian	mammal	warm
+Harriet	mammal	warm
+Inky	insect	mammal
+John	insect	mammal
+Kelly	bird	warm
+Lucy	mammal	warm
+== --join-missing=NA --join^fx=join-animal.txt --join^class=join-class.txt name class blood
+name	class	blood
+Ann	mammal	warm
+Bob	mammal	warm
+Charlie	mammal	warm
+Dan	NA	what
+Esme	bird	warm
+Fred	NA	what
+Gillian	NA	what
+Harriet	NA	what
+Inky	insect	NA
+John	insect	NA
+Kelly	bird	warm
+Lucy	NA	what
+== --join-missing=__EXIT__ --join^fx=join-animal.txt legs
+legs	name
+4	Ann
+4	Bob
+2	Charlie
+pluk: --join^fx=join-animal.txt: key [cow] not found in join-animal.txt (--join-missing=__EXIT__) at line 5
+exit 1
+== --join-missing=__EXIT__ --join-inner^fx=join-animal.txt legs
+pluk: --join-missing requires --join (it has no effect on --join-inner)
+exit 1
+== --join-missing=__EXIT__ --join^fx=join-animal.txt -c
+pluk: --join^fx=join-animal.txt: key [cow] not found in join-animal.txt (--join-missing=__EXIT__) at line 5
+exit 1
+== --join-missing=0
+pluk: --join-missing requires --join (it has no effect on --join-inner)
+exit 1
+== --join-missing=0 --join-inner^fx=join-animal.txt
+pluk: --join-missing requires --join (it has no effect on --join-inner)
+exit 1
+== --join-missing
+pluk: Unrecognised long option --join-missing
+exit 1

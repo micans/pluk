@@ -98,15 +98,32 @@ impl Table {
     }
 }
 
+// What a left join gives for a key that is not in the table (plan/JOIN.design.txt
+// section 5): NA, or the value of --join-missing=VALUE, or with __EXIT__ an error.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Missing {
+    Na,
+    Value(Vec<u8>),
+    Exit,
+}
+
+impl Missing {
+    // --join-missing=VALUE, VALUE %-decoded.
+    pub fn from_option(value: Vec<u8>) -> Missing {
+        if value == b"__EXIT__" { Missing::Exit } else { Missing::Value(value) }
+    }
+}
+
 pub struct Joins {
-    tables: Vec<Table>,
-    missed: Vec<bool>,      // per table: the key was not found in the current row
+    tables:  Vec<Table>,
+    missing: Missing,
+    missed:  Vec<bool>,     // per table: the key was not found in the current row
 }
 
 impl Joins {
     // Read every table, in command line order. The key is the first column; the
     // joined columns are the others, or those selected by the naming part.
-    pub fn load(specs: &[JoinSpec]) -> Result<Joins, String> {
+    pub fn load(specs: &[JoinSpec], missing: Missing) -> Result<Joins, String> {
         let mut tables = Vec::with_capacity(specs.len());
         for spec in specs {
             let option = String::from_utf8_lossy(&spec.option).into_owned();
@@ -130,7 +147,7 @@ impl Joins {
             tables.push(table);
         }
         let missed = vec![false; tables.len()];
-        Ok(Joins { tables, missed })
+        Ok(Joins { tables, missing, missed })
     }
 
     pub fn is_empty(&self) -> bool {
@@ -171,13 +188,15 @@ impl Joins {
     // Append the joined fields to row. Returns false if an inner join does not find
     // the key: the row is rejected, and gets empty fields for that join and the later
     // ones (earlier joins keep their values), so that it has every column for
-    // --rejected (plan/JOIN.design.txt section 6).
-    pub fn apply(&mut self, row: &mut Row) -> bool {
+    // --rejected (plan/JOIN.design.txt section 6). A left join that does not find the
+    // key with --join-missing=__EXIT__ is an error (the caller adds the line number).
+    pub fn apply(&mut self, row: &mut Row) -> Result<bool, String> {
         for k in 0..self.tables.len() {
             let t = &mut self.tables[k];
             let w = t.width();
-            // A key that an earlier left join did not find (NA) never matches.
-            let na_key = t.key_join.is_some_and(|j| self.missed[j]);
+            // A key that an earlier left join did not find (NA) never matches; a fill
+            // value of --join-missing is data, and is looked up.
+            let na_key = self.missing == Missing::Na && t.key_join.is_some_and(|j| self.missed[j]);
             let found = if na_key { None } else { t.rows.get(row.field(t.key_input)).copied() };
             self.missed[k] = found.is_none();
             match found {
@@ -190,14 +209,21 @@ impl Joins {
                     for _ in 0..rest {
                         row.push_field(b"");
                     }
-                    return false;
+                    return Ok(false);
                 }
-                None => for _ in 0..w {
-                    row.push_field(NA);
+                None => match &self.missing {
+                    Missing::Na => for _ in 0..w {
+                        row.push_field(NA);
+                    },
+                    Missing::Value(v) => for _ in 0..w {
+                        row.push_field(v);
+                    },
+                    Missing::Exit => return Err(format!("{}: key [{}] not found in {} (--join-missing=__EXIT__)",
+                                                        t.option, String::from_utf8_lossy(row.field(t.key_input)), t.file)),
                 },
             }
         }
-        true
+        Ok(true)
     }
 
     // The end-of-run counts (silenced by -q).

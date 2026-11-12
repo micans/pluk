@@ -39,7 +39,7 @@ impl Stages<'_> {
         // The joins come first: their columns are input columns from here on. A row
         // that an inner join does not find is rejected as by an @@ filter
         // (plan/JOIN.design.txt section 6).
-        if !self.joins.apply(row) {
+        if !self.joins.apply(row).map_err(Failure::Fatal)? {
             return Ok(filter::Verdict::RejectPre);
         }
         // The fill comes before every filter (SAMVIEW.design.txt section 2).

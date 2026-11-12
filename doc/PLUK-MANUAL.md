@@ -2286,6 +2286,8 @@ checks that this list and `pluk --help` name the same options.
   (section 7).
 - `--join^KEY/SPEC=FILE`, `--join^KEY/P/SPEC/S=FILE`: append only the table columns of
   SPEC, named P + name + S with a prefix or suffix; also for `--join-inner` (section 7).
+- `--join-missing=VALUE`: the value of the joined columns when a key is not found, for
+  every `--join` (default NA); `__EXIT__` makes it an error (section 7).
 
 ### Listings and help
 

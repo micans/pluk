@@ -165,6 +165,8 @@ Joins (before filters and computes; the joined columns count as input columns):
                             key). --join^KEY/P/SPEC/S=FILE (also SPEC/S, P/SPEC/): name them P + name + S; capture group
                             1 of a +REGEX replaces the name. For all columns write P/+.*/S ('//' is refused). In P, SPEC
                             and S write / and = as %2F and %3D. The same for --join-inner.
+  --join-missing=VALUE      the value of the joined columns of a key not found, for every --join (default NA); VALUE
+                            is data (--join-missing=0 adds as 0); __EXIT__: a key not found is an error
 
   -l TERM..   list the operators (compute and filter) in a category, or whose name contains TERM; no TERM: all
   -% ARG..    write each ARG (on one line) with the characters that pluk treats specially %-encoded; no ARG: a table of

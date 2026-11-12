@@ -91,7 +91,8 @@ fn run() -> std::io::Result<()> {
     };
 
     // The tables of --join and --join-inner: read before input, as the dictionaries.
-    let mut joins = match join::Joins::load(&config.joins) {
+    let mut joins = match join::Joins::load(&config.joins,
+            config.join_missing.clone().map_or(join::Missing::Na, join::Missing::from_option)) {
         Ok(joins) => joins,
         Err(msg)  => {
             eprintln!("pluk: {}", msg);

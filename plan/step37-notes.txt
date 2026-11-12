@@ -110,3 +110,31 @@ Item 3: naming, --join^KEY/SPEC=FILE and P/SPEC/S
   join-naming-errors (each refusal). Table join-wide.txt in test/. Unit test join_options
   extended. join-errors changed: the usage names [/NAMING], --join^fx/p is now an unknown
   column, the clash error has the hint.
+
+Item 4: --join-missing=VALUE
+
+  Files: join.rs (enum Missing: Na, Value, Exit; Joins.missing; apply returns Result),
+  stages.rs (an __EXIT__ error is Failure::Fatal, so route() adds 'at line N' as for map
+  with __EXIT__), opt.rs (Config.join_missing, %-decoded; check_combinations), main.rs,
+  help, manual section 15.
+
+  VALUE is %-decoded, as dictionary defaults; '=' needs no escape (the option ends at the
+  first '=' after its name, the rest is VALUE). An empty VALUE is accepted and fills with
+  empty fields. As every option, a later --join-missing replaces an earlier one.
+
+  Refused unless at least one --join (left join) is given, also when there are only
+  --join-inner options, on which it would have no effect: 'requires --join (it has no
+  effect on --join-inner)'.
+
+  __EXIT__: the first key not found in a left join ends the run, after the rows before it
+  have been written (as map with __EXIT__): '--join^fx=FILE: key [cow] not found in FILE
+  (--join-missing=__EXIT__) at line 5'. Also with -c (the count is not written).
+
+  Decision (not in the design, recorded there): a fill value is data, also for a later
+  join that keys on the filled column: it is looked up like any value. Only the NA of a
+  missed left join without --join-missing never matches (item 2). So --join-missing=NA
+  does find a table key NA (test). This follows 'VALUE is data' of design section 5.
+
+  Tests: join-missing (fill 0 used by a compute and a filter; %-decoded VALUE with an inner
+  join unaffected; empty VALUE; a fill value looked up by a later join; NA as fill value;
+  __EXIT__ with output and with -c; the refusals). Unit test join_options extended.
