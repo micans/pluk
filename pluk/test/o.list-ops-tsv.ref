@@ -85,6 +85,7 @@ groupno	state	-	g	Number of the row's group (1-based; --group)
 rowno	state	-	x	Current table row number (start one)
 r0wno	state	-	x	Current table row number (start zero)
 lineno	state	-	x	Current input line number
+occno	state	x	n	Occurrence number of x: how often x has occurred so far, this row included (1 the first time)
 now	time	-	t	Current epoch (unix seconds)
 ttu	time	tu	s	Time unit (3h, 1.5d; units s m h d w y) in seconds
 rttu	time	s	tu	Integer seconds as days, hours, minutes, seconds (1d,2h,3m,4s)
@@ -217,5 +218,5 @@ strpair	bio	x y	pair(x,y)	Per position | where x and y are equal, x where not (s
 /ISNUM	filter	x	B	x is a number, not nan (not in test)
 /NOTNUM	filter	x	B	x is not a number (not in test)
 0
-218
-218
+219
+219

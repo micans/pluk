@@ -220,6 +220,7 @@ pub enum Attached {
     Pload(usize, Vec<u8>),          // pload: the slot of the kept column, and its name (step23)
     Quant(usize),                   // qnl, qnu: the position of the quantile steps (step24)
     Value(crate::exec::Value),      // ttu: the value of a constant, computed at compile time
+    Occurrence(usize),              // occno: the number of its counting table (step38)
 }
 
 // The right-hand side of test: the value y per row, or y prepared at compile time
@@ -276,6 +277,7 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, context: Context, dic
     let mut computes = Vec::with_capacity(specs.len());
     let mut redefined = vec![false; input.len()];  // input columns redefined so far
     let mut registers = Registers::default();
+    let mut n_occurrence = 0;           // occno instances so far: each gets its own table
     for spec in specs {
         let shown = String::from_utf8_lossy(&spec.text);
         // A map is one compute per selected column (current bindings), in COLSPEC
@@ -440,6 +442,10 @@ pub fn compile(specs: &[ComputeSpec], input: &ColumnNames, context: Context, dic
                                 Some(attached) => Instr::OpWith(op, attached),
                                 None => Instr::Op(op),
                             },
+                            Prepare::Occurrence => {
+                                n_occurrence += 1;
+                                Instr::OpWith(op, Attached::Occurrence(n_occurrence - 1))
+                            }
                             Prepare::SamTag => Instr::OpWith(op, Attached::Value(sam_tag(&instrs, &stack, op.name, &shown)?)),
                             Prepare::FormatCount => {
                                 check_format(&instrs, &stack, &shown)?;
@@ -697,6 +703,7 @@ pub fn describe_compiled(c: &Compute, names: &ColumnNames) -> String {
             Instr::OpWith(op, Attached::Register(slot, name)) =>
                 format!("  op {} (register {} slot {})\n", op.name, String::from_utf8_lossy(name), slot),
             Instr::OpWith(op, Attached::Quant(q)) => format!("  op {} (quant {})\n", op.name, q),
+            Instr::OpWith(op, Attached::Occurrence(t)) => format!("  op {} (table {})\n", op.name, t),
             Instr::OpWith(op, Attached::Pload(slot, name)) =>
                 format!("  op {} (kept column {} slot {})\n", op.name, String::from_utf8_lossy(name), slot),
         };

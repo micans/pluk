@@ -231,7 +231,7 @@ Computes (given among the columns; a stack language, as pick):
     precision   dd sn frac pct pml
     dictionary  map dord
     branch      ifelse test (test x y T: T a filter operator, e.g. ^/gt/)
-    state       save fetch (registers, per row) rowno r0wno lineno
+    state       save fetch (registers, per row) rowno r0wno lineno occno
     time        now ttu rttu todate
     bit         bitand bitor bitxor bitoff bitlsh bitrsh (on |x| |y|; integers)
     radix       tobin tohex tooct binto hexto octto

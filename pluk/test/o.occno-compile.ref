@@ -1,0 +1,32 @@
+compute a (output)
+  column [num4]
+  op occno
+compute b (output)
+  column [num4]
+  op occno
+  const [1]
+  op add
+  op occno
+compute map o_/num2:num4/ (output)
+  rename prefix [o_] suffix []
+  column [__]
+  op occno
+compiled a -> column 14 (output)
+  field 10 (num4)
+  op occno (table 0)
+  stack: [num]
+compiled b -> column 15 (output)
+  field 10 (num4)
+  op occno (table 1)
+  const [1]
+  op add
+  op occno (table 2)
+  stack: [num]
+compiled o_num2 -> column 16 (output)
+  field 9 (num2)
+  op occno (table 3)
+  stack: [num]
+compiled o_num4 -> column 17 (output)
+  field 10 (num4)
+  op occno (table 4)
+  stack: [num]

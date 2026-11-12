@@ -56,6 +56,7 @@ pub struct Machine<'d> {
     pub sam_put: Vec<Vec<u8>>,                    // sam_put: the TAG:TYPE:VALUE entries of this row
     pub put_unusable: u64,                        // sam_put values NA or with TAB or newline
     pub put_wrong_type: u64,                      // sam_put values not of the tag's type
+    occurrences: Vec<HashMap<Vec<u8>, u64>>,      // occno: per instance, value -> count (whole run)
 }
 
 // A small random number generator, splitmix64 (Steele, Lea and Flood, 2014): a
@@ -98,7 +99,28 @@ impl<'d> Machine<'d> {
                   register_slots: HashMap::new(), other_registers: HashMap::new(), rowno: 0, lineno: 0,
                   time_zone: None, sam: crate::sam::View::new(dicts),
                   n_quality_mismatch: 0, kept: Vec::new(),
-                  groupi: 0, groupno: 0, sam_put: Vec::new(), put_unusable: 0, put_wrong_type: 0 }
+                  groupi: 0, groupno: 0, sam_put: Vec::new(), put_unusable: 0, put_wrong_type: 0,
+                  occurrences: Vec::new() }
+    }
+
+    // occno: count key in table slot and return how often it has occurred, this time
+    // included. The tables are created on first use and kept for the whole run.
+    // The key is copied only the first time it occurs.
+    pub fn occurrence(&mut self, slot: usize, key: &[u8]) -> u64 {
+        if slot >= self.occurrences.len() {
+            self.occurrences.resize_with(slot + 1, HashMap::new);
+        }
+        let table = &mut self.occurrences[slot];
+        match table.get_mut(key) {
+            Some(n) => {
+                *n += 1;
+                *n
+            }
+            None => {
+                table.insert(key.to_vec(), 1);
+                1
+            }
+        }
     }
 
     // The register slots of the compiled computes (constant names of save and fetch).
@@ -254,6 +276,20 @@ mod tests {
         assert!(xs.iter().all(|&x| (0.0..1.0).contains(&x)));
         let mean = xs.iter().sum::<f64>() / xs.len() as f64;
         assert!((mean - 0.5).abs() < 0.01, "{}", mean);
+    }
+
+    #[test]
+    fn occurrence() {
+        let dicts = Dicts::new();
+        let mut m = Machine::new(false, 0, &dicts);
+        let count = |m: &mut Machine, slot, key: &str| m.occurrence(slot, key.as_bytes());
+        assert_eq!(count(&mut m, 1, "a"), 1);       // a later table first: created on use
+        assert_eq!(count(&mut m, 1, "a"), 2);
+        assert_eq!(count(&mut m, 0, "a"), 1);       // tables are independent
+        assert_eq!(count(&mut m, 1, "b"), 1);
+        assert_eq!(count(&mut m, 1, "1.0"), 1);     // compared as text
+        assert_eq!(count(&mut m, 1, "1"), 1);
+        assert_eq!(count(&mut m, 1, "a"), 3);
     }
 }
 

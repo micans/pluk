@@ -87,6 +87,7 @@ groupno       -           g                   Number of the row's group (1-based
 rowno         -           x                   Current table row number (start one) [state]
 r0wno         -           x                   Current table row number (start zero) [state]
 lineno        -           x                   Current input line number [state]
+occno         x           n                   Occurrence number of x: how often x has occurred so far, this row included (1 the first time) [state]
 now           -           t                   Current epoch (unix seconds) [time]
 ttu           tu          s                   Time unit (3h, 1.5d; units s m h d w y) in seconds [time]
 rttu          s           tu                  Integer seconds as days, hours, minutes, seconds (1d,2h,3m,4s) [time]

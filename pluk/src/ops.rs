@@ -61,6 +61,7 @@ pub enum Prepare {
                        // naming a dictionary (map, dord: 0)
     Test,              // test: the filter operator and its right-hand side (compute.rs)
     Register,          // save, fetch: a constant register name gets a slot (compute.rs)
+    Occurrence,        // occno: each instance gets a counting table of its own (step38)
     FoldTtu,           // ttu: a constant time unit is translated at compile time
     SamTag,         // sam_get: the tag (below the default) must be a constant XX:T, XX.T
                     // or XX-T; it is attached as XX:T:
@@ -186,6 +187,9 @@ pub static OPERATORS: &[OpDef] = &[
             operands: "-", result: "x", doc: "Current table row number (start zero)", fun: op_r0wno },
     OpDef { name: "lineno", pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::State,
             operands: "-", result: "x", doc: "Current input line number", fun: op_lineno },
+    OpDef { name: "occno",  pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::Occurrence, category: Category::State,
+            operands: "x", result: "n", doc: "Occurrence number of x: how often x has occurred so far, this row included \
+            (1 the first time)", fun: op_occno },
     OpDef { name: "now",    pops: Pops::N(0), pushes: 1, shape: NUM, prepare: Prepare::Nothing, category: Category::Time,
             operands: "-", result: "t", doc: "Current epoch (unix seconds)", fun: op_now },
     OpDef { name: "ttu",    pops: Pops::N(1), pushes: 1, shape: NUM, prepare: Prepare::FoldTtu, category: Category::Time,
@@ -1156,6 +1160,23 @@ fn op_groupno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.groupno; m.pus
 fn op_rowno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.rowno; m.push(Value::Num(Num::I(n as num::Int))) }
 fn op_r0wno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.rowno; m.push(Value::Num(Num::I(n as num::Int - 1))) }
 fn op_lineno(m: &mut Machine, _: &Row, _: &Attached) { let n = m.lineno; m.push(Value::Num(Num::I(n as num::Int))) }
+
+// occno x (plan/step38.txt): the occurrence number of x in its own table (decision 2),
+// x compared as written text (decision 3); NA gives NA and is not counted (decision 4).
+fn op_occno(m: &mut Machine, row: &Row, a: &Attached) {
+    let x = m.pop();
+    let Attached::Occurrence(slot) = a else { unreachable!("occno has its table attached") };
+    let value = match x {
+        Value::Na => Value::Na,
+        x => {
+            // bytes() borrows from x and row, not from the machine.
+            let key = m.bytes(&x, row);
+            let n = m.occurrence(*slot, &key);
+            Value::Num(Num::I(n as num::Int))
+        }
+    };
+    m.push(value);
+}
 
 // qnl and qnu (plan/step24.txt decision 1): the steps are sorted, so the counts come
 // from binary searches (partition_point). x that is not a number (or nan) gives NA.

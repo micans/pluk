@@ -3185,6 +3185,25 @@ The data row number counted from 0. Example under `rowno`.
 
 The line number in the input. Example under `rowno`.
 
+#### `occno`
+<!-- op occno -->
+`x` → `n` — Occurrence number of x: how often x has occurred so far, this row included (1 the first time)
+
+A running count per value: the first row with a value gets 1, the next row with the same value 2, and so on, over the whole input. Values are compared as text. Each `occno` keeps its own count, so two computes with `occno` do not influence each other. Only rows that are computed are counted: a row rejected by an `@@` filter is not, a row rejected by an `@` filter is. An NA operand gives NA and is not counted. With `@n/eq/1` it keeps the first row per value (section 8).
+
+```console
+$ pluk picker fruit n::fruit,occno < harvest.txt
+picker  fruit   n
+Annie   apple   1
+Bert    pear    1
+Chen    apple   2
+Dora    plum    1
+Eamon   cherry  1
+Fenna   apple   3
+Gus     pear    2
+Hilde   plum    2
+```
+
 ### time
 
 #### `now`

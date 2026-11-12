@@ -1,0 +1,43 @@
+Step 38 notes: occno (plan/step38.txt).
+
+Item 2: the operator
+
+  Files: ops.rs (OpDef occno in the state category after lineno; Prepare::Occurrence;
+  op_occno), compute.rs (Attached::Occurrence(table); a counter of occno instances over all
+  computes of the run, so each instance gets the next table number; --test-compute shows
+  'table N'), exec.rs (Machine.occurrences, one HashMap value -> count per table, created on
+  first use and kept for the whole run; Machine::occurrence), opt.rs (help: occno on the
+  state line), manual section 16 (operator reference entry; opscheck requires it).
+
+  Tables per instance (decision 2). The table number is handed out at compile time, as
+  save and fetch get register slots, so the operator needs no lookup by name at run time. A
+  map or renaming compute is compiled once per selected column, so every column gets its
+  own table without further work (test: o_/num2:num4/::__,occno). Two occno in one SPEC
+  are two tables too: 'num4,occno,occno' counts the occurrence numbers themselves.
+
+  The tables are not set up in advance from the compiled computes (as set_registers does
+  for registers): the vector grows on first use, which keeps Machine::new and main.rs
+  unchanged. The cost is a length check per call.
+
+  Keys (decision 3): the operand as text, via Machine::bytes, which borrows a field or a
+  string and writes a number as it would be output (with --num-perl, as Perl). The table
+  is searched with the borrowed bytes (get_mut) and the key copied only when it is new;
+  HashMap::entry would need an owned key, a copy per row also for repeated values.
+
+  Rust: m.bytes(&x, row) returns a Cow that borrows from x and row, not from m (its
+  lifetime parameter ties the result to the value and the row only), so m can be borrowed
+  mutably for m.occurrence() while the key is alive.
+
+  NA (decision 4): a Value::Na operand gives NA and is not counted. The text NA (from the
+  input, or from a computed column read by a later compute) is a value like any other.
+
+  Counting follows the stages (decision 5): occno runs where the computes run, so a row
+  rejected by @@ or an inner join is not counted, a row rejected by @ is, and with --group
+  the first row of a group is counted although it is not output (test on big.txt: r010 is
+  the 5th C because the skipped r009 was counted).
+
+  Tests: occno (independent tables, occno of occno, a renaming map, NA and number
+  operands, @@ versus @, deduplication with -A, -c and on two columns via cat, --group,
+  --rejected collecting the duplicates, -l occno); occno-compile (--test-compute, in the
+  runtestopt group: table numbers per instance and per column of a map). Unit test
+  exec.rs occurrence. list-ops, list-ops-tsv (219 operators) and help-long changed.
