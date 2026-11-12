@@ -1,0 +1,55 @@
+Step 38: occno, the occurrence number of a value
+
+The awk idiom !seen[$1]++ (keep the first row per key; number repeated keys) has no
+counterpart in pluk: --group sees only consecutive rows, dictionaries are read-only. One
+stateful operator covers it, in the state category with rowno, lineno, groupno. pick has
+no such operator; this is a pluk addition. Name discussed after step37: occno ('occurrence
+number'), after the 1-based running numbers rowno, lineno, groupno; rejected: nseen
+(0 or 1 the first time?), tally and count (read as the final total).
+
+  pluk -A 'n:=fruit,occno' @n/eq/1                     first row per fruit
+  pluk -A 'k:=picker:fruit,cat' 'n:=k,occno' @n/eq/1   first row per picker and fruit
+  pluk picker fruit 'k::fruit,occno'                   1 1 2 1 1 3 2 2 (harvest.txt)
+
+Decisions
+
+  1. occno x -> n: the number of times x has occurred so far in this run, the current row
+     included; 1 the first time. Pops 1, pushes 1, category state.
+
+  2. Each occno in the computes counts on its own (its own table, a slot prepared at
+     compile time, as save and fetch get theirs): 'a:=x,occno' 'b:=y,occno' do not
+     influence each other, and two occno on the same column give the same numbers. A map
+     or renaming compute that applies occno to several columns counts per column.
+
+  3. Values are compared as text, byte for byte, as they would be written: 1 and 1.0
+     differ, as do 01 and 1 (as join keys, JOIN.design.txt section 2). A number computed
+     earlier in the SPEC is counted under its written form.
+
+  4. An NA operand gives NA and is not counted (as other operators: an NA operand gives
+     NA). The text NA from the input is an ordinary value, as everywhere else.
+
+  5. Only rows whose computes run are counted: a row rejected by an @@ filter or an inner
+     join is not; a row rejected by an @ filter is (the @ stage comes after the computes).
+     To deduplicate among the rows that pass other conditions, make those @@ filters.
+     With --group, the first row of a group is counted (its computes run).
+
+  6. Memory grows with the number of distinct values (per occno), as a dictionary; no
+     limit and no report.
+
+  7. Documented as an addition: manual 14.2, guidelines. No 0-based form (an r0wno-like
+     occ0no) unless asked for.
+
+Items
+
+1. This step file; plan/step38-notes.txt started. Commit.
+
+2. occno: ops.rs (definition, Prepare for a slot), compute.rs (slot per instance), exec.rs
+   (the tables, the operator), help (state line of the Computes section), operator
+   reference entry in the manual (section 16; opscheck requires it). Tests: first and
+   repeated values, two independent occno, a map over two columns, NA operand, a number
+   operand, @@ versus @ filters (decision 5), --group, dedupe with --rejected collecting
+   the duplicates, -c. Commit.
+
+3. Manual prose: section 8 (State across rows) a paragraph with the three examples;
+   section 12 (Recipes) deduplication, also on several columns; 14.2 addition;
+   plan/guidelines.txt entry. Commit.
