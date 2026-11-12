@@ -39,3 +39,12 @@
   NA, not as text, wherever a field is read: input columns, and computed columns that a
   later compute in the same run refers to (where an NA is now the text NA, SAM-NA.md
   section 2). Feasibility not yet considered.
+- Joins with SAM input (step37; JOIN.design.txt section 7 refuses --join with --sam and
+  --sam-header for now). Per-read metadata keyed on QNAME (sample, UMI, barcode, group
+  tables), or per-reference data keyed on RNAME, available to computes and filters while
+  the SAM output stays intact: the joined values would not be appended as SAM columns
+  (that breaks the record) but be readable by name in computes and filters, and could be
+  written into the record with sam_put as tags. Neither join(1) nor Miller does this
+  naturally; it would extend pluk's niche more than step37 does. To settle: how joined
+  names exist without being output columns (a separate namespace, or columns that -A and
+  --sam-header output leave out), and whether -k numbering is affected.
