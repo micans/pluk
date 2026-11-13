@@ -1,5 +1,9 @@
 # Introduction to pluk
 
+| **Pluk in a nutshell** |
+| :--- |
+| `pluk` is akin to a **column-name** and **column-type aware** `grep` married with `cut`.  Using column names as variables it can update existing columns, compute new columns or construct formatted output from the rows like `sed`. |
+
 *pluk is a Rust reimplementation of [pick](http://github.com/micans/pick),
 a Perl program by Stijn van Dongen that served as pluk's prototype. All code was written by Claude (Anthropic) in
 dialogue with Stijn.  The work was staged into steps, each a small set of items.  Every step was discussed and its
@@ -7,24 +11,20 @@ decisions written down before any code was written, then implemented item by ite
 Stijn over a period of about three days. The `plan/` directory retains that history.  Many corner/edge cases in pick
 were settled and sometimes fixed, syntax was made cleaner in a few places, features were added.*
 
-
-| **Pluk in a nutshell** |
-| :--- |
-| `pluk` is akin to a **column-name** and **column-type aware** `grep` married with `cut`.  Using column names as variables it can update existing columns, compute new columns or construct formatted output from the rows like `sed`. |
-
-It distinguishes strings, integer and floats, infers types from operators and filters, and issues appropriate conversions
+`pluk` distinguishes strings, integer and floats, infers types from operators and filters, and issues appropriate conversions
 and warnings as necessary. Errors propagate to `NA` and are summarised in diagnostic messages.
 
 `pluk` streams a table, i.e. a file with a header line and tab-separated columns, and lets you manipulate rows using column
 names. It processes the table line by line and **munches through large data fast using almost no memory**.  It supports
 
 -  filters and assertions over input data and output data
+-  joining annotation tables onto the input data, considered part of the input data
 -  editing/changing existing columns
 -  computing new columns
 -  reading compressed data transparently
 -  tables without headers, including ragged data
--  spliting a table into files
 -  SAM/BAM input with compute operators to extract alignment information
+-  spliting a table into files
 
 Everything is specified on the command line. Pluk aims for expressive and concise invocations.
 The new column syntax is stack based. It is idiosyncratic but simple and effective, or
