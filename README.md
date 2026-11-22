@@ -5,11 +5,14 @@
 | `pluk` is akin to a **column-name** and **column-type aware** `grep` married with `cut`.  Using column names as variables it can update existing columns, compute new columns or construct formatted output from the rows like `sed`. |
 
 *pluk is a Rust reimplementation of [pick](http://github.com/micans/pick),
-a Perl program by Stijn van Dongen that served as pluk's prototype. All code was written by Claude (Anthropic) in
+a Perl program by [Stijn van Dongen](http://github.com/micans) that served as pluk's prototype. All code was written by Claude (Anthropic) in
 dialogue with Stijn.  The work was staged into steps, each a small set of items.  Every step was discussed and its
 decisions written down before any code was written, then implemented item by item, tested against pick and committed by
-Stijn over a period of about three days. The `plan/` directory retains that history.  Many corner/edge cases in pick
-were settled and sometimes fixed, syntax was made cleaner in a few places, features were added.*
+Stijn over a period of about four days. The `plan/` directory retains that history.  Many corner/edge cases in pick
+were settled and sometimes fixed, syntax was made cleaner in a few places, features were added.
+Nearly all pick command lines are also valid pluk invocations, but some lesser-used pick options were
+renamed in pluk to increase consistency.*
+
 
 `pluk` distinguishes strings, integer and floats, infers types from operators and filters, and issues appropriate conversions
 and warnings as necessary. Errors propagate to `NA` and are summarised in diagnostic messages.
@@ -73,7 +76,7 @@ Bert    9.0
 ...
 ```
 
-**Or leave some out**, by name or by pattern (`+` starts a regular expression that must
+**Leave column names out**, by name or by pattern (`+` starts a regular expression that must
 match the whole name).
 
 ```console
@@ -83,7 +86,7 @@ Annie   apple   14.5  2
 ...
 ```
 
-**Keep the rows you care about.** Filters start with `@`. This one asks for heavy apples.
+**Specify rows to keep.** Filters start with `@`. This one selects apple rows with a weight minimum.
 
 ```console
 $ pluk -A @fruit=apple @kg/gt/15 < doc/harvest.txt
@@ -99,7 +102,7 @@ $ pluk -c @fruit=apple < doc/harvest.txt
 
 **Make new columns.** A compute is `NAME::` followed by a small stack program: `:` pushes a
 column, `^` a constant, `,` applies an operator. Here, pounds (to one decimal) and
-bruises per kilo (to two decimals). No quotes are needed: `:` `^` `,` `@` and `/` mean nothing to
+bruises per kilo (to two decimals). No quotes are needed: `:` `^` `,` `@` and `/` are not special to
 the shell. An argument with `*`, `?`, `[`, `\`, `(`, `$` or a space does need them.
 
 ```console
@@ -111,7 +114,7 @@ Chen    22.1  48.7  0.23
 ...
 ```
 
-**Look things up.** A dictionary (on the command line in this example), and what the day was worth:
+**Look things up.** A dictionary (on the command line in this example), and the revenue per row:
 
 ```console
 $ pluk --cd-PRICE=apple:2.10,pear:2.50,plum:3.20,cherry:9.00 \
@@ -144,16 +147,6 @@ Ch3n    APPLE  A07   22.1  5        0.88
 ...
 ```
 
-**Do the same to a family of columns**, under new names (`x2/kg:bruised/` makes `x2kg`
-and `x2bruised`; with `x2//kg:bruised//` the originals are kept alongside).
-
-```console
-$ pluk picker x2/kg:bruised/::__^2,mul < doc/harvest.txt
-picker  x2kg  x2bruised
-Annie   29    4
-...
-```
-
 **Sort the harvest into crates**: one file per fruit, each with the header (`-q` silences the tally pluk writes to stderr).
 
 ```console
@@ -166,8 +159,8 @@ pear.txt
 plum.txt
 ```
 
-**Make the data behave.** An assertion stops the run, with the line, when a row
-breaks the rule. Eamon's cherries were picked early.
+**Validate the data.** An assertion stops the run, with the line number, when a row
+breaks the rule. Eamon's cherries were picked too soon.
 
 ```console
 $ pluk -A @assert@ripeness/ge/0.65 < doc/harvest.txt
@@ -204,8 +197,8 @@ GCTTAACGGTACAATGAGCTAGTTTCTAAGGTT---TGCAATTCG
 ```
 
 A ruler, the reference, the alignment (`|` match, `x` mismatch, `~` insertion, `-`
-deletion) and the read. With a little context the clipped bases and the reference
-beyond the read come into view:
+deletion) and the read. Alignment context can be narrowed or widened. Below shows
+the context along the clipped bases with `--sam-aln-context=5`:
 
 ````console
 $ pluk -q --sam/doc/transgene.fa --sam-aln-context=5 a::,aln_all < doc/reads.sam
