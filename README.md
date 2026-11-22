@@ -34,7 +34,7 @@ possibly simple and effective but idiosyncratic.
 -  Short options combine, e.g. `-Ak/^#` (as above, skip lines starting with `#`).
 -  A column is selected simply by naming it.
 -  A filter is indicated by `@`, e.g. `@weight/gt/1.0`, filtering rows by column `weight`.
--  A new column looks like this: `gram::kg^1000,div`.
+-  A new column looks like this: `gram::kg^1000,mul`.
 
 These are illustrated below using the data [`doc/harvest.txt`](doc/harvest.txt) (the
 examples run from the top of the repository, with pluk on the PATH):
