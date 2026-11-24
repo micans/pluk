@@ -63,6 +63,17 @@ make test                 # build, unit tests, the test suite, the manual's exam
 make test-int128          # the same with 128-bit integers; binary target/release/pluk7
 ```
 
+On Macos I've used brew for installing rust:
+
+```sh
+brew install rustup-init
+rustup-init
+rustup update stable
+```
+
+On Linux I've used the scary `curl`-pipe-to-`sh` command line that seems the installation
+advice front, right and center everywhere. It does lead to a lingering feeling of queasiness.
+
 
 ## A quick tour
 
