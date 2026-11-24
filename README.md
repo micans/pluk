@@ -29,18 +29,18 @@ names. It processes the table line by line and **munches through large data fast
 -  SAM/BAM input with compute operators to extract alignment information
 -  spliting a table into files
 
-Everything is specified on the command line. Pluk aims for expressive and concise invocations.
-The new column syntax is stack based. It is idiosyncratic but simple and effective, or
-possibly simple and effective but idiosyncratic.
+Everything is specified on the command line. Pluk aims for expressive and concise invocations
+that naturally read from left to right, using a stack-based syntax for new columns.
+This syntax is perhaps idiosyncratic but simple and effective, or possibly simple and effective but idiosyncratic.
 
 -  Short options set often-used modalities, e.g. `-A` (select all), `-k` (headerless input).
 -  Short options combine, e.g. `-Ak/^#` (as above, skip lines starting with `#`).
 -  A column is selected simply by naming it.
 -  A filter is indicated by `@`, e.g. `@weight/gt/1.0`, filtering rows by column `weight`.
--  A new column looks like this: `gram::kg^1000,mul`.
+-  A new column looks like this: `gram::kg^1000,mul`, or `fahrenheit::^9^5,div:celcius,mul^32,add`.
 
-These are illustrated below using the data [`doc/harvest.txt`](doc/harvest.txt) (the
-examples run from the top of the repository, with pluk on the PATH):
+Further examples below use the data [`doc/harvest.txt`](doc/harvest.txt) (the
+examples run from the top of the repository, with pluk found in PATH):
 
 ```text
 picker  fruit   tree  kg    bruised  ripeness
@@ -86,7 +86,7 @@ Annie   apple   14.5  2
 ...
 ```
 
-**Specify rows to keep.** Filters start with `@`. This one selects apple rows with a weight minimum.
+**Specify rows to keep.** Filters start with `@`. Below selects apple rows with a weight minimum.
 
 ```console
 $ pluk -A @fruit=apple @kg/gt/15 < doc/harvest.txt
@@ -160,7 +160,7 @@ plum.txt
 ```
 
 **Validate the data.** An assertion stops the run, with the line number, when a row
-breaks the rule. Eamon's cherries were picked too soon.
+breaks the rule. Eamon's cherries fail the ripeness check.
 
 ```console
 $ pluk -A @assert@ripeness/ge/0.65 < doc/harvest.txt
