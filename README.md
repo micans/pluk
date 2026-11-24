@@ -114,18 +114,17 @@ Chen    22.1  48.7  0.23
 ...
 ```
 
-**Look things up.** A dictionary (on the command line in this example), and the revenue per row:
+**Look things up.** A dictionary (in the file `doc/prices.txt`), and the revenue per row:
 
 ```console
-$ pluk --cd-PRICE=apple:2.10,pear:2.50,plum:3.20,cherry:9.00 \
-       picker fruit kg 'eur::fruit^PRICE,map:kg,mul^2,dd' < doc/harvest.txt
+$ pluk --fd-PRICE=doc/prices.txt picker fruit kg 'eur::fruit^PRICE,map:kg,mul^2,dd' < doc/harvest.txt
 picker  fruit  kg    eur
 Annie   apple  14.5  30.45
 Bert    pear   9.0   22.50
 ...
 ```
 
-**Join a table**: its columns are appended to each row, looked up by key; a tree that is not in the table gets NA.
+**Join a table**: its columns are appended to each row, looked up by key. A failed look-up yields NA.
 
 ```console
 $ pluk --join^tree=doc/trees.txt picker tree planted row < doc/harvest.txt
@@ -159,8 +158,8 @@ pear.txt
 plum.txt
 ```
 
-**Validate the data.** An assertion stops the run, with the line number, when a row
-breaks the rule. Eamon's cherries fail the ripeness check.
+**Validate the data.** An assertion, if failed, stops the run. Here Eamon's cherries
+fail the ripeness threshold.
 
 ```console
 $ pluk -A @assert@ripeness/ge/0.65 < doc/harvest.txt
@@ -178,7 +177,7 @@ pluk: assertion @assert@ripeness/ge/0.65 failed: column ripeness value [0.61] at
 ## SAM and BAM support.
 
 pluk reads SAM and BAM. Given the reference sequences it computes the trailing and aligned parts of both
-query and reference, counts edits, and supports output of individual aligment parts.
+query and reference, counts edits, and supports similar quantification and output of sub-regions of aligned parts.
 It is intended for relatively short non-genomic references such as transcripts, transgenes, plasmids and amplicons.
 Here is [one read](doc/reads.sam) against a [53-base transgene](doc/transgene.fa) in this case showing
 the full alignment. Below `aln_posinfo` gives _Mismatch and indel positions; indel sequences up to length n_.
