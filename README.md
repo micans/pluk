@@ -4,14 +4,14 @@
 | :--- |
 | `pluk` is akin to a **column-name** and **column-type aware** `grep` married with `cut`.  Using column names as variables it can update existing columns, compute new columns or construct formatted output from the rows like `sed`. |
 
-*pluk is a Rust reimplementation of [pick](http://github.com/micans/pick),
-a Perl program by [Stijn van Dongen](http://github.com/micans) that served as pluk's prototype. All code was written by Claude (Anthropic) in
+*This software is a Rust reimplementation of [pick](http://github.com/micans/pick),
+a Perl program by [Stijn van Dongen](http://github.com/micans). All code was written by Claude (Anthropic) in
 dialogue with Stijn.  The work was staged into steps, each a small set of items.  Every step was discussed and its
-decisions written down before any code was written, then implemented item by item, tested against pick and committed by
-Stijn over a period of about four days. The `plan/` directory retains that history.  Many corner/edge cases in pick
+decisions written down, then implemented item by item, tested against pick and committed by
+Stijn over a period of about four days. The `plan/` directory retains that history.  Corner cases in pick
 were settled and sometimes fixed, syntax was made cleaner in a few places, features were added.
-Nearly all pick command lines are also valid pluk invocations, but some lesser-used pick options were
-renamed in pluk to increase consistency.*
+Some rarely-used pick options were renamed in pluk to improve interface consistency.
+Nearly all pick command lines are also valid pluk invocations.*
 
 
 `pluk` distinguishes strings, integer and floats, infers types from operators and filters, and issues appropriate conversions
