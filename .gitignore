@@ -4,3 +4,4 @@ o.*.test
 pluk/test/out/
 __pycache__/
 pluk/test/tempest-*x*.txt.gz
+zoem/out/
