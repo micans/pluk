@@ -1,0 +1,15 @@
+\import{pud/man.zmm}
+\begin{pud::man}{
+   {name}{fonttest}
+   {html_title}{fonttest}
+   {author}{nobody}
+   {section}{7}
+}
+\sec{name}{NAME}
+\NAME{fonttest}{test page for font escapes}
+\sec{description}{DESCRIPTION}
+\par{Inline \v{code} and \tt{teletype} and \m{meta}, then \bf{bold} and \it{italic}.}
+\verbatim{a verbatim
+   block}
+\par{After the block.}
+\end{pud::man}

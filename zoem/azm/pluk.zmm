@@ -1,0 +1,167 @@
+\: Macros common to the pluk documents (plan/docstep1.txt). Imported after pud/man.zmm.
+\:
+\:  \plukbegin{keys} \plukend  the document's pud::man environment (item 9)
+\:  \plukdoc{name}{title}     opening of a document: roff NAME and DESCRIPTION, HTML h1
+\:  \docsec{id}{caption}      a numbered section; \secnum{id} gives its number
+\:  \sref{id}                 'section N', linked to the section (item 9)
+\:  \page{name}{title}        HTML: continue on the page name.html (item 9)
+\:  \console{..}              a console example (decision 3; see below)
+\:  \file{name}               a data file beside the document (decision 4)
+\:  \plan{name}               a file in the repository's plan/ directory (decision 4)
+\:  \pluk_version             the version, from the stamp file (decision 9)
+
+\: __o__o__o__O  version
+
+\: out/stamp.version is written by the Makefile from pluk/Cargo.toml.
+
+\'setx{pluk_version}{\'tr{{delete}{[:space:]}}{\'zinsert{stamp.version}}}
+
+\'set{pluk_repo}{https://github.com/micans/pluk}
+
+\: __o__o__o__O  document opening
+
+\: The man page needs NAME (for whatis/apropos) and a heading for the text before the
+\: first numbered section; the web page has neither, only the title. NAME and
+\: DESCRIPTION are written directly, not through \sec, so that the section counter of
+\: pud::man counts the numbered sections only (\secnum).
+
+\: .nh: no automatic hyphenation, so that code (\v) is never hyphenated; groff's \%
+\: would do it per word, but only at the start of a word: in '(\%--sam' it marks a
+\: hyphenation point instead.
+
+\: .ZR: a ruler above and below each console block (docstep1 item 5), redefining the
+\: empty hook of base.zmm's verbatim. The line spans the room left of the current
+\: indent; it is drawn with U+2500 (box drawing light horizontal) on the utf8 device,
+\: with \- elsewhere (ascii, latin1; a plain - in \l draws nothing there). The rulers
+\: are lines of their own, so a command copied from the block is unaffected.
+
+\'def{plukdoc#2}{
+   \'${roff}{
+      \@{\N.nh\N}
+      \@{\N.ie "\\*[.T]"utf8" .ds ZL \\[u2500]\N.el .ds ZL \\-\N}
+      \@{\N.de ZR\N\\l'\\\\n(.lu-\\\\n(.iu\\\\*(ZL'\N..\N}
+      \@{\N.SH NAME\N}\1 \@{\\-} \2
+      \@{\N.SH DESCRIPTION\N}
+   }
+   \: html: the table of contents after the title (item 8); pluk.css places it beside
+   \: the text on wide screens. The pages set {tocnum}{0}: \docsec captions carry
+   \: their number.
+   \'${html}{
+      \'setx{_pluk_first}{\__fnout__}
+      \'setx{_pluk_title}{\2}
+      \@{\P<h1>}\2\@{</h1>\N}
+      \"pud::man::maketoc"
+   }
+   \'${md}{
+      \@{\P# }\2\@{\P}
+   }
+}
+
+\: __o__o__o__O  pages (item 9)
+
+\: \plukbegin{keys} .. \plukend: \begin{pud::man}{keys} .. \end{pud::man}, keeping
+\: the keys for \page.
+\:
+\: \page{name}{title}: in HTML, the rest of the document goes to the page name.html,
+\: titled 'title - <html_title>'. In roff and Markdown nothing: the man page and the
+\: .md stay one document. Links to sections find their page in the .zmr
+\: (pud::man::href).
+\:
+\: zoem keeps the environments per output file (each sink has its own dictionary
+\: stack, src/sink.c), so pud::man cannot span a \writeto: \page ends it in the current
+\: file (closing the page), \writeto's the next and begins it there again with the
+\: same keys and the page's title (opening the page). Hence \page must not be used
+\: inside another environment (a list), which would not continue on the new page.
+\: The new page has a link to the first (the document title) and the table of
+\: contents.
+
+\: Every pluk man page asks for tbl ('\" t): harmless without tables (item 10).
+
+\'def{plukbegin#1}{
+   \'set{_pluk_keys}{{preprocess}{t}\1}
+   \begin{pud::man}{\_pluk_keys}
+}
+
+\'def{plukend}{\end{pud::man}}
+
+\'def{page#2}{
+   \'${html}{
+      \'setx{_pluk_pagetitle}{\2 \- \get{pud::man}{$html_title}}
+      \end{pud::man}
+      \'writeto{\1.html}
+      \begin{pud::man}{\_pluk_keys {html_title}{\_pluk_pagetitle}}
+      \@{\N<p class="docup">}\lref{\_pluk_first}{\_pluk_title}\@{</p>\N}
+      \"pud::man::maketoc"
+   }
+}
+
+\: \sref{id}: 'section N', linked to the section wherever it is (page, anchor). An
+\: unknown id is reported by \ref; tools/runzoem.sh makes that an error (decision 5).
+
+\'def{sref#1}{
+   \'switch{\__device__}{
+      {html}{\<a class="intern" href="\"pud::man::href"{\1}">{section \ref{\1}{num}}}
+      {md}{\iref{\1}{section \ref{\1}{num}}}
+      {section \ref{\1}{num}}
+   }
+}
+
+\: __o__o__o__O  sections
+
+\'def{docsec#2}{
+   \'setx{_docsec_num}{\'let{\ctrput{pud::man::sec}+1}}
+   \sec{}{\1}{\_docsec_num. \2}
+}
+
+\'def{secnum#1}{\ref{\1}{num}}
+
+\: __o__o__o__O  console examples
+
+\: \console{
+\: $ pluk ...
+\: expected output
+\: }
+\:
+\: The block opens and closes on lines of their own, so that tools/ can find it (the
+\: update step, item 7). Its text is literal except for zoem's own escapes: \\ \{ \}.
+\: The newline after the opening brace is removed (the regex below is a literal
+\: newline: zoem's tilde escapes have none for it). A leading newline would otherwise be
+\: a blank first line, in roff (no-fill mode) and in HTML (white-space: pre).
+
+\'if{\'cmp{eq}{\__device__}{md}}{}{
+\'def{console#1}{
+   \verbatim{\inspect{{mods}{posix,match-once}}{^
+}{}{\1}}
+}
+}
+
+\: Markdown: a ```console fence (decision 3; what doccheck.py runs). Here the newline
+\: after the opening brace is kept and the one before the closing brace removed: with
+\: white space not managed (\w), zoem prints a newline from the text followed by the
+\: indent (\I, inside a list item), but not after a newline of its own (\N); so the
+\: kept newline indents the first line, and \W\N gives the closing fence its indent once.
+\: The regex is a literal newline followed by $.
+
+\'${md}{
+\'def{console#1}{
+   \@{\P```console\w\+{3}}\inspect{{mods}{posix,match-once}}{
+$}{}{\1}\@{\+{1}\W\N```\P}
+}
+}
+
+\: __o__o__o__O  links
+
+\: A data file: a relative link on the web (the data files are shipped beside the
+\: pages, decision 8), the file name in roff.
+
+\'${html}{\'def{file#1}{\lref{\1}{\v{\1}}}}
+\'${roff}{\'def{file#1}{\v{\1}}}
+\'${md}{\'def{file#1}{\lref{\1}{\1}}}
+
+\: A plan file: plan/ is not part of the site, so an absolute link to the repository.
+\: In Markdown too: the generated .md is checked in out/, where a relative link to
+\: ../plan/ would not resolve, and the link then works wherever the .md is read.
+
+\'${html}{\'def{plan#1}{\aref{\pluk_repo/blob/main/plan/\1}{\v{plan/\1}}}}
+\'${roff}{\'def{plan#1}{\v{plan/\1}}}
+\'${md}{\'def{plan#1}{\aref{\pluk_repo/blob/main/plan/\1}{plan/\1}}}

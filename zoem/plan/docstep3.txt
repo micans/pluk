@@ -1,0 +1,8 @@
+Docstep 3: the pluk manual with aephea2
+
+PLACEHOLDER (2026-11-24): to be written after docstep 2.
+
+Using the new aephea functionality (aephea2/pud2, docstep 2) on the pluk manual: the
+large manual (doc/ and README.md of pluk) written in zoem, split into pages along
+natural lines with man pages of the same split (docstep1.txt, the intended home of the
+manual), with the doc checks of make test as they are.

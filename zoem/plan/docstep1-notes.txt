@@ -1,0 +1,525 @@
+Docstep 1 notes: rationales and findings
+
+Item 1
+
+  - Search path (decision 1). ZOEMSEARCHPATH is searched before the compiled-in
+    location (<prefix>/share/aephea): with a decoy pud/man.zmm in a scratch directory
+    named by ZOEMSEARCHPATH, \input{pud/man.zmm} read the decoy. The variable does not
+    appear in \__searchpath__, so printing that key does not show it. The Makefile
+    exports ZOEMSEARCHPATH=<abs>/mac:<abs>/out (out/ for the version stamp); absolute
+    paths, so that zoem finds the macros whatever its working directory.
+
+  - mac/ holds the .zmm and .css files of aephea 12-248, not its Makefiles. They were
+    identical to the installed aephea at the time of copying, so the starting point is
+    what the installed zoem has used so far.
+
+  - tools/ has all four checkers already (doccheck.py, docalign.py, opscheck.py,
+    optcheck.py), copied together so that they come from the same pluk revision; only
+    doccheck.py and docalign.py are used in this step.
+
+  - The version stamp out/stamp.version is rewritten only when the version in
+    pluk/Cargo.toml changes, so that its timestamp does not trigger rebuilds
+    (decisions 6 and 9).
+
+  - make data copies every file of ../doc/ except the .md files into out/, rather than
+    the files one document needs: simpler, and the HTML pages may link to any of them.
+
+Item 2
+
+  - The warning appears only with the terminal devices (-Tutf8, -Tascii, what man
+    uses): the default device ps has a font C (Courier), so groff -ww -z -man without
+    -T is silent even with \fC. make smoke therefore uses -Tutf8. Baseline with the
+    upstream macros: five warnings on test/fonttest.azm; after the change none, with
+    -Tutf8 and with ps.
+
+  - \f[CR] rather than \f(CR: the bracket form takes a name of any length and is what
+    groff's own documentation uses now. \fP (previous font) is kept for the way back,
+    as the user prefers; \fR after the verbatim blocks is kept too (R exists everywhere).
+
+  - base2.zmm (used only by simpledocument.zmm) changed as well, so that no \fC is left
+    in mac/.
+
+  - make smoke fails on the upstream macros (make smoke ZOEMSEARCHPATH=.../aephea-12-248/mac
+    gives the five warnings) and passes on ours, so it tests what it should.
+
+  - zoem writes its auxiliary files (__fnbase__.zmt, table of contents; .zmr,
+    references) in its working directory, not beside the input or the output. The
+    Makefile runs zoem in out/ (out/test/ for the test pages). The roff and HTML runs
+    of a document share these files; whether their content depends on the device, and
+    how the two runs a TOC needs are organised ('failure opening <x.zmt> (rerun?)' on a
+    first run), is for item 3. Running make -j would let the two devices race on them.
+
+  - The roff footer of the test page shows '0_0_0' and 'month year': the placeholders
+    for the version and date that zoem.shared fills in through man_share. Decision 9
+    (version stamp) takes this up in item 3.
+
+Item 3
+
+  - Files: azm/SAM-NA.azm (the document, without the table), azm/pluk.zmm (macros common
+    to the pluk documents), tools/runzoem.sh. The text was compared word by word with
+    doc/SAM-NA.md: the same, apart from the table.
+
+  - Auxiliary files. Their content is device text (a caption with \v is written as
+    <tt>..</tt> in one, \f[CR]..\fP in the other), so roff and HTML must not share them:
+    pud/man.zmm now names them <base>.<device>.zmt/.zmr. This also makes make -j safe.
+    tools/runzoem.sh creates them empty when missing (no 'failure opening (rerun?)') and
+    reruns zoem until they no longer change (at most 3 runs).
+
+  - \console. Its argument keeps zoem's escapes (\\ \{ \} give \ { }; the text is
+    expanded once), so the update step (item 7) must escape these three when it writes
+    output back into the .azm. The newline after the opening brace is removed with
+    \inspect and a regex consisting of ^ and a literal newline: zoem's tilde escapes have
+    no newline (~n is not one), and ^[[:space:]]+ would also eat indentation of the first
+    line. zoem's own manual writes \verbatim{\: instead (the comment eats the newline);
+    rejected because forgetting the \: silently gives a blank first line.
+
+  - \plukdoc{name}{title}. A man page needs NAME (whatis, apropos) and a heading for the
+    text before the first section; the web page needs the title only. NAME and
+    DESCRIPTION are written as raw .SH lines, not with \sec, so that pud::man's section
+    counter counts the numbered sections only; \docsec puts that number in the caption
+    and \secnum{id} reads it from the references (defined, not yet used or tested: item
+    9, and decision 5's error for an unknown id).
+
+  - Version: azm/pluk.zmm reads out/stamp.version into \pluk_version; the .TH line has
+    'pluk 0.1.0' as its source field (new key $source in pud/man.zmm; the default was
+    '$name $tag', which gave 'pluk-sam-na 0.1.0'). The date fields are empty: decision 9
+    allows a release date, but there is no source for one yet (open: a field written at
+    release time, or none).
+
+  - Hyphenation and minus signs in roff. Code was hyphenated (is-forward) and broken
+    after explicit hyphens (--sam- / seqmiss=skip). groff's \% at the start of \v
+    prevents both, but only when the code starts a word: in '(\%--sam' it marks a
+    hyphenation point instead, and groff broke the line as '(-' / '--sam-...'. Now:
+    .nh (no automatic hyphenation) in pluk documents, and in code - becomes \-, which
+    is not a break point and is the man-page convention for options. It is done with a
+    third special level in base.zmm (zoem fetches the deepest mapping not deeper than
+    the level): - has \- at level 3, " gets a third entry equal to the first (else level
+    3 would fetch the doubled "" of level 2). \v and the verbatim environments switch to
+    level 3 and back to 1. groff 1.23 renders both - and \- as ASCII '-' in man pages,
+    so a command copied from the page works. Caveat: zoem's special level is not a
+    stack: \v inside a level-2 context (an item label or a .TH field, in quotes) would
+    return to level 1 too early. Not used in the pluk documents so far.
+
+  - Lists: \begin{itemize}{{flow}{compact}} (mark and text on one line); aephea's
+    default 'cascade' puts the bullet on a line of its own. A list item may contain a
+    \console block and a further \car paragraph; in roff the block keeps the item's
+    indent (the verbatim diversion is replayed at the current indent).
+
+  - HTML: tidy reports no errors or warnings. The header line linked to <base>.ps, which
+    is not made; removed. Everything else about the HTML (doctype, viewport, the
+    absolutely positioned list layout, the date line) is items 4 and 8.
+
+  - Links: data files as relative links (\file); plan files to
+    https://github.com/micans/pluk/blob/main/plan/... (\plan). For the docs of a release,
+    a tag instead of main would be right (item 11).
+
+  - A macro wrapping \verbatim{\: instead of \inspect: does not work. \: is removed
+    when a file is read, before expansion, so in a definition it eats the rest of the
+    definition's line, not the newline of the argument at the call site (confirmed by
+    the user). \inspect stays (its implementation was an ordeal; more use of it is
+    welcome).
+
+  - Lists use aephea's itemize (base.zmm). Its roff side uses its own macros .ZI and .ZJ
+    (\h, \w, number registers) and the verbatim environment a diversion (.di ZV); man's
+    own .IP .RS .RE are not used. To check: rendering by mandoc, which macOS uses for
+    man and whose support for .de macros and diversions is limited.
+
+  - Breaks at hyphens are not particular to pluk: zoem.1 (zoem-21-341/doc) has the same.
+    At the default width groff hyphenates \__fn-/base__; at 60 and 70 columns it breaks
+    --trace-all-/short, --stress-/write, --unsafe-/silent, --trace-/keys. Whether it
+    shows depends on where a word lands, so on the reader's terminal width. \genopt and
+    \bf (zoem.1's options) are not covered by the level-3 change, only \v \m \tt and
+    verbatim.
+
+  - Names: the man page is out/SAM-NA.7 while its name is pluk-sam-na(7). The output
+    file names follow the azm names for now; renaming belongs with publishing (item 11).
+
+After item 3: reordering, and zoem compared with pandoc (2026-11-24)
+
+  - The user judged the pilot successful so far (the man page and HTML read like the
+    zoem and mcl documentation; the .azm source is very readable) and asked to try
+    styling on this small document first. Hence items 4 (HTML styling) and 5 (rulers in
+    the man page) before the Markdown device; old items renumbered (docstep1.txt).
+
+  - pandoc instead of zoem/aephea, briefly:
+      For pandoc: the source would be Markdown, which GitHub renders and doccheck.py
+      already checks, so the Markdown device (item 6) and the update step (item 7) would
+      not be needed; it is widely known, with ready HTML templates, tables and syntax
+      highlighting.
+      Against: whatever goes beyond Markdown needs Lua filters or templates: the
+      semantic macros of decision 4 (a different form per device), the error for an
+      unknown id (decision 5), the version stamp (decision 9). Its man writer is
+      generic, with less control over details such as the hyphenation and minus signs
+      of item 3. And the user finds writing for pandoc an ordeal.
+      For zoem: semantic macros with full control per device from one source; the man
+      page, a genuine asset, is already good. Its costs: the macros are ours to
+      maintain, whoever builds the documentation (CI included, item 11) needs zoem, and
+      the Markdown device is ours to write.
+      Styling does not decide it: the HTML of either can carry the same CSS.
+    Conclusion: continue with zoem/aephea.
+
+Item 4
+
+  - azm/pluk.css, copied to out/ by make and linked by the pages (pud::man key
+    css_link; without it a page embeds base.css as before, so aephea's other uses and
+    test/fonttest.azm are unchanged). One file for all pages, so that split pages (item
+    9) share it and a style change does not regenerate them. It keeps the rules of
+    base.css that the itemize markup needs (the bullet is positioned absolutely);
+    spacing between items is a bottom margin on the text, since a top margin would move
+    the text but not the bullet.
+
+  - Look: system font stacks (no web fonts, decision 8), 1rem text with line height 1.6,
+    a column of 46rem, ragged right; h2 with a thin rule; inline code lightly shaded;
+    console blocks shaded and bordered, scrolling sideways (pre-wrap in print). Colours
+    are CSS variables, redefined for dark mode (prefers-color-scheme) and for print.
+    The palette is neutral (close to GitHub's), so that the pages do not clash when
+    reached from the repository.
+
+  - HTML5: tidy warned about every <tt> once the doctype was HTML5; \v \vq \m \tt now
+    write <code>. tidy reports nothing on SAM-NA.html and the test pages.
+
+  - Tables: a table style in pluk.css (header row shaded, rules between rows, scrolling
+    when wider than the column: display: block on the table), tried on the SAM-NA table
+    written by hand in test/styletest.azm (HTML only). The table macros stay item 10.
+
+  - make smoke also makes the test pages as HTML (out/test/, with its own copy of
+    pluk.css) and runs tidy -q -e on them. The roff rule for test pages now depends on
+    the version stamp too (styletest imports pluk.zmm, which reads it).
+
+  - Left as they are: the inline styles of aephea's paragraphs and lists (margin-bottom:0
+    on paragraphs, margin-left:2em on item text): they fit the new look, and replacing
+    the list markup is item 8. The header line is still right-aligned (inline style).
+
+  - Pitfall found by the user in styletest.html: \item takes no text argument; the text
+    follows it. \item{text} (aephea's \item#1) makes text the bullet label, which is
+    positioned absolutely and silently overlaps the next item. A check for a long label
+    could come with item 8's list markup.
+
+Item 5
+
+  - Mechanism: a roff hook rather than a change to \console. base.zmm's verbatim calls
+    .ZR before and after replaying its diversion (.ZV); troff-defs define .ZR empty, and
+    \plukdoc redefines it for the pluk documents. The rulers sit outside the diversion,
+    so they are drawn at replay time with the indent of the place they appear (a block
+    inside a list item gets a shorter line); inside the diversion the indent is 0.
+    .ne asks for the block plus two lines, so the rulers do not get separated from it
+    at a page break (only matters for paged output).
+
+  - The line: \l'\n(.lu-\n(.iu\*(ZL', the room right of the indent. The character:
+    groff's default for \l is the baseline rule, which shows as _ and sits low; \[an]
+    (U+23AF) is missing from many terminal fonts; \[u2500] (box drawing light
+    horizontal) is in practically all of them. On ascii and latin1 a plain - in \l
+    draws nothing (blank lines), \- draws the line; hence ZL is chosen by \*[.T].
+
+  - Width: lines longer than the column (most console commands) run past the right end
+    of the rulers; the rulers are not stretched to the longest line (\n(dl), which
+    would vary from block to block.
+
+  - Not checked here: mandoc (macOS man), which is not installed on this machine. mandoc
+    ignores .di and \*[.T] may be unknown to it; to be checked by the user with
+    man -l out/SAM-NA.7 on macOS.
+
+  - Approved by the user (the rulers show as ─ lines).
+
+Item 6
+
+  - Result: out/SAM-NA.md is word for word doc/SAM-NA.md, apart from the table (item
+    10) and the plan reference, now a link. Line breaks follow the .azm source, so lines
+    are wrapped differently in places. make check runs its 4 examples (all pass); a
+    changed expected line is reported as a failure.
+
+  - Where: the md branches sit beside html and roff in mac/aephea/base.zmm (inline
+    fonts, links, specials, itemize, paragraphs, verbatim) and mac/pud/man.zmm (device
+    check, header, \sec, end); azm/pluk.zmm has \plukdoc (# title), \console, \file
+    and \plan for md.
+
+  - What zoem's filter does (src/filter.c, yamputc) and what follows from it:
+      Managed white space prints the indent (\I) lazily, before the next character
+      after a newline; \N and \P print the newline only. In unmanaged mode (\w) a
+      newline from the text prints the newline and the indent at once, but a pending
+      newline from \N gets no indent. Hence \console for md keeps the newline after
+      the opening brace (it indents the first line inside a list item) and removes
+      the one before the closing brace (else the closing fence gets the indent twice:
+      once after the text's newline, once lazily after \W).
+      The indent is ztablength (option -tl, at most 4) spaces per \I; its default is
+      0, so runzoem.sh passes -tl 2 for md: continuation lines of a list item line up
+      with the text after '- '. Nested lists add 2 more.
+
+  - The newline after \item. Written as in SAM-NA.azm (\item, then the text on the
+    next line), zoem prints the newline, giving '-' on a line of its own: valid
+    CommonMark but poor to read. zoem has no means to drop the next white space, but
+    \special can map the newline per special level, and a mapping is device text that
+    may contain directives. So md has four levels: 1 prose, 2 as 1, 3 code, 4 as 1
+    except the newline, which maps to \+{1} (back to level 1, nothing printed); \item
+    switches to level 4. Levels 1-3 map the newline to a literal newline: in device
+    scope zoem passes it through yamputc unmapped (atcall), so it behaves exactly as an
+    unmapped newline (indent, squashing). Text on the \item line itself
+    (\item First ...) works too; the first newline is then swallowed and the next
+    source line joins with a space, unless a \v on that line has already returned
+    to level 1.
+
+  - Escaping (level 1): \ ` * _ [ ] < > # ~ get a backslash (~: GitHub takes ~x~ as
+    strikethrough); nothing at level 3 (\v and console blocks), and link destinations
+    are written at level 3 too, so that a file name with _ still resolves.
+    Not escaped: - + = and the dot of '1.', which make a list item, a setext heading
+    or a thematic break, but only at the start of a line. A mapping cannot see where a
+    line starts, so they would have to be escaped everywhere (non\-negative, every
+    full stop \.), cluttering the Markdown that is read in the repository (decision
+    3). Since line breaks follow the source, tools/azmlint.py (run first by make
+    check) reports instead a prose line of the .azm that starts with one of them, for
+    the author to rewrap. Not handled either: | (tables only) and &, which matter only
+    in rare combinations. Inline code containing a backquote is not supported.
+    zoem's glyphs: \~ &nbsp;, \| <br>, \- an em dash (UTF-8).
+
+  - Anchors (decision 5): <a id="..."></a> at the end of the heading line, so that it
+    still starts '## N. Title', which doccheck.py needs for its section check. First
+    on the line before the heading, which keeps the heading clean in the source but
+    renders as an empty paragraph on GitHub (extra space above the heading); the user
+    does not mind clutter in the raw files, so the anchor moved into the heading.
+
+  - Plan files: an absolute link to the repository in md as in HTML, not a relative one
+    (decision 4 said relative): the .md is checked in out/, where ../plan/ does not
+    exist, and doccheck.py requires relative links to resolve.
+
+  - tools/doccheck.py: 'plan/X.txt section 6' is not checked as a section of the
+    document itself, but [plan/X.txt](URL) section 6 was, since the file name is
+    followed by ')'. The regex now allows that ')'. pluk's own test/doccheck.py needs
+    the same change before generated Markdown replaces doc/*.md.
+
+  - The header: an HTML comment with name, version and the source's base name
+    (decision 9; no path, so the output does not depend on where it is built).
+
+  - Lists are always bullet lists in md ($type, $align, $flow, \items#1 and
+    \intermezzo are ignored); \item{label} gives '- label '. A blank line separates a
+    list from the text before it, nested lists included.
+
+  - A wrong expected line in a copy of out/SAM-NA.md made doccheck fail (checked by
+    hand, not part of make check).
+
+Item 7
+
+  - make update: make (so the .md is current), then per document tools/azmupdate.py
+    PLUK azm/X.azm out/X.md, then make again. azmupdate.py copies the .md beside itself
+    (out/.update-X.md, removed afterwards), so that links and data files resolve as in
+    make check, and runs doccheck.py --update on the copy; doccheck and docalign are
+    used as they are. The k-th ```console fence of the .md is paired with the k-th
+    \console block of the .azm (decision 3); a different count is an error.
+
+  - Only blocks whose content changed are written back, so the rest of the source is
+    untouched. Escaping for zoem: \ { } become \\ \{ \}, the three escapes \console
+    text keeps (item 3).
+
+  - Safeguard: before writing, each changed block of the .azm, unescaped, must equal
+    the block of the .md as it was. If not, the .md is stale or the block holds other
+    zoem escapes (\~, \:, ...), and nothing is written. Tested with a stale copy.
+
+  - Tested on SAM-NA.azm with two expected outputs broken by hand: make check failed,
+    make update rewrote both blocks, make check passed. The rewritten blocks are
+    aligned by docalign.py with two spaces between columns, as pluk's make docupdate
+    does; doc/SAM-NA.md has three, from before docalign. The source was restored to its
+    original afterwards.
+
+  - Exit status of make update: 1 when doccheck still reports failures after the update
+    (a 'pluk:' line, which --update does not rewrite; an example with empty output).
+
+Item 8
+
+  - Lists (base.zmm itemize, html): <ul class="itemize"> with <li> items instead of
+    aephea's divs with an absolutely positioned bullet. An item with a label
+    (\item{label}, \items, a $type other than mark) is <li class="labelled"> with
+    <span class="itemlabel">; \intermezzo an unmarked <li>. In html the CSS now
+    decides what $margintop, $fontsize, $textindent, $itemmargin, $flow and $align
+    did; $interitem becomes a top margin on the item (the old <div>&nbsp;</div>
+    spacer is gone, it is not allowed inside <ul>).
+
+  - Labels as a hanging indent (label, then the text; continuation lines indented),
+    not in the margin: a first try with the label absolutely positioned to the left
+    of the text ran wide labels (--sam-seqmiss=skip) off the left edge of the column.
+    The hanging indent never overlaps; a wide label only pushes the first line along.
+    Tried in test/styletest.azm, which now has a labelled list.
+
+  - Code blocks: <pre class="verbatim"> instead of a div with white-space: pre.
+
+  - Paragraphs: classes par, car, cpar, ccar instead of inline styles; base.css gives
+    them the old margins (so pages without pluk.css look as before), pluk.css its own.
+
+  - Page structure: <header class="docheader">, <main> around the document (opened
+    and closed with raw \@{} tags, since zoem's own tag tracking wants an opening
+    and closing in one scope); section ids on the <h2> itself instead of an empty
+    <a name> before it (name is obsolete in HTML5); \_anch and \enref write id.
+
+  - Table of contents: pud::man::maketoc in html is <nav class="toc"> with a title
+    and a plain list of links. Section numbers are shown unless the new key $tocnum
+    is 0; the pluk pages set it, as \docsec puts the number in the caption. \plukdoc
+    calls maketoc after the title (html only). pluk.css: on narrow screens the
+    contents follow the title; from 78rem on they are fixed to the left of the text
+    column (left: calc(50% - 38rem): half the 46rem column, a 2rem gap, the 13rem
+    contents), scrolling on their own if long. No highlighting of the current
+    section: that needs JavaScript (decision 8). Print: back in the flow.
+
+  - Portable (decision 8) as before: relative links, the stylesheet beside the page.
+
+  - Not done: empty class attributes (class=" ") remain where aephea's class keys
+    are empty; harmless (tidy is silent).
+
+  - The user approved the look (2026-11-24); the 'Top' entry for the side contents
+    and a configurable hanging indent are under 'Open, for later' in docstep1.txt.
+
+Item 9
+
+  - Decision: one .azm per document, split into HTML pages with \writeto (pluk.zmm's
+    \page{name}{title}), not one .azm per page. The man page and the Markdown must
+    stay one document from the same source, and the intended site splits each man
+    page's text further into web pages (one source per man page, several pages per
+    source). In roff and Markdown \page does nothing.
+
+  - zoem keeps environments per output file: each sink has its own stack of env
+    dictionaries (src/sink.c, sk->dlrStack). After \writeto, \get{pud::man}{..}
+    fails and an \end{pud::man} would end nothing. So \page ends pud::man in the
+    current file (which closes the page: main, body, html), \writeto's the next and
+    begins pud::man there again with the document's keys and the page's title (which
+    opens the page). Hence the new pair \plukbegin{keys} .. \plukend, which keeps the
+    keys (later keys override earlier ones: {html_title} for the page). \page must
+    not be used inside another environment, such as a list.
+
+  - Reopening pud::man reran its begin part: the definitions of \synoptopt and the
+    like (zoem warns 'overwriting key') and the loading of the .zmr ('label already
+    defined'). These now run once per document (key _pud_man_once).
+
+  - The page/output file of every section is recorded by \sec in the .zmr
+    ({page}{\__fnout__}); pud::man::href gives 'page.html#id' for a section on
+    another page, '#id' on the same page. Used by the contents (pud::man::tocentry,
+    html), \secref, and pluk's new \sref{id} ('section N', linked; plain text in
+    roff, a Markdown link in md, which doccheck's 'section N' check sees). Built in
+    a first pass, as the plan said: runzoem.sh reruns until the .zmr is stable.
+
+  - The page opening and closing moved into pud::man::htmlopen/htmlclose; html, body
+    and main are raw tags, since zoem's tag tracking (also per output file) wants an
+    opening and its closing in one file.
+
+  - Each further page: the header line, the document title linking to the first
+    page (p.docup), the table of contents (the current page's entries have class
+    'here', marked by a line on the left), then the sections. Its <title> is 'page
+    title — document title — pluk'. No previous/next links yet.
+
+  - Decision 5's error: runzoem.sh shows only the last run's messages (the first run
+    of a document always misses the references the .zmr does not hold yet) and fails
+    when that run still reports '[REF] ... not found'. Tested with \sref{nosuch}.
+    .DELETE_ON_ERROR in the Makefile, so that the failed output is not left as up to
+    date.
+
+  - tools/htmllinks.py: every relative href/src of the pages must resolve to a file,
+    and a #fragment to an id in it; no links to the site root (decision 8). Run by
+    make check (out/*.html) and make smoke (out/test/*.html, where the data files are
+    copied for it). Tested with a page copied alone into an empty directory: the
+    stylesheet, the second page and the data files are reported missing.
+
+  - SAM-NA: sections 1 | 2-3, the second page SAM-NA-travel.html. The cross-page
+    references are those of the contents; SAM-NA's text has no section reference, so
+    test/splittest.azm covers \sref forward, backward and within a page.
+
+  - zoem reports '[zoem] changing current sink from <a> to <b>' on stderr at every
+    \writeto; left visible, as a record of the pages made.
+
+Item 10: discussion before implementation (2026-11-24)
+
+  - Markdown: a pipe-table row must be one physical line; a newline cannot be escaped
+    (a trailing backslash is a hard break in paragraphs only), <br> breaks a rendered
+    cell only. No length limit: a long row is a readability matter of the raw .md.
+    So: cells may wrap in the .azm source and the md device joins them into one line
+    (newline mapped to a space inside a cell, as the \item level trick); | in a cell
+    escaped as \|; a cell holds inline content only. Rows are not padded into
+    aligned columns for now (doc/SAM-NA.md has wide rows too).
+
+  - Syntax (no hard questions): an environment with the number of columns and
+    per-column settings (alignment, perhaps a roff width hint), a header row and rows
+    of one argument each holding the cells, \row{{..}{..}{..}}, walked with \apply.
+    Errors for a row with another number of cells. No spanning cells (Markdown has
+    none). An optional id and caption, for references, later.
+
+  - roff (a tbl prototype of SAM-NA's table at 80 columns): long cells need text
+    blocks (T{ T}); .ad l against the gaps of justified narrow cells; the x modifier
+    for the widest column (without it tbl starved the third); '\" t as the first line
+    of a man page with a table, for man to run tbl; mandoc has its own tbl (basic
+    features; whether it knows x and widths is for the user to check on macOS).
+
+  - Row separation: a key of the table environment, rules or blank lines; rules
+    first (the user).
+
+  - A list fallback for roff (each row a labelled item) is possible for any number of
+    columns: the first cell as label, each further cell a line of its own prefixed
+    with its column header. Natural for two columns, readable for three or four,
+    poor for many short columns (which fit as a table anyway). Needs a header row.
+
+  - The list fallback is chosen by the author with a key, for roff only (the user):
+    {roff}{table} (default) or {roff}{list}; a key named after the device leaves room
+    for an {html} setting later. {roff}{list} without a header row is an error.
+    An automatic mode is for later, and differs per device:
+      roff: the reader's terminal width is known only when man renders the page, not
+      when zoem runs, so the choice would have to be in the page itself (both forms,
+      .ie on \n(.l); groff can, mandoc's conditionals are limited: a macOS check
+      first). Taste per table also argues for the author's choice.
+      html: cheap and without JavaScript: below some width CSS shows each row as a
+      stacked block, each cell prefixed with its column header (a data-label
+      attribute). Not needed now: wide tables scroll.
+      Markdown: always a table (GitHub renders it; the checks read the .md).
+
+Item 10: implementation
+
+  - Where: the table environment in mac/aephea/base.zmm (general, beside itemize):
+    \begin{table}{{spec}{{l}{lx}{lx}}{rowsep}{rule}{roff}{table}}, \thead{{..}{..}},
+    \trow{{..}{..}}, \end{table}. spec gives the number of columns and per column
+    the alignment (l c r) with an optional x (roff: takes the room left over).
+    rowsep: rule or none (blank reported as not supported yet, as agreed: rules
+    first). roff: table or list. \thead is required (a Markdown table needs one).
+
+  - Errors (each tested): a row with another number of cells than spec has columns;
+    \trow before \thead; \thead twice; no spec; an unknown rowsep or roff value; a
+    table without \thead. They end the run, so make fails.
+
+  - zoem mechanics: \nargs counts the cells of a row only on the literal argument
+    (inside a macro, after substitution of \1; on a key it gives -1), so the cells are
+    counted with \apply and a counter. An anonymous key in \apply is expanded once
+    beforehand unless escaped, and its \1 clashes with the enclosing macro's, so the
+    per-cell work is in named macros (_tbl_htmltd, _tbl_roffcell, ...), with a global
+    counter for the column index. Per-column data (alignment, roff format entry,
+    header text for the list form) in data keys %{tbl::align}{k} and the like.
+    \while, not \whilst, where output is built: \whilst writes at once, ahead of the
+    text around it. \formatted strips all white space of a definition outside at
+    scope: the Markdown cell join (a regex with a newline and a space) and the error
+    messages are therefore defined outside it.
+
+  - roff, table: .ad l, .TS, tab(@);, the format written by \thead (a header line
+    with b added to every entry, then the body line ending in '.', which tbl applies
+    to all further rows), every cell a text block T{ .. T} (so the cell text never
+    shares a line with the @ separators), _ after the header and, with rowsep rule,
+    between body rows; .TE, .ad. The '.' of the format is written in at scope (roff's
+    mapping would make it \&.). '\" t on line 1: a new pud::man key $preprocess,
+    which \plukbegin sets to t for every pluk document.
+
+  - roff, list: each row an item made with aephea's .ZI (as itemize): the first cell
+    bold as label on a line of its own, then per further cell its column header in
+    italic with a colon and the cell, a line each; .ad l as for tables (justified
+    lines stretched the gaps between the italic header words). The label is at
+    special level 2 (in quotes), so a \v in a first cell would return to level 1
+    too early: the caveat of item 3.
+
+  - Markdown: '| cell | cell |' per row on one line (white space around newlines in a
+    cell joined into one space by \inspect), the separator row from the alignments
+    (---, :---:, ---:). | is now escaped in md prose (levels 1, 2, 4) as \|.
+
+  - HTML: <table class="rowsep-rule|rowsep-none"> with <thead> and <tbody>; the
+    alignment as class right or center on th and td (l has none); pluk.css: no rules
+    between body rows for rowsep-none, .center added (base.css too).
+
+  - SAM-NA: the table is in place. The Markdown table equals doc/SAM-NA.md's apart
+    from the escapes \* and \< (rendered the same) and the column padding of the
+    original. With it, out/SAM-NA.md is doc/SAM-NA.md word for word except the plan
+    link and the anchors.
+
+  - test/tabletest.azm: l c r alignment with rowsep none, a | in a cell, the roff
+    list form, cells wrapped in the source. make smoke now runs groff with -t.
+
+  - To check by the user: the man page under mandoc on macOS (tbl text blocks, the x
+    modifier, the rules; man -l out/SAM-NA.7 and out/test/tabletest.7), and the HTML
+    tables in a browser.

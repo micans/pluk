@@ -1,0 +1,79 @@
+/* start aephea.asd.css */
+
+   body {
+      margin:0px;
+      padding:0px;
+      border: 0px;
+   }
+
+
+   .sec_leader
+      {  margin-top: 1em;
+         margin-bottom: 0em;
+         position: relative;
+         right: 0px;
+         left: 0px;
+         top: 0px;
+      }
+
+   .sec_title
+      {  color: black;
+         position: relative;
+         margin-bottom: 0px;
+         margin-top: 0px;
+         margin-right: 5em;
+         margin-left: 5em;
+         text-align: center
+      }
+
+   .sec_num
+      {  color: black;
+         position: absolute;
+         right: 0px;
+         text-align: right;
+         width: 5em;
+         top: 0px;
+      }
+
+   .sec_lev1 { font-size: 20px; }
+   .sec_lev2 { font-size: 18px; }
+   .sec_lev3 { font-size: 16px; }
+   .sec_lev4 { font-size: 14px; }
+   .sec_lev5 { font-size: 12px; }
+   .sec_lev6 { font-size: 12px; }
+
+   .toc_toplevel
+      {  margin-top: 1em;
+      }
+
+   .toc_leader
+      {  margin-top: 0em;
+         margin-bottom: 0em;
+         position: relative;
+         right: 0px;
+         left: 0px;
+      }
+
+   .toc_title { position: relative; }
+
+   .toc_num
+      {  position: absolute;
+         text-align: left;
+         top: 0px;
+         left: 0px;
+      }
+
+   .toc_title1 { margin-left: 3em; }
+   .toc_title2 { margin-left: 6em; }
+   .toc_title3 { margin-left: 9em; }
+   .toc_title4 { margin-left: 12em; }
+
+   .toc_num1   { left: 1em; }
+   .toc_num2   { left: 3em; }
+   .toc_num3   { left: 6em; }
+   .toc_num4   { left: 9em; }
+
+   div.box { border:solid; border-width:thin; width:100%; padding:1em}
+   div.flushright { text-align: right }
+
+/* end aephea.asd.css */

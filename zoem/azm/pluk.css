@@ -1,0 +1,209 @@
+/* The style of the pluk documentation (zoem/plan/docstep1.txt, items 4 and 8).
+ *
+ * Linked by every page (pud::man key css_link) and shipped beside them; it replaces
+ * aephea's base.css, covering the same markup (lists, labels, paragraph classes,
+ * pre.verbatim) in its own style. System fonts only, no external resources
+ * (decision 8). Colours are variables, so that dark mode
+ * and print only redefine them.
+ */
+
+:root {
+   --fg:          #1f2328;
+   --muted:       #59636e;
+   --bg:          #ffffff;
+   --link:        #0b5cad;
+   --link-seen:   #5a3d9e;
+   --code-bg:     #f6f8fa;
+   --code-border: #d6dce2;
+   --rule:        #d6dce2;
+   --head-bg:     #f6f8fa;
+}
+
+@media (prefers-color-scheme: dark) {
+   :root {
+      --fg:          #e2e8ee;
+      --muted:       #9aa3ad;
+      --bg:          #12161c;
+      --link:        #6cb2ff;
+      --link-seen:   #b79cff;
+      --code-bg:     #1a2029;
+      --code-border: #343c47;
+      --rule:        #343c47;
+      --head-bg:     #1a2029;
+   }
+}
+
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+/* A prose column of limited width, centred; ragged right. */
+body {
+   max-width: 46rem;
+   margin: 0 auto;
+   padding: 1rem 1.25rem 4rem;
+   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+                "Noto Sans", "Liberation Sans", Arial, sans-serif;
+   font-size: 1rem;
+   line-height: 1.6;
+   color: var(--fg);
+   background: var(--bg);
+   text-align: left;
+}
+
+/* The line with name and version above the title. */
+.docheader {
+   margin: 0 0 1.5rem;
+   font-size: 0.85rem;
+   color: var(--muted);
+}
+.docheader b { font-weight: 600; }
+
+/* Headings: quiet, a thin rule under the section headings. */
+h1, h2, h3, h4 { line-height: 1.25; font-weight: 600; }
+h1 { font-size: 1.9rem; margin: 0 0 1rem; }
+h2 {
+   font-size: 1.35rem;
+   margin: 2.2rem 0 0.8rem;
+   padding-bottom: 0.3rem;
+   border-bottom: 1px solid var(--rule);
+}
+h3 { font-size: 1.1rem; margin: 1.8rem 0 0.6rem; }
+
+p { margin-top: 0.85em; }
+
+/* Links: coloured, underlined only on hover. */
+a:link     { color: var(--link);      text-decoration: none; }
+a:visited  { color: var(--link-seen); text-decoration: none; }
+a:hover    { text-decoration: underline; }
+
+/* Code. */
+tt, code, kbd, pre {
+   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+                "DejaVu Sans Mono", "Liberation Mono", monospace;
+}
+tt, code {
+   font-size: 0.875em;
+   padding: 0.1em 0.3em;
+   background: var(--code-bg);
+   border-radius: 4px;
+}
+a tt, a code { background: none; padding: 0; }
+
+/* Console blocks: shaded, bordered, scrolling sideways rather than wrapping. */
+pre {
+   margin: 1em 0;
+   padding: 0.75em 1em;
+   font-size: 0.85rem;
+   line-height: 1.45;
+   white-space: pre;
+   overflow-x: auto;
+   background: var(--code-bg);
+   border: 1px solid var(--code-border);
+   border-radius: 6px;
+}
+
+/* Paragraphs (base.zmm: par, car, cpar, ccar). A carry-on paragraph continues the
+ * text after a block, e.g. inside a list item after a console block. */
+p.car, p.ccar { margin-top: 0; }
+
+/* Lists: <ul class="itemize">, items <li>; an item with a label has class labelled
+ * and its label in span.itemlabel. A labelled item is a hanging indent: the label
+ * starts the first line at the column's edge, the text follows it, continuation
+ * lines are indented 3em; a wide label pushes the first line along instead of
+ * overlapping it. text-indent is inherited, hence the reset for blocks inside. */
+ul.itemize       { margin: 0.85em 0; padding-left: 1.5em; }
+ul.itemize li    { margin-bottom: 0.35em; }
+li::marker       { color: var(--muted); }
+li.labelled, li.intermezzo { list-style: none; }
+li.labelled {
+   margin-left: -1.5em;
+   padding-left: 3em;
+   text-indent: -3em;
+}
+li.labelled > * { text-indent: 0; }
+li.intermezzo    { margin-left: -1.5em; }
+.itemlabel       { margin-right: 0.6em; white-space: nowrap; }
+
+/* Header line and table of contents. On narrow screens the contents follow the
+ * title; from 78rem on they sit fixed to the left of the text column (column
+ * 46rem centred, a gap of 2rem, the contents 13rem: 50% - 23rem - 2rem - 13rem). */
+.docheader p { margin: 0; }
+nav.toc {
+   margin: 0 0 1.5rem;
+   padding: 0.2rem 0 0.2rem 1rem;
+   border-left: 3px solid var(--rule);
+   font-size: 0.9rem;
+   line-height: 1.4;
+}
+nav.toc ul      { list-style: none; margin: 0; padding: 0; }
+nav.toc li      { margin: 0.3em 0; }
+nav.toc a:link, nav.toc a:visited { color: var(--fg); }
+nav.toc a:hover { color: var(--link); }
+/* The sections of the current page (a document split into pages, item 9). */
+nav.toc li.here { border-left: 2px solid var(--link); margin-left: calc(-1rem - 3px);
+                  padding-left: calc(1rem + 1px); }
+
+/* On the further pages of a split document: the document title, linking to its
+ * first page. */
+.docup { margin: 0 0 1rem; font-size: 1.1rem; font-weight: 600; }
+.toctitle {
+   margin: 0 0 0.4em;
+   font-size: 0.75rem;
+   font-weight: 600;
+   letter-spacing: 0.06em;
+   text-transform: uppercase;
+   color: var(--muted);
+}
+@media (min-width: 78rem) {
+   nav.toc {
+      position: fixed;
+      top: 5rem;
+      left: calc(50% - 38rem);
+      width: 13rem;
+      max-height: calc(100vh - 7rem);
+      overflow-y: auto;
+      margin: 0;
+   }
+}
+
+/* Tables: header row, rules between rows, scrolling when wider than the column. */
+table {
+   display: block;
+   max-width: 100%;
+   overflow-x: auto;
+   margin: 1.2em 0;
+   border-collapse: collapse;
+   font-size: 0.9rem;
+   line-height: 1.45;
+}
+th, td {
+   padding: 0.45em 0.8em;
+   text-align: left;
+   vertical-align: top;
+   border-bottom: 1px solid var(--rule);
+}
+th {
+   font-weight: 600;
+   background: var(--head-bg);
+   border-bottom: 2px solid var(--rule);
+}
+
+.right  { text-align: right; }
+.center { text-align: center; }
+/* Tables (base.zmm, item 10): rowsep none, no rules between the body rows. */
+table.rowsep-none td { border-bottom: none; }
+.left   { text-align: left; }
+.nowrap { white-space: nowrap; }
+.smallcaps { font-size: smaller; text-transform: uppercase; }
+
+/* Print: black on white, full width, code wrapped rather than cut off. */
+@media print {
+   :root {
+      --fg: #000; --muted: #444; --bg: #fff; --link: #000; --link-seen: #000;
+      --code-bg: #fff; --code-border: #999; --rule: #999; --head-bg: #fff;
+   }
+   body { max-width: none; padding: 0; font-size: 10.5pt; }
+   pre { white-space: pre-wrap; overflow: visible; break-inside: avoid; }
+   nav.toc { position: static; }
+   h2, h3 { break-after: avoid; }
+   table { display: table; }
+}

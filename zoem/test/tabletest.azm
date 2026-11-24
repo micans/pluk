@@ -1,0 +1,54 @@
+\: Test page for tables (plan/docstep1.txt item 10): alignment, rowsep none, the
+\: roff list form, | in a cell, cells wrapped in the source.
+
+\import{pud/man.zmm}
+\import{pluk.zmm}
+
+\plukbegin{
+   {name}{pluk-tabletest}
+   {html_title}{Table test \- pluk}
+   {author}{Stijn van Dongen}
+   {section}{7}
+   {year}{}
+   {month}{}
+   {day}{}
+   {tag}{\pluk_version}
+   {source}{pluk \pluk_version}
+   {css_link}{pluk.css}
+   {tocnum}{0}
+}
+
+\plukdoc{pluk-tabletest}{Table test}
+
+\docsec{align}{Alignment, no rules}
+
+\par{Left, centre and right; rowsep none; a | in prose.}
+
+\begin{table}{{spec}{{l}{c}{r}}{rowsep}{none}}
+\thead{{Operator}{Arity}{Count}}
+\trow{{\v{add}}{2}{1024}}
+\trow{{\v{len}}{1}{7}}
+\trow{{a | b}{1}{12}}
+\end{table}
+
+\docsec{list}{The roff list form}
+
+\par{In the man page this table is a list; elsewhere a table.}
+
+\begin{table}{{spec}{{l}{lx}{lx}}{roff}{list}}
+\thead{{Reason (as reported)}{Typical cause}{Operators that give NA}}
+\trow{
+   {unmapped (FLAG 0x4, RNAME or CIGAR '*')}
+   {unmapped reads in aligner output}
+   {all position, count, CIGAR-part, sequence-part, alignment and rbt
+    operators}}
+\trow{
+   {reference length not known}
+   {SAM without header and without \v{--sam/FILE}}
+   {\v{ref_len}, \v{ref_trail3p_N}; the alignment strings with
+    \v{--sam-aln-mark}}}
+\end{table}
+
+\par{After the table.}
+
+\plukend

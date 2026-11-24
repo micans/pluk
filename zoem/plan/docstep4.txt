@@ -1,0 +1,14 @@
+Docstep 4: publishing
+
+PLACEHOLDER (2026-11-24): moved here from docstep1.txt item 11; after docstep 3, and
+after a separate discussion.
+
+Publishing: the HTML on GitHub Pages (a generated gh-pages branch, or /docs, or an
+Actions deploy, which needs zoem in CI) and/or on another domain (a custom domain on
+Pages, or a copy, with rel="canonical"); the version shown (latest main on the site, the
+docs of a release in its tarball); one all-in-one HTML page beside the split pages, for
+search across the whole manual; what stays in the repository (README.md, data files, the
+.azm sources; generated Markdown optional).
+
+From docstep1.txt, 'Open, for later': plan files are linked absolutely (GitHub, main);
+docs of a release would link a tag.

@@ -1,0 +1,43 @@
+\: Test page for splitting a document into HTML pages (plan/docstep1.txt item 9):
+\: three sections on two pages, \sref references in both directions and within a
+\: page. In roff and Markdown one document. Made as out/test/splittest.html and
+\: out/test/splittest-2.html.
+
+\import{pud/man.zmm}
+\import{pluk.zmm}
+
+\plukbegin{
+   {name}{pluk-splittest}
+   {html_title}{Split test \- pluk}
+   {author}{Stijn van Dongen}
+   {section}{7}
+   {year}{}
+   {month}{}
+   {day}{}
+   {tag}{\pluk_version}
+   {source}{pluk \pluk_version}
+   {css_link}{pluk.css}
+   {tocnum}{0}
+}
+
+\plukdoc{pluk-splittest}{Split test}
+
+\par{Before the first section. Forward references: \sref{two} and \sref{three},
+   both on the second page.}
+
+\docsec{one}{First section}
+
+\par{On the first page; \sref{one} is this one.}
+
+\page{splittest-2}{Second and third}
+
+\docsec{two}{Second section}
+
+\par{On the second page; back to \sref{one} on the first page, and on to
+   \sref{three} on this page.}
+
+\docsec{three}{Third section}
+
+\par{The last section; \sref{two} is above it.}
+
+\plukend

@@ -1,0 +1,194 @@
+\:------------------------------------------------------------------------+
+\: The macros provided by this package.                                   |
+\:________________________________________________________________________|
+\:------------------------------------------------------------------------+
+\: \faqsec environment.                                                   :
+\:------------------------------------------------------------------------+
+\: \faq#2                                                                 :
+\:------------------------------------------------------------------------+
+\: \fnum                                                                  :
+\:------------------------------------------------------------------------+
+\: \"faq::preamble"                                                       :
+\: \"faq::maketoc"
+\:------------------------------------------------------------------------+
+
+
+\'formatted{
+
+   \'set{"_nroff::gindent"}{8}
+   \'${html}{
+      \'def{"faq::tocquestion"#3}{
+         \item{\_anch{toc-\1}{}\`{s}\iref{\1}{\bf{\2}}}\`{n}
+         \iref{\1}{\bf{\3}}\`{n}
+         \`{n}
+      }
+   }
+   \'${roff}{
+      \'def{"faq::tocquestion"#3}{
+         \|\@{\N.ZT 1m }\bf{\2}\@{\N}\3
+      }
+   }
+
+   \'def{faq#2}{
+      \ctrinc{faq::question}
+      \'setx{_ref}{
+         \'if{\cmp{eq}{\1}{}}
+               {faq\ctrput{faq::section}.\ctrput{faq::question}}
+               {\1}
+      }
+      \'setx{_tag}{\ctrput{faq::section}.\ctrput{faq::question}}
+      \'write{\__fnbase__.fqf-\__device__}{copy}{
+         \!refload{\_ref}{
+            {level}{1}
+            {type}{faq}
+            {num}{\_tag}
+            {cap}{\2}
+            \`{n}
+         }
+      }
+      \'write{\__fnbase__.fqf-\__device__}{copy}{
+         \'if{\'cmp{eq}{\ctrput{faq::question}}{1}}
+            {\!!'set{$align}{right}}
+            {}
+         \!!"faq::tocquestion"{\_ref}{\_tag}{\2}\`{n}
+      }
+      \'${roff}{
+         \par\@{\N.ZB 1m }\bf{\_tag}\@{\N}\ftinc{1}{\bf{\2}}\par
+      }
+      \'${html}{
+         \item{\_anch{\_ref}{}\`{s}\iref_quiet{toc-\_curfaqref}{\_tag}}
+         \bf{\2}
+      }
+   }
+}
+
+\'${roff}{
+   \'def{fnum#1}{\ref{\1}{num}}
+}
+\'${html}{
+   \'def{fnum#1}{\iref{\1}{\ref{\1}{num}}}
+}
+
+\'formatted{
+
+   \'env{faqsec}{
+      \ctrinc{faq::section}
+      \ctrset{faq::question}{0}
+      \'setx{_curfaqref}{
+         \'if{\'defined{lkey}{$ref}}{\$ref}{faqsec\ctrput{faq::section}}
+      }
+      \'if{\'defined{lkey}{$cap}}{
+         \'setx{"faq::cap"}{\$cap}
+      }{
+         \'set{"faq::cap"}{Section\~\ctrput{faq::section}}
+      }
+      \'write{\__fnbase__.fqf-\__device__}{copy}{
+         \@{\N}
+            \!refload{\_curfaqref}{
+               {level}{1}
+               {type}{faq}
+               {num}{\ctrput{faq::section}}
+               {cap}{\"faq::cap"}
+               \`{n}
+            }
+      }
+      \'${html}{
+         \: --------- write the toc entries --------------- :/
+         \'setx{_em}{\'if{\'eqt{eq}{\ctrput{faq::section}}{1}}{0}{1}}
+         \'write{\__fnbase__.fqf-\__device__}{copy}{
+            \@{\N<hr>}\`{n}
+            \!!'begin{itemize}{
+               {flow}{compact}
+               {align}{left}
+               {interitem}{0}
+               {margintop}{0}
+               {w1}{2}
+               {w2}{1}
+            }\`{n}
+            \!!item{
+               \_anch{toc-\_curfaqref}{}
+               \iref_quiet{\_curfaqref}{\bf{\ctrput{faq::section}}}
+            }\`{n}
+               \iref_quiet{\_curfaqref}{\bf{\"faq::cap"}}\`{n}
+            \!!itemskip\`{n}
+         }
+         \: --------- the header of the section ----------- :/
+         \: mq made anch non-capturing
+         \@{\P<div align=center>\N<h3>\I}
+            \_anch{\_curfaqref}{}
+               \iref_quiet{toc-\_curfaqref}{\ctrput{faq::section}}\|
+               \"faq::cap"
+         \@{\J\N</h3>\N</div>\P}
+         \: --------- this starts a list of faqs ---------- :/
+         \'begin{itemize}{{flow}{compact}{interitem}{1}{w1}{2}{w2}{1}}
+      }
+      \'${roff}{
+         \'write{\__fnbase__.fqf-\__device__}{copy}{
+            \par\@{\N.ZT 0m }
+            \bf{\ctrput{faq::section}}\@{\N}
+            \ftinc{1}{\bf{\"faq::cap"}}
+         }
+         \par
+         \@{\N.ce\N}
+         \ftinc{2}{\bf{\"faq::cap"}}
+      }
+   }{
+      \'${html}{
+         \'write{\__fnbase__.fqf-\__device__}{copy}{\!!'end{itemize}}
+         \'end{itemize}
+      }
+   }
+}
+
+\'def{"faq::preamble"}{
+   \'${html}{
+      \'setx{"faq::maketoc"}{\'eval{\'zinsert{\__fnbase__.fqf-\__device__}\@{\N<br><br>\N}}}
+      \: the eval results in the \refload macros to be evaluated;
+      \: the \!begin{itemize} etc are transformed to \begin{itemize},
+      \: to be evaluated when \"faq::maketoc" is used in the document.
+      \: note the \write{..fqf..}{copy}{\!!begin{itemize}};
+      \: write evaluates the data as well, hence we need to delay twice.
+   }
+   \'${roff}{
+      \'setx{"faq::maketoc"}{\'eval{\'zinsert{\__fnbase__.fqf-\__device__}}}
+   }
+
+   \'${roff}{
+\: .de ZT              
+\: .nr xb \\n(.k         # .k = current horizontal output position.
+\: .nr xb -1m            # substract 1m for whatever reason.
+\: .nr xa \\$1           # zet eerste argument van ZT in xa.
+\: .nr xa -\\n(.k        # haal .k ervan af.
+\: .nr xa -\\n(.i        # haal indent ervan af.
+\: \h'\\n(xau'\\$2\l'|\\n(xbu.'\h'1m'\\
+
+\: \h'\\n(xau'\\$2       # move to $1 position, write $2.
+\: \l'|\\n(xbu.'         # write to xb position with dots.
+
+\: <---.i---><---.k--->|
+\: <----$1--->$2.....<>|
+\:                   1m|
+
+\@{\N
+.de ZT
+.\\" Zoem Faq (Toc) macro.
+.nr xb \\\\n(.k
+.nr xb -1m
+.nr xa \\\\$1
+.nr xa -\\\\n(.k
+.nr xa -\\\\n(.i
+\\h'\\\\n(xau'\\\\$2\\l'|\\\\n(xbu.'\\h'1m'\\\\
+..
+\N.de ZB
+.\\" Zoem Faq (Body) macro.
+.nr xb \\\\n(.k
+.nr xa \\\\$1
+.nr xa -\\\\n(.k
+.nr xa -\\\\n(.i
+\\h'\\\\n(xau'\\\\$2\\h'|\\\\n(xbu'\\\\
+..\N}
+\@{\N.am SH\N.ie n .in 8m\N.el .in 8m\N..\N}
+
+   }
+}
+

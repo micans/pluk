@@ -1,0 +1,439 @@
+\:------------------------------------------------------------------------+
+\: The macros provided by this package.                                   |
+\:________________________________________________________________________|
+\:------------------------------------------------------------------------+
+\: \sec, \secref                                                          |
+\:------------------------------------------------------------------------+
+\: \defopt#3 \defopt#2, \optref#2, \synoptopt#3, \synoptopt#2,            |
+\: \synreqopt#3, \synreqopt#2                                             |
+\: \genopt#1 \genopt#2 \genarg#1, \useopt#1 \useopt#2 \usearg#1           |
+\: \genkvp#2 \usekvp#2 \defkvp#3                                          |
+\: \genoptref#1                                                           |
+\: \genoptref#2                                                           |
+\:------------------------------------------------------------------------+
+\: \env{pud::man}                                                         |
+\:------------------------------------------------------------------------+
+\: \$year \$month \$day \$name \$html_title                               |
+\: \$author \$section \$tag \$synstyle \$defstyle                         |
+\:------------------------------------------------------------------------+
+
+\'import{aephea/base.zmm}
+
+               \'switch{\__device__}{
+{html}{}
+{roff}{}
+{md}{}      \: Markdown (pluk docstep1 item 6)
+{\'write{stderr}{txt}{
+   No support for device "\__device__" (in file \__fnin__)\|}\'exit
+}
+            }
+
+\: __o__o__o__O
+
+\env{pud::man}{
+
+   {$year}         {y*e*a*r}
+   {$month}        {m*o*n*t*h}
+   {$day}          {0}
+   {$name}         {n*a*m*e}
+   {$html_title}   {t*i*t*l*e}
+   {$html_keywords} {manual}
+   {$author}       {a*u*t*h*o*r}
+   {$tag}          {0_0_0}
+   {$source}       {}          \: .TH field 4; empty: '$name $tag'
+   {$synstyle}     {long}
+   {$defstyle}     {long}
+   {$section}      {1}
+   {$css_link}     {}          \: a stylesheet to link; empty: embed base.css + $css_append
+   {$tocnum}       {1}         \: html table of contents: show section numbers
+   {$preprocess}   {}          \: roff: e.g. t for tbl, written as '\" t on line 1
+   {$css_append}   {
+      body { font-family: "Garamond", "Gill Sans", "Verdana", sans-serif; }
+      body
+      {  text-align: justify;
+         margin-left: 8%;
+         margin-right: 8%;
+      }
+   }
+
+   }{
+
+                  \: \synoptopt: entry for the synopsis, optional option.
+                  \: \synreqopt: entry for the synopsis, required option.
+                  \: Both are automatically linked to corresponding entry in OPTIONS
+                  \: section, which must be defined with the \defopt key.
+
+                  \: \optref works together with \defopt, \synoptopt etc use \optref,
+
+                  \: The #3 entries are of the form e.g. \key{-opt}{arg}{explanation}.
+                  \: The #2 entries are of the form e.g. \key{--opt}{explanation}.
+
+                  \: Once per document: pluk's \page (docstep1 item 9) ends and
+                  \: begins the environment again on each new page, and the
+                  \: definitions and the loading of the .zmr below must not be
+                  \: repeated (zoem warns about redefinitions; refload about labels
+                  \: already defined).
+
+\'if{\'defined{key}{_pud_man_once}}{}{
+   \'set{_pud_man_once}{1}
+
+   \'switch{\get{pud::man}{$synstyle}}{
+
+      {long}{\set{{modes}{vw}}{}{
+
+{synoptopt#3}     {\optref{\1}{\bf{[\1} \2 (\it{\3})\bf{]}}}
+{synoptopt#2}     {\optref{\1}{\bf{[\1} (\it{\2})\bf{]}}}
+
+{synoptkvp#3}     {\optref{\1}{\bf{[\1=}\2 (\it{\3})\bf{]}}}
+{synoptkov#3}     {\optref{\1}{\bf{[\1[=}\2\bf{]} (\it{\3})\bf{]}}}
+
+{synreqopt#3}     {\optref{\1}{\bf{\1} \2 (\it{\3})}}
+{synreqopt#2}     {\optref{\1}{\bf{\1} (\it{\2})}}
+
+{synreqkvp#3}     {\optref{\1}{\bf{\1=}\2 (\it{\3})}}
+{synreqkov#3}     {\optref{\1}{\bf{\1[=}\2\bf{]} (\it{\3})}}
+
+      }}
+
+      {short}{\set{{modes}{vw}}{}{
+
+{synoptopt#3}     {\optref{\1}{\bf{[\1]} \2}}
+{synoptopt#2}     {\optref{\1}{\bf{[\1]}}}
+
+{synoptkvp#3}     {\optref{\1}{\bf{[\1=}\2\bf{]}}}
+{synoptkov#3}     {\optref{\1}{\bf{[\1[=}\2\bf{]]}}}
+
+{synreqopt#3}     {\optref{\1}{\bf{\1} \2}}
+{synreqopt#2}     {\optref{\1}{\bf{\1}}}
+
+{synreqkvp#3}     {\optref{\1}{\bf{\1=}\2}}
+{synreqkov#3}     {\optref{\1}{\bf{\1[=}\2\bf{]}}}
+
+      }}
+   }
+
+   \'switch{\get{pud::man}{$defstyle}}{
+      {long}{
+               \'${html}{\set{{modes}{vw}}{}{
+
+{defopt#3}        {\_anch{opt\1}{}\bf{\1} \2 (\it{\3})}
+{defopt#2}        {\_anch{opt\1}{}\bf{\1} (\it{\2})}
+{defkvp#3}        {\_anch{opt\1}{}\bf{\1}=\2 (\it{\3})}
+{defmac#2}        {\_anch{opt\1}{\\\v{\2}}}
+
+               }}
+
+               \'${roff}{\set{{modes}{vw}}{}{
+
+{defopt#3}        {\bf{\1} \2 (\it{\3})}
+{defopt#2}        {\bf{\1} (\it{\2})}
+{defkvp#3}        {\bf{\1}=\2 (\it{\3})}
+{defmac#2}        {\\\bf{\2}}
+
+               }}
+      }
+
+      {short}{
+               \'${html}{\set{{modes}{vw}}{}{
+
+{defopt#3}        {\_anch{opt\1}{}\bf{\1} \2}
+{defopt#2}        {\_anch{opt\1}{}\bf{\1}}
+{defkvp#3}        {\_anch{opt\1}{}\bf{\1}=\2}
+{defmac#2}        {\\\bf{\2}}
+
+               }}
+
+               \'${roff}{\set{{modes}{vw}}{}{
+
+{defopt#3}        {\bf{\1} \2}
+{defkvp#3}        {\bf{\1}=\2}
+{defopt#2}        {\bf{\1}}
+{defmac#2}        {\\\bf{\2}}
+
+               }}
+      }
+   }
+\: auxiliary files per device: their content is device text (pluk docstep1 item 3).
+\'setx{_pud_man_aux}{\__fnbase__.\__device__}
+\'load{\_pud_man_aux.zmr}
+\'setx{_pud_man_toclist}{\'zinsert{\_pud_man_aux.zmt}}
+}  \: end of once per document
+\:===========================================================================
+\'${roff}{
+\:===========================================================================
+\: $preprocess: the preprocessors man must run, as the first line '\" t (tbl);
+\: pluk docstep1 item 10.
+\'if{\'cmp{eq}{\get{pud::man}{$preprocess}}{}}{}{\@{'\\" \&{\get{pud::man}{$preprocess}}\N}}
+\@{.\\" Copyright (c) } \get{pud::man}{$year} \get{pud::man}{$author}
+\@{\N.TH\S} \@{\"\+{2}}\get{pud::man}{$name}\@{\+{1}\"} \:/ <------------------
+\get{pud::man}{$section} \:/ <-------------------------------------------------
+"\get{pud::man}{$day} \get{pud::man}{$month} \get{pud::man}{$year}" \:/ <------
+"\'if{\'cmp{eq}{\get{pud::man}{$source}}{}}{\get{pud::man}{$name} \get{pud::man}{$tag}}{\get{pud::man}{$source}}" \:/ <---
+"\"_pud_man_makecat" " \: <----------------------------------------------------
+\"generic::troff-defs"
+\@{\N.if n .ll -2m\n} \: crude hack to conquer groff-ism.
+\@{\N.am SH\N.ie n .in 4m\N.el .in 8m\N..\N}
+}
+\:===========================================================================
+\'${html}{
+\:===========================================================================
+   \"pud::man::htmlopen"{\get{pud::man}{$html_title}}
+}
+\:===========================================================================
+\'${md}{
+\:===========================================================================
+   \: The version in a comment (decision 9 of pluk docstep1); the source named by
+   \: its base name only, so that the output does not depend on where it is built.
+   \@{<!-- \&{\get{pud::man}{$name}}, \&{\get{pud::man}{$source}}; generated by zoem from \&{\__fnbase__}.azm, do not edit -->\P}
+}
+   }{
+
+\'${html}{\"pud::man::htmlclose"}
+\'${roff}{}
+\'${md}{\@{\N}}
+   }
+
+\: The opening and closing of an HTML page, also used for the pages a document is
+\: split into (pluk docstep1 item 9: pluk.zmm's \page closes one page, \writeto's the
+\: next and opens it). html, body and main are raw tags: zoem's tag tracking wants an
+\: opening and its closing in one output file. \1: the title.
+
+\'def{"pud::man::htmlopen"#1}{
+   \: HTML5, with charset and viewport (pluk docstep1 item 4).
+   \<!DOCTYPE html>
+   \@{\N<html lang="en">\N}
+   \<!-- Copyright (c) \get{pud::man}{$year} \get{pud::man}{$author} -->
+   \<head>{
+      \<*meta charset="utf-8">
+      \<*meta name="viewport" content="width=device-width, initial-scale=1">
+      \<*meta name="keywords" content="\get{pud::man}{$html_keywords}">
+      \'if{\'cmp{eq}{\get{pud::man}{$css_link}}{}}{
+         \<style type="text/css">{
+            \zinsert{aephea/base.css}
+            \get{pud::man}{$css_append}
+         }
+      }{
+         \<*link rel="stylesheet" href="\get{pud::man}{$css_link}">
+      }
+      \<title>{\1}
+   }
+   \@{\N<body>\N}
+
+   \: header and main (pluk docstep1 item 8).
+   \<header class="docheader">{\<p>{
+      \get{pud::man}{$day} \get{pud::man}{$month} \get{pud::man}{$year}\~\~\~
+      \bf{\get{pud::man}{$name}}  \: no link to a .ps file: none is made (pluk docstep1)
+      \get{pud::man}{$tag}
+   }}
+   \@{\N<main>\N}
+}
+
+\'def{"pud::man::htmlclose"}{\@{\N</main>\N</body>\N</html>\N}}
+
+\: The link to a section (html): its page, if not the current output file, and its
+\: id. The page is recorded by \sec in the .zmr (pluk docstep1 item 9).
+
+\'def{"pud::man::href"#1}{\'if{\'cmp{eq}{\ref{\1}{page}}{\__fnout__}}{}{\ref{\1}{page}}#\1}
+
+\: __o__o__o__O
+
+               \'set{{modes}{vw}}{}{
+
+\:  generic options, generic argument (e.g. f(loat) or i(nt) or str(ing))
+
+{genopt#2}           {\bf{\1}\~\it{\2}}
+{genkvp#2}           {\bf{\1}=\it{\2}}
+{genopt#1}           {\bf{\1}}
+{genarg#1}           {\it{\1}}
+
+\:  particular argument, e.g. 5.0 or 16 or 'foo'
+
+{useopt#2}           {\bf{\1}\~\bf{\2}}
+{usekvp#2}           {\bf{\1}=\bf{\2}}
+{useopt#1}           {\bf{\1}}
+{usearg#1}           {\bf{\1}}
+
+               }
+
+\: __o__o__o__O
+
+               \'${roff}{\set{{modes}{vw}}{}{
+
+{defmac#1}     {\bf{\\\1}}
+{defopt#1}     {}                   \: only create the anchor
+
+               }}
+
+               \'${html}{\set{{modes}{vw}}{}{
+
+{defmac#1}     {\v{\\\1}}
+{defopt#1}     {\_anch{opt\1}{}}    \: only create the anchor
+
+               }}
+
+\: __o__o__o__O
+
+               \'${html}{\set{{modes}{vw}}{}{
+
+{genoptref#1}  {\optref{\1}{\genopt{\1}}}
+{genoptref#2}  {\optref{\1}{\genopt{\1}{\2}}}
+\: {genoptref#3}  {\optref{\1}{\genopt{\1}{\2} \3}}
+{optref#2}     {\iref{opt\1}{\2}}
+
+               }}
+
+               \'${roff}{\set{{modes}{vw}}{}{
+
+{genoptref#1}  {\genopt{\1}}
+{genoptref#2}  {\genopt{\1}{\2}}
+\: {genoptref#3}  {\genopt{\1}{\2} \3}
+{optref#2}     {\2}
+
+               }}
+
+\: __o__o__o__O
+
+                                    \: fixme: defined should look in pud::man dictionary
+               \'formatted{
+\'${roff}{
+   \'def{"_pud_man_makecat"}{
+      \'if{\'defined{key}{$cat}}{\get{pud::man}{$cat}}{
+         \switch{\get{pud::man}{$section}}{
+            {1}{USER\`{s}COMMANDS}
+            {2}{SYSTEM\`{s}CALLS}
+            {3}{LIBRARY\`{s}CALLS}
+            {4}{SPECIAL\`{s}FILES}
+            {5}{FILE\`{s}FORMATS}
+            {6}{GAMES}
+            {7}{MISCELLANEOUS}
+            {8}{SYSTEM\`{s}ADMINISTRATION}
+            {9}{KERNEL\`{s}INTERFACE}
+            {}
+         }
+      }
+   }
+}
+               }
+
+\: __o__o__o__O
+
+               \'formatted{
+
+\'def{sec#2}{\sec{}{\1}{\2}}
+               \:
+               \: Section: first argument is toc yes/no ("*" for no)
+               \:          second argument is anchor, third is caption.
+               \:
+\'def{sec#3}{
+   \ctrinc{pud::man::sec}
+   \'setx{_ref}{
+      \'if{\'cmp{eq}{\2}{}}{_section_\ctrput{pud::man::sec}}{\2}
+   }
+   \'if{\'cmp{eq}{\1}{*}}{}{
+      \'write{\_pud_man_aux.zmt}{copy}{
+         \!"pud::man::tocentry"
+            {\_ref}
+            {Section}
+            {\ctrput{pud::man::sec}}
+            {\3}
+            \`{n}
+      }
+   }
+   \'write{\_pud_man_aux.zmr}{copy}{
+      \!refload{\_ref}{
+         {level}{1}
+         {type}{Section}
+         {num}{\ctrput{pud::man::sec}}
+         {cap}{\3}
+         {page}{\__fnout__}    \: the output file (page) it is in: pluk docstep1 item 9
+      }
+      \`{n}
+   }
+   \'switch{\__device__}{
+      {html}{
+         \: the id on the heading itself (pluk docstep1 item 8)
+         \@{\C\P<h2 id="\&{\_ref}">}\3\@{</h2>}
+      }
+      {roff}{
+         \@{\N.SH\S}\3
+      }
+      {md}{
+         \: explicit anchor at the end of the heading line (pluk docstep1 decision 5);
+         \: the line starts with '## caption', as pluk's doccheck.py needs.
+         \@{\C\P## }\3\@{ <a id="\&{\_ref}"></a>}
+      }
+   }
+}
+\'def{NAME#2}{
+   \'${html}{
+      \par{\`{n}
+         \1\`{s}\-\`{s}\2}
+   }
+   \'${roff}{
+         \`{n}
+         \1\`{s}\-\`{s}\2
+   }
+}
+               }
+
+\: __o__o__o__O
+
+               \'formatted{
+
+\: html: <nav class="toc"> with a plain list of links (pluk docstep1 item 8). The
+\: section number is shown unless $tocnum is 0 (pluk's captions carry their number).
+
+\'def{_pud_man_tocbegin}{
+   \'${html}{
+      \@{\N<nav class="toc">\N<p class="toctitle">Contents</p>\N<ul>}
+   }
+   \'${roff}{
+      \@{\N}\'begin{itemize}{{$flow}{compact}{$interitem}{0}{textindent}{4}{itemmargin}{3}{align}{right}}
+   }
+}
+\'def{_pud_man_tocend}{
+   \'${html}{\@{\N</ul>\N</nav>\N}}
+   \'${roff}{\@{\N}\'end{itemize}}
+}
+
+\: args: anchor type number caption
+
+\: html: the link goes through pud::man::href (the section may be on another page);
+\: the entries of the current page have class 'here'.
+
+\'def{"pud::man::tocentry"#4}{
+   \'${html}{
+      \'if{\'cmp{eq}{\ref{\1}{page}}{\__fnout__}}{\@{\N<li class="here">}}{\@{\N<li>}}
+      \'if{\get{pud::man}{$tocnum}}{\@{<span class="tocnum">}\3.\@{</span> }}{}
+      \<a class="intern" href="\"pud::man::href"{\1}">{\4}\@{</li>}
+   }
+   \'${roff}{
+      \item{\3.}
+      \@{\N}\4
+   }
+}
+
+\'def{"pud::man::maketoc"}{
+   \_pud_man_tocbegin
+   \_pud_man_toclist
+   \_pud_man_tocend
+}
+               }
+
+\: __o__o__o__O
+
+               \'formatted{
+
+\'switch{\__device__}{
+   {html}{
+      \'def{secref#1}{\<a class="intern" href="\"pud::man::href"{\1}">{\ref{\1}{cap}}}
+   }
+   {roff}{
+      \'def{secref#1}{\bf{\ref{\1}{cap}}}
+   }
+   {md}{
+      \'def{secref#1}{\iref{\1}{\ref{\1}{cap}}}
+   }
+}
+               }
+

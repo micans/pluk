@@ -1,0 +1,845 @@
+
+\:  These definitions exist for both
+\:       HTML  and Roff
+\:
+\:  Some of the roff definitions do less than the HTML version,, e.g. httpref#1.
+\:  Some of the roff definitions do nothing, e.g. sc#1.
+
+
+\'set{reqver}{2009-250}
+\'if{\'cmp{gq}{\__version__}{\reqver}}{}{
+\'write{stderr}{txt}{This Aephea release requires zoem version at least \reqver\|}\'exit}
+
+
+\import{aephea/ref.zmm}
+\import{aephea/ctr.zmm}
+
+\: iref#2, lref#2, enref#2, aref#2.
+\: evn{spacing}
+\: evn{itemize}   \item \items \intermezzo \itemskip
+\: bf#1 it#1 v#1 tt#1 sc#1
+\: ftinc#2 ftdec#2
+\: httpref#1 sibref#2
+\: (deprecated) par car cpar#1 ccar#1
+\: par#1 car#1 cpar#2 ccar#2
+\: verbatim#1 verbatix#1
+
+\${html}{\set{{modes}{vw}}{}{
+
+   {div#2}{\<div class="\1">{\2}}
+   {span#2}{\<span class="\1">{\2}}
+
+   {_spacer#2}    {\<*spacer type=block width=\1 height=\2>}
+   {_anch#2}      {\<a id="\1">{\2}}       \: id, not name: HTML5 (pluk docstep1 item 8)
+   {iref#2}       {\<a class="intern" href="#\1">{\2}}
+   {lref#2}       {\<a class="local" href="\1">{\2}}
+   {aref#2}       {\<a target="_parent" class="extern" href="\1">{\2}}
+   {enref#2}      {\<a id="\1">{\2}}
+   {iref_quiet#2} {\<a class="quiet" href="#\1">{\2}}
+   {lref_quiet#2} {\<a class="quiet" href="\1">{\2}}
+
+    }
+}
+
+
+\${roff}{\set{{modes}{vw}}{}{
+
+   {iref#2}    {\it{\2}}
+   {aref#2}    {\it{\2}}
+   {lref#2}    {\it{\2}}
+   {enref#2}   {\2}
+
+   }
+}
+
+
+\: Markdown (pluk docstep1 item 6). Link destinations at special level 3, so that they
+\: are not escaped; the link text at level 1.
+
+\${md}{\set{{modes}{vw}}{}{
+
+   {_anch#2}      {\@{<a id="\&{\1}"></a>}\2}
+   {iref#2}       {\@{[}\2\@{](#\+{3}}\1\@{\+{1})}}
+   {lref#2}       {\@{[}\2\@{](\+{3}}\1\@{\+{1})}}
+   {aref#2}       {\@{[}\2\@{](\+{3}}\1\@{\+{1})}}
+   {enref#2}      {\_anch{\1}{\2}}
+   {iref_quiet#2} {\iref{\1}{\2}}
+   {lref_quiet#2} {\lref{\1}{\2}}
+
+   }
+}
+
+
+\formatted{
+   \env{spacing}{
+      {top}{0}         \: not yet functional.
+      {bottom}{0}      \: not yet functional.
+      {left}{0}        \: only for indent.
+      {right}{0}       \: only for shrinking.
+   }{
+      \${html}{
+         \<div style="
+            \if{\$top}{margin-top:\$top\,em;}{}
+            \if{\$bottom}{margin-bottom:\$bottom\,em;}{}
+            \if{\$left}{margin-left:\$left\,em;}{}
+            \if{\$right}{margin-right:\$right\,em;}{}
+         ">
+      }
+      \${roff}{
+         \if{\$left}{\@{\N.in +\&{\$left}m\N}}{}
+         \if{\$right}{\@{\N.ll -\&{\$right}m\N}}{}
+      }
+   }{
+      \${html}{\</div>}
+      \${roff}{
+         \if{\$left}{\@{\N.in -}\$left\@{m\N}}{}
+         \if{\$right}{\@{\N.ll +}\$right\@{m\N}}{}
+      }
+   }
+}
+
+\switch{\__device__}{
+   {html}{
+
+         \set{{modes}{vw}}{}{
+{bf#1}      {\<b>{\1}}
+{em#1}      {\<em>{\1}}
+{strong#1}  {\<strong>{\1}}
+{sc#1}      {\span{smallcaps}{\1}}
+{it#1}      {\<i>{\1}}
+{v#1}       {\<code>{\1}}      \: <code>, not <tt>: HTML5 (pluk docstep1 item 4)
+{vq#1}      {\<code>{\1}}
+{m#1}       {\<code>{\1}}
+{tt#1}      {\<code>{\1}}
+
+{ftinc#2}   {\<span style="font-size:120%">{\2}}
+{ftdec#2}   {\<span style="font-size:80%">{\2}}
+
+{httpref#1} {\<a class="extern" href="\1">{\1}}
+{httpref#2} {\<a class="extern" href="\1">{\2}}
+{sibref#1}  {\<a class="local sibling" href="\1.html">{\1}}
+{sibref#2}  {\<a class="local sibling" href="\1.html">{\2}}
+{sibref#3}  {\<a class="local sibling" href="\1.html#\2">{\3}}
+         }}
+
+   {roff}{
+         \set{{modes}{vw}}{}{
+{bf#1}      {\@{\\fB}\1\@{\\fP}}
+{it#1}      {\@{\\fI}\1\@{\\fP}}
+{strong#1}  {\@{\\fB}\1\@{\\fP}}
+{sc#1}      {\1}
+{em#1}      {\@{\\fI}\1\@{\\fP}}
+{v#1}       {\@{\\f[CR]\+{3}}\1\@{\+{1}\\fP}}
+{vq#1}      {'\v{\1}'}
+{m#1}       {\@{\\f[CR]\+{3}}\1\@{\+{1}\\fP}}
+{tt#1}      {\@{\\f[CR]\+{3}}\1\@{\+{1}\\fP}}
+
+{ftinc#2}   {\@{\\s+\1}\2\@{\\s-\1}}
+{ftdec#2}   {\@{\\s-\1}\2\@{\\s+\1}}
+
+{httpref#1} {\1}
+{httpref#2} {\1}  \: the url-encoded thing.
+{sibref#1}  {\bf{\1}}
+{sibref#2}  {\bf{\2}}
+{sibref#3}  {\bf{\3}}
+         }}
+
+   {md}{
+         \: Inline code at special level 3: no escaping inside backticks. Code that
+         \: itself contains a backtick is not supported.
+         \set{{modes}{vw}}{}{
+{bf#1}      {\@{**}\1\@{**}}
+{em#1}      {\@{*}\1\@{*}}
+{strong#1}  {\@{**}\1\@{**}}
+{sc#1}      {\1}
+{it#1}      {\@{*}\1\@{*}}
+{v#1}       {\@{`\+{3}}\1\@{\+{1}`}}
+{vq#1}      {\@{`\+{3}}\1\@{\+{1}`}}
+{m#1}       {\@{`\+{3}}\1\@{\+{1}`}}
+{tt#1}      {\@{`\+{3}}\1\@{\+{1}`}}
+
+{ftinc#2}   {\2}
+{ftdec#2}   {\2}
+
+{httpref#1} {\aref{\1}{\1}}
+{httpref#2} {\aref{\1}{\2}}
+{sibref#1}  {\lref{\1.md}{\1}}
+{sibref#2}  {\lref{\1.md}{\2}}
+{sibref#3}  {\lref{\1.md#\2}{\3}}
+         }}
+}
+
+\switch{\__device__}{
+   {html}{
+      \special{}          \: remove existing definitions.
+      \special{
+         {60}  {&lt;}      \: less than sign
+         {62}  {&gt;}      \: greater than sign
+         {38}  {&amp;}     \: ampersand
+
+         {-1} {&nbsp;}     \: the zoem escape \~
+         {-2} {<br>}       \: the zoem escape \|
+         {-3} {&mdash;}    \: the zoem escape \-
+      }
+
+      \constant{
+         {itembullet}{<span class="itembullet">&bull;</span>}
+      }
+   }
+   {roff}{
+      \special{}          \: remove existing definitions.
+      \special{
+         {34}  {"}         \: double quote is special in second layer only
+         {34}  {""}        \: double quote is special in second layer only
+         {34}  {"}         \: third layer: code (\v, verbatim), as the first
+         {45}  {-}         \: hyphen
+         {45}  {-}
+         {45}  {\\-}       \: third layer: code; a minus: no break after it, and
+                           \: it copies as ASCII hyphen-minus
+         {46}  {\\&.}      \: a dot.
+         {96}  {\\&`}      \: backquote.
+         {39}  {\\&'}      \: quote
+
+         {92}  {\\e}       \: backslash (default troff escape character).
+                           \: escaping by backslash may fail in
+                           \: diversions [for old roffs].
+
+         {-1} {\\ \\&}        \: the zoem escape \~
+         {-2} {\!N.br\!N}  \: the zoem escape \|
+         {-3} {\\-}        \: the zoem escape \-
+      }
+      \constant{
+         {itembullet}{\\(bu}
+      }
+   }
+   {md}{
+      \: Markdown (pluk docstep1 item 6). Four levels, each character listing them in
+      \: order: 1 prose, 2 as 1, 3 code (\v and console blocks: nothing escaped),
+      \: 4 the start of a list item (as 1, and see the newline below).
+      \:
+      \: The newline (10): at levels 1-3 a literal newline, which zoem treats exactly
+      \: as an unmapped one (it goes through the white space management, and gets the
+      \: indent). At level 4 it prints nothing and returns to level 1: \item switches
+      \: to level 4, so that the newline after \item in the source is swallowed and
+      \: the item text follows '- ' on the same line.
+      \special{}
+      \special{
+         {92}  {\\\\}  {92}  {\\\\}  {92}  {\\}  {92}  {\\\\}   \: backslash
+         {96}  {\\`}   {96}  {\\`}   {96}  {`}   {96}  {\\`}    \: backquote
+         {42}  {\\*}   {42}  {\\*}   {42}  {*}   {42}  {\\*}    \: asterisk
+         {95}  {\\_}   {95}  {\\_}   {95}  {_}   {95}  {\\_}    \: underscore
+         {91}  {\\[}   {91}  {\\[}   {91}  {[}   {91}  {\\[}    \: brackets
+         {93}  {\\]}   {93}  {\\]}   {93}  {]}   {93}  {\\]}
+         {60}  {\\<}   {60}  {\\<}   {60}  {<}   {60}  {\\<}    \: less than
+         {62}  {\\>}   {62}  {\\>}   {62}  {>}   {62}  {\\>}    \: greater than
+         {35}  {\\#}   {35}  {\\#}   {35}  {#}   {35}  {\\#}    \: hash
+         {126} {\\~}   {126} {\\~}   {126} {~}   {126} {\\~}    \: tilde
+         {124} {\\|}   {124} {\\|}   {124} {|}   {124} {\\|}    \: bar (tables)
+         \: Not escaped: - + = and the dot of 1. (lists, setext headings) matter only
+         \: at the start of a line, which a mapping cannot see; escaping them
+         \: everywhere would clutter the text. tools/azmlint.py reports source lines
+         \: of prose that start with them (line breaks follow the source).
+
+         {10}  {
+}  {10}  {
+}  {10}  {
+}  {10}  {\+{1}}
+
+         {-1} {&nbsp;}     \: the zoem escape \~
+         {-2} {<br>}       \: the zoem escape \|
+         {-3} {—}          \: the zoem escape \-
+      }
+      \constant{
+         {itembullet}{-}
+      }
+   }
+}
+
+\formatted{
+
+   \env{itemize}{
+      {interitem}{0}        \: space between items in ems
+      {flow}{cascade}       \: item and description on successive lines.
+      {textindent}{2}       \: (html device: text-margin offset)
+      {itemmargin}{1}       \: (html device: right-aligned item)
+      {mark}{\*{itembullet}}
+      {margintop}{1}        \: NOTE anonalous unit (ems). mq.
+      {align}{left}         \: the way item is aligned.
+      {lp}{}                \: left parenthesis
+      {rp}{}                \: right parenthesis
+      {type}{mark}          \: affects \item. mark/roman/abc/arabic
+      {itemcount}{1}
+      {fontsize}{100}       \: css percent-style sizing.
+      {class_item}{}
+      {class_itemtext}{}
+      {class_itemize}{}
+      {class_all}{}
+   }{
+
+      \: html: a real list (pluk docstep1 item 8). An item is an <li>; an item with
+      \: a label (\item{label}, \items, or a $type other than mark) has class
+      \: 'labelled' and its label in <span class="itemlabel">, placed by the CSS.
+      \: $margintop, $fontsize, $textindent, $itemmargin, $flow and $align are left
+      \: to the CSS in html; $interitem becomes a top margin of the item.
+      \${html}{\<ul class="\$class_all itemize \get{itemize}{$class_itemize}">}
+      \${roff}{ \if{\$margintop}{\@{\P}}{}  }
+      \${md}{\@{\P}}
+   }{
+      \_itemend
+      \${html}{\</ul>}
+      \${md}{\@{\P}}
+   }
+
+   \def{_itemskip}{
+      \if{\let{\$itemcount > 1 && \$interitem}}{
+         \${roff}{\@{\P}}
+      }{}
+   }
+   \def{itemskip}{\_itemskip}
+
+   \: html: open an item; \1 its classes.
+   \def{_itemopen#1}{
+      \if{\let{\$itemcount > 1 && \$interitem}}
+         {\<li class="\$class_all \1" style="margin-top:\$interitem\,em">}
+         {\<li class="\$class_all \1">}
+   }
+
+   \def{intermezzo#1}{
+
+      \_itemend \_itemskip
+
+      \${html}{\_itemopen{intermezzo}\1}
+      \${roff}{\1}
+   }
+
+   \def{item#1}{
+
+      \_itemend   \_itemskip
+
+      \${html}{
+         \_itemopen{labelled \get{itemize}{$class_item}}
+         \<span class="itemlabel">{\1}
+      }
+      \${roff}{
+         \if{\cmp{eq}{\get{itemize}{$align}}{left}}
+            {\@{\+{2}.ZI }\$w3\@{m "}\1\@{"\+{1}}}
+            {\@{\+{2}.ZJ }\$w1\@{m }\$w2\@{m "}\1\@{"\+{1}}}
+      }
+      \${md}{\@{\N- }\1\@{\S\I\+{4}}}
+
+      \_itemdef   \_iteminc
+   }
+
+   \def{items#1}{
+
+      \if{\cmp{eq}{\get{itemize}{$flow}}{compact}}{
+         \write{stderr}{txt}{\`{<}itemize: compact not supported with items#1\|\`{>}}
+         \'exit
+      }{}
+
+      \_itemend   \_itemskip
+
+      \set{_items}{\1}
+
+      \${html}{
+         \_itemopen{labelled \get{itemize}{$class_item}}
+         \<span class="itemlabel">{\apply{_#1{\!1\|}}{\_items}}
+      }
+      \${roff}{
+         \: compact/not compact is accounted for by \_itemdef.
+         \apply{
+            _#1{
+               \if{\cmp{eq}{\get{itemize}{$align}}{left}}
+                  {\@{\N\+{2}.ZI }\$w3\@{m "}\!1\@{"\+{1}}}
+                  {\@{\N\+{2}.ZJ }\$w1\@{m }\$w2\@{m "}\!1\@{"\+{1}}}
+               \@{\N\\&\N'in -}\$w3\@{m\N}
+            }
+         }{
+            \_items
+         }
+         \@{\N'in\s+}\$w3\@{m\N}
+      }
+      \_itemdef   \_iteminc
+   }
+
+   \def{item}{
+
+      \_itemend   \_itemskip
+
+      \${html}{
+         \if{\cmp{eq}{\$type}{mark}}
+            {\_itemopen{\get{itemize}{$class_item}}}
+            {\_itemopen{labelled \get{itemize}{$class_item}}
+             \<span class="itemlabel">{\_putitemmark}}
+      }
+      \${roff}{
+         \if{\cmp{eq}{\get{itemize}{$align}}{left}}
+            {\@{\N.ZI }\$w3\@{m \"}\_putitemmark\@{\"}}
+            {\@{\N.ZJ }\$w1\@{m }\$w2\@{m }"\_putitemmark"}
+      }
+      \: md: always a bullet item; the indent (\I, -tl 2) aligns the continuation
+      \: lines with the text after '- '; level 4: see the specials of md.
+      \${md}{\@{\N- \I\+{4}}}
+      \_itemdef   \_iteminc
+   }
+
+   \def{_itemdef}{
+      \${roff}{
+         \if{\cmp{eq}{\get{itemize}{$flow}}{compact}}
+            {\@{\N}}
+            {\@{\N\\&\N.br\N}}
+      }
+   }
+
+   \def{_itemend}{            \:  |<---w1---->|w2|, w3 = w1 + w2
+      \set{{modes}{xv}}{}{
+         {$w3}{\$textindent}
+         {$w2}{\let{\$textindent - \$itemmargin}}
+         {$w1}{\$itemmargin}
+      }
+      \set{{modes}{x}{dict}{itemize}}{$style_align}{
+         \if{\cmp{eq}{\get{itemize}{$align}}{right}}{style="right:-\get{itemize}{$itemmargin}em"}{}
+      }
+      \if{\let{\$itemcount > 1}}{
+         \${html}{\</li>}
+         \${roff}{\@{\N.in\s-}\$w3\@{m\N}}
+         \${md}{\@{\J}}
+      }{}
+   }
+   
+   \def{_iteminc}{\setx{$itemcount}{\let{\$itemcount+1}}}
+
+   \def{_putitemmark}{
+      \get{itemize}{$lp}
+      \switch{\$type}{
+         {mark}{\$mark}
+         {roman}{\textmap{{number}{roman}}{\$itemcount}}
+         {ROMAN}{\textmap{{number}{roman}{word}{ucase}}{\$itemcount}}
+         {abc}{\textmap{{number}{alpha}}{\$itemcount}}
+         {ABC}{\textmap{{number}{alpha}{word}{ucase}}{\$itemcount}}
+         {arabic}{\$itemcount}
+         {?}
+      }
+      \get{itemize}{$rp}
+   }
+}
+
+
+\: __o__o__o__O  tables (pluk docstep1 item 10)
+\:
+\: \begin{table}{{spec}{{l}{lx}{lx}}}
+\: \thead{{cell}{cell}{cell}}
+\: \trow{{cell}{cell}{cell}}
+\: ..
+\: \end{table}
+\:
+\: spec    one entry per column: l, c or r (alignment), optionally followed by x
+\:         (roff: this column takes the room left over); it gives the number of
+\:         columns. Required.
+\: rowsep  between body rows: rule (default) or none; blank is planned.
+\: roff    table (default; tbl) or list: each row a labelled item, the first cell
+\:         the label, each further cell a line prefixed with its column header.
+\:
+\: \thead is required (Markdown tables have a header row) and comes first. A row
+\: with another number of cells than spec has columns is an error. Cells hold
+\: inline content only (text, \v, links). Cells may be wrapped in the source; in
+\: Markdown each row is joined into one line. Markdown: a | in a cell is escaped
+\: (prose only: code containing | is not supported in a cell). roff: cells are
+\: text blocks (T{ T}); the page needs tbl ('\" t, pud::man key $preprocess).
+
+\formatted{
+
+   \env{table}{
+      {spec}{}
+      {rowsep}{rule}
+      {roff}{table}
+   }{
+      \setx{_tbl_n}{0}
+      \apply{_tbl_spec#1}{\$spec}
+      \if{\_tbl_n}{}{\_tbl_error{\_tbl_msg_spec}}
+      \switch{\$rowsep}{
+         {rule}{}{none}{}
+         {\_tbl_error{\_tbl_msg_rowsep}}
+      }
+      \switch{\$roff}{
+         {table}{}{list}{}
+         {\_tbl_error{\_tbl_msg_roff}}
+      }
+      \setx{_tbl_head}{0}
+      \setx{_tbl_rows}{0}
+      \${html}{\@{\P<table class="rowsep-\&{\$rowsep}">}}
+      \${roff}{
+         \if{\cmp{eq}{\$roff}{list}}
+            {\@{\P.ad l\N}}
+            {\@{\P.ad l\N.TS\Ntab(@);}}
+      }
+      \${md}{\@{\P}}
+   }{
+      \if{\_tbl_head}{}{\_tbl_error{\_tbl_msg_nohead}}
+      \${html}{\@{\N</tbody>\N</table>\P}}
+      \${roff}{
+         \if{\cmp{eq}{\$roff}{list}}
+            {\@{\N.ad\P}}
+            {\@{\N.TE\N.ad\P}}
+      }
+      \${md}{\@{\P}}
+   }
+
+   \def{_tbl_error#1}{
+      \write{stderr}{txt}{\`{<}table: \1 (\__fnin__)\|\`{>}}
+      \exit
+   }
+
+   \: one column of spec: its alignment letter, and the roff format entry.
+   \def{_tbl_spec#1}{
+      \setx{_tbl_n}{\let{\_tbl_n+1}}
+      \setx{%{tbl::align}{\_tbl_n}}{\tr{{delete}{x}}{\1}}
+      \setx{%{tbl::roff}{\_tbl_n}}{\1}
+   }
+
+   \: the number of cells of a row must be that of spec.
+   \def{_tbl_count#1}{
+      \setx{_tbl_cells}{0}
+      \apply{_tbl_inc#1}{\1}
+      \if{\let{\_tbl_cells == \_tbl_n}}{}{
+         \_tbl_error{\_tbl_msg_cells}
+      }
+   }
+   \def{_tbl_inc#1}{\setx{_tbl_cells}{\let{\_tbl_cells+1}}}
+
+   \: the roff format line(s): entry k of spec with \2 appended (b: bold), with
+   \: separating spaces; \1 is appended to the line (the period after the last,
+   \: given in at scope, else roff's mapping makes it \&.). \while, not \whilst:
+   \: \whilst outputs at once, ahead of the text being built around it.
+   \def{_tbl_format#2}{
+      \setx{_tbl_i}{0}
+      \@{\N}
+      \while{\let{\_tbl_i < \_tbl_n}}{
+         \setx{_tbl_i}{\let{\_tbl_i+1}}
+         \if{\let{\_tbl_i > 1}}{\@{\s}}{}
+         \%{tbl::roff}{\_tbl_i}\2
+      }
+      \1
+   }
+
+   \def{thead#1}{
+      \if{\_tbl_head}{\_tbl_error{\_tbl_msg_twice}}{}
+      \_tbl_count{\1}
+      \setx{_tbl_head}{1}
+      \setx{_tbl_i}{0}
+      \apply{_tbl_storeth#1}{\1}
+      \${html}{
+         \@{\N<thead>\N<tr>}
+         \setx{_tbl_i}{0}
+         \apply{_tbl_htmlth#1}{\1}
+         \@{</tr>\N</thead>\N<tbody>}
+      }
+      \${roff}{
+         \if{\cmp{eq}{\get{table}{$roff}}{list}}{}{
+            \_tbl_format{}{b}
+            \_tbl_format{\@{.}}{}
+            \setx{_tbl_i}{0}
+            \apply{_tbl_roffcell#1}{\1}
+            \@{\N_}
+         }
+      }
+      \${md}{
+         \setx{_tbl_i}{0}
+         \@{\N}\apply{_tbl_mdcell2#1}{\1}\@{|}
+         \@{\N}
+         \setx{_tbl_i}{0}
+         \while{\let{\_tbl_i < \_tbl_n}}{
+            \setx{_tbl_i}{\let{\_tbl_i+1}}
+            \switch{\%{tbl::align}{\_tbl_i}}{
+               {r}{\@{|---:}}
+               {c}{\@{|:---:}}
+               {\@{|---}}
+            }
+         }
+         \@{|}
+      }
+   }
+
+   \def{trow#1}{
+      \if{\_tbl_head}{}{\_tbl_error{\_tbl_msg_order}}
+      \_tbl_count{\1}
+      \setx{_tbl_rows}{\let{\_tbl_rows+1}}
+      \${html}{
+         \@{\N<tr>}
+         \setx{_tbl_i}{0}
+         \apply{_tbl_htmltd#1}{\1}
+         \@{</tr>}
+      }
+      \${roff}{
+         \if{\cmp{eq}{\get{table}{$roff}}{list}}{
+            \setx{_tbl_i}{0}
+            \apply{_tbl_roffitem#1}{\1}
+            \@{\N.in\s-2m\P}
+         }{
+            \if{\let{\_tbl_rows > 1}}{
+               \if{\cmp{eq}{\get{table}{$rowsep}}{rule}}{\@{\N_}}{}
+            }{}
+            \setx{_tbl_i}{0}
+            \apply{_tbl_roffcell#1}{\1}
+         }
+      }
+      \${md}{
+         \setx{_tbl_i}{0}
+         \@{\N}\apply{_tbl_mdcell2#1}{\1}\@{|}
+      }
+   }
+
+   \def{_tbl_storeth#1}{
+      \setx{_tbl_i}{\let{\_tbl_i+1}}
+      \set{%{tbl::th}{\_tbl_i}}{\1}
+   }
+
+   \: html: the alignment as a class (l is the default and gets none).
+   \def{_tbl_htmlclass}{
+      \switch{\%{tbl::align}{\_tbl_i}}{
+         {r}{\@{\sclass="right"}}
+         {c}{\@{\sclass="center"}}
+         {}
+      }
+   }
+   \def{_tbl_htmlth#1}{
+      \setx{_tbl_i}{\let{\_tbl_i+1}}
+      \@{<th}\_tbl_htmlclass\@{>}\1\@{</th>}
+   }
+   \def{_tbl_htmltd#1}{
+      \setx{_tbl_i}{\let{\_tbl_i+1}}
+      \@{<td}\_tbl_htmlclass\@{>}\1\@{</td>}
+   }
+
+   \: roff, tbl: each cell a text block; @ separates the cells.
+   \def{_tbl_roffcell#1}{
+      \setx{_tbl_i}{\let{\_tbl_i+1}}
+      \if{\let{\_tbl_i > 1}}{\@{@T\{\N}}{\@{\NT\{\N}}
+      \1
+      \@{\NT\}}
+   }
+
+   \: roff, list: the first cell the label (bold, a line of its own), each further
+   \: cell a line prefixed with its column header (italic).
+   \def{_tbl_roffitem#1}{
+      \setx{_tbl_i}{\let{\_tbl_i+1}}
+      \if{\let{\_tbl_i == 1}}{
+         \@{\N.ZI\s2m\s"\+{2}}\bf{\1}\@{\+{1}"\N\\&\N.br\N}
+      }{
+         \it{\%{tbl::th}{\_tbl_i}:}\@{\s}\1\@{\N.br\N}
+      }
+   }
+
+   \: Markdown: | cell (one line), the closing | after the last.
+   \def{_tbl_mdcell2#1}{
+      \setx{_tbl_i}{\let{\_tbl_i+1}}
+      \@{|\s}\_tbl_mdcell{\1}\@{\s}
+   }
+}
+
+\: The error messages of the table macros, outside \formatted, which would strip
+\: their spaces.
+
+\def{_tbl_msg_spec}{a table needs {spec}, one entry per column}
+\def{_tbl_msg_rowsep}{rowsep '\get{table}{$rowsep}' not supported (rule or none)}
+\def{_tbl_msg_roff}{roff '\get{table}{$roff}' not supported (table or list)}
+\def{_tbl_msg_nohead}{a table needs \\thead}
+\def{_tbl_msg_cells}{a row has \_tbl_cells cells, spec has \_tbl_n columns}
+\def{_tbl_msg_twice}{\\thead given twice}
+\def{_tbl_msg_order}{\\thead must come before the rows}
+
+\: A Markdown cell on one line: white space around a newline becomes one space.
+\: Outside \formatted, which would strip the newline and the space of the regex.
+
+\def{_tbl_mdcell#1}{\inspect{{mods}{posix}}{[[:space:]]*
+[[:space:]]*}{ }{\1}}
+
+
+\'${roff}{
+   \'def{"generic::troff-defs"}{
+\@{\N
+.po 2m
+.de ZI
+.\\" Zoem Indent/Itemize macro I.
+.br
+'in +\\\\$1
+.nr xa 0
+.nr xa -\\\\$1
+.nr xb \\\\$1
+.nr xb -\\\\w'\\\\$2'
+\\h'|\\\\n(xau'\\\\$2\\h'\\\\n(xbu'\\\\
+..
+.de ZJ
+.br
+.\\" Zoem Indent/Itemize macro II.
+'in +\\\\$1
+'in +\\\\$2
+.nr xa 0
+.nr xa -\\\\$2
+.nr xa -\\\\w'\\\\$3'
+.nr xb \\\\$2
+\\h'|\\\\n(xau'\\\\$3\\h'\\\\n(xbu'\\\\
+..
+.de ZR
+.\\" Zoem verbatim Ruler: called before and after a verbatim block; empty here.
+..\N}
+   }
+}
+
+\formatted{
+
+   \switch{\__device__}{
+
+      {html}{
+
+\""{
+\: plain ole style paragraph (deprecated)
+
+         \def{par}{\<*p>}
+
+\: ole style carry on paragraph. more or less html specific; it seems to be
+\: needed after e.g. verbatim environment. deprecated.
+
+         \def{car}{
+            \<*p style="margin-top:0em; margin-bottom:0em">
+         }
+
+\: ole style caption paragraph. deprecated.
+
+         \def{cpar#1}{
+            \<*p>
+            \bf{\1}
+            \|
+         }
+
+\: old style caption carry on paragraph.
+
+         \def{ccar#1}{
+            \<*p style="margin-top:0em; margin-bottom:0em">
+            \bf{\1}
+            \|
+         }
+}
+
+
+\: paragraph.
+
+\: Paragraph classes instead of inline styles (pluk docstep1 item 8): par, car,
+\: cpar, ccar; base.css gives them the margins the inline styles had.
+
+         \def{par#1}{
+            \<p class="par">{\1}
+         }
+
+\: carry on paragraph. more or less html specific; it seems to be needed
+\: after e.g. verbatim environment. only  use if spacing matters to you,
+\: otherwise better suffer and wait  for more generic (html client side)
+\: solutions.
+
+         \def{car#1}{
+            \<p class="car">{\1}
+         }
+
+\: caption paragraph.
+
+         \def{cpar#2}{
+            \<p class="cpar">{
+               \bf{\1}\|
+               \2
+            }
+         }
+
+\: caption carry on paragraph.
+
+         \def{ccar#2}{
+            \<p class="ccar">{
+               \bf{\1}\|
+               \2
+            }
+         }
+
+\: <pre>, not a div with white-space: pre (pluk docstep1 item 8). A newline right
+\: after <pre> would be dropped by the browser; pluk's \console removes it anyway.
+
+         \def{verbatim#1}{
+            \@{\N<pre class="verbatim">\w}\1
+            \@{\W</pre>\N}
+         }
+         \def{verbatix#1}{\verbatim{\1}}
+      }
+
+      {roff}{
+         \set{{modes}{vw}}{}{
+            {par}       {\@{\P}}
+            {car}       {\@{\N}}
+            {cpar#1}    {\@{\P}\bf{\1}\@{\N}\|}
+            {ccar#1}    {\@{\N}\bf{\1}\@{\N}\|}
+
+            {par#1}     {\@{\P}\1}
+            {car#1}     {\@{\N}\1}
+            {cpar#2}    {\@{\P}\bf{\1}\|\2\@{\N}}
+            {ccar#2}    {\@{\N}\bf{\1}\|\2\@{\N}}
+         }
+
+         \: the non-non-breaking variant of verbatim
+
+         \def{verbatix#1}{
+            \@{\P.nf \\f[CR]\N\w\+{3}}
+            \1
+            \@{\+{1}\W\N.fi \\fR\P}
+         }
+
+         \def{verbatim#1}{
+            \@{\P.di ZV\N.in 0\N.nf \\f[CR]\N\w\+{3}}
+            \1
+            \@{\+{1}\W\N.fi \\fR\N.in\N.di\N.ne \\n(dnu+2v\N}
+            \@{\N.nf \\f[CR]\N.ZR\N.ZV\N.ZR\N.fi \\fR\P}
+         }
+
+         \: .ZR before and after the block: a hook, empty by default (troff-defs),
+         \: redefined by documents that want rulers around code (pluk docstep1 item 5).
+         \: .ne counts two lines for them.
+
+         \: Jan van der Steen is to blame for this :)
+
+         \: .di ZV      new diversion named ZV.
+         \: .in 0       set indent to 0.
+         \: .nf \f[CR]  no fill (no adjustment), fixed width font?
+
+         \: .fi \fR     fill on, Roman font.
+         \: .in         previous indent.
+         \: .di         end of diversion (ZV).
+
+         \: .ne \n(dnu  need 'dn' vspace (vsize of most recent diversion).
+         \: .nf \f[CR]  set no fill mode, fixed width font.
+         \: .ZV         do diversion.
+         \: .fi \fR     fill mode on, Roman font.
+
+      }
+
+      {md}{
+         \: Markdown (pluk docstep1 item 6). Every paragraph, carry-on ones included,
+         \: is a block of its own, separated by a blank line.
+         \set{{modes}{vw}}{}{
+            {par}       {\@{\P}}
+            {car}       {\@{\P}}
+            {cpar#1}    {\@{\P}\bf{\1}\@{\N}}
+            {ccar#1}    {\@{\P}\bf{\1}\@{\N}}
+
+            {par#1}     {\@{\P}\1}
+            {car#1}     {\@{\P}\1}
+            {cpar#2}    {\@{\P}\bf{\1} \2}
+            {ccar#2}    {\@{\P}\bf{\1} \2}
+         }
+
+         \: A fenced block, literal (level 3, white space not managed). The content
+         \: is printed as given; pluk's \console (pluk.zmm) is the variant that
+         \: handles the newlines after and before the braces.
+         \def{verbatim#1}{
+            \@{\P```\w\+{3}}\1\@{\+{1}\W\N```\P}
+         }
+         \def{verbatix#1}{\verbatim{\1}}
+      }
+   }
+}
+

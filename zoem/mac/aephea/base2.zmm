@@ -1,0 +1,474 @@
+
+\:  These definitions exist for both
+\:       HTML  and Roff
+\:
+\:  Some of the roff definitions do less than the HTML version,, e.g. httpref#1.
+\:  Some of the roff definitions do nothing, e.g. sc#1.
+
+
+\'set{reqver}{2009-250}
+\'if{\'cmp{gq}{\__version__}{\reqver}}{}{
+\'write{stderr}{txt}{This Aephea release requires zoem version at least \reqver\|}\'exit}
+
+
+\import{aephea/ref.zmm}
+\import{aephea/ctr.zmm}
+
+\: iref#2, lref#2, enref#2, aref#2.
+\: evn{spacing}
+\: evn{itemize}   \item \items \intermezzo \itemskip
+\: bf#1 it#1 v#1 tt#1 sc#1
+\: ftinc#2 ftdec#2
+\: httpref#1 sibref#2
+\: (deprecated) par car cpar#1 ccar#1
+\: par#1 car#1 cpar#2 ccar#2
+\: verbatim#1 verbatix#1
+
+\${html}{\set{{modes}{vw}}{}{
+
+   {div#2}{\<div class="\1">{\2}}
+   {span#2}{\<span class="\1">{\2}}
+
+   {_spacer#2}    {\<*spacer type=block width=\1 height=\2>}
+   {_anch#2}      {\<a name="\1">{\2}}
+   {iref#2}       {\<a class="intern" href="#\1">{\2}}
+   {lref#2}       {\<a class="local" href="\1">{\2}}
+   {aref#2}       {\<a target="_parent" class="extern" href="\1">{\2}}
+   {enref#2}      {\<a name="\1">{\2}}
+   {iref_quiet#2} {\<a class="quiet" href="#\1">{\2}}
+   {lref_quiet#2} {\<a class="quiet" href="\1">{\2}}
+
+    }
+}
+
+
+\${roff}{\set{{modes}{vw}}{}{
+
+   {iref#2}    {\it{\2}}
+   {aref#2}    {\it{\2}}
+   {lref#2}    {\it{\2}}
+   {enref#2}   {\2}
+
+   }
+}
+
+
+\formatted{
+   \env{spacing}{
+      {hut}{em}        \: Html UniT.
+      {top}{0}         \: not yet functional.
+      {bottom}{0}      \: not yet functional.
+      {left}{0}        \: only for indent.
+      {right}{0}       \: only for shrinking.
+   }{
+      \${html}{
+         \<div style="
+            \if{\$top}{margin-top:\$top\$hut;}{}
+            \if{\$bottom}{margin-bottom:\$bottom\$hut;}{}
+            \if{\$left}{margin-left:\$left\$hut;}{}
+            \if{\$right}{margin-right:\$right\$hut;}{}
+         ">
+      }
+      \${roff}{
+         \if{\$left}{\@{\N.in +\&{\$left}m\N}}{}
+         \if{\$right}{\@{\N.ll -\&{\$right}m\N}}{}
+      }
+   }{
+      \${html}{\</div>}
+      \${roff}{
+         \if{\$left}{\@{\N.in -}\$left\@{m\N}}{}
+         \if{\$right}{\@{\N.ll +}\$right\@{m\N}}{}
+      }
+   }
+}
+
+\switch{\__device__}{
+   {html}{
+
+         \set{{modes}{vw}}{}{
+{bf#1}      {\<b>{\1}}
+{em#1}      {\<em>{\1}}
+{strong#1}  {\<strong>{\1}}
+{sc#1}      {\span{smallcaps}{\1}}
+{it#1}      {\<i>{\1}}
+{v#1}       {\<tt>{\1}}
+{vq#1}      {\<tt>{\1}}
+{m#1}       {\<tt>{\1}}
+{tt#1}      {\<tt>{\1}}
+
+{ftinc#2}   {\<span style="font-size:120%">{\2}}
+{ftdec#2}   {\<span style="font-size:80%">{\2}}
+
+{httpref#1} {\<a class="extern" target="_parent" href="\1">{\1}}
+{httpref#2} {\<a class="extern" href="\1">{\2}}
+{sibref#1}  {\<a class="local sibling" href="\1.html">{\1}}
+{sibref#2}  {\<a class="local sibling" href="\1.html">{\2}}
+{sibref#3}  {\<a class="local sibling" href="\1.html#\2">{\3}}
+         }}
+
+   {roff}{
+         \set{{modes}{vw}}{}{
+{bf#1}      {\@{\\fB}\1\@{\\fP}}
+{it#1}      {\@{\\fI}\1\@{\\fP}}
+{strong#1}  {\@{\\fB}\1\@{\\fP}}
+{sc#1}      {\1}
+{em#1}      {\@{\\fI}\1\@{\\fP}}
+{v#1}       {\@{\\f[CR]}\1\@{\\fP}}
+{vq#1}      {'\v{\1}'}
+{m#1}       {\@{\\f[CR]}\1\@{\\fP}}
+{tt#1}      {\@{\\f[CR]}\1\@{\\fP}}
+
+{ftinc#2}   {\@{\\s+\1}\2\@{\\s-\1}}
+{ftdec#2}   {\@{\\s-\1}\2\@{\\s+\1}}
+
+{httpref#1} {\1}
+{httpref#2} {\1}  \: the url-encoded thing.
+{sibref#1}  {\bf{\1}}
+{sibref#2}  {\bf{\2}}
+{sibref#3}  {\bf{\3}}
+         }}
+}
+
+\switch{\__device__}{
+   {html}{
+      \special{}          \: remove existing definitions.
+      \special{
+         {60}  {&lt;}      \: less than sign
+         {62}  {&gt;}      \: greater than sign
+         {38}  {&amp;}     \: ampersand
+
+         {-1} {&nbsp;}     \: the zoem escape \~
+         {-2} {<br>}       \: the zoem escape \|
+         {-3} {&mdash;}    \: the zoem escape \-
+      }
+
+      \constant{
+         {itembullet}{<span class="itembullet">&bull;</span>}
+      }
+   }
+   {roff}{
+      \special{}          \: remove existing definitions.
+      \special{
+         {34}  {"}         \: double quote is special in second layer only
+         {34}  {""}        \: double quote is special in second layer only
+         {46}  {\\&.}      \: a dot.
+         {96}  {\\&`}      \: backquote.
+         {39}  {\\&'}      \: quote
+
+         {92}  {\\e}       \: backslash (default troff escape character).
+                           \: escaping by backslash may fail in
+                           \: diversions [for old roffs].
+
+         {-1} {\\ \\&}        \: the zoem escape \~
+         {-2} {\!N.br\!N}  \: the zoem escape \|
+         {-3} {\\-}        \: the zoem escape \-
+      }
+      \constant{
+         {itembullet}{\\(bu}
+      }
+   }
+}
+
+\formatted{
+
+   \env{itemize}{
+      {hut}{em}             \: hTML uNIt.
+      {interitem}{0}        \: space between items in huts.
+      {flow}{cascade}       \: item and description on successive lines.
+      {textindent}{2}       \: (html device: text-margin offset)
+      {itemmargin}{1}       \: (html device: right-aligned item)
+      {indent}{0}           \: indent of everything
+      {mark}{\*{itembullet}}
+      {margintop}{1}        \:
+      {align}{left}         \: the way item is aligned.
+      {lp}{}                \: left parenthesis
+      {rp}{}                \: right parenthesis
+      {type}{mark}          \: affects \item. mark/roman/abc/arabic
+      {itemcount}{1}
+      {fontsize}{100}       \: css percent-style sizing.
+      {class_item}{}
+      {class_items}{}
+      {class_itemtext}{}
+      {class_itemize}{}
+      {class_all}{}
+   }{
+
+               \: hierverder
+               \: -  fix compact itemize.
+
+      \${html}{\<div class="\$class_all itemize \get{itemize}{$class_itemize}" \:/
+                     style="margin-top:\$margintop\$hut; margin-left:\$indent\$hut; font-size:\$fontsize\,%">
+                  \set{{dict}{itemize}}{$style_vspace}{margin-top:\if{\let{\$itemcount > 1}}{\$interitem}{0}\$hut}
+               }
+      \${roff}{ \if{\$margintop}{\@{\P}}{}  }
+   }{
+      \_itemend
+      \${html}{\</div>}
+   }
+
+   \def{_itemskip}{
+      \if{\let{\$itemcount > 1 && \$interitem}}{
+         \${roff}{\@{\P}}
+      }{}
+   }
+   \def{itemskip}{
+      \${html}{\<div style="margin-top:\$interitem\$hut">{\~}}       \: fixme bad style.
+      \${roff}{\@{\P}}
+   }
+
+   \def{intermezzo#1}{
+
+      \_itemend \_itemskip
+
+      \${html}{\<div style="position:relative; margin-left:0\$hut">\1}
+      \${roff}{\1}
+   }
+
+   \def{item#1}{
+
+      \_itemend   \_itemskip
+
+      \${html}{
+         \<div style="position:relative; \get{itemize}{$style_vspace}">{
+            \<div class="\$class_all item_\get{itemize}{$flow}">{
+               \<div class="\$class_all item_\get{itemize}{$align}align nowrap \get{itemize}{$class_item}"
+                  style="\get{itemize}{$style_align}">{\1}
+      }}}
+      \${roff}{
+         \if{\cmp{eq}{\get{itemize}{$align}}{left}}
+            {\@{\+{2}.ZI }\$w3\@{m "}\1\@{"\+{1}}}
+            {\@{\+{2}.ZJ }\$w1\@{m }\$w2\@{m "}\1\@{"\+{1}}}
+      }
+
+      \_itemdef   \_iteminc
+   }
+
+   \def{items#1}{
+
+      \if{\cmp{eq}{\get{itemize}{$flow}}{compact}}{
+         \write{stderr}{txt}{\`{<}itemize: compact not supported with items#1\|\`{>}}
+         \'exit
+      }{}
+
+      \_itemend   \_itemskip
+
+      \set{_items}{\1}
+
+      \${html}{
+         \<div class="\get{itemize}{$class_items}" style="\get{itemize}{$style_vspace}">{
+            \apply{_#1{\<div class="\$class_all item_cascade \get{itemize}{$class_item} item_\get{itemize}{$align}align nowrap" style="\$style_align">{\!1}}
+            }{\_items}
+         }
+      }
+      \${roff}{
+         \: compact/not compact is accounted for by \_itemdef.
+         \apply{
+            _#1{
+               \if{\cmp{eq}{\get{itemize}{$align}}{left}}
+                  {\@{\N\+{2}.ZI }\$w3\@{m "}\!1\@{"\+{1}}}
+                  {\@{\N\+{2}.ZJ }\$w1\@{m }\$w2\@{m "}\!1\@{"\+{1}}}
+               \@{\N\\&\N'in -}\$w3\@{m\N}
+            }
+         }{
+            \_items
+         }
+         \@{\N'in\s+}\$w3\@{m\N}
+      }
+      \_itemdef   \_iteminc
+   }
+
+   \def{item}{
+
+      \_itemend   \_itemskip
+
+      \${html}{   \<div style="position:relative; \get{itemize}{$style_vspace}">{
+                     \<div class="\$class_all item_\$flow">{
+                        \<div class="\$class_all item_\get{itemize}{$align}align \get{itemize}{$class_item}"
+                           style="\$style_align">{\_putitemmark
+                        }
+                     }
+                  }
+              }
+      \${roff}{
+         \if{\cmp{eq}{\get{itemize}{$align}}{left}}
+            {\@{\N.ZI }\$w3\@{m \"}\_putitemmark\@{\"}}
+            {\@{\N.ZJ }\$w1\@{m }\$w2\@{m }"\_putitemmark"}
+      }
+      \_itemdef   \_iteminc
+   }
+
+   \def{_itemdef}{
+      \${html}{\<div class="\$class_all item_text \get{itemize}{$class_itemtext}" \:/
+                  style="margin-left:\get{itemize}{$textindent}\$hut">
+              }
+      \${roff}{
+         \if{\cmp{eq}{\get{itemize}{$flow}}{compact}}
+            {\@{\N}}
+            {\@{\N\\&\N.br\N}}
+      }
+   }
+
+   \def{_itemend}{            \:  |<---w1---->|w2|, w3 = w1 + w2
+      \set{{modes}{xv}}{}{
+         {$w3}{\$textindent}
+         {$w2}{\let{\$textindent - \$itemmargin}}     \: dangersign, html could be 10px - 5px (but only used in roff)
+         {$w1}{\$itemmargin}
+      }
+                                                      \: todo. Necessary to define this right here?
+                                                      \: this has some funky relative positioning, apparently.
+                                                      \: looks dodgy.
+      \set{{modes}{x}{dict}{itemize}}{$style_align}{
+         \if{\cmp{eq}{\get{itemize}{$align}}{right}}{right:-\get{itemize}{$itemmargin}\$hut}{}
+      }
+      \if{\let{\$itemcount > 1}}{
+         \${html}{\</div>}
+         \${roff}{\@{\N.in\s-}\$w3\@{m\N}}
+      }{}
+   }
+   
+   \def{_iteminc}{\setx{$itemcount}{\let{\$itemcount+1}}}
+
+   \def{_putitemmark}{
+      \get{itemize}{$lp}
+      \switch{\$type}{
+         {mark}{\$mark}
+         {roman}{\textmap{{number}{roman}}{\$itemcount}}
+         {ROMAN}{\textmap{{number}{roman}{word}{ucase}}{\$itemcount}}
+         {abc}{\textmap{{number}{alpha}}{\$itemcount}}
+         {ABC}{\textmap{{number}{alpha}{word}{ucase}}{\$itemcount}}
+         {arabic}{\$itemcount}
+         {?}
+      }
+      \get{itemize}{$rp}
+   }
+}
+
+
+\'${roff}{
+   \'def{"generic::troff-defs"}{
+\@{\N
+.po 2m
+.de ZI
+.\\" Zoem Indent/Itemize macro I.
+.br
+'in +\\\\$1
+.nr xa 0
+.nr xa -\\\\$1
+.nr xb \\\\$1
+.nr xb -\\\\w'\\\\$2'
+\\h'|\\\\n(xau'\\\\$2\\h'\\\\n(xbu'\\\\
+..
+.de ZJ
+.br
+.\\" Zoem Indent/Itemize macro II.
+'in +\\\\$1
+'in +\\\\$2
+.nr xa 0
+.nr xa -\\\\$2
+.nr xa -\\\\w'\\\\$3'
+.nr xb \\\\$2
+\\h'|\\\\n(xau'\\\\$3\\h'\\\\n(xbu'\\\\
+..\N}
+   }
+}
+
+\formatted{
+
+   \switch{\__device__}{
+
+      {html}{
+
+\: paragraph.
+
+         \def{par#1}{\<p class="asd_par">{\1}}
+
+\: carry on paragraph. more or less html specific; it seems to be needed
+\: after e.g. verbatim environment. only  use if spacing matters to you,
+\: otherwise better suffer and wait  for more generic (html client side)
+\: solutions.
+
+         \def{car#1}{\<p class="asd_car">{\1}}
+
+\: caption paragraph.
+
+         \def{cpar#2}{\<p class="asd_cpar">{\<span class="asd_cpar_caption">{\1}\2}}
+
+\: caption carry on paragraph.
+
+         \def{ccar#2}{\<p class="asd_ccar">{\<span class="asd_ccar_caption">{\1}\2}}
+
+
+         \def{verbatim#1}{
+            \: \@{\N<div class=copy>\w}\1
+            \@{\N<div class="verbatim">\w}\1
+            \@{\W</div>\N}
+         }
+         \def{recipe#1}{
+            \@{\N<div class="recipe">\w}\1
+            \@{\W</div>\N}
+         }
+         \def{verbatix#1}{\verbatim{\1}}
+      }
+
+      {roff}{
+         \set{{modes}{vw}}{}{
+            {par}       {\@{\P}}
+            {car}       {\@{\N}}
+            {cpar#1}    {\@{\P}\bf{\1}\@{\N}\|}
+            {ccar#1}    {\@{\N}\bf{\1}\@{\N}\|}
+
+            {par#1}     {\@{\P}\1}
+            {car#1}     {\@{\N}\1}
+            {cpar#2}    {\@{\P}\bf{\1}\|\2\@{\N}}
+            {ccar#2}    {\@{\N}\bf{\1}\|\2\@{\N}}
+         }
+
+         \: the non-non-breaking variant of verbatim
+
+         \def{verbatix#1}{
+            \@{\P.nf \\f[CR]\N\w}
+            \1
+            \@{\W\N.fi \\fR\P}
+         }
+
+         \def{verbatim#1}{
+            \@{\P.di ZV\N.in 0\N.nf \\f[CR]\N\w}
+            \1
+            \@{\W\N.fi \\fR\N.in\N.di\N.ne \\n(dnu\N}
+            \@{\N.nf \\f[CR]\N.ZV\N.fi \\fR\P}
+         }
+
+         \: Jan van der Steen is to blame for this :)
+
+         \: .di ZV      new diversion named ZV.
+         \: .in 0       set indent to 0.
+         \: .nf \f[CR]  no fill (no adjustment), fixed width font?
+
+         \: .fi \fR     fill on, Roman font.
+         \: .in         previous indent.
+         \: .di         end of diversion (ZV).
+
+         \: .ne \n(dnu  need 'dn' vspace (vsize of most recent diversion).
+         \: .nf \f[CR]  set no fill mode, fixed width font.
+         \: .ZV         do diversion.
+         \: .fi \fR     fill mode on, Roman font.
+
+      }
+   }
+}
+
+
+
+\:
+\:    %  percentage
+\:    in    inch
+\:    cm    centimeter
+\:    mm    millimeter
+\:    em    font size (originally m-width, no more)
+\:    ex    the x-height of a font
+\:    pt    point (1 pt is the same as 1/72 inch)
+\:    pc    pica (1 pc is the same as 12 points)
+\:    px    pixels (a dot on the computer screen)
+\:
+
+

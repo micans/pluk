@@ -1,0 +1,43 @@
+
+
+\'if{\'defined{data}{pud::load::counters}}{
+   \'done
+}{
+   \'def{%{pud::load::counters}}{1}
+}
+
+\'def{ctrdec#1}{\ctradd{\1}{-1}}
+
+\'formatted{
+
+\'def{ctrset#2}{
+   \'setx{%{pud::ctr::entry::\1}}{\2}
+}
+
+\'def{ctradd#2}{
+   \'if{\'defined{data}{pud::ctr::entry::\1}}{
+      \'setx{%{pud::ctr::entry::\1}}{\'f{+}{\%{pud::ctr::entry::\1}}{\2}}
+   }{
+      \'setx{%{pud::ctr::entry::\1}}{\2}
+   }
+}
+
+\'def{ctrinc#1}{
+   \'if{\'defined{data}{pud::ctr::entry::\1}}{
+      \'setx{%{pud::ctr::entry::\1}}{\'f{+}{\%{pud::ctr::entry::\1}}{1}}
+   }{
+      \'setx{%{pud::ctr::entry::\1}}{1}
+   }
+}
+
+\'def{ctrput#1}{
+   \'if{\'defined{data}{pud::ctr::entry::\1}}{\%{pud::ctr::entry::\1}}{0}
+}
+
+\'def{ctrdefined#1}{
+   \'defined{data}{pud::ctr::entry::\1}
+}
+
+}
+
+

@@ -1,0 +1,69 @@
+   /* START aephea.base.css */
+
+   body
+      {  text-align: justify;
+         margin-left: 0%;
+         margin-right: 0%;
+      }
+
+   a:link            { text-decoration: none; }
+   a:active          { text-decoration: none; }
+   a:visited         { text-decoration: none; }
+
+   a:link            { color: #1111aa; }
+   a:active          { color: #1111aa; }
+   a:visited         { color: #111166; }
+   a.local:link      { color: #11aa11; }
+   a.local:active    { color: #11aa11; }
+   a.local:visited   { color: #116611; }
+   a.intern:link     { color: #1111aa; }
+   a.intern:active   { color: #1111aa; }
+   a.intern:visited  { color: #111166; }
+   a.extern:link     { color: #aa1111; }
+   a.extern:active   { color: #aa1111; }
+   a.extern:visited  { color: #661111; }
+   a.quiet:link      { color: black; }
+   a.quiet:active    { color: black; }
+   a.quiet:visited   { color: black; }
+
+   /* Paragraphs: the margins that were inline styles (pluk docstep1 item 8). */
+   p.par, p.cpar     { margin-bottom: 0; }
+   p.car, p.ccar     { margin-top: 0; margin-bottom: 0; }
+
+   pre.verbatim
+      {  font-family: monospace;
+         margin-top: 1em;
+         margin-bottom: 1em;
+         font-size: 10pt;
+         margin-left: 2em;
+      }
+
+   div.indent
+      {  margin-left: 8%;
+         margin-right: 0%;
+      }
+
+   .right   { text-align: right; }
+   .center  { text-align: center; }
+   .left    { text-align: left; }
+   .nowrap  { white-space: nowrap; }
+
+   /* Lists (pluk docstep1 item 8): <ul class="itemize">, an item <li>; an item with
+    * a label has class labelled and the label in span.itemlabel, as a hanging
+    * indent: the label starts the first line, continuation lines are indented. */
+   ul.itemize        { margin-top: 1em; padding-left: 3em; }
+   li.labelled, li.intermezzo
+                     { list-style: none; }
+   li.labelled       { margin-left: -3em; padding-left: 3em; text-indent: -3em; }
+   li.labelled > *   { text-indent: 0; }
+   li.intermezzo     { margin-left: -3em; }
+   .itemlabel        { margin-right: 0.6em; white-space: nowrap; }
+
+   /* The table of contents (pud::man::maketoc, html). */
+   nav.toc ul        { list-style: none; }
+
+   .docheader        { text-align: right; }
+
+   .smallcaps { font-size: smaller; text-transform: uppercase }
+
+   /* END aephea.base.css */

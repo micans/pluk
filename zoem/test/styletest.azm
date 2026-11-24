@@ -1,0 +1,87 @@
+\: Test page for the HTML style (plan/docstep1.txt item 4): the elements of a pluk
+\: document, and a hand-written HTML table (the table macros are item 10). Made as
+\: out/test/styletest.html beside out/test/pluk.css; in roff the table is left out.
+
+\import{pud/man.zmm}
+\import{pluk.zmm}
+
+\plukbegin{
+   {name}{pluk-styletest}
+   {html_title}{Style test \- pluk}
+   {author}{Stijn van Dongen}
+   {section}{7}
+   {year}{}
+   {month}{}
+   {day}{}
+   {tag}{\pluk_version}
+   {source}{pluk \pluk_version}
+   {css_link}{pluk.css}
+   {tocnum}{0}
+}
+
+\plukdoc{pluk-styletest}{Style test}
+
+\par{
+   A paragraph with \v{inline code}, a link to a data file (\file{mixed.sam}) and a
+   link to a plan file (\plan{SAMVIEW.design.txt}). The text runs on for a few lines so
+   that the line length and line height can be judged: pluk keeps the row, writes NA
+   where a value cannot be computed, and counts the reasons.}
+
+\docsec{block}{A console block}
+
+\console{
+$ pluk -q --sam 1 n::,ref_trail3p_N l::n,len m::n^1,add k::,ref_trail3p_N,len < mixed.sam
+read1   3    1   4    1
+read2   NA   2   NA   NA
+}
+
+\par{A list:}
+
+\begin{itemize}{{flow}{compact}}
+\item
+   A first item, long enough to wrap onto a second line in a narrow window, so that
+   the indent of the continuation can be seen.
+\item
+   A second item with \v{--sam-seqmiss=skip}.
+\end{itemize}
+
+\par{A list with labels (\v{\\item\{label\}}), as option lists will use:}
+
+\begin{itemize}{{flow}{compact}}
+\item{\v{-q}}
+   Quiet: no report of NA reasons on stderr.
+\item{\v{--sam-seqmiss=skip}}
+   A label wider than the margin; the text after it should not be overlapped.
+\end{itemize}
+
+\docsec{table}{A table}
+
+\par{The table of SAM-NA, written as HTML by hand:}
+
+\'${html}{
+\<table>{
+   \<tr>{\<th>{Reason (as reported)}\<th>{Typical cause}\<th>{Operators that give NA}}
+   \<tr>{\<td>{unmapped (FLAG 0x4, RNAME or CIGAR '*')}\<td>{unmapped reads in aligner output}
+         \<td>{all position, count, CIGAR-part, sequence-part, alignment and rbt operators}}
+   \<tr>{\<td>{CIGAR or POS not valid}\<td>{a damaged or hand-edited record}\<td>{the same}}
+   \<tr>{\<td>{reference length not known}\<td>{SAM without header and without \v{--sam/FILE}}
+         \<td>{\v{ref_len}, \v{ref_trail3p_N}; the alignment strings with \v{--sam-aln-mark}}}
+   \<tr>{\<td>{SEQ or QUAL length differs from the CIGAR}
+         \<td>{a SEQ or QUAL that does not fit the CIGAR (also after a fill)}
+         \<td>{\v{qry_seq}, \v{qry_qual}, the \v{qry_} parts, the alignment strings and
+               everything computed from them}}
+   \<tr>{\<td>{CIGAR past the reference end}
+         \<td>{a reference fasta that does not match the alignment}
+         \<td>{the \v{ref_} parts, the alignment strings and everything computed from them}}
+   \<tr>{\<td>{rbt region outside the matched part}
+         \<td>{\v{sam_rbt} or \v{--sam-rbt-region} region not covered by the read}
+         \<td>{all \v{rbt_} operators}}
+   \<tr>{\<td>{rbt region not valid}
+         \<td>{\v{sam_rbt} operands that are not integers 1 <= x <= y}
+         \<td>{all \v{rbt_} operators}}
+}
+}
+
+\par{A paragraph after the table.}
+
+\plukend

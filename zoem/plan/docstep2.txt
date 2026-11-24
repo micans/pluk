@@ -1,0 +1,80 @@
+Docstep 2: consolidation of the macro work into aephea2 and pud2
+
+DRAFT for review by the user (2026-11-24); nothing started.
+
+Docstep 1 changed pluk's copy of the aephea macros (mac/aephea, mac/pud) and wrote new
+macros in azm/pluk.zmm, for one document. This step takes stock and turns that into a
+neat encapsulation: new macro directories aephea2/ and pud2/, so that other documents
+(the mcl manual pages, zoem's manual page) get the new look and functionality with a
+minimal change to their sources, ideally the import line only. The end goal is a new
+release of aephea; for now it stays local to pluk/zoem/ and is not released. The work
+may need back and forth with the user; items may change as it goes.
+
+
+Decisions (the user, 2026-11-24)
+
+  1. Names: aephea2/ and pud2/, beside the old aephea/ and pud/, with the file names
+     kept (aephea2/base.zmm, aephea2/ref.zmm, aephea2/ctr.zmm, pud2/man.zmm,
+     pud2/faq.zmm). An old document moves over by changing the prefix:
+     \import{pud/man.zmm} becomes \import{pud2/man.zmm}.
+
+  2. The new look is the default: a document moved to pud2 gets the styling of
+     docstep 1 (HTML5, the modern stylesheet, real lists, side contents) without
+     asking for it. Keeping the old look is not a goal unless the user asks.
+
+  3. simpledocument.zmm (and base2.zmm, which only it uses) is ringfenced: not part of
+     this step, and not to be touched or ported until the user explicitly confirms
+     that it is a good time. zoem's zum.azm and ecosphere.azm use it, so they are out
+     of scope too; zoem's manual page zoem.azm is in scope.
+
+  4. Local and unreleased: the macros live in pluk/zoem/mac/; the mcl and zoem source
+     trees (pluk/mcl/, zoem/zoem-21-341/) are not modified: they are built out of tree
+     (copies, or ZOEMSEARCHPATH pointing at mac/).
+
+
+To discuss before or during the items
+
+  - Which generic parts move from azm/pluk.zmm into aephea2/pud2, and their names:
+    \plukbegin/\plukend and \page (page splitting), \sref, the console variant of
+    verbatim (leading newline removed), the rulers (.ZR) as an option, the Markdown
+    lint. What stays in pluk.zmm: \plukdoc, \docsec, \file, \plan, the version stamp.
+  - The default stylesheet: pluk.css generalised as aephea2's (a name, e.g.
+    aephea2/aephea.css); embedded in the page by default (single-page manuals in a
+    tarball stay self-contained), linked with css_link (split sites).
+  - Tools: runzoem.sh and htmllinks.py are generic (ship with aephea2?); azmlint.py
+    goes with the Markdown device; doccheck.py and azmupdate.py stay with pluk.
+  - What the old features meet in the new markup: right-aligned item labels (mcl's
+    option lists), \items, \intermezzo, pud/faq.zmm's faqsec (mcl uses it 12 times),
+    the synopsis and option macros (\synoptopt, \defopt anchors, \optref).
+
+
+Items
+
+1. The split: mac/aephea2/ and mac/pud2/ from the current mac/aephea and mac/pud,
+   imports inside them updated (pud2/man.zmm imports aephea2/base.zmm, ...); the
+   pluk documents and test pages import pud2/man.zmm. The old names then resolve to
+   the installed aephea (12-248), which serves as the baseline in item 4. Outputs of
+   make, make check and make smoke unchanged (compared byte for byte).
+
+2. The generic macros moved from azm/pluk.zmm into aephea2/pud2, under names agreed
+   with the user; pluk.zmm keeps the pluk-specific ones. Outputs unchanged.
+
+3. The default style: the modern stylesheet as aephea2's default, embedded unless
+   css_link is given; pluk.css becomes the stylesheet plus pluk's own rules, or goes.
+
+4. A regression harness for the mcl manual pages (mcl-22-282/doc): each page built
+   with the old aephea (installed) and with aephea2 (a copy of mcx.zmm with the one
+   import line changed); man pages diffed (expected differences only: \f[CR], \- in
+   code, ...), groff -ww -t clean, tidy clean, htmllinks clean. A make target in
+   pluk/zoem.
+
+5. Fixes for what the mcl pages bring up, one by one with the user: item labels,
+   option lists and anchors, faqsec, \items, whatever else appears. Looked at in a
+   browser and with man by the user.
+
+6. zoem's manual page zoem.azm, the same way (not zum.azm or ecosphere.azm:
+   decision 3).
+
+7. A record of aephea2 for its release: what changed against aephea 12-248, what an
+   old document needs to move over, the new keys and macros. Updating aephea's own
+   documentation (aephea-base.azm, pud-man.azm) and the release itself are later.

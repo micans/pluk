@@ -1,0 +1,47 @@
+pluk's copy of the aephea macros
+
+Copied from aephea 12-248 (../aephea-12-248/mac/aephea and mac/pud, the .zmm and .css
+files; identical to the installed aephea at the time of copying). This copy is free to
+diverge from aephea: changes for the pluk documentation are made here (plan/docstep1.txt).
+Whatever proves itself may later go back to aephea.
+
+The Makefile one level up puts this directory first in ZOEMSEARCHPATH, which zoem searches
+before the installed aephea (checked in docstep1 item 1), so \import{pud/man.zmm} reads
+mac/pud/man.zmm.
+
+Changes from aephea 12-248:
+  - aephea/base.zmm, aephea/base2.zmm: the roff font C (\fC) becomes CR (\f[CR]) in
+    \v \m \tt and the verbatim environments; groff 1.23 warns 'cannot select font C'
+    for the terminal devices (docstep1 item 2).
+  - aephea/base.zmm, roff: a third special level for code, where - becomes \- (no line
+    break after it; copies as ASCII hyphen-minus) and " stays "; \v \m \tt and the
+    verbatim environments switch to it and back to level 1 (docstep1 item 3).
+  - pud/man.zmm: the auxiliary files are per device, <base>.<device>.zmt and .zmr, since
+    they contain device text; a key $source for field 4 of .TH (default '$name $tag');
+    the HTML header no longer links to a .ps file (docstep1 item 3).
+  - pud/man.zmm, HTML: HTML5 doctype, charset and viewport; a key $css_link (a linked
+    stylesheet instead of the embedded base.css and $css_append, which remain the
+    default); the header line has class docheader (docstep1 item 4).
+  - aephea/base.zmm, HTML: \v \vq \m \tt write <code> instead of <tt>, which HTML5 no
+    longer has (docstep1 item 4).
+  - aephea/base.zmm, roff: the verbatim environment calls .ZR before and after the block,
+    a hook defined empty in troff-defs (so pages that do not redefine it are unchanged);
+    .ne counts two lines for it (docstep1 item 5).
+  - A Markdown device, md (docstep1 item 6): md branches in aephea/base.zmm (inline
+    fonts, links, specials with four levels, itemize, paragraphs, verbatim) and in
+    pud/man.zmm (device check, header comment, \sec with an explicit anchor). It
+    expects zoem -tl 2 (tools/runzoem.sh).
+  - HTML structure (docstep1 item 8): itemize as <ul>/<li> (labels in span.itemlabel),
+    verbatim as <pre class="verbatim">, paragraphs with classes instead of inline
+    styles, ids instead of <a name>, <header> and <main> in pud/man.zmm, the table of
+    contents as <nav class="toc"> (new key $tocnum); base.css follows the new markup.
+  - pud/man.zmm, pages (docstep1 item 9): \sec records the output file of a section
+    in the .zmr ({page}); links to sections (contents, \secref) go to page.html#id
+    when on another page (pud::man::href); the HTML page opening and closing are the
+    macros pud::man::htmlopen/htmlclose; the definitions and the .zmr loading in the
+    environment's begin part run once per document, so that it can be begun again
+    on a new output file. secref#1 for md.
+  - Tables (docstep1 item 10): the table environment in aephea/base.zmm (\thead,
+    \trow; keys spec, rowsep, roff) for html, roff (tbl, or a list) and md; pud/man.zmm
+    key $preprocess, written as '\" <letters> on the first line of a man page; md
+    escapes | in prose.

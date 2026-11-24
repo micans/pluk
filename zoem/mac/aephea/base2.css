@@ -1,0 +1,87 @@
+/* start aephea.base.css */
+
+   body
+      {  text-align: justify;
+         margin-left: 0%;
+         margin-right: 0%;
+      }
+
+   a:link            { text-decoration: none; }
+   a:active          { text-decoration: none; }
+   a:visited         { text-decoration: none; }
+
+   a:link            { color: #1111aa; }
+   a:active          { color: #1111aa; }
+   a:visited         { color: #111166; }
+   a.local:link      { color: #11aa11; }
+   a.local:active    { color: #11aa11; }
+   a.local:visited   { color: #116611; }
+   a.intern:link     { color: #1111aa; }
+   a.intern:active   { color: #1111aa; }
+   a.intern:visited  { color: #111166; }
+   a.extern:link     { color: #aa1111; }
+   a.extern:active   { color: #aa1111; }
+   a.extern:visited  { color: #661111; }
+   a.quiet:link      { color: black; }
+   a.quiet:active    { color: black; }
+   a.quiet:visited   { color: black; }
+
+   p.asd_par         {  margin-bottom:0em }
+   p.asd_cpar        {  margin-bottom:0em }
+   span.asd_cpar_caption  {  font-weight: bold; display: block }
+
+   p.asd_car         {  margin-top:0em; margin-bottom:0em }
+   p.asd_ccar        {  margin-top:0em; margin-bottom:0em }
+   span.asd_ccar_caption  {  font-weight: bold; display: block }
+
+   div.verbatim
+      {  font-family: monospace;
+         margin-top: 1em;
+         margin-bottom: 1em;
+         font-size: 10pt;
+         margin-left: 2em;
+         white-space: pre;
+      }
+
+   div.indent
+      {  margin-left: 8%;
+         margin-right: 0%;
+      }
+
+   .right   { text-align: right; }
+   .left    { text-align: left; }
+   .nowrap  { white-space: nowrap; }
+
+   .item_leader 
+      {  position: relative;
+         margin-left: 8%;
+      }
+   
+   .item_compact     {  position: absolute; vertical-align: baseline; }
+   .item_cascade     {  position: relative; }
+
+   .item_leftalign   {  text-align: left; }
+
+   .item_rightalign
+      {  width: 2em;
+         text-align: right;
+      }
+   .item_compact .item_rightalign
+      {  position: absolute;
+         width: 52em;
+         right: -2em;
+         text-align: right;
+      }
+
+   .item_text
+      {  position: relative;
+         margin-left: 3em;
+      }  
+
+   .smallcaps { font-size: smaller; text-transform: uppercase }
+   .underline { text-decoration: underline }
+
+   acronym.ucase { font-size: smaller; text-transform: uppercase }
+   abbr.ucase { font-size: smaller; text-transform: uppercase }
+
+/* end aephea.base.css */

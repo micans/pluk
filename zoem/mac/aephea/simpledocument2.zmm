@@ -1,0 +1,306 @@
+
+\'set{asd_requires_zoem}{2010-008}
+
+
+\'if{\'cmp{gq}{\__version__}{\asd_requires_zoem}}{}{
+   \'write{stderr}{txt}{Requires zoem version >= \asd_requires_zoem\|}\'exit
+}
+
+\if{\defined{data}{load::aephea::simpledocument2}}{
+   \done
+}{
+   \def{%{load::aephea::simpledocument2}}{1}
+}
+
+\import{aephea/base2.zmm}
+
+\switch{\__device__}{
+   {html}{}{
+\write{stderr}{txt}{No support for device "\__device__" (in \__fnin__)\|}\exit
+   }
+}
+
+\:    _section_#3 is the main piece of work in here, together with all
+\:    toc-related macros (note the dependencies). When hacking this
+\:    stuff, pay attention that names do not shadow, (e.g. when using
+\:    \_i_ in different macros), and note that some names are global.
+\:    Toc-related macros are all hidden from user, except \"aephea::maketoc".
+\:    _section_#3 is not a user-level macro, thee should call one of
+\:    sec1#2, sec1#3, sec2#2, sec2#3,  sec3#2, sec3#3 etc.
+
+\:    first    argument is toc yes/no ('*' for no)
+\:    second   is level,
+\:    third    is anchor,
+\:    fourth   is caption.
+
+\formatted{
+
+   \def{_section_#3}{\_section_{}{\1}{\2}{\3}}
+
+   \def{_section_#4}{
+
+      \setx{_toc_}{\1}
+      \setx{_lev_}{\2}
+      \setx{_ank_}{\3}     \: KDE or Dutch style anchor ('anker').
+      \setx{_cap_}{\4}
+
+      \ctrinc{aephea::\_lev_} \: increment counter associated with this level.
+
+                           \: \_num_ is possibly appended to below.
+      \setx{_num_}{\ctrput{aephea::1}}
+
+                           \:
+                           \: reset section numbers if necessary.
+                           \:
+      \switch{\eqt{cp}{\_lev_}{\_asd_curlevel_}}{
+         {-1}
+            {  \ctrset{_i_}{\f{+}{\_lev_}{1}}
+               \while{\eqt{lq}{\ctrput{_i_}}{\_asd_curlevel_}}{
+                  \ctrset{aephea::\ctrput{_i_}}{0}
+                  \ctrinc{_i_}
+               }
+            }
+         {0}
+            {
+            }
+         {1}
+            {  \ctrset{aephea::\_lev_}{1}
+                           \: ^^^^^^  that line redundant?
+               \if{\eqt{ne}{\f{+}{\_asd_curlevel_}{1}}{\_lev_}}{
+                  \write
+                     {stderr}
+                     {txt}
+                     {\`{<}Section gap: from \_asd_curlevel_ to \_lev_\|\`{>}}
+                  \exit
+               }{}
+            }
+      }
+
+                           \:
+                           \: create the section number, e.g. 2.5.4
+                           \:
+      \ctrset{_i_}{2}
+      \while{\eqt{lq}{\ctrput{_i_}}{\_lev_}}{
+         \setx{_num_}{\_num_.\ctrput{aephea::\ctrput{_i_}}}
+         \ctrinc{_i_}
+      }
+
+                           \:
+                           \: create anchor if not given.
+                           \:
+      \if{\cmp{eq}{\_ank_}{}}{
+         \setx{_ank_}{section_\tr{{from}{.}{to}{_}}{\_num_}}
+      }{
+      }
+
+                           \:
+                           \: write toc entry unless forbidden.
+                           \: MQ need to cascade forbidden to nested sections.
+                           \:
+      \setx{_tocnum_}{
+         \if{\eqt{eq}{\_lev_}{1}}{
+            \_anch{toc\ctrput{aephea::1}}{\_num_}
+         }{
+            \_num_
+         }
+      }
+      \if{\cmp{eq}{\_toc_}{*}}{}{
+         \write{\__fnbase__.zmt}{copy}{
+            \!tocentry
+               {\_ank_}
+               {\_lev_}
+               {Section}
+               {\_tocnum_}
+               {\_cap_}
+               \`{n}      \: interpreted by \formatted.
+         }
+      }
+      \write{\__fnbase__.zmr}{copy}{
+         \!refload{\_ank_}{
+            {level}{\_lev_}
+            {type}{Section}
+            {num}{\_num_}
+            {cap}{\_cap_}
+         }
+         \`{n}           \: interpreted by \formatted.
+      }
+
+      \@{\C\P}\<a name="\_ank_">{}
+
+      \<div class="sec_leader sec_lev\_lev_">{
+         \<div class="sec_title">{\iref{\_ank_}{\_cap_}}
+         \<div class="sec_num">{\iref{toc\ctrput{aephea::1}}{\<span class="sec_num">{\_num_}}}
+      }
+
+      \setx{_asd_curlevel_}{\_lev_}
+   }
+}
+
+\set{{modes}{wv}}{}{
+   {sec1#2}    {\sec1{}{\1}{\2}}
+   {sec1#3}    {\_section_{\1}{1}{\2}{\3}}
+
+   {sec2#2}    {\sec2{}{\1}{\2}}
+   {sec2#3}    {\_section_{\1}{2}{\2}{\3}}
+
+   {sec3#2}    {\sec3{}{\1}{\2}}
+   {sec3#3}    {\_section_{\1}{3}{\2}{\3}}
+
+   {sec4#2}    {\sec4{}{\1}{\2}}
+   {sec4#3}    {\_section_{\1}{4}{\2}{\3}}
+
+   {sec5#2}    {\sec5{}{\1}{\2}}
+   {sec5#3}    {\_section_{\1}{5}{\2}{\3}}
+
+   {sec6#2}    {\sec6{}{\1}{\2}}
+   {sec6#3}    {\_section_{\1}{6}{\2}{\3}}
+}
+
+
+\def{hrule}{\<*hr noshade size="1">}
+\def{prule}{\<div style="margin-top:1em">{\<*hr noshade size="1">}}
+\env{center}{\<div style="text-align:center">}{\</div>}
+\def{center#1}{\<div style="text-align:center">{\1}}
+
+
+\env{simpledocument2}{
+      {css_file_in}{}
+      {css_file_out}{\__fnout__}
+      {css_append}{}
+      {css_import}{}
+      {keywords}{}
+      {doctype}{\<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">}
+      {title}{}
+      {subtitle}{}
+      {year}{1000}
+      {body}{body}
+      {toc_anchor}{TOC}
+      {toc_date}{Aug 3, 1444}
+      {charset}{ISO-8859-1}
+      {html_title}{html-title}
+      {head_append}{}
+      {author}{author}
+
+      {lc_data}{}
+      {rc_data}{}
+   }{                \: ENV clause 3; open text.
+
+   \ctrset{aephea::sec1}{0}
+   \ctrset{aephea::sec2}{0}
+   \load{\__fnbase__.zmr}
+
+   \setx{_asd_toclist}{\zinsert{\__fnbase__.zmt}}
+
+   \$doctype
+
+   \<html>
+   \<!-- Copyright (c) \$year \$author -->
+
+   \<head>
+   \<*meta name="keywords" content="\get{simpledocument2}{$keywords}">
+   \<*meta http-equiv="Content-Type" content="text/html; charset=\get{simpledocument2}{$charset}">
+
+   \<style type="text/css">
+
+                     \: so we never have empty style.
+   .slartibartfast { background-color: pink; text-decoration: blink; }
+
+                     \:
+                     \: cannot do this in \<style>{ .. };
+                     \: zoem \write#3 mixes up output order.
+                     \: So we use \<style> and \</style>.
+                     \:
+\write{\$css_file_out}{device}{
+\@{\w}
+   \if{\length{\$css_file_in}}{\:/
+\:/ ______________________________
+/* open css_file_in */
+\zinsert{\$css_file_in}\:/
+/* close css_file_in */
+}{\:/
+\:/ ______________________________
+/* open base2 */
+\zinsert{aephea/base2.css}\:/
+/* close base2 */
+\:/ ______________________________
+/* open simpledocument2 */
+\zinsert{aephea/simpledocument2.css}\:/
+/* close simpledocument2 */
+}\:/
+\:/ ______________________________
+/* open css_append */
+\$css_append
+/* close css_append */\@{\W}}
+
+   \</style>
+
+\if{\cmp{ne}{\$css_file_out}{\__fnout__}}{
+   \<*link type="text/css" rel=stylesheet href="\get{simpledocument2}{$css_file_out}">
+}{}
+\apply{_#1{\!{\<*link type="text/css" rel=stylesheet href="\1">\@{\N}}}}{
+   \get{simpledocument2}{$css_import}
+}
+
+   \<title>{\$html_title}
+   \get{simpledocument2}{$head_append}
+   \</head>
+
+   \<\$body>
+
+   }{                \: ENV clause 4; close text.
+   \</body>
+   \</html>
+}
+
+\env{quote}{\<blockquote>}{\</blockquote>}
+\env{cite}{\<cite>}{\</cite>}
+
+\def{secref#1}{\iref{\1}{\ref{\1}{cap}}}
+
+\constant{
+   {'e}  {&eacute;}        \: 
+   {`e}  {&egrave;}        \: 
+   {(c)} {&copy;}          \: 
+   {+-}  {&plusmn;}        \: 
+}
+
+
+\set{_asd_curlevel_}{1}
+\def{"asd::maketoc"}{
+   \<div id=asd_toc>{
+      \<div class="toc_toplevel">{     \: hmm, useful at all this class ?
+         \_anch{thetoc}{}
+         \_asd_toclist
+      }
+   }
+}
+
+\def{"asd::add-toc-end"#1}{
+   \<a name="asd_body_end">{}
+   \write{\__fnbase__.zmt}{copy}{\!tocentry{asd_body_end}{1}{Section}{\iref{asd_body_end}{\1}}{\~}}
+}
+
+
+\def{"asd::add-toc-start"#1}{
+   \write{\__fnbase__.zmt}{copy}{\!tocentry{asd_body_start}{1}{Section}{\iref{asd_body_start}{\1}}{\~}}
+   \<a name="asd_body_start">{}
+}
+
+
+\:    tocentry arguments: anchor level type number caption
+\:
+\:    arg 1:  anchor
+\:    arg 2:  level
+\:    arg 3:  type
+\:    arg 4:  number arg.
+\:    arg 5:  caption
+\:
+
+\def{tocentry#5}{
+   \<div class="toc_leader">{
+      \<div class="toc_num toc_num\2">{\4.}
+      \<div class="toc_title toc_title\2">{\_anch{toc_\1}{}\iref{\1}{\5}}
+   }
+}
+
+

@@ -1,0 +1,186 @@
+Docstep 1: SAM-NA.md as a zoem/aephea pilot
+
+Status (2026-11-24): done. Items 1-10 completed and approved by the user; item 11
+(publishing) moved to docstep4.txt. Continued in docstep2.txt (consolidation into
+aephea2/pud2) and docstep3.txt (the pluk manual).
+
+Can the pluk documentation be written in zoem/aephea, with roff, HTML and Markdown as
+outputs, and the doc checks of make test (pluk/test/doccheck.py) as they are now? The
+pilot converts doc/SAM-NA.md (131 lines, 3 console examples, one table). This is not pluk
+development: it lives in the scratch directory pluk/zoem/, and what becomes of it is
+decided later.
+
+The intended home of the large manual is the web (GitHub Pages or another host), as a set
+of HTML pages split along natural lines (e.g. the manual chapters, an operator reference,
+an options reference, SAM and NA, differences from pick), with the same split as man
+pages (pluk(1), pluk-ops(7), ...). The repository keeps a hand-written README.md that
+links to the site.
+
+
+Layout (pluk/zoem/)
+
+  aephea-12-248/ zoem-21-341/ cimfomfa-21-341/
+                 Unpacked upstream sources, kept as they are (reference only).
+  plan/          This file, docstep1-notes.txt (rationales), later steps.
+  mac/           pluk's copy of the aephea macros, free to change: mac/aephea/ and mac/pud/
+                 as in aephea-12-248/mac/, so that \import{pud/man.zmm} works unchanged.
+                 mac/README says where it came from (aephea 12-248) and that it diverges.
+  azm/           The pluk documentation in zoem format: SAM-NA.azm, later a shared file
+                 for macros common to the pluk documents.
+  tools/         Copies of the Python checkers from ../pluk/test/ (doccheck.py and
+                 docalign.py, which its --update uses; later opscheck.py and optcheck.py),
+                 free to diverge from the originals; scripts of our own (the update step,
+                 item 7). pluk's own test suite is not touched.
+  out/           Generated, disposable: the outputs per device (SAM-NA.7, the HTML pages
+                 with their CSS, SAM-NA.md), the version stamp (decision 9), and copies of
+                 the data files the examples use (from ../doc/), so that the checks run in
+                 out/ and the HTML pages can link to the data files.
+  test/          Test pages for the macros (smoke tests), not pluk documentation.
+  Makefile       make (all outputs), make check (doccheck on out/*.md), make smoke (the
+                 test pages through groff), make clean.
+
+
+Decisions
+
+  1. The macros used are those in mac/, never the installed aephea: the Makefile sets the
+     search path explicitly (zoem's own doc/Makefile.am does ZOEMSEARCHPATH=../mac:...).
+     The installed zoem has <prefix>/share/aephea in __searchpath__; that mac/ takes
+     precedence needs checking (item 1).
+
+  2. Doc checks as now: the examples are written with their expected output and checked
+     by running them; nothing is generated from pluk at build time. An update step
+     resolves differences, as doccheck.py --update does now. zoem's \system#3 is not
+     used; should it turn out to be the most elegant solution somewhere, that is
+     discussed first.
+
+  3. The Markdown output is in the first place what the checks run on: tools/doccheck.py
+     on the generated .md, which also tests zoem's escaping and output. For the manual it
+     needs to be correct, not polished, since it is read on the web; for documents read
+     in the repository (README, perhaps SAM-NA) it should read well. The update step
+     rewrites the .azm source: a \console block opens and closes on lines of their own
+     and holds literal text, so a script can find it; the k-th console block of the .md
+     is the k-th of the .azm.
+
+  4. Semantic macros where the outputs differ, e.g. a data file (\file{mixed.sam}), a
+     plan reference (plan/SAMVIEW.design.txt section 6), a section reference. Each
+     device decides the form: a relative link in Markdown, the file name in roff, a link
+     that works on the web in HTML.
+
+  5. Anchors are explicit (an id per section), not derived from the heading text, so
+     that references survive a change of title. A reference to an id that does not
+     exist is an error (this replaces doccheck's check of 'section N' in the text).
+
+  6. No values that depend on the time of the build (dates of generation): regenerating
+     unchanged sources gives identical files (outputs may later be committed). A version
+     and its release date are not such values (decision 9).
+
+  7. Tables: discussed separately before item 10; the pilot first does without the table.
+
+  8. The HTML is portable: the same files work on GitHub Pages, on another domain,
+     opened from disk, or in a release tarball. Hence relative links between pages, no
+     links to the site root, no external resources (CDNs, web fonts), no JavaScript, the
+     CSS shipped with the pages; the data files the examples use are shipped with them
+     (readers can download and try). Links outside the documentation (plan/ files, the
+     repository) are absolute links to the GitHub repository.
+
+  9. The documentation carries the pluk version, as zoem's documentation does (stamp
+     files inserted by zoem.shared): on every HTML page, in the man page header (.TH),
+     and in a comment at the top of the Markdown. The Makefile takes the version from
+     pluk/Cargo.toml and writes the stamp only when it changes (not via \system#3).
+     make check can compare it with pluk --version of the binary the examples run.
+
+
+Carry-over to pluk (changes pluk itself needs when this work moves there)
+
+  - pluk/test/doccheck.py: the SECTION regex must accept a ')' after the file name, so
+    that '[plan/X.txt](URL) section 6' is not checked as a section of the document
+    (done in tools/doccheck.py, item 6). Needed before generated Markdown replaces
+    doc/*.md.
+
+Open, for later
+
+  - Plan files are linked absolutely (GitHub, main) in HTML and Markdown, also where
+    decision 4 said relative (item 6); fine while plan/ stays public in the
+    repository. Docs of a release would link a tag (item 11).
+
+  - The side table of contents (HTML) should have a 'Top' entry linking to the top of
+    the page (the user, after item 8).
+
+  - The hanging indent of labelled list items is a fixed 3em in the CSS; itemize's
+    $textindent could set it per list (a CSS variable on the <ul>), as it set the
+    indent before item 8.
+
+  - Tables: {rowsep}{blank} (blank lines between rows; roff .sp, HTML a class), next
+    to rule and none (item 10, rules first as agreed). Automatic modes (a list form
+    on narrow screens in HTML via CSS; roff only after a mandoc check): see the
+    item 10 notes.
+
+
+Items
+
+1. Layout: the directories above, mac/ copied from aephea-12-248/mac/{aephea,pud},
+   mac/README, the checkers copied into tools/, Makefile skeleton. Check that zoem reads
+   mac/ and not the installed aephea (decision 1).
+
+2. \fC in mac/aephea/base.zmm (\v \m \tt and the verbatim environment) becomes \f[CR];
+   groff 1.23 or later gives no warnings (groff -ww -z -Tutf8 -man) on a test page,
+   test/fonttest.azm, checked by make smoke.
+
+3. azm/SAM-NA.azm without the table, devices roff and html: the macros it needs
+   (sections, paragraphs, lists, inline code, the macros of decision 4, \console), the
+   version stamp (decision 9). Check out/SAM-NA.7 with man -l, the HTML in a browser.
+
+   Items 4 and 5 were added after item 3 (the user, 2026-11-24): the look is settled on
+   this small document first, before the Markdown device. Old items 4 and 5 are now 6
+   and 7; old item 6 (HTML) is split into 4 (styling) and 8 (structure); old items 7-9
+   are now 9-11. The pandoc comparison is in docstep1-notes.txt.
+
+4. HTML styling (the look part of old item 6): a calm, readable page in the manner of
+   docs.kernel.org, within decision 8 (system fonts only, no JavaScript). HTML5 doctype
+   and viewport; one stylesheet, out/pluk.css (from azm/pluk.css), linked by the pages
+   rather than embedded, so that split pages (item 9) share it; system font stacks
+   (system-ui for text, ui-monospace for code), body size about 16px, line height about
+   1.5, ragged right; a prose column of about 45em; quiet headings; console blocks on a
+   light background with a border, scrolling rather than wrapping; table style (header
+   row, row rules, padding) tried on a hand-written table, the table macros being item
+   10; dark mode (prefers-color-scheme) and a print style. Checked in a browser by the
+   user; tidy clean.
+
+5. Rulers in the man page, a trial: a horizontal line (groff \l) above and below each
+   console block, so that code stands out in the terminal; text copied from the block
+   is unaffected. Checked with man -l (groff) and mandoc, on the test page and on
+   SAM-NA.7; make smoke stays clean. Kept or dropped by the user's judgement of the look.
+
+6. A Markdown device (a subset of what man.zmm offers, enough for the pluk documents):
+   white space, escaping of Markdown characters, explicit anchors, ```console blocks.
+   make check passes: tools/doccheck.py on out/SAM-NA.md. Compared with doc/SAM-NA.md.
+   zoem manages white space in its output (zum.azm, section Device scope): by default it
+   never prints consecutive newlines or spaces, nor spaces at the start of a line. The
+   device directives in \@{..} state what Markdown needs: \N a newline, \P a paragraph
+   skip (the blank line between Markdown blocks), \I \J \C the indent printed after
+   each newline (continuation lines of list items), \w \W stop and resume the
+   management (console blocks, whose lines are literal).
+
+7. The update step: a tools/ script that runs doccheck.py --update on a copy of the .md
+   and writes the changed console blocks back into the .azm (decision 3).
+
+8. HTML structure (what item 4 leaves): semantic elements (nav, main, pre/code, real
+   lists instead of aephea's positioned list layout), side TOC on wide screens,
+   portable (decision 8).
+
+9. Split into pages, at small scale: SAM-NA as two HTML pages (sections 1 and 2-3, say)
+   with a reference across them, resolved through a table of ids and their pages built
+   in a first pass (as aephea's .zmr/.zmt files); the data files shipped beside them;
+   the pages opened from disk work. Whether one .azm is split with \writeto or each page
+   has its own .azm is decided here (docstep1-notes.txt). The man page stays one page.
+
+10. Tables, after a separate discussion: roff (tbl), HTML, Markdown pipe tables (cells of
+   one line); the SAM-NA table in all three.
+
+11. Moved to docstep4.txt (the user, 2026-11-24). Publishing, after a separate discussion: the HTML on GitHub Pages (a generated
+   gh-pages branch, or /docs, or an Actions deploy, which needs zoem in CI) and/or on
+   another domain (a custom domain on Pages, or a copy, with rel="canonical"); the
+   version shown (latest main on the site, the docs of a release in its tarball); one
+   all-in-one HTML page beside the split pages, for search across the whole manual;
+   what stays in the repository (README.md, data files, the .azm sources; generated
+   Markdown optional).

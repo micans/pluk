@@ -1,0 +1,78 @@
+
+\:    refload#2         load key-value attributes for a label, check defined
+\:    refloadx#2        load key-value attributes for a label without checking
+\:    ref#2             put value corresponding to key for label
+\:       refcaption#1   put caption for label
+\:       refnumber#1    put number for label
+\:       reflevel#1     put level for label
+\:    reference#2       put citation type reference in place.
+\:    refer#1           refer to citation type reference.
+
+\'if{\'defined{data}{pud::load::refload}}{
+   \'done
+}{
+   \'def{%{pud::load::refload}}{1}
+}
+
+\import{aephea/ctr.zmm}
+
+\'def{refcaption#1}{\ref{\1}{cap}}
+\'def{refnumber#1}{\ref{\1}{num}}
+\'def{reflevel#1}{\ref{\1}{level}}
+
+
+\'def{refload#2}{
+   \'if{\'defined{data}{{pud::ref::tab}{\1}}}{
+      \'write{stderr}{device}{___ label "\1" already defined\@{\N}}
+   }{
+      \'setx{%{pud::ref::tab}{\1}}{1}
+      \'setx{%{pud::ref::entry::\1}}{\2}
+   }
+}
+
+\'def{refloadx#2}{
+   \'setx{%{pud::ref::tab}{\1}}{1}
+   \'setx{%{pud::ref::entry::\1}}{\2}
+}
+
+\'formatted{
+\'def{ref#2}{
+   \'if{\'defined{data}{{pud::ref::entry::\1}{\2}}}{\%{pud::ref::entry::\1}{\2}}{
+    \`{<}\'write{stderr}{txt}{___ [REF] label/key "\1"/"\2" not found\|}\`{>}
+   \ctrinc{pud::ref::misses}
+   }
+}
+}
+
+\'formatted{
+\'register{END}{
+   \'if{\ctrput{pud::ref::misses}}{
+    \`{<}\'write{stderr}{txt}{>>> [REF] \ctrput{pud::ref::misses} missing references\|}\`{>}
+   }{}
+}
+}
+
+\'formatted{
+\'def{reference#1}{
+   \ctrinc{pud::reference}
+   \'write{\__fnbase__.zmr}{copy}{
+      \!refload{\1}{
+         {level}{1}
+         {type}{Ref}
+         {num}{\ctrput{pud::reference}}
+         {cap}{[\ctrput{pud::reference}]}
+         \`{n}
+      }
+   }
+   \'${html}{\_anch{\1}{[\ctrput{pud::reference}]}}
+   \'${roff}{[\ctrput{pud::reference}]}
+}
+\'def{refer#1}{
+   \'switch{\__device__}{
+      {html}{\iref{\1}{[\ref{\1}{num}]}}
+      {roff}{[\ref{\1}{num}]}
+      {[\ref{\1}{num}]}
+   }
+}
+}
+
